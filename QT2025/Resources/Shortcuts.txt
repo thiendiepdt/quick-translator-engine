@@ -1,0 +1,4 @@
+#Vế bên trái không chứa các dấu: '"[]()* và dấu cách
+nt=ngoctay
+tn=Truyền Ưng
+vn=Việt Nam
