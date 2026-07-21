@@ -81,3 +81,32 @@ async fn translate_invalid_mode_is_400() {
     assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
     assert!(body_string(resp).await.contains("error"));
 }
+
+#[tokio::test]
+async fn batch_preserves_order() {
+    let resp = post_json(
+        build_router(test_state()),
+        "/translate/batch",
+        serde_json::json!({ "texts": ["他很好", "他"], "mode": "vietphrase" }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(
+        body_string(resp).await,
+        r#"{"translated":[" tha rất tốt/rất ổn"," tha"]}"#
+    );
+}
+
+#[tokio::test]
+async fn modes_lists_supported() {
+    let app = build_router(test_state());
+    let resp = app
+        .oneshot(Request::builder().uri("/modes").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(
+        body_string(resp).await,
+        r#"{"modes":["hanviet","vietphrase","vietphrase-one"]}"#
+    );
+}

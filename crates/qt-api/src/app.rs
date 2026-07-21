@@ -22,7 +22,9 @@ pub struct AppState {
 pub fn build_router(state: Arc<AppState>) -> Router {
     Router::new()
         .route("/health", get(health))
+        .route("/modes", get(modes))
         .route("/translate", post(translate))
+        .route("/translate/batch", post(translate_batch))
         .with_state(state)
 }
 
@@ -43,6 +45,21 @@ struct TranslateReq {
 #[derive(Serialize)]
 struct TranslateResp {
     translated: String,
+}
+
+#[derive(Deserialize)]
+struct BatchReq {
+    texts: Vec<String>,
+    mode: String,
+    #[serde(default)]
+    wrap: bool,
+    #[serde(default)]
+    pretty: bool,
+}
+
+#[derive(Serialize)]
+struct BatchResp {
+    translated: Vec<String>,
 }
 
 /// Error carrying an HTTP status and a message; renders as `{"error": ...}`.
@@ -101,6 +118,24 @@ async fn run_translate(
     })
     .await
     .map_err(|_| ApiError::internal("translate task failed"))
+}
+
+async fn modes() -> Json<serde_json::Value> {
+    Json(json!({ "modes": ["hanviet", "vietphrase", "vietphrase-one"] }))
+}
+
+async fn translate_batch(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<BatchReq>,
+) -> Result<Json<BatchResp>, ApiError> {
+    let mode = parse_mode(&req.mode)
+        .ok_or_else(|| ApiError::bad_request(format!("invalid mode: {}", req.mode)))?;
+    let mut translated = Vec::with_capacity(req.texts.len());
+    for text in req.texts {
+        let out = run_translate(state.engine.clone(), text, mode, req.wrap, req.pretty).await?;
+        translated.push(out);
+    }
+    Ok(Json(BatchResp { translated }))
 }
 
 async fn translate(
