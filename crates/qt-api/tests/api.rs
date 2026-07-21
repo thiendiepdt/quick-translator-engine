@@ -24,6 +24,19 @@ async fn body_string(resp: axum::response::Response) -> String {
     String::from_utf8(bytes.to_vec()).unwrap()
 }
 
+async fn post_json(app: axum::Router, uri: &str, body: serde_json::Value) -> axum::response::Response {
+    app.oneshot(
+        Request::builder()
+            .method("POST")
+            .uri(uri)
+            .header("content-type", "application/json")
+            .body(Body::from(serde_json::to_vec(&body).unwrap()))
+            .unwrap(),
+    )
+    .await
+    .unwrap()
+}
+
 #[tokio::test]
 async fn health_ok() {
     let app = build_router(test_state());
@@ -33,4 +46,38 @@ async fn health_ok() {
         .unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
     assert_eq!(body_string(resp).await, r#"{"status":"ok"}"#);
+}
+
+#[tokio::test]
+async fn translate_faithful_and_pretty() {
+    // faithful: leading space, lowercase first word
+    let resp = post_json(
+        build_router(test_state()),
+        "/translate",
+        serde_json::json!({ "text": "他很好", "mode": "vietphrase" }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(body_string(resp).await, r#"{"translated":" tha rất tốt/rất ổn"}"#);
+
+    // pretty: trimmed + first letter capitalized
+    let resp = post_json(
+        build_router(test_state()),
+        "/translate",
+        serde_json::json!({ "text": "他很好", "mode": "vietphrase", "pretty": true }),
+    )
+    .await;
+    assert_eq!(body_string(resp).await, r#"{"translated":"Tha rất tốt/rất ổn"}"#);
+}
+
+#[tokio::test]
+async fn translate_invalid_mode_is_400() {
+    let resp = post_json(
+        build_router(test_state()),
+        "/translate",
+        serde_json::json!({ "text": "他", "mode": "nope" }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    assert!(body_string(resp).await.contains("error"));
 }
