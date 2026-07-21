@@ -46,11 +46,16 @@ impl Engine {
         Engine { dicts }
     }
 
-    pub fn translate(&self, text: &str, mode: Mode, _opts: &Options) -> String {
+    pub fn translate(&self, text: &str, mode: Mode, opts: &Options) -> String {
         let chars: Vec<char> = text.chars().collect();
         match mode {
             Mode::HanViet => han_viet::chinese_to_han_viet_string(&chars, &self.dicts.han_viet),
-            Mode::VietPhrase | Mode::VietPhraseOneMeaning => String::new(), // TODO(Task 8)
+            Mode::VietPhrase => translate::translate_all(
+                &chars, opts, &self.dicts.vietphrase, &self.dicts.only_name, &self.dicts.han_viet,
+            ),
+            Mode::VietPhraseOneMeaning => translate::translate_all(
+                &chars, opts, &self.dicts.vietphrase_one_meaning, &self.dicts.only_name, &self.dicts.han_viet,
+            ),
         }
     }
 }

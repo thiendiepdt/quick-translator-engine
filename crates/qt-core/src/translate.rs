@@ -55,12 +55,135 @@ pub fn contains_name(
     false
 }
 
+use crate::han_viet::{char_to_han_viet, is_chinese, HanVietMap};
+use crate::text::{append_translated_word, next_char_is_chinese, wrap_translation};
+use crate::Options;
+
+// ---- Stubs for the later plan (number conversion + Luật Nhân) ----
+// Kept as real functions so the later plan only swaps bodies.
+
+/// STUB: real version reorders 余/多 with a following 百/千/万/亿. Identity for MVP.
+fn number_modifier(chars: &[char]) -> Vec<char> {
+    chars.to_vec()
+}
+
+fn process_translation(
+    chars: &[char],
+    translation: &str,
+    start: usize,
+    length: usize,
+    opts: &Options,
+    result: &mut String,
+    last: &mut String,
+    han_viet: &HanVietMap,
+) {
+    let text = wrap_translation(translation, opts.wrap_type);
+    append_translated_word(result, &text, last);
+    if next_char_is_chinese(chars, start + length - 1, han_viet) {
+        result.push(' ');
+        last.push(' ');
+    }
+}
+
+fn process_han_viet(
+    chars: &[char],
+    opts: &Options,
+    num2: &mut usize,
+    result: &mut String,
+    last: &mut String,
+    han_viet: &HanVietMap,
+) {
+    let c = chars[*num2];
+    if is_chinese(c, han_viet) {
+        let t = wrap_translation(&char_to_han_viet(c, han_viet), opts.wrap_type);
+        append_translated_word(result, &t, last);
+        if next_char_is_chinese(chars, *num2, han_viet) {
+            result.push(' ');
+            last.push(' ');
+        }
+    } else if (c == '"' || c == '\'')
+        && !last.ends_with(' ')
+        && !last.ends_with('.')
+        && !last.ends_with('?')
+        && !last.ends_with('!')
+        && !last.ends_with('\t')
+        && *num2 < chars.len() - 1
+        && chars[*num2 + 1] != ' '
+        && chars[*num2 + 1] != ','
+    {
+        result.push(' ');
+        result.push(c);
+        last.push(' ');
+        last.push(c);
+    } else {
+        result.push(c);
+        last.push(c);
+    }
+    *num2 += 1;
+}
+
+/// Main loop, mirrors TranslateAll (docs/engine/translation-algorithm.md §3).
+/// Number/Luật-Nhân branches are stubbed: `number_modifier` is identity and there is
+/// no PreScanForNumbers / HandleNhanBy, so unmatched positions fall to HanViet.
+pub fn translate_all(
+    chars: &[char],
+    opts: &Options,
+    dict: &HashMap<String, String>,
+    only_name: &HashMap<String, String>,
+    han_viet: &HanVietMap,
+) -> String {
+    let chars = number_modifier(chars); // stub identity; keeps shape for later plan
+    let chars = chars.as_slice();
+    let mut result = String::new();
+    let mut last = String::new();
+    let len = chars.len();
+    if len == 0 {
+        return result;
+    }
+    let mut num2 = 0usize;
+    while num2 <= len - 1 {
+        let mut flag = false;
+        let mut num6 = opts.scan_range;
+        while num6 > 0 {
+            if num2 + num6 <= len {
+                let text = substr(chars, num2, num6);
+                if let Some(value2) = dict.get(&text) {
+                    let is_longest =
+                        is_longest_phrase_in_sentence(chars, num2, num6, dict, opts.translation_algorithm);
+                    let name_ok = !opts.prioritized_name || !contains_name(chars, num2, num6, only_name);
+                    let algo_ok = (opts.translation_algorithm != 0 && opts.translation_algorithm != 2)
+                        || is_longest
+                        || (opts.prioritized_name && only_name.contains_key(&text));
+                    if name_ok && algo_ok {
+                        process_translation(chars, value2, num2, num6, opts, &mut result, &mut last, han_viet);
+                        flag = true;
+                        num2 += num6;
+                        break;
+                    }
+                }
+                // Luật Nhân branch (A2) — STUB: not implemented in this plan.
+            }
+            num6 -= 1;
+        }
+        if flag {
+            continue;
+        }
+        // Number {s} branch (B) — STUB: no prescanned numbers in MVP.
+        process_han_viet(chars, opts, &mut num2, &mut result, &mut last, han_viet);
+    }
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn dict(pairs: &[(&str, &str)]) -> HashMap<String, String> {
         pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect()
+    }
+
+    fn hv(pairs: &[(char, &str)]) -> HanVietMap {
+        pairs.iter().map(|(k, v)| (*k, v.to_string())).collect()
     }
 
     #[test]
@@ -82,5 +205,36 @@ mod tests {
         // if the phrase itself is a name, returns false
         let names2 = dict(&[("ABCD", "Name"), ("BC", "Name")]);
         assert!(!contains_name(&chars, 0, 4, &names2));
+    }
+
+    #[test]
+    fn translates_longest_phrase_then_falls_back_to_hanviet() {
+        // dict: 很好=rất tốt ; han-viet: 他=tha
+        let chars: Vec<char> = "他很好".chars().collect();
+        let d = dict(&[("很好", "rất tốt")]);
+        let names = HashMap::new();
+        let hanviet = hv(&[('他', "tha"), ('很', "ngận"), ('好', "hảo")]);
+        let opts = Options::default();
+        // 他 not in dict → HanViet 'tha'; then 很好 phrase → 'rất tốt'.
+        // Faithful to the engine: last starts "" so the first word gets a LEADING
+        // SPACE and stays lowercase (TranslateAll inits lastTranslatedWord = "").
+        let got = translate_all(&chars, &opts, &d, &names, &hanviet);
+        assert_eq!(got, " tha rất tốt");
+    }
+
+    #[test]
+    fn name_priority_skips_phrase_covering_a_name() {
+        // phrase 红中人 covers the 2-char name 中人 starting inside it.
+        // With prioritized_name, containsName rejects the phrase (inner name has
+        // length >= 2), so 红 falls to HanViet and 中人 is translated as the name.
+        // (A single-char inner name would NOT trigger containsName, which only
+        // scans lengths >= 2 — hence a 2-char inner name here.)
+        let chars: Vec<char> = "红中人".chars().collect();
+        let d = dict(&[("红中人", "cả cụm"), ("中人", "trung nhân")]);
+        let names = dict(&[("中人", "trung nhân")]);
+        let hanviet = hv(&[('红', "hồng"), ('中', "trung"), ('人', "nhân")]);
+        let opts = Options { prioritized_name: true, ..Options::default() };
+        let got = translate_all(&chars, &opts, &d, &names, &hanviet);
+        assert_eq!(got, " hồng trung nhân");
     }
 }
