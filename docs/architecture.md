@@ -56,7 +56,8 @@ qt-cli/
 ### Ranh giới module (isolation)
 
 - **`qt-core`** là thư viện thuần: `Engine::from_dicts(dictionaries) -> Engine`, rồi
-  `engine.translate(text, mode, options) -> String`. Không phụ thuộc HTTP/CLI.
+  `engine.translate(text, mode, options) -> String` hoặc
+  `engine.translate_with_ranges(...) -> TranslationResult`. Không phụ thuộc HTTP/CLI.
   Toàn bộ độ chính xác "y hệt" nằm ở đây; source-level regression test đã có, còn bộ golden
   output lấy trực tiếp từ app QT thật chưa có.
 - **`qt-cli`** và **`qt-api`** là vỏ mỏng: parse input → gọi `qt-core` → format output.
@@ -105,13 +106,16 @@ qt translate --mode vietphrase-one --wrap < input.txt
 ```
 POST /translate        { "text": "...", "mode": "vietphrase", "wrap": false, "pretty": false }
                        -> { "translated": "..." }
+                       Thêm `"ranges": true` để nhận `sourceRanges` + `targetRanges`.
 POST /translate/batch  { "texts": ["..."], "mode": "vietphrase" }
                        -> { "translated": ["..."] }
 GET  /modes
 GET  /health
 ```
 Server nạp thư mục `QT_DATA_DIR` một lần khi khởi động (mặc định `data`; khi chạy repo dùng
-`QT2025`). `/meanings` và source↔target ranges được hoãn vì `qt-core` MVP chưa trả các dữ liệu đó.
+`QT2025`). Mỗi range có dạng `{ "start": n, "length": n }`; offset/length dùng đơn vị
+UTF-16 như QT2025/.NET và JavaScript. Với batch, hai field range là ma trận song song với
+`texts`. `/meanings` vẫn thuộc giai đoạn sau.
 
 ## 7. Chiến lược verify "y hệt"
 
@@ -128,8 +132,9 @@ Server nạp thư mục `QT_DATA_DIR` một lần khi khởi động (mặc đ�
 2. `qt-core` MVP: dict loader + HanViet + VietPhrase + VietPhraseOneMeaning. ✅
 3. `qt-cli`: stdin/stdout + `--mode`/`--data-dir`/`--wrap`. ✅
 4. `qt-api`: HTTP server. ✅
-5. LuatNhan + số Hán (tăng độ khớp) → Nghĩa/LacViet.
-6. (sau) Tauri GUI, quản lý từ điển (thêm/sửa Names, VietPhrase).
+5. Chuyển số Hán + source↔target ranges. ✅
+6. LuatNhan tổng quát → Nghĩa/LacViet.
+7. (sau) Tauri GUI, quản lý từ điển (thêm/sửa Names, VietPhrase).
 
 ## 9. Ngoài phạm vi (YAGNI giai đoạn đầu)
 

@@ -8,11 +8,13 @@ nhưng chạy headless, dễ tích hợp vào tool/server dịch truyện, và m
 
 MVP đã có đủ ba crate:
 
-- `qt-core`: HanViet, VietPhrase và VietPhraseOneMeaning.
+- `qt-core`: HanViet, VietPhrase, VietPhraseOneMeaning, chuyển số Hán và ánh xạ
+  source↔target theo UTF-16.
 - `qt-cli`: đọc văn bản từ stdin và ghi bản dịch ra stdout.
 - `qt-api`: HTTP server với health check, danh sách mode, dịch đơn và dịch batch.
 
-Luật Nhân, chuyển số Hán và tra nghĩa LacViet vẫn nằm trong lộ trình tiếp theo. Xem
+Các luật số `{s}` độc lập đã có; Luật Nhân tổng quát và tra nghĩa LacViet vẫn nằm trong
+lộ trình tiếp theo. Xem
 [kiến trúc](docs/architecture.md) và [đặc tả engine](docs/engine/).
 
 Chạy HTTP server từ thư mục repo:

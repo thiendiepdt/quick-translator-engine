@@ -10,7 +10,7 @@ use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use qt_core::{Engine, Mode, Options};
+use qt_core::{CharRange, Engine, Mode, Options, TranslationResult};
 
 /// Shared, read-only application state: the loaded engine behind an Arc.
 pub struct AppState {
@@ -40,11 +40,33 @@ struct TranslateReq {
     wrap: bool,
     #[serde(default)]
     pretty: bool,
+    #[serde(default)]
+    ranges: bool,
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct TranslateResp {
     translated: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    source_ranges: Option<Vec<RangeDto>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    target_ranges: Option<Vec<RangeDto>>,
+}
+
+#[derive(Serialize)]
+struct RangeDto {
+    start: usize,
+    length: usize,
+}
+
+impl From<CharRange> for RangeDto {
+    fn from(value: CharRange) -> Self {
+        Self {
+            start: value.start,
+            length: value.length,
+        }
+    }
 }
 
 #[derive(Deserialize)]
@@ -55,11 +77,18 @@ struct BatchReq {
     wrap: bool,
     #[serde(default)]
     pretty: bool,
+    #[serde(default)]
+    ranges: bool,
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct BatchResp {
     translated: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    source_ranges: Option<Vec<Vec<RangeDto>>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    target_ranges: Option<Vec<Vec<RangeDto>>>,
 }
 
 /// Error carrying an HTTP status and a message; renders as `{"error": ...}`.
@@ -109,6 +138,44 @@ fn prettify(s: &str) -> String {
     }
 }
 
+fn prettify_result(mut result: TranslationResult) -> TranslationResult {
+    let pretty_text = prettify(&result.translated_text);
+    let trimmed = result.translated_text.trim_start();
+    let removed = result.translated_text[..result.translated_text.len() - trimmed.len()]
+        .encode_utf16()
+        .count();
+    let mut chars = trimmed.chars();
+    let Some(first) = chars.next() else {
+        result.translated_text.clear();
+        for range in &mut result.target_ranges {
+            range.start = 0;
+            range.length = 0;
+        }
+        return result;
+    };
+    let old_first_length = first.len_utf16();
+    let upper = first.to_uppercase().collect::<String>();
+    let new_first_length = upper.encode_utf16().count();
+    result.translated_text = pretty_text;
+
+    let map_boundary = |position: usize| {
+        let relative = position.saturating_sub(removed);
+        if relative == 0 {
+            0
+        } else if relative <= old_first_length {
+            new_first_length
+        } else {
+            relative - old_first_length + new_first_length
+        }
+    };
+    for range in &mut result.target_ranges {
+        let end = map_boundary(range.start.saturating_add(range.length));
+        range.start = map_boundary(range.start);
+        range.length = end.saturating_sub(range.start);
+    }
+    result
+}
+
 /// Run one translation off the async runtime (engine is synchronous/CPU-bound).
 async fn run_translate(
     engine: Arc<Engine>,
@@ -116,15 +183,15 @@ async fn run_translate(
     mode: Mode,
     wrap: bool,
     pretty: bool,
-) -> Result<String, ApiError> {
+) -> Result<TranslationResult, ApiError> {
     let opts = Options {
         wrap_type: if wrap { 1 } else { 0 },
         ..Options::default()
     };
     tokio::task::spawn_blocking(move || {
-        let out = engine.translate(&text, mode, &opts);
+        let out = engine.translate_with_ranges(&text, mode, &opts);
         if pretty {
-            prettify(&out)
+            prettify_result(out)
         } else {
             out
         }
@@ -144,11 +211,23 @@ async fn translate_batch(
     let mode = parse_mode(&req.mode)
         .ok_or_else(|| ApiError::bad_request(format!("invalid mode: {}", req.mode)))?;
     let mut translated = Vec::with_capacity(req.texts.len());
+    let mut source_ranges = req.ranges.then(|| Vec::with_capacity(req.texts.len()));
+    let mut target_ranges = req.ranges.then(|| Vec::with_capacity(req.texts.len()));
     for text in req.texts {
         let out = run_translate(state.engine.clone(), text, mode, req.wrap, req.pretty).await?;
-        translated.push(out);
+        translated.push(out.translated_text);
+        if let Some(ranges) = &mut source_ranges {
+            ranges.push(out.source_ranges.into_iter().map(RangeDto::from).collect());
+        }
+        if let Some(ranges) = &mut target_ranges {
+            ranges.push(out.target_ranges.into_iter().map(RangeDto::from).collect());
+        }
     }
-    Ok(Json(BatchResp { translated }))
+    Ok(Json(BatchResp {
+        translated,
+        source_ranges,
+        target_ranges,
+    }))
 }
 
 async fn translate(
@@ -157,7 +236,18 @@ async fn translate(
 ) -> Result<Json<TranslateResp>, ApiError> {
     let mode = parse_mode(&req.mode)
         .ok_or_else(|| ApiError::bad_request(format!("invalid mode: {}", req.mode)))?;
-    let translated =
-        run_translate(state.engine.clone(), req.text, mode, req.wrap, req.pretty).await?;
-    Ok(Json(TranslateResp { translated }))
+    let out = run_translate(state.engine.clone(), req.text, mode, req.wrap, req.pretty).await?;
+    let (source_ranges, target_ranges) = if req.ranges {
+        (
+            Some(out.source_ranges.into_iter().map(RangeDto::from).collect()),
+            Some(out.target_ranges.into_iter().map(RangeDto::from).collect()),
+        )
+    } else {
+        (None, None)
+    };
+    Ok(Json(TranslateResp {
+        translated: out.translated_text,
+        source_ranges,
+        target_ranges,
+    }))
 }

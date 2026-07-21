@@ -1,5 +1,5 @@
-//! The TranslateAll longest-match loop and its predicates.
-//! Number conversion and Luật Nhân are STUBBED in this plan (see docs/engine/).
+//! The TranslateAll longest-match loop, number branch, and range mapping.
+//! Luật Nhân remains a separate follow-up (see docs/engine/luat-nhan.md).
 
 use std::collections::HashMap;
 
@@ -60,37 +60,65 @@ pub fn contains_name(
 }
 
 use crate::han_viet::{char_to_han_viet, is_chinese, HanVietMap};
-use crate::text::{append_translated_word, next_char_is_chinese, wrap_translation};
-use crate::Options;
-
-// ---- Stubs for the later plan (number conversion + Luật Nhân) ----
-// Kept as real functions so the later plan only swaps bodies.
-
-/// STUB: real version reorders 余/多 with a following 百/千/万/亿. Identity for MVP.
-fn number_modifier(chars: &[char]) -> Vec<char> {
-    chars.to_vec()
-}
+use crate::number::{number_modifier, prescan_numbers, translate_number};
+use crate::text::{append_translated_word, next_char_is_chinese, utf16_len, wrap_translation};
+use crate::{CharRange, Options, TranslationResult};
 
 #[derive(Default)]
 struct TranslationOutput {
     result: String,
     last: String,
+    source_ranges: Vec<CharRange>,
+    target_ranges: Vec<CharRange>,
+    target_length: usize,
+}
+
+impl TranslationOutput {
+    fn append_word(&mut self, text: &str) {
+        let delta = append_translated_word(&mut self.result, text, &mut self.last);
+        self.target_length = self.target_length.saturating_add_signed(delta);
+    }
+
+    fn append_char(&mut self, c: char) {
+        self.result.push(c);
+        self.last.push(c);
+        self.target_length += c.len_utf16();
+    }
+
+    fn append_space(&mut self) {
+        self.result.push(' ');
+        self.last.push(' ');
+        self.target_length += 1;
+    }
+
+    fn finish(self) -> TranslationResult {
+        TranslationResult {
+            translated_text: self.result,
+            source_ranges: self.source_ranges,
+            target_ranges: self.target_ranges,
+        }
+    }
 }
 
 fn process_translation(
     chars: &[char],
     translation: &str,
-    start: usize,
-    length: usize,
+    source_range: CharRange,
+    source_end: usize,
     opts: &Options,
     output: &mut TranslationOutput,
     han_viet: &HanVietMap,
 ) {
     let text = wrap_translation(translation, opts.wrap_type);
-    append_translated_word(&mut output.result, &text, &mut output.last);
-    if next_char_is_chinese(chars, start + length - 1, han_viet) {
-        output.result.push(' ');
-        output.last.push(' ');
+    let text_length = utf16_len(&text);
+    output.append_word(&text);
+    output.source_ranges.push(source_range);
+    output.target_ranges.push(CharRange {
+        start: output.target_length.saturating_sub(text_length),
+        length: text_length,
+    });
+    if next_char_is_chinese(chars, source_end, han_viet) {
+        output.append_space();
     }
 }
 
@@ -100,14 +128,17 @@ fn process_han_viet(
     num2: &mut usize,
     output: &mut TranslationOutput,
     han_viet: &HanVietMap,
+    source_offsets: &[usize],
 ) {
     let c = chars[*num2];
+    let target_start = output.target_length;
+    let target_length;
     if is_chinese(c, han_viet) {
         let t = wrap_translation(&char_to_han_viet(c, han_viet), opts.wrap_type);
-        append_translated_word(&mut output.result, &t, &mut output.last);
+        target_length = utf16_len(&t);
+        output.append_word(&t);
         if next_char_is_chinese(chars, *num2, han_viet) {
-            output.result.push(' ');
-            output.last.push(' ');
+            output.append_space();
         }
     } else if (c == '"' || c == '\'')
         && !output.last.ends_with(' ')
@@ -119,39 +150,57 @@ fn process_han_viet(
         && chars[*num2 + 1] != ' '
         && chars[*num2 + 1] != ','
     {
-        output.result.push(' ');
-        output.result.push(c);
-        output.last.push(' ');
-        output.last.push(c);
+        output.append_space();
+        output.append_char(c);
+        target_length = c.len_utf16();
     } else {
-        output.result.push(c);
-        output.last.push(c);
+        output.append_char(c);
+        target_length = c.len_utf16();
     }
+    output.source_ranges.push(CharRange {
+        start: source_offsets[*num2],
+        length: source_offsets[*num2 + 1] - source_offsets[*num2],
+    });
+    output.target_ranges.push(CharRange {
+        start: target_start,
+        length: target_length,
+    });
     *num2 += 1;
 }
 
+fn source_offsets(chars: &[char]) -> Vec<usize> {
+    let mut offsets = Vec::with_capacity(chars.len() + 1);
+    offsets.push(0);
+    for c in chars {
+        offsets.push(offsets.last().copied().unwrap_or_default() + c.len_utf16());
+    }
+    offsets
+}
+
 /// Main loop, mirrors TranslateAll (docs/engine/translation-algorithm.md §3).
-/// Number/Luật-Nhân branches are stubbed: `number_modifier` is identity and there is
-/// no PreScanForNumbers / HandleNhanBy, so unmatched positions fall to HanViet.
 pub fn translate_all(
     chars: &[char],
     opts: &Options,
     dict: &HashMap<String, String>,
     only_name: &HashMap<String, String>,
+    only_vietphrase: &HashMap<String, String>,
     han_viet: &HanVietMap,
-) -> String {
-    let chars = number_modifier(chars); // stub identity; keeps shape for later plan
+) -> TranslationResult {
+    let offsets = source_offsets(chars);
+    let numbers = prescan_numbers(chars, only_vietphrase);
+    let chars = number_modifier(chars);
     let chars = chars.as_slice();
     let mut output = TranslationOutput::default();
     let len = chars.len();
     if len == 0 {
-        return output.result;
+        return output.finish();
     }
     let mut num2 = 0usize;
     while num2 < len {
         let mut flag = false;
         let mut num6 = opts.scan_range;
-        while num6 > 0 {
+        let number = numbers.get(&num2);
+        while num6 > 0 && number.is_none_or(|value| num6 >= value.length) {
             if num2 + num6 <= len {
                 let text = substr(chars, num2, num6);
                 if let Some(value2) = dict.get(&text) {
@@ -169,7 +218,18 @@ pub fn translate_all(
                         || is_longest
                         || (opts.prioritized_name && only_name.contains_key(&text));
                     if name_ok && algo_ok {
-                        process_translation(chars, value2, num2, num6, opts, &mut output, han_viet);
+                        process_translation(
+                            chars,
+                            value2,
+                            CharRange {
+                                start: offsets[num2],
+                                length: offsets[num2 + num6] - offsets[num2],
+                            },
+                            num2 + num6 - 1,
+                            opts,
+                            &mut output,
+                            han_viet,
+                        );
                         flag = true;
                         num2 += num6;
                         break;
@@ -182,10 +242,27 @@ pub fn translate_all(
         if flag {
             continue;
         }
-        // Number {s} branch (B) — STUB: no prescanned numbers in MVP.
-        process_han_viet(chars, opts, &mut num2, &mut output, han_viet);
+        if let Some(number) = number {
+            if let Some(translation) = translate_number(&number.text) {
+                process_translation(
+                    chars,
+                    &translation,
+                    CharRange {
+                        start: offsets[num2],
+                        length: offsets[num2 + number.length] - offsets[num2],
+                    },
+                    num2 + number.length - 1,
+                    opts,
+                    &mut output,
+                    han_viet,
+                );
+                num2 += number.length;
+                continue;
+            }
+        }
+        process_han_viet(chars, opts, &mut num2, &mut output, han_viet, &offsets);
     }
-    output.result
+    output.finish()
 }
 
 #[cfg(test)]
@@ -235,8 +312,8 @@ mod tests {
         // 他 not in dict → HanViet 'tha'; then 很好 phrase → 'rất tốt'.
         // Faithful to the engine: last starts "" so the first word gets a LEADING
         // SPACE and stays lowercase (TranslateAll inits lastTranslatedWord = "").
-        let got = translate_all(&chars, &opts, &d, &names, &hanviet);
-        assert_eq!(got, " tha rất tốt");
+        let got = translate_all(&chars, &opts, &d, &names, &HashMap::new(), &hanviet);
+        assert_eq!(got.translated_text, " tha rất tốt");
     }
 
     #[test]
@@ -254,7 +331,82 @@ mod tests {
             prioritized_name: true,
             ..Options::default()
         };
-        let got = translate_all(&chars, &opts, &d, &names, &hanviet);
-        assert_eq!(got, " hồng trung nhân");
+        let got = translate_all(&chars, &opts, &d, &names, &HashMap::new(), &hanviet);
+        assert_eq!(got.translated_text, " hồng trung nhân");
+    }
+
+    #[test]
+    fn converts_numbers_but_raw_vietphrase_has_priority() {
+        let chars: Vec<char> = "一百二十三人".chars().collect();
+        let hanviet = hv(&[('人', "nhân")]);
+        let result = translate_all(
+            &chars,
+            &Options::default(),
+            &HashMap::new(),
+            &HashMap::new(),
+            &HashMap::new(),
+            &hanviet,
+        );
+        assert_eq!(result.translated_text, " 123 nhân");
+        assert_eq!(
+            result.source_ranges[0],
+            CharRange {
+                start: 0,
+                length: 5
+            }
+        );
+        assert_eq!(
+            result.target_ranges[0],
+            CharRange {
+                start: 1,
+                length: 3
+            }
+        );
+
+        let raw = dict(&[("一百二十三", "một trăm hai ba")]);
+        let result = translate_all(
+            &chars,
+            &Options::default(),
+            &raw,
+            &HashMap::new(),
+            &raw,
+            &hanviet,
+        );
+        assert_eq!(result.translated_text, " một trăm hai ba nhân");
+    }
+
+    #[test]
+    fn source_ranges_are_utf16_offsets() {
+        let chars: Vec<char> = "😀很好".chars().collect();
+        let phrases = dict(&[("很好", "rất tốt")]);
+        let result = translate_all(
+            &chars,
+            &Options::default(),
+            &phrases,
+            &HashMap::new(),
+            &HashMap::new(),
+            &hv(&[('很', "ngận"), ('好', "hảo")]),
+        );
+        assert_eq!(result.translated_text, "😀 rất tốt");
+        assert_eq!(
+            result.source_ranges,
+            vec![
+                CharRange {
+                    start: 0,
+                    length: 2
+                },
+                CharRange {
+                    start: 2,
+                    length: 2
+                }
+            ]
+        );
+        assert_eq!(
+            result.target_ranges[1],
+            CharRange {
+                start: 3,
+                length: 7
+            }
+        );
     }
 }

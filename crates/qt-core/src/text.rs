@@ -38,7 +38,8 @@ const SENTENCE_ENDERS: [&str; 11] = [
 /// - otherwise → insert one leading space
 ///
 /// Then, if the new chunk starts with , . ? ! and result ends with a space, drop that space.
-pub fn append_translated_word(result: &mut String, translated: &str, last: &mut String) {
+pub fn append_translated_word(result: &mut String, translated: &str, last: &mut String) -> isize {
+    let before = utf16_len(result) as isize;
     let new_last = if SENTENCE_ENDERS.iter().any(|e| last.ends_with(e)) {
         to_upper_case(translated)
     } else if last.ends_with(' ') || last.ends_with('(') {
@@ -57,6 +58,11 @@ pub fn append_translated_word(result: &mut String, translated: &str, last: &mut 
         result.pop();
     }
     result.push_str(last);
+    utf16_len(result) as isize - before
+}
+
+pub(crate) fn utf16_len(text: &str) -> usize {
+    text.encode_utf16().count()
 }
 
 pub fn next_char_is_chinese(chars: &[char], end_idx: usize, han_viet: &HanVietMap) -> bool {

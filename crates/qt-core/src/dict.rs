@@ -9,6 +9,9 @@ use std::collections::HashSet;
 pub struct Dictionaries {
     pub han_viet: HanVietMap,
     pub only_name: HashMap<String, String>,
+    /// Raw VietPhrase entries before Names are merged in. Number pre-scanning
+    /// consults this map so an explicit dictionary entry wins over conversion.
+    pub only_vietphrase: HashMap<String, String>,
     pub vietphrase: HashMap<String, String>,
     pub vietphrase_one_meaning: HashMap<String, String>,
 }
@@ -96,6 +99,7 @@ impl Dictionaries {
         Dictionaries {
             han_viet,
             only_name,
+            only_vietphrase,
             vietphrase,
             vietphrase_one_meaning,
         }

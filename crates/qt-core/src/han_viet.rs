@@ -1,6 +1,7 @@
 //! Han-Việt phonetic transcription (single-char) and QT's `isChinese` definition.
 
-use crate::text::append_translated_word;
+use crate::text::{append_translated_word, utf16_len};
+use crate::{CharRange, TranslationResult};
 use std::collections::HashMap;
 
 pub type HanVietMap = HashMap<char, String>;
@@ -36,36 +37,59 @@ pub fn char_to_han_viet(c: char, han_viet: &HanVietMap) -> String {
 
 /// Mode HanViet: transcribe each char; a single space separates two consecutive
 /// Chinese chars. Uses append_translated_word so sentence-start capitalization applies.
-pub fn chinese_to_han_viet_string(chars: &[char], han_viet: &HanVietMap) -> String {
+pub fn chinese_to_han_viet(chars: &[char], han_viet: &HanVietMap) -> TranslationResult {
     let mut result = String::new();
     let mut last = String::new();
+    let mut source_ranges = Vec::with_capacity(chars.len());
+    let mut target_ranges = Vec::with_capacity(chars.len());
+    let mut source_start = 0usize;
+    let mut target_start = 0usize;
     // Original inits LastTranslatedWord = "" — the first word gets a leading
     // space and no capitalization. Faithful to TranslatorEngine.ChineseToHanViet.
     let len = chars.len();
     if len == 0 {
-        return result;
+        return TranslationResult {
+            translated_text: result,
+            source_ranges,
+            target_ranges,
+        };
     }
-    for i in 0..len - 1 {
+    for i in 0..len {
         let c = chars[i];
+        let source_length = c.len_utf16();
+        let range_target_start = target_start;
+        let target_length;
         if is_chinese(c, han_viet) {
-            append_translated_word(&mut result, &char_to_han_viet(c, han_viet), &mut last);
-            if is_chinese(chars[i + 1], han_viet) {
+            let reading = char_to_han_viet(c, han_viet);
+            target_length = utf16_len(&reading);
+            let delta = append_translated_word(&mut result, &reading, &mut last);
+            target_start = target_start.saturating_add_signed(delta);
+            if i + 1 < len && is_chinese(chars[i + 1], han_viet) {
                 result.push(' ');
                 last.push(' ');
+                target_start += 1;
             }
         } else {
             result.push(c);
             last.push(c);
+            target_length = source_length;
+            target_start += target_length;
         }
+        source_ranges.push(CharRange {
+            start: source_start,
+            length: source_length,
+        });
+        target_ranges.push(CharRange {
+            start: range_target_start,
+            length: target_length,
+        });
+        source_start += source_length;
     }
-    let lc = chars[len - 1];
-    if is_chinese(lc, han_viet) {
-        append_translated_word(&mut result, &char_to_han_viet(lc, han_viet), &mut last);
-    } else {
-        result.push(lc);
-        last.push(lc);
+    TranslationResult {
+        translated_text: result,
+        source_ranges,
+        target_ranges,
     }
-    result
 }
 
 #[cfg(test)]
@@ -94,5 +118,38 @@ mod tests {
         // full-width '３' U+FF13 → '3'; unknown non-fullwidth passes through
         assert_eq!(char_to_han_viet('３', &m), "3");
         assert_eq!(to_narrow("ＡＢ!"), "AB!");
+    }
+
+    #[test]
+    fn maps_utf16_ranges_for_han_viet_and_non_bmp_text() {
+        let result = chinese_to_han_viet(&['😀', '一'], &hv());
+        assert_eq!(result.translated_text, "😀 nhất");
+        assert_eq!(
+            result.source_ranges,
+            vec![
+                CharRange {
+                    start: 0,
+                    length: 2
+                },
+                CharRange {
+                    start: 2,
+                    length: 1
+                }
+            ]
+        );
+        assert_eq!(
+            result.target_ranges[0],
+            CharRange {
+                start: 0,
+                length: 2
+            }
+        );
+        assert_eq!(
+            result.target_ranges[1],
+            CharRange {
+                start: 2,
+                length: 4
+            }
+        );
     }
 }

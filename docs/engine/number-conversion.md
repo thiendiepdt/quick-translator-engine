@@ -82,7 +82,7 @@ Quy tắc chọn trong luật `{s}` (count==1), xem
 else: tách ức (/10⁸, đệ quy + " ức") , vạn (/10⁴ + " vạn") , phần dư (N0)
        nối bằng space
 ```
-Ví dụ `123456789` → "1 ức 2345 vạn 6,789".
+Ví dụ `123456789` → "1 ức 2,345 vạn 6,789".
 
 ## 8. Luật đặc biệt
 

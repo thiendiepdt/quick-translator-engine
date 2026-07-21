@@ -2,10 +2,27 @@
 
 mod dict;
 mod han_viet;
+mod number;
 mod text;
 mod translate;
 
 pub use dict::Dictionaries;
+
+/// A half-open range represented as a UTF-16 start offset and length.
+/// UTF-16 matches QT2025/.NET and can be consumed directly by JavaScript UIs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CharRange {
+    pub start: usize,
+    pub length: usize,
+}
+
+/// Translated text plus parallel source/target phrase ranges.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TranslationResult {
+    pub translated_text: String,
+    pub source_ranges: Vec<CharRange>,
+    pub target_ranges: Vec<CharRange>,
+}
 
 /// Output view, mirrors QT's translation modes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -47,14 +64,24 @@ impl Engine {
     }
 
     pub fn translate(&self, text: &str, mode: Mode, opts: &Options) -> String {
+        self.translate_with_ranges(text, mode, opts).translated_text
+    }
+
+    pub fn translate_with_ranges(
+        &self,
+        text: &str,
+        mode: Mode,
+        opts: &Options,
+    ) -> TranslationResult {
         let chars: Vec<char> = text.chars().collect();
         match mode {
-            Mode::HanViet => han_viet::chinese_to_han_viet_string(&chars, &self.dicts.han_viet),
+            Mode::HanViet => han_viet::chinese_to_han_viet(&chars, &self.dicts.han_viet),
             Mode::VietPhrase => translate::translate_all(
                 &chars,
                 opts,
                 &self.dicts.vietphrase,
                 &self.dicts.only_name,
+                &self.dicts.only_vietphrase,
                 &self.dicts.han_viet,
             ),
             Mode::VietPhraseOneMeaning => translate::translate_all(
@@ -62,6 +89,7 @@ impl Engine {
                 opts,
                 &self.dicts.vietphrase_one_meaning,
                 &self.dicts.only_name,
+                &self.dicts.only_vietphrase,
                 &self.dicts.han_viet,
             ),
         }

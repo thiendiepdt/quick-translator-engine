@@ -131,6 +131,26 @@ async fn translate_uses_qt_scan_range_for_long_phrases() {
 }
 
 #[tokio::test]
+async fn translate_converts_chinese_numbers_and_returns_utf16_ranges() {
+    let resp = post_json(
+        build_router(test_state()),
+        "/translate",
+        serde_json::json!({
+            "text": "一百二十三",
+            "mode": "vietphrase-one",
+            "pretty": true,
+            "ranges": true
+        }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(
+        body_string(resp).await,
+        r#"{"translated":"123","sourceRanges":[{"start":0,"length":5}],"targetRanges":[{"start":0,"length":3}]}"#
+    );
+}
+
+#[tokio::test]
 async fn batch_preserves_order() {
     let resp = post_json(
         build_router(test_state()),
@@ -142,6 +162,25 @@ async fn batch_preserves_order() {
     assert_eq!(
         body_string(resp).await,
         r#"{"translated":[" tha rất tốt/rất ổn"," tha"]}"#
+    );
+}
+
+#[tokio::test]
+async fn batch_returns_parallel_range_matrices_when_requested() {
+    let resp = post_json(
+        build_router(test_state()),
+        "/translate/batch",
+        serde_json::json!({
+            "texts": ["一二", "三四万"],
+            "mode": "vietphrase",
+            "ranges": true
+        }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(
+        body_string(resp).await,
+        r#"{"translated":[" 1-2"," 3-4 vạn"],"sourceRanges":[[{"start":0,"length":2}],[{"start":0,"length":3}]],"targetRanges":[[{"start":1,"length":3}],[{"start":1,"length":7}]]}"#
     );
 }
 
