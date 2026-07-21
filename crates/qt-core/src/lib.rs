@@ -2,6 +2,7 @@
 
 mod dict;
 mod han_viet;
+mod text;
 
 /// Output view, mirrors QT's translation modes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -1,0 +1,103 @@
+//! String assembly: wrapping, sentence-start capitalization, spacing.
+//! Mirrors appendTranslatedWord / WrapTranslation / nextCharIsChinese.
+
+use crate::han_viet::{is_chinese, HanVietMap};
+
+pub fn wrap_translation(t: &str, wrap_type: i32) -> String {
+    if wrap_type == 0 {
+        t.to_string()
+    } else {
+        format!("[{t}]")
+    }
+}
+
+/// Capitalize first char; if it starts with '[' (wrapped), capitalize the char after '['.
+pub fn to_upper_case(text: &str) -> String {
+    if text.is_empty() {
+        return text.to_string();
+    }
+    let chars: Vec<char> = text.chars().collect();
+    if chars[0] != '[' || chars.len() < 2 {
+        let head: String = chars[0].to_uppercase().collect();
+        let tail: String = chars[1..].iter().collect();
+        format!("{head}{tail}")
+    } else {
+        let head: String = chars[1].to_uppercase().collect();
+        let tail: String = chars[2..].iter().collect();
+        format!("[{head}{tail}")
+    }
+}
+
+const SENTENCE_ENDERS: [&str; 11] =
+    ["\n", "\t", ". ", "\"", "'", "? ", "! ", ".\" ", "?\" ", "!\" ", ": "];
+
+/// Append `translated` to `result`, tracking `last` (the previously appended chunk).
+/// - after a sentence-ender → capitalize first letter
+/// - after a space or '(' → join directly
+/// - otherwise → insert one leading space
+/// Then, if the new chunk starts with , . ? ! and result ends with a space, drop that space.
+pub fn append_translated_word(result: &mut String, translated: &str, last: &mut String) {
+    let new_last = if SENTENCE_ENDERS.iter().any(|e| last.ends_with(e)) {
+        to_upper_case(translated)
+    } else if last.ends_with(' ') || last.ends_with('(') {
+        translated.to_string()
+    } else {
+        format!(" {translated}")
+    };
+    *last = new_last;
+
+    let starts_punct = translated.is_empty()
+        || matches!(translated.chars().next(), Some(',') | Some('.') | Some('?') | Some('!'));
+    if starts_punct && result.ends_with(' ') {
+        result.pop();
+    }
+    result.push_str(last);
+}
+
+pub fn next_char_is_chinese(chars: &[char], end_idx: usize, han_viet: &HanVietMap) -> bool {
+    if chars.len() > end_idx + 1 {
+        is_chinese(chars[end_idx + 1], han_viet)
+    } else {
+        false
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn wrap_and_upper() {
+        assert_eq!(wrap_translation("x", 0), "x");
+        assert_eq!(wrap_translation("x", 1), "[x]");
+        assert_eq!(to_upper_case("hắn"), "Hắn");
+        assert_eq!(to_upper_case("[hắn]"), "[Hắn]");
+    }
+
+    #[test]
+    fn join_default_inserts_space() {
+        let mut r = String::new();
+        let mut last = String::new();
+        append_translated_word(&mut r, "hắn", &mut last); // first word, last empty → " hắn"
+        append_translated_word(&mut r, "rất", &mut last); // last="hắn" → " rất"
+        assert_eq!(r, " hắn rất");
+    }
+
+    #[test]
+    fn join_capitalizes_after_sentence_end() {
+        let mut r = String::from("A.");
+        let mut last = String::from(". "); // simulate previous ended a sentence
+        append_translated_word(&mut r, "hắn", &mut last);
+        assert!(r.ends_with("Hắn"));
+    }
+
+    #[test]
+    fn join_drops_space_before_punct() {
+        let mut r = String::from("hắn");
+        let mut last = String::from("hắn"); // does NOT end with space
+        // ',' start → new_last=" ,"? No: default branch makes " ," then punct rule trims result space.
+        append_translated_word(&mut r, ",", &mut last);
+        // result had no trailing space, so nothing trimmed; last becomes " ,"
+        assert_eq!(r, "hắn ,");
+    }
+}
