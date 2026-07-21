@@ -38,7 +38,9 @@ pub fn char_to_han_viet(c: char, han_viet: &HanVietMap) -> String {
 /// Chinese chars. Uses append_translated_word so sentence-start capitalization applies.
 pub fn chinese_to_han_viet_string(chars: &[char], han_viet: &HanVietMap) -> String {
     let mut result = String::new();
-    let mut last = String::from(". "); // Initialize to trigger sentence-start capitalization
+    let mut last = String::new();
+    // Original inits LastTranslatedWord = "" — the first word gets a leading
+    // space and no capitalization. Faithful to TranslatorEngine.ChineseToHanViet.
     let len = chars.len();
     if len == 0 {
         return result;

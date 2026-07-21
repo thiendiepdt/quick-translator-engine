@@ -79,18 +79,18 @@ mod tests {
     }
 
     #[test]
-    fn hanviet_spaces_between_hanzi_and_capitalizes() {
+    fn hanviet_spaces_between_hanzi() {
         let e = engine_hv_only();
-        // 4 consecutive hanzi → readings joined by single spaces, first capitalized
+        // 4 consecutive hanzi → readings joined by single spaces; first word keeps a leading space, lowercase (faithful to engine)
         let got = e.translate("他很厉害", Mode::HanViet, &Options::default());
-        assert_eq!(got, "Tha ngận lệ hại");
+        assert_eq!(got, " tha ngận lệ hại");
     }
 
     #[test]
     fn hanviet_passes_through_non_chinese() {
         let e = engine_hv_only();
         let got = e.translate("他, 好", Mode::HanViet, &Options::default());
-        // '他'→tha, then raw ", ", then '好' unknown → to_narrow('好')='好'
-        assert_eq!(got, "Tha, 好");
+        // '他'→tha (leading space, lowercase), then raw ', ', then unknown '好' passes through
+        assert_eq!(got, " tha, 好");
     }
 }
