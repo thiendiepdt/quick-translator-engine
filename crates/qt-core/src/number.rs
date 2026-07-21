@@ -10,7 +10,7 @@ pub(crate) struct NumberInfo {
     pub text: String,
 }
 
-fn chinese_digit(c: char) -> Option<i64> {
+pub(crate) fn chinese_digit(c: char) -> Option<i64> {
     match c {
         '零' | '〇' => Some(0),
         '一' => Some(1),
@@ -440,6 +440,14 @@ fn try_convert_range(chars: &[char]) -> Option<String> {
     }
 
     None
+}
+
+/// Range-only subset used by `ChineseToLuatNhanOneMeaning` before ordinary
+/// integer conversion. This preserves QT's special `3-4 vạn` forms without
+/// turning a normal chapter/year number into Vietnamese words too early.
+pub(crate) fn translate_range_number(text: &str) -> Option<String> {
+    let chars: Vec<char> = text.chars().collect();
+    try_convert_range(&chars).or_else(|| try_convert_postfixed_range(&chars))
 }
 
 fn positive_chinese_digit(c: char, allow_liang: bool) -> Option<i64> {

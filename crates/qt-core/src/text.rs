@@ -5,6 +5,7 @@ use crate::han_viet::{is_chinese, HanVietMap};
 
 /// Range-preserving punctuation subset of QT2025's `StandardizeInput`.
 /// Every replacement is one UTF-16 code unit so source offsets stay valid.
+#[cfg(test)]
 pub(crate) fn normalize_chinese_punctuation(c: char) -> char {
     match c {
         '，' | '、' => ',',

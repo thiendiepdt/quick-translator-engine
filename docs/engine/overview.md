@@ -32,11 +32,10 @@ chỉ khác **từ điển** truyền vào. HanViet đi đường riêng.
 
 ## 3. Thứ tự ưu tiên khi dịch một vị trí
 
-Trước `TranslateAll`, QT UI gọi `StandardizeInput`. Bản Rust chuẩn hóa các dấu câu một-ký-tự
-mà vẫn giữ nguyên offset UTF-16: `，/、 → ,`, `。/． → .`, `： → :`, `？ → ?`,
-`！ → !`, và khoảng trắng toàn chiều → space. Sau `.?!`, separator được thêm khi cần để
-viết hoa đúng đầu câu. Các bước còn lại của `StandardizeInput` (giản thể hóa, HTML decode,
-ignored phrases) vẫn thuộc phần mở rộng sau.
+Trước `TranslateAll`, engine gọi `StandardizeInput`: giản thể hóa, HTML decode, đổi dấu câu
+và ký tự full-width, chuẩn hóa khoảng trắng rồi loại ignored phrases. Bản Rust giữ mapping
+từng ký tự đã chuẩn hóa về range UTF-16 của input gốc, kể cả phép nở/rút chuỗi như
+`… → ...` và `&amp; → &`.
 
 Tại mỗi vị trí `num2` trong văn bản, `TranslateAll` thử theo thứ tự:
 

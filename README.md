@@ -13,11 +13,12 @@ MVP đã có đủ ba crate:
 - `qt-cli`: đọc văn bản từ stdin và ghi bản dịch ra stdout.
 - `qt-api`: HTTP server với health check, danh sách mode, dịch đơn và dịch batch.
 
-Input được chuẩn hóa các dấu câu Trung thông dụng trước khi dịch (`、` → `,`, `。` → `.`),
-khớp bước `StandardizeInput` của QT2025 và vẫn giữ đúng source ranges UTF-16.
+Input đi qua đầy đủ pipeline `StandardizeInput` của QT2025: giản thể hóa, HTML decode,
+đổi dấu câu/full-width, chèn khoảng trắng và loại ignored phrases; source ranges vẫn trỏ
+về đúng offset UTF-16 của input gốc.
 
-Các luật số `{s}` độc lập đã có; Luật Nhân tổng quát và tra nghĩa LacViet vẫn nằm trong
-lộ trình tiếp theo. Xem
+Luật Nhân tổng quát (`{s}`, `{n}`, `{h}{t}`) và chuyển số Hán đã có; tra nghĩa LacViet vẫn
+nằm trong lộ trình tiếp theo. Xem
 [kiến trúc](docs/architecture.md) và [đặc tả engine](docs/engine/).
 
 Chạy HTTP server từ thư mục repo:

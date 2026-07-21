@@ -37,12 +37,33 @@ pub fn char_to_han_viet(c: char, han_viet: &HanVietMap) -> String {
 
 /// Mode HanViet: transcribe each char; a single space separates two consecutive
 /// Chinese chars. Uses append_translated_word so sentence-start capitalization applies.
+#[cfg(test)]
 pub fn chinese_to_han_viet(chars: &[char], han_viet: &HanVietMap) -> TranslationResult {
+    let mut source_start = 0usize;
+    let source_ranges: Vec<CharRange> = chars
+        .iter()
+        .map(|ch| {
+            let range = CharRange {
+                start: source_start,
+                length: ch.len_utf16(),
+            };
+            source_start += ch.len_utf16();
+            range
+        })
+        .collect();
+    chinese_to_han_viet_mapped(chars, han_viet, &source_ranges)
+}
+
+pub(crate) fn chinese_to_han_viet_mapped(
+    chars: &[char],
+    han_viet: &HanVietMap,
+    mapped_source_ranges: &[CharRange],
+) -> TranslationResult {
+    debug_assert_eq!(chars.len(), mapped_source_ranges.len());
     let mut result = String::new();
     let mut last = String::new();
     let mut source_ranges = Vec::with_capacity(chars.len());
     let mut target_ranges = Vec::with_capacity(chars.len());
-    let mut source_start = 0usize;
     let mut target_start = 0usize;
     // Original inits LastTranslatedWord = "" — the first word gets a leading
     // space and no capitalization. Faithful to TranslatorEngine.ChineseToHanViet.
@@ -80,15 +101,11 @@ pub fn chinese_to_han_viet(chars: &[char], han_viet: &HanVietMap) -> Translation
                 target_start += 1;
             }
         }
-        source_ranges.push(CharRange {
-            start: source_start,
-            length: source_length,
-        });
+        source_ranges.push(mapped_source_ranges[i]);
         target_ranges.push(CharRange {
             start: range_target_start,
             length: target_length,
         });
-        source_start += source_length;
     }
     TranslationResult {
         translated_text: result,

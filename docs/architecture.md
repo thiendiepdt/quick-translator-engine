@@ -133,8 +133,9 @@ UTF-16 như QT2025/.NET và JavaScript. Với batch, hai field range là ma tr�
 3. `qt-cli`: stdin/stdout + `--mode`/`--data-dir`/`--wrap`. ✅
 4. `qt-api`: HTTP server. ✅
 5. Chuyển số Hán + source↔target ranges. ✅
-6. LuatNhan tổng quát → Nghĩa/LacViet.
-7. (sau) Tauri GUI, quản lý từ điển (thêm/sửa Names, VietPhrase).
+6. LuatNhan tổng quát + StandardizeInput đầy đủ. ✅
+7. Nghĩa/LacViet.
+8. (sau) Tauri GUI, quản lý từ điển (thêm/sửa Names, VietPhrase).
 
 ## 9. Ngoài phạm vi (YAGNI giai đoạn đầu)
 

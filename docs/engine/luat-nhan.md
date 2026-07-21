@@ -108,9 +108,9 @@ for num = 6 downto 2:
             bestHTLength = num; return text
 return null   (bestHTLength = 0)
 ```
-Ý nghĩa: chuỗi `họ+hậu_tố` (vd `李哥`) mà không phải cụm từ điển → nhận diện là tên,
-dịch qua Hán Việt (khuôn `{h}{t}` xử lý ở `ChineseToLuatNhanOneMeaning`? — thực tế
-`{h}{t}` chỉ đánh dấu vùng; việc dịch tên rơi về Hán Việt/Names, xem lưu ý §7).
+Ý nghĩa: chuỗi `họ+hậu_tố` (vd `李哥`) mà không phải cụm từ điển → nhận diện là tên.
+`ChineseToLuatNhanOneMeaning` tách tại vị trí đầu tiên khớp cả hai từ điển và ghép
+`hoNguoiDictionary[ho] + " " + hauTuDictionary[hau]`.
 
 ## 5. `HandleNhanBy` — áp luật trong main loop
 
@@ -181,12 +181,10 @@ if luatNhan chứa {s}:
 
 Chi tiết chuyển số: [number-conversion.md](number-conversion.md).
 
-## 7. Lưu ý reimplement
+## 7. Lưu ý implementation
 
-- Regex .NET và Rust `regex` crate khác nhau ở vài điểm (lookahead `(?!...)`: crate `regex`
-  **không** hỗ trợ). Luật `{s}两` dùng negative lookahead ⇒ cần crate `fancy-regex` hoặc
-  xử lý thủ công. **Ghi rõ** khi implement để không bỏ sót.
+- Regex .NET và Rust `regex` crate khác nhau ở vài điểm. Implementation dùng `fancy-regex`
+  cho lookahead của `{n}` và `{s}两`, còn `regex` dùng cho các bước không cần lookaround.
 - Thứ tự ưu tiên `{n}` > `{h}{t}` > `{s}` theo vị trí index nhỏ nhất — phải giữ đúng.
-- `{h}{t}` chỉ đánh dấu vùng tên; kết quả dịch tên đến từ Hán Việt/Names, không phải khuôn.
-- Đây là phần **phức tạp & rủi ro nhất**. Đưa vào giai đoạn 5 của lộ trình, có golden test riêng
-  cho từng loại luật (ngày, giờ, %, dải số, tên họ+hậu tố).
+- `{h}{t}` lấy nghĩa trực tiếp từ hai từ điển Họ người/Hậu tố, không fallback Hán Việt.
+- Golden test nên bao phủ riêng ngày, giờ, %, dải số, `{n}` và tên họ+hậu tố.

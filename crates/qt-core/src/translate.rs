@@ -1,5 +1,4 @@
-//! The TranslateAll longest-match loop, number branch, and range mapping.
-//! Luật Nhân remains a separate follow-up (see docs/engine/luat-nhan.md).
+//! The TranslateAll longest-match loop, Luật Nhân, number branch, and ranges.
 
 use std::collections::HashMap;
 
@@ -60,6 +59,7 @@ pub fn contains_name(
 }
 
 use crate::han_viet::{char_to_han_viet, is_chinese, HanVietMap};
+use crate::luat_nhan::LuatNhan;
 use crate::number::{number_modifier, prescan_numbers, translate_number};
 use crate::text::{
     append_translated_word, needs_space_after_sentence_punctuation, next_char_is_chinese,
@@ -131,7 +131,7 @@ fn process_han_viet(
     num2: &mut usize,
     output: &mut TranslationOutput,
     han_viet: &HanVietMap,
-    source_offsets: &[usize],
+    source_ranges: &[CharRange],
 ) {
     let c = chars[*num2];
     let target_start = output.target_length;
@@ -163,10 +163,7 @@ fn process_han_viet(
             output.append_space();
         }
     }
-    output.source_ranges.push(CharRange {
-        start: source_offsets[*num2],
-        length: source_offsets[*num2 + 1] - source_offsets[*num2],
-    });
+    output.source_ranges.push(source_ranges[*num2]);
     output.target_ranges.push(CharRange {
         start: target_start,
         length: target_length,
@@ -174,16 +171,38 @@ fn process_han_viet(
     *num2 += 1;
 }
 
-fn source_offsets(chars: &[char]) -> Vec<usize> {
-    let mut offsets = Vec::with_capacity(chars.len() + 1);
-    offsets.push(0);
-    for c in chars {
-        offsets.push(offsets.last().copied().unwrap_or_default() + c.len_utf16());
+#[cfg(test)]
+fn source_ranges(chars: &[char]) -> Vec<CharRange> {
+    let mut start = 0usize;
+    chars
+        .iter()
+        .map(|ch| {
+            let range = CharRange {
+                start,
+                length: ch.len_utf16(),
+            };
+            start += ch.len_utf16();
+            range
+        })
+        .collect()
+}
+
+fn merged_source_range(source_ranges: &[CharRange], start: usize, length: usize) -> CharRange {
+    let ranges = &source_ranges[start..start + length];
+    let source_start = ranges.iter().map(|range| range.start).min().unwrap_or(0);
+    let source_end = ranges
+        .iter()
+        .map(|range| range.start + range.length)
+        .max()
+        .unwrap_or(source_start);
+    CharRange {
+        start: source_start,
+        length: source_end - source_start,
     }
-    offsets
 }
 
 /// Main loop, mirrors TranslateAll (docs/engine/translation-algorithm.md §3).
+#[cfg(test)]
 pub fn translate_all(
     chars: &[char],
     opts: &Options,
@@ -192,7 +211,33 @@ pub fn translate_all(
     only_vietphrase: &HashMap<String, String>,
     han_viet: &HanVietMap,
 ) -> TranslationResult {
-    let offsets = source_offsets(chars);
+    let source_ranges = source_ranges(chars);
+    translate_all_mapped(
+        chars,
+        &source_ranges,
+        opts,
+        dict,
+        only_name,
+        only_vietphrase,
+        dict,
+        han_viet,
+        &LuatNhan::default(),
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn translate_all_mapped(
+    chars: &[char],
+    source_ranges: &[CharRange],
+    opts: &Options,
+    dict: &HashMap<String, String>,
+    only_name: &HashMap<String, String>,
+    only_vietphrase: &HashMap<String, String>,
+    full_vietphrase: &HashMap<String, String>,
+    han_viet: &HanVietMap,
+    luat_nhan: &LuatNhan,
+) -> TranslationResult {
+    debug_assert_eq!(chars.len(), source_ranges.len());
     let numbers = prescan_numbers(chars, only_vietphrase);
     let chars = number_modifier(chars);
     let chars = chars.as_slice();
@@ -202,8 +247,12 @@ pub fn translate_all(
         return output.finish();
     }
     let mut num2 = 0usize;
+    let mut num3 = -1isize;
+    let mut num4 = -1isize;
+    let mut num5 = -1isize;
     while num2 < len {
         let mut flag = false;
+        let mut flag2 = true;
         let mut num6 = opts.scan_range;
         let number = numbers.get(&num2);
         while num6 > 0 && number.is_none_or(|value| num6 >= value.length) {
@@ -227,10 +276,7 @@ pub fn translate_all(
                         process_translation(
                             chars,
                             value2,
-                            CharRange {
-                                start: offsets[num2],
-                                length: offsets[num2 + num6] - offsets[num2],
-                            },
+                            merged_source_range(source_ranges, num2, num6),
                             num2 + num6 - 1,
                             opts,
                             &mut output,
@@ -240,8 +286,73 @@ pub fn translate_all(
                         num2 += num6;
                         break;
                     }
+                } else if !text.contains('\n')
+                    && !text.contains('\t')
+                    && flag2
+                    && num6 > 2
+                    && num3 < (num2 + num6 - 1) as isize
+                {
+                    if num2 as isize >= num4 {
+                        let matched = luat_nhan.contains(
+                            &chars[num2..num2 + num6],
+                            only_vietphrase,
+                            full_vietphrase,
+                        );
+                        if let Some(matched) = matched {
+                            num4 = (num2 + matched.index) as isize;
+                            num5 = num4 + matched.length as isize;
+                            if matched.index == 0
+                                && (matched.key.contains("{n}")
+                                    || !contains_name(chars, num2, matched.length, only_name))
+                            {
+                                let chinese = substr(chars, num2, matched.length);
+                                if let Some(translation) =
+                                    luat_nhan.translate(&chinese, &matched.key, &matched.value_n)
+                                {
+                                    process_translation(
+                                        chars,
+                                        translation.trim(),
+                                        merged_source_range(source_ranges, num2, matched.length),
+                                        num2 + matched.length - 1,
+                                        opts,
+                                        &mut output,
+                                        han_viet,
+                                    );
+                                    flag = true;
+                                    num2 += matched.length;
+                                }
+                            }
+                        } else {
+                            num4 = num2 as isize - 1;
+                            num5 = num4 - 1;
+                            num3 = (num2 + num6 - 1) as isize;
+                            flag2 = false;
+                            let mut longer = 100usize;
+                            while num2 + longer < len
+                                && is_chinese(chars[num2 + longer - 1], han_viet)
+                            {
+                                longer += 1;
+                            }
+                            if num2 + longer <= len
+                                && luat_nhan
+                                    .contains(
+                                        &chars[num2..num2 + longer],
+                                        only_vietphrase,
+                                        full_vietphrase,
+                                    )
+                                    .is_none()
+                            {
+                                num3 = (num2 + longer - 1) as isize;
+                            }
+                        }
+                    } else if num4 < (num2 + num6) as isize && num6 as isize <= num5 - num4 {
+                        // Faithful no-op: QT adjusts HandleNhanBy's by-value
+                        // scan length here and immediately returns.
+                    }
+                    if flag {
+                        break;
+                    }
                 }
-                // Luật Nhân branch (A2) — STUB: not implemented in this plan.
             }
             num6 -= 1;
         }
@@ -253,10 +364,7 @@ pub fn translate_all(
                 process_translation(
                     chars,
                     &translation,
-                    CharRange {
-                        start: offsets[num2],
-                        length: offsets[num2 + number.length] - offsets[num2],
-                    },
+                    merged_source_range(source_ranges, num2, number.length),
                     num2 + number.length - 1,
                     opts,
                     &mut output,
@@ -266,7 +374,7 @@ pub fn translate_all(
                 continue;
             }
         }
-        process_han_viet(chars, opts, &mut num2, &mut output, han_viet, &offsets);
+        process_han_viet(chars, opts, &mut num2, &mut output, han_viet, source_ranges);
     }
     output.finish()
 }

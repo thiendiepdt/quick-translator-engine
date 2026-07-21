@@ -2,7 +2,9 @@
 
 mod dict;
 mod han_viet;
+mod luat_nhan;
 mod number;
+mod standardize;
 mod text;
 mod translate;
 
@@ -56,11 +58,20 @@ impl Default for Options {
 
 pub struct Engine {
     dicts: Dictionaries,
+    luat_nhan: luat_nhan::LuatNhan,
+    standardizer: standardize::Standardizer,
 }
 
 impl Engine {
     pub fn from_dicts(dicts: Dictionaries) -> Engine {
-        Engine { dicts }
+        let luat_nhan = luat_nhan::LuatNhan::new(&dicts);
+        let standardizer =
+            standardize::Standardizer::new(&dicts.han_viet, &dicts.ignored_chinese_phrases);
+        Engine {
+            dicts,
+            luat_nhan,
+            standardizer,
+        }
     }
 
     pub fn translate(&self, text: &str, mode: Mode, opts: &Options) -> String {
@@ -73,27 +84,34 @@ impl Engine {
         mode: Mode,
         opts: &Options,
     ) -> TranslationResult {
-        let chars: Vec<char> = text
-            .chars()
-            .map(text::normalize_chinese_punctuation)
-            .collect();
+        let standardized = self.standardizer.standardize(text);
+        let chars = standardized.chars;
+        let source_ranges = standardized.source_ranges;
         match mode {
-            Mode::HanViet => han_viet::chinese_to_han_viet(&chars, &self.dicts.han_viet),
-            Mode::VietPhrase => translate::translate_all(
+            Mode::HanViet => {
+                han_viet::chinese_to_han_viet_mapped(&chars, &self.dicts.han_viet, &source_ranges)
+            }
+            Mode::VietPhrase => translate::translate_all_mapped(
                 &chars,
+                &source_ranges,
                 opts,
                 &self.dicts.vietphrase,
                 &self.dicts.only_name,
                 &self.dicts.only_vietphrase,
+                &self.dicts.vietphrase,
                 &self.dicts.han_viet,
+                &self.luat_nhan,
             ),
-            Mode::VietPhraseOneMeaning => translate::translate_all(
+            Mode::VietPhraseOneMeaning => translate::translate_all_mapped(
                 &chars,
+                &source_ranges,
                 opts,
                 &self.dicts.vietphrase_one_meaning,
                 &self.dicts.only_name,
                 &self.dicts.only_vietphrase,
+                &self.dicts.vietphrase,
                 &self.dicts.han_viet,
+                &self.luat_nhan,
             ),
         }
     }
@@ -181,6 +199,27 @@ mod tests {
                 start: 1,
                 length: 1
             }
+        );
+    }
+
+    #[test]
+    fn integrates_standardization_with_luat_nhan() {
+        let mut dictionaries = Dictionaries::default();
+        for (ch, reading) in [('年', "niên"), ('月', "nguyệt"), ('号', "hào")] {
+            dictionaries.han_viet.insert(ch, reading.into());
+        }
+        dictionaries.luat_nhan.push((
+            "{s}年{s}月{s}号".into(),
+            "ngày {3} tháng {2} năm {1}".into(),
+        ));
+        let engine = Engine::from_dicts(dictionaries);
+        assert_eq!(
+            engine.translate(
+                "2025年7月21号",
+                Mode::VietPhraseOneMeaning,
+                &Options::default()
+            ),
+            " ngày 21 tháng 7 năm 2025"
         );
     }
 }

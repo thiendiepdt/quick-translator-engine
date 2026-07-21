@@ -9,11 +9,20 @@ use std::collections::HashSet;
 pub struct Dictionaries {
     pub han_viet: HanVietMap,
     pub only_name: HashMap<String, String>,
+    pub only_name_one_meaning: HashMap<String, String>,
     /// Raw VietPhrase entries before Names are merged in. Number pre-scanning
     /// consults this map so an explicit dictionary entry wins over conversion.
     pub only_vietphrase: HashMap<String, String>,
     pub vietphrase: HashMap<String, String>,
     pub vietphrase_one_meaning: HashMap<String, String>,
+    pub pronouns: HashMap<String, String>,
+    pub danh_tu: HashMap<String, String>,
+    pub ho_nguoi: HashMap<String, String>,
+    pub hau_tu: HashMap<String, String>,
+    /// Luật Nhân entries in QT's priority order: key length descending,
+    /// followed by lexical order ascending.
+    pub luat_nhan: Vec<(String, String)>,
+    pub ignored_chinese_phrases: Vec<String>,
 }
 
 /// Parse `key=value` lines the way TranslatorEngine does:
@@ -96,13 +105,60 @@ impl Dictionaries {
             vietphrase_one_meaning.insert(k.clone(), first);
         }
 
+        let only_name_one_meaning = only_name
+            .iter()
+            .map(|(key, value)| {
+                (
+                    key.clone(),
+                    value.split(['/', '|']).next().unwrap_or(value).to_string(),
+                )
+            })
+            .collect();
+
         Dictionaries {
             han_viet,
             only_name,
+            only_name_one_meaning,
             only_vietphrase,
             vietphrase,
             vietphrase_one_meaning,
+            ..Default::default()
         }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn build_full(
+        han_viet_src: &str,
+        names_src: &str,
+        names2_src: &str,
+        vietphrase_src: &str,
+        pronouns_src: &str,
+        danh_tu_src: &str,
+        ho_nguoi_src: &str,
+        hau_tu_src: &str,
+        luat_nhan_src: &str,
+        ignored_src: &str,
+    ) -> Dictionaries {
+        let mut dictionaries =
+            Dictionaries::build(han_viet_src, names_src, names2_src, vietphrase_src);
+        dictionaries.pronouns = first_wins_map(pronouns_src);
+        dictionaries.danh_tu = first_wins_map(danh_tu_src);
+        dictionaries.ho_nguoi = first_wins_map(ho_nguoi_src);
+        dictionaries.hau_tu = first_wins_map(hau_tu_src);
+        dictionaries.luat_nhan = parse_luat_nhan(luat_nhan_src);
+        dictionaries.ignored_chinese_phrases = ignored_src
+            .lines()
+            .enumerate()
+            .map(|(index, line)| {
+                if index == 0 {
+                    line.trim_start_matches('\u{feff}').to_string()
+                } else {
+                    line.to_string()
+                }
+            })
+            .filter(|line| !line.is_empty())
+            .collect();
+        dictionaries
     }
 
     /// Load from a data directory using the standard QT filenames.
@@ -113,8 +169,60 @@ impl Dictionaries {
         let names = read("Names.txt")?;
         let names2 = read("Names2/123.txt").unwrap_or_default();
         let vietphrase = read("VietPhrase/VietPhrase.txt")?;
-        Ok(Dictionaries::build(&han_viet, &names, &names2, &vietphrase))
+        let pronouns = read("Resources/Pronouns.txt").unwrap_or_default();
+        let danh_tu = read("Resources/DanhTu.txt").unwrap_or_default();
+        let ho_nguoi = read("Resources/HoNguoi.txt").unwrap_or_default();
+        let hau_tu = read("Resources/HauTu.txt").unwrap_or_default();
+        let luat_nhan = read("LuatNhan.txt").unwrap_or_default();
+        let ignored = read("IgnoredChinesePhrases.txt").unwrap_or_default();
+        Ok(Dictionaries::build_full(
+            &han_viet,
+            &names,
+            &names2,
+            &vietphrase,
+            &pronouns,
+            &danh_tu,
+            &ho_nguoi,
+            &hau_tu,
+            &luat_nhan,
+            &ignored,
+        ))
     }
+}
+
+fn first_wins_map(source: &str) -> HashMap<String, String> {
+    let mut dictionary = HashMap::new();
+    for (key, value) in parse_dict(source) {
+        dictionary.entry(key).or_insert(value);
+    }
+    dictionary
+}
+
+fn parse_luat_nhan(source: &str) -> Vec<(String, String)> {
+    let mut seen = HashSet::new();
+    let mut rules = Vec::new();
+    for (index, raw) in source.lines().enumerate() {
+        let line = if index == 0 {
+            raw.trim_start_matches('\u{feff}')
+        } else {
+            raw
+        };
+        if line.starts_with('#') {
+            continue;
+        }
+        let parts: Vec<&str> = line.split('=').collect();
+        if parts.len() == 2 && seen.insert(parts[0].to_string()) {
+            rules.push((parts[0].to_string(), parts[1].to_string()));
+        }
+    }
+    rules.sort_by(|(left, _), (right, _)| {
+        right
+            .chars()
+            .count()
+            .cmp(&left.chars().count())
+            .then_with(|| left.cmp(right))
+    });
+    rules
 }
 
 #[cfg(test)]
