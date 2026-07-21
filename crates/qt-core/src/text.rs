@@ -3,6 +3,8 @@
 
 use crate::han_viet::{is_chinese, HanVietMap};
 
+// consumed by translate_all in Task 8; attribute removed there
+#[allow(dead_code)]
 pub fn wrap_translation(t: &str, wrap_type: i32) -> String {
     if wrap_type == 0 {
         t.to_string()
@@ -12,6 +14,8 @@ pub fn wrap_translation(t: &str, wrap_type: i32) -> String {
 }
 
 /// Capitalize first char; if it starts with '[' (wrapped), capitalize the char after '['.
+// consumed by append_translated_word and translate_all; attribute removed in Task 8
+#[allow(dead_code)]
 pub fn to_upper_case(text: &str) -> String {
     if text.is_empty() {
         return text.to_string();
@@ -28,6 +32,8 @@ pub fn to_upper_case(text: &str) -> String {
     }
 }
 
+// consumed by append_translated_word; attribute removed in Task 8
+#[allow(dead_code)]
 const SENTENCE_ENDERS: [&str; 11] =
     ["\n", "\t", ". ", "\"", "'", "? ", "! ", ".\" ", "?\" ", "!\" ", ": "];
 
@@ -36,6 +42,8 @@ const SENTENCE_ENDERS: [&str; 11] =
 /// - after a space or '(' → join directly
 /// - otherwise → insert one leading space
 /// Then, if the new chunk starts with , . ? ! and result ends with a space, drop that space.
+// consumed by translate_all in Task 8; attribute removed there
+#[allow(dead_code)]
 pub fn append_translated_word(result: &mut String, translated: &str, last: &mut String) {
     let new_last = if SENTENCE_ENDERS.iter().any(|e| last.ends_with(e)) {
         to_upper_case(translated)
@@ -54,6 +62,8 @@ pub fn append_translated_word(result: &mut String, translated: &str, last: &mut 
     result.push_str(last);
 }
 
+// consumed by translate_all in Task 8; attribute removed there
+#[allow(dead_code)]
 pub fn next_char_is_chinese(chars: &[char], end_idx: usize, han_viet: &HanVietMap) -> bool {
     if chars.len() > end_idx + 1 {
         is_chinese(chars[end_idx + 1], han_viet)
