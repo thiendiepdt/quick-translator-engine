@@ -1,6 +1,7 @@
 //! Dictionary loading, merging, and QT's priority rules.
 
 use std::collections::HashMap;
+use std::collections::HashSet;
 use crate::han_viet::HanVietMap;
 
 /// All lookup maps used by the engine, after loading + priority merge.
@@ -16,14 +17,16 @@ pub struct Dictionaries {
 /// - a leading BOM on the first line is stripped
 /// - split on '=' into ALL parts; keep the line only if exactly 2 parts result
 ///   (so a value containing '=' drops the line, matching QT)
-/// - lines starting with '#' are comments (skipped)
+///
+/// Note: '#'-prefixed lines are NOT treated as comments here. In the original
+/// engine, only `loadLuatNhanDictionary` skips '#' lines; HanViet/VietPhrase/
+/// Names/Names2 loaders do not. This generic helper is used by the latter, so
+/// it must not skip '#'. '#'-skipping will be applied by the LuatNhan loader
+/// specifically in a later plan. See docs/engine/dictionaries.md §2.
 pub fn parse_dict(content: &str) -> Vec<(String, String)> {
     let mut out = Vec::new();
     for (i, raw) in content.lines().enumerate() {
         let line = if i == 0 { raw.trim_start_matches('\u{feff}') } else { raw };
-        if line.starts_with('#') {
-            continue;
-        }
         let parts: Vec<&str> = line.split('=').collect();
         if parts.len() == 2 {
             out.push((parts[0].to_string(), parts[1].to_string()));
@@ -44,13 +47,19 @@ impl Dictionaries {
             }
         }
 
-        // Names: first-wins into only_name; Names2: OVERRIDE (indexer assignment).
+        // Names: first-wins into only_name; Names2: OVERRIDE (indexer assignment),
+        // but within Names2 itself the FIRST occurrence of a duplicate key wins
+        // (engine guards the override with !onlyNamePhuDictionary.ContainsKey(key),
+        // decompiled ~2103-2116).
         let mut only_name: HashMap<String, String> = HashMap::new();
         for (k, v) in parse_dict(names_src) {
             only_name.entry(k).or_insert(v);
         }
+        let mut seen_names2: HashSet<String> = HashSet::new();
         for (k, v) in parse_dict(names2_src) {
-            only_name.insert(k, v); // override
+            if seen_names2.insert(k.clone()) {
+                only_name.insert(k, v); // override Names, but only on first Names2 occurrence
+            }
         }
 
         // only_vietphrase: first-wins
@@ -96,13 +105,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parses_bom_and_skips_bad_lines() {
-        let content = "\u{feff}一=nhất\n# comment\n二=nhị\na=b=c\nnoequals\n";
+    fn parses_bom_keeps_hash_and_skips_non_kv_lines() {
+        // '#' is NOT special to parse_dict: only loadLuatNhanDictionary skips '#'
+        // lines in the original engine; HanViet/VietPhrase/Names/Names2 loaders
+        // (which use this generic helper) do not, so a '#'-prefixed line with an
+        // '=' must be kept like any other key=value line.
+        let content = "\u{feff}一=nhất\n# comment\n二=nhị\na=b=c\nnoequals\n#note=x\n";
         let got = parse_dict(content);
         assert_eq!(got, vec![
             ("一".to_string(), "nhất".to_string()),
             ("二".to_string(), "nhị".to_string()),
+            ("#note".to_string(), "x".to_string()),
         ]);
+        assert!(got.contains(&("#note".to_string(), "x".to_string())));
     }
 
     #[test]
@@ -122,5 +137,17 @@ mod tests {
         assert_eq!(d.vietphrase.get("很好").map(String::as_str), Some("rất tốt/rất ổn"));
         // one-meaning takes first split on '/' or '|'
         assert_eq!(d.vietphrase_one_meaning.get("很好").map(String::as_str), Some("rất tốt"));
+    }
+
+    #[test]
+    fn names2_first_wins_within_names2_and_overrides_names() {
+        // names2 overrides names, but within names2 itself the FIRST duplicate wins.
+        let hv = "";
+        let names = "甲=One";
+        let names2 = "甲=Two\n甲=Three";
+        let vietphrase = "";
+        let d = Dictionaries::build(hv, names, names2, vietphrase);
+
+        assert_eq!(d.only_name.get("甲"), Some(&"Two".to_string()));
     }
 }
