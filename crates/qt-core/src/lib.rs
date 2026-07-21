@@ -1,6 +1,7 @@
 //! qt-core: Quick Translator engine (Rust reimplementation).
 
 mod dict;
+mod han_viet;
 
 /// Output view, mirrors QT's translation modes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
