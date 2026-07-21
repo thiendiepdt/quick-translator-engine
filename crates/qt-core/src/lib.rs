@@ -1,5 +1,10 @@
 //! qt-core: Quick Translator engine (Rust reimplementation).
 
+// Built incrementally: each module's helpers are consumed by a later task in the
+// MVP plan, so intermediate builds have transient unused items. Removed by the
+// final MVP cleanup once every module is wired (see docs/plans/2026-07-21-qt-core-mvp.md).
+#![allow(dead_code)]
+
 mod dict;
 mod han_viet;
 mod text;
