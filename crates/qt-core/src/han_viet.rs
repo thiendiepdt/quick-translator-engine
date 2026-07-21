@@ -1,6 +1,6 @@
 //! Han-Việt phonetic transcription (single-char) and QT's `isChinese` definition.
 
-use crate::text::{append_translated_word, utf16_len};
+use crate::text::{append_translated_word, needs_space_after_sentence_punctuation, utf16_len};
 use crate::{CharRange, TranslationResult};
 use std::collections::HashMap;
 
@@ -74,6 +74,11 @@ pub fn chinese_to_han_viet(chars: &[char], han_viet: &HanVietMap) -> Translation
             last.push(c);
             target_length = source_length;
             target_start += target_length;
+            if needs_space_after_sentence_punctuation(chars, i) {
+                result.push(' ');
+                last.push(' ');
+                target_start += 1;
+            }
         }
         source_ranges.push(CharRange {
             start: source_start,

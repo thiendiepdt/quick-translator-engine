@@ -88,6 +88,28 @@ async fn translate_faithful_and_pretty() {
 }
 
 #[tokio::test]
+async fn translate_standardizes_chinese_punctuation() {
+    let resp = post_json(
+        build_router(test_state()),
+        "/translate",
+        serde_json::json!({
+            "text": "他、他。他",
+            "mode": "vietphrase-one",
+            "pretty": true,
+            "ranges": true
+        }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body: serde_json::Value = serde_json::from_str(&body_string(resp).await).unwrap();
+    assert_eq!(body["translated"], "Tha, tha. Tha");
+    assert_eq!(
+        body["sourceRanges"][1],
+        serde_json::json!({ "start": 1, "length": 1 })
+    );
+}
+
+#[tokio::test]
 async fn translate_invalid_mode_is_400() {
     let resp = post_json(
         build_router(test_state()),

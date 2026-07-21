@@ -3,6 +3,35 @@
 
 use crate::han_viet::{is_chinese, HanVietMap};
 
+/// Range-preserving punctuation subset of QT2025's `StandardizeInput`.
+/// Every replacement is one UTF-16 code unit so source offsets stay valid.
+pub(crate) fn normalize_chinese_punctuation(c: char) -> char {
+    match c {
+        '，' | '、' => ',',
+        '。' | '．' => '.',
+        '：' => ':',
+        '？' => '?',
+        '！' => '!',
+        '\u{3000}' => ' ',
+        _ => c,
+    }
+}
+
+/// QT's standardizer inserts a separator after sentence punctuation, except
+/// inside a decimal or when whitespace/a quote already follows.
+pub(crate) fn needs_space_after_sentence_punctuation(chars: &[char], index: usize) -> bool {
+    let Some(&current) = chars.get(index) else {
+        return false;
+    };
+    let Some(&next) = chars.get(index + 1) else {
+        return false;
+    };
+    if !matches!(current, '.' | '?' | '!') || matches!(next, ' ' | '"' | '\'') {
+        return false;
+    }
+    !(current == '.' && index > 0 && chars[index - 1].is_ascii_digit() && next.is_ascii_digit())
+}
+
 pub fn wrap_translation(t: &str, wrap_type: i32) -> String {
     if wrap_type == 0 {
         t.to_string()
@@ -83,6 +112,25 @@ mod tests {
         assert_eq!(wrap_translation("x", 1), "[x]");
         assert_eq!(to_upper_case("hắn"), "Hắn");
         assert_eq!(to_upper_case("[hắn]"), "[Hắn]");
+    }
+
+    #[test]
+    fn normalizes_qt_chinese_punctuation_without_changing_utf16_length() {
+        let input = "，、。．：？！　";
+        let normalized: String = input.chars().map(normalize_chinese_punctuation).collect();
+        assert_eq!(normalized, ",,..:?! ");
+        assert_eq!(
+            input.encode_utf16().count(),
+            normalized.encode_utf16().count()
+        );
+    }
+
+    #[test]
+    fn sentence_spacing_skips_decimal_points() {
+        let sentence: Vec<char> = "他.他".chars().collect();
+        assert!(needs_space_after_sentence_punctuation(&sentence, 1));
+        let decimal: Vec<char> = "1.5".chars().collect();
+        assert!(!needs_space_after_sentence_punctuation(&decimal, 1));
     }
 
     #[test]

@@ -61,7 +61,10 @@ pub fn contains_name(
 
 use crate::han_viet::{char_to_han_viet, is_chinese, HanVietMap};
 use crate::number::{number_modifier, prescan_numbers, translate_number};
-use crate::text::{append_translated_word, next_char_is_chinese, utf16_len, wrap_translation};
+use crate::text::{
+    append_translated_word, needs_space_after_sentence_punctuation, next_char_is_chinese,
+    utf16_len, wrap_translation,
+};
 use crate::{CharRange, Options, TranslationResult};
 
 #[derive(Default)]
@@ -156,6 +159,9 @@ fn process_han_viet(
     } else {
         output.append_char(c);
         target_length = c.len_utf16();
+        if needs_space_after_sentence_punctuation(chars, *num2) {
+            output.append_space();
+        }
     }
     output.source_ranges.push(CharRange {
         start: source_offsets[*num2],

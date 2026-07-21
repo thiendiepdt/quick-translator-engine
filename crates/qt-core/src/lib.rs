@@ -73,7 +73,10 @@ impl Engine {
         mode: Mode,
         opts: &Options,
     ) -> TranslationResult {
-        let chars: Vec<char> = text.chars().collect();
+        let chars: Vec<char> = text
+            .chars()
+            .map(text::normalize_chinese_punctuation)
+            .collect();
         match mode {
             Mode::HanViet => han_viet::chinese_to_han_viet(&chars, &self.dicts.han_viet),
             Mode::VietPhrase => translate::translate_all(
@@ -159,6 +162,25 @@ mod tests {
                 &Options::default()
             ),
             " Dingelstedt"
+        );
+    }
+
+    #[test]
+    fn standardizes_chinese_punctuation_before_translation() {
+        let e = engine_hv_only();
+        let result = e.translate_with_ranges(
+            "他、他。他",
+            Mode::VietPhraseOneMeaning,
+            &Options::default(),
+        );
+        assert_eq!(result.translated_text, " tha, tha. Tha");
+        assert_eq!(result.source_ranges.len(), result.target_ranges.len());
+        assert_eq!(
+            result.source_ranges[1],
+            CharRange {
+                start: 1,
+                length: 1
+            }
         );
     }
 }

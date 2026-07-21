@@ -13,6 +13,9 @@ MVP đã có đủ ba crate:
 - `qt-cli`: đọc văn bản từ stdin và ghi bản dịch ra stdout.
 - `qt-api`: HTTP server với health check, danh sách mode, dịch đơn và dịch batch.
 
+Input được chuẩn hóa các dấu câu Trung thông dụng trước khi dịch (`、` → `,`, `。` → `.`),
+khớp bước `StandardizeInput` của QT2025 và vẫn giữ đúng source ranges UTF-16.
+
 Các luật số `{s}` độc lập đã có; Luật Nhân tổng quát và tra nghĩa LacViet vẫn nằm trong
 lộ trình tiếp theo. Xem
 [kiến trúc](docs/architecture.md) và [đặc tả engine](docs/engine/).
