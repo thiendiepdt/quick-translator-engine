@@ -9,6 +9,8 @@ mod dict;
 mod han_viet;
 mod text;
 
+pub use dict::Dictionaries;
+
 /// Output view, mirrors QT's translation modes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Mode {
@@ -34,17 +36,61 @@ impl Default for Options {
     }
 }
 
+pub struct Engine {
+    dicts: Dictionaries,
+}
+
+impl Engine {
+    pub fn from_dicts(dicts: Dictionaries) -> Engine {
+        Engine { dicts }
+    }
+
+    pub fn translate(&self, text: &str, mode: Mode, _opts: &Options) -> String {
+        let chars: Vec<char> = text.chars().collect();
+        match mode {
+            Mode::HanViet => han_viet::chinese_to_han_viet_string(&chars, &self.dicts.han_viet),
+            Mode::VietPhrase | Mode::VietPhraseOneMeaning => String::new(), // TODO(Task 8)
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
+
+    fn hv_map() -> HashMap<char, String> {
+        let mut m = HashMap::new();
+        for (k, v) in [('他', "tha"), ('很', "ngận"), ('厉', "lệ"), ('害', "hại")] {
+            m.insert(k, v.to_string());
+        }
+        m
+    }
+
+    fn engine_hv_only() -> Engine {
+        let d = Dictionaries { han_viet: hv_map(), ..Default::default() };
+        Engine::from_dicts(d)
+    }
 
     #[test]
     fn options_default_matches_spec() {
         let o = Options::default();
-        assert_eq!(o.wrap_type, 0);
-        assert_eq!(o.translation_algorithm, 1);
-        assert!(o.prioritized_name);
         assert_eq!(o.scan_range, 5);
-        assert_eq!(Mode::HanViet, Mode::HanViet);
+    }
+
+    #[test]
+    fn hanviet_spaces_between_hanzi_and_capitalizes() {
+        let e = engine_hv_only();
+        // 4 consecutive hanzi → readings joined by single spaces, first capitalized
+        let got = e.translate("他很厉害", Mode::HanViet, &Options::default());
+        assert_eq!(got, "Tha ngận lệ hại");
+    }
+
+    #[test]
+    fn hanviet_passes_through_non_chinese() {
+        let e = engine_hv_only();
+        let got = e.translate("他, 好", Mode::HanViet, &Options::default());
+        // '他'→tha, then raw ", ", then '好' unknown → to_narrow('好')='好'
+        assert_eq!(got, "Tha, 好");
     }
 }

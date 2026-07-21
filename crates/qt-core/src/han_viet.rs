@@ -1,6 +1,7 @@
 //! Han-Việt phonetic transcription (single-char) and QT's `isChinese` definition.
 
 use std::collections::HashMap;
+use crate::text::append_translated_word;
 
 pub type HanVietMap = HashMap<char, String>;
 
@@ -31,6 +32,38 @@ pub fn char_to_han_viet(c: char, han_viet: &HanVietMap) -> String {
         Some(v) => v.clone(),
         None => to_narrow(&c.to_string()),
     }
+}
+
+/// Mode HanViet: transcribe each char; a single space separates two consecutive
+/// Chinese chars. Uses append_translated_word so sentence-start capitalization applies.
+pub fn chinese_to_han_viet_string(chars: &[char], han_viet: &HanVietMap) -> String {
+    let mut result = String::new();
+    let mut last = String::from(". "); // Initialize to trigger sentence-start capitalization
+    let len = chars.len();
+    if len == 0 {
+        return result;
+    }
+    for i in 0..len - 1 {
+        let c = chars[i];
+        if is_chinese(c, han_viet) {
+            append_translated_word(&mut result, &char_to_han_viet(c, han_viet), &mut last);
+            if is_chinese(chars[i + 1], han_viet) {
+                result.push(' ');
+                last.push(' ');
+            }
+        } else {
+            result.push(c);
+            last.push(c);
+        }
+    }
+    let lc = chars[len - 1];
+    if is_chinese(lc, han_viet) {
+        append_translated_word(&mut result, &char_to_han_viet(lc, han_viet), &mut last);
+    } else {
+        result.push(lc);
+        last.push(lc);
+    }
+    result
 }
 
 #[cfg(test)]

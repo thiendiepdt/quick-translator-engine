@@ -1,5 +1,17 @@
 //! Dictionary loading, merging, and QT's priority rules.
 
+use std::collections::HashMap;
+use crate::han_viet::HanVietMap;
+
+/// All lookup maps used by the engine, after loading + priority merge.
+#[derive(Default)]
+pub struct Dictionaries {
+    pub han_viet: HanVietMap,
+    pub only_name: HashMap<String, String>,
+    pub vietphrase: HashMap<String, String>,
+    pub vietphrase_one_meaning: HashMap<String, String>,
+}
+
 /// Parse `key=value` lines the way TranslatorEngine does:
 /// - a leading BOM on the first line is stripped
 /// - split on '=' into ALL parts; keep the line only if exactly 2 parts result
