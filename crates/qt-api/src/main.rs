@@ -3,8 +3,8 @@ use std::path::Path;
 use std::process::ExitCode;
 use std::sync::Arc;
 
-use qt_core::{Dictionaries, Engine};
 use qt_api::{build_router, AppState};
+use qt_core::{Dictionaries, Engine};
 
 #[tokio::main]
 async fn main() -> ExitCode {
@@ -21,7 +21,9 @@ async fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    let state = Arc::new(AppState { engine: Arc::new(Engine::from_dicts(dicts)) });
+    let state = Arc::new(AppState {
+        engine: Arc::new(Engine::from_dicts(dicts)),
+    });
     let app = build_router(state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));

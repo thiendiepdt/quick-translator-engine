@@ -70,10 +70,16 @@ struct ApiError {
 
 impl ApiError {
     fn bad_request(msg: impl Into<String>) -> Self {
-        ApiError { status: StatusCode::BAD_REQUEST, message: msg.into() }
+        ApiError {
+            status: StatusCode::BAD_REQUEST,
+            message: msg.into(),
+        }
     }
     fn internal(msg: impl Into<String>) -> Self {
-        ApiError { status: StatusCode::INTERNAL_SERVER_ERROR, message: msg.into() }
+        ApiError {
+            status: StatusCode::INTERNAL_SERVER_ERROR,
+            message: msg.into(),
+        }
     }
 }
 
@@ -111,10 +117,17 @@ async fn run_translate(
     wrap: bool,
     pretty: bool,
 ) -> Result<String, ApiError> {
-    let opts = Options { wrap_type: if wrap { 1 } else { 0 }, ..Options::default() };
+    let opts = Options {
+        wrap_type: if wrap { 1 } else { 0 },
+        ..Options::default()
+    };
     tokio::task::spawn_blocking(move || {
         let out = engine.translate(&text, mode, &opts);
-        if pretty { prettify(&out) } else { out }
+        if pretty {
+            prettify(&out)
+        } else {
+            out
+        }
     })
     .await
     .map_err(|_| ApiError::internal("translate task failed"))
@@ -144,6 +157,7 @@ async fn translate(
 ) -> Result<Json<TranslateResp>, ApiError> {
     let mode = parse_mode(&req.mode)
         .ok_or_else(|| ApiError::bad_request(format!("invalid mode: {}", req.mode)))?;
-    let translated = run_translate(state.engine.clone(), req.text, mode, req.wrap, req.pretty).await?;
+    let translated =
+        run_translate(state.engine.clone(), req.text, mode, req.wrap, req.pretty).await?;
     Ok(Json(TranslateResp { translated }))
 }

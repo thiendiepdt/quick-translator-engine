@@ -10,13 +10,10 @@ use qt_core::{Dictionaries, Engine};
 
 fn test_state() -> Arc<AppState> {
     // Tiny engine: enough for routing/handler tests.
-    let d = Dictionaries::build(
-        "他=tha\n很=ngận\n好=hảo",
-        "",
-        "",
-        "很好=rất tốt/rất ổn",
-    );
-    Arc::new(AppState { engine: Arc::new(Engine::from_dicts(d)) })
+    let d = Dictionaries::build("他=tha\n很=ngận\n好=hảo", "", "", "很好=rất tốt/rất ổn");
+    Arc::new(AppState {
+        engine: Arc::new(Engine::from_dicts(d)),
+    })
 }
 
 async fn body_string(resp: axum::response::Response) -> String {
@@ -24,7 +21,11 @@ async fn body_string(resp: axum::response::Response) -> String {
     String::from_utf8(bytes.to_vec()).unwrap()
 }
 
-async fn post_json(app: axum::Router, uri: &str, body: serde_json::Value) -> axum::response::Response {
+async fn post_json(
+    app: axum::Router,
+    uri: &str,
+    body: serde_json::Value,
+) -> axum::response::Response {
     app.oneshot(
         Request::builder()
             .method("POST")
@@ -41,7 +42,12 @@ async fn post_json(app: axum::Router, uri: &str, body: serde_json::Value) -> axu
 async fn health_ok() {
     let app = build_router(test_state());
     let resp = app
-        .oneshot(Request::builder().uri("/health").body(Body::empty()).unwrap())
+        .oneshot(
+            Request::builder()
+                .uri("/health")
+                .body(Body::empty())
+                .unwrap(),
+        )
         .await
         .unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
@@ -58,7 +64,10 @@ async fn translate_faithful_and_pretty() {
     )
     .await;
     assert_eq!(resp.status(), StatusCode::OK);
-    assert_eq!(body_string(resp).await, r#"{"translated":" tha rất tốt/rất ổn"}"#);
+    assert_eq!(
+        body_string(resp).await,
+        r#"{"translated":" tha rất tốt/rất ổn"}"#
+    );
 
     // pretty: trimmed + first letter capitalized
     let resp = post_json(
@@ -67,7 +76,10 @@ async fn translate_faithful_and_pretty() {
         serde_json::json!({ "text": "他很好", "mode": "vietphrase", "pretty": true }),
     )
     .await;
-    assert_eq!(body_string(resp).await, r#"{"translated":"Tha rất tốt/rất ổn"}"#);
+    assert_eq!(
+        body_string(resp).await,
+        r#"{"translated":"Tha rất tốt/rất ổn"}"#
+    );
 }
 
 #[tokio::test]
@@ -79,7 +91,23 @@ async fn translate_invalid_mode_is_400() {
     )
     .await;
     assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
-    assert!(body_string(resp).await.contains("error"));
+    assert_eq!(body_string(resp).await, r#"{"error":"invalid mode: nope"}"#);
+}
+
+#[tokio::test]
+async fn translate_wraps_and_selects_one_meaning() {
+    let resp = post_json(
+        build_router(test_state()),
+        "/translate",
+        serde_json::json!({
+            "text": "很好",
+            "mode": "vietphrase-one",
+            "wrap": true
+        }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(body_string(resp).await, r#"{"translated":" [rất tốt]"}"#);
 }
 
 #[tokio::test]
@@ -98,10 +126,27 @@ async fn batch_preserves_order() {
 }
 
 #[tokio::test]
+async fn batch_invalid_mode_is_400() {
+    let resp = post_json(
+        build_router(test_state()),
+        "/translate/batch",
+        serde_json::json!({ "texts": ["他"], "mode": "nope" }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(body_string(resp).await, r#"{"error":"invalid mode: nope"}"#);
+}
+
+#[tokio::test]
 async fn modes_lists_supported() {
     let app = build_router(test_state());
     let resp = app
-        .oneshot(Request::builder().uri("/modes").body(Body::empty()).unwrap())
+        .oneshot(
+            Request::builder()
+                .uri("/modes")
+                .body(Body::empty())
+                .unwrap(),
+        )
         .await
         .unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
