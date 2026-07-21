@@ -1,8 +1,8 @@
 //! Dictionary loading, merging, and QT's priority rules.
 
+use crate::han_viet::HanVietMap;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use crate::han_viet::HanVietMap;
 
 /// All lookup maps used by the engine, after loading + priority merge.
 #[derive(Default)]
@@ -26,7 +26,11 @@ pub struct Dictionaries {
 pub fn parse_dict(content: &str) -> Vec<(String, String)> {
     let mut out = Vec::new();
     for (i, raw) in content.lines().enumerate() {
-        let line = if i == 0 { raw.trim_start_matches('\u{feff}') } else { raw };
+        let line = if i == 0 {
+            raw.trim_start_matches('\u{feff}')
+        } else {
+            raw
+        };
         let parts: Vec<&str> = line.split('=').collect();
         if parts.len() == 2 {
             out.push((parts[0].to_string(), parts[1].to_string()));
@@ -38,7 +42,12 @@ pub fn parse_dict(content: &str) -> Vec<(String, String)> {
 impl Dictionaries {
     /// Pure builder mirroring loadOnlyNameDictionary → loadVietPhraseDictionary →
     /// vPDictToVPOneMeaningDict. See docs/engine/dictionaries.md §4.
-    pub fn build(han_viet_src: &str, names_src: &str, names2_src: &str, vietphrase_src: &str) -> Dictionaries {
+    pub fn build(
+        han_viet_src: &str,
+        names_src: &str,
+        names2_src: &str,
+        vietphrase_src: &str,
+    ) -> Dictionaries {
         let mut han_viet: HanVietMap = HashMap::new();
         for (k, v) in parse_dict(han_viet_src) {
             let mut it = k.chars();
@@ -84,14 +93,18 @@ impl Dictionaries {
             vietphrase_one_meaning.insert(k.clone(), first);
         }
 
-        Dictionaries { han_viet, only_name, vietphrase, vietphrase_one_meaning }
+        Dictionaries {
+            han_viet,
+            only_name,
+            vietphrase,
+            vietphrase_one_meaning,
+        }
     }
 
     /// Load from a data directory using the standard QT filenames.
     pub fn load(data_dir: &std::path::Path) -> std::io::Result<Dictionaries> {
-        let read = |rel: &str| -> std::io::Result<String> {
-            std::fs::read_to_string(data_dir.join(rel))
-        };
+        let read =
+            |rel: &str| -> std::io::Result<String> { std::fs::read_to_string(data_dir.join(rel)) };
         let han_viet = read("Resources/ChinesePhienAmWords.txt")?;
         let names = read("Names.txt")?;
         let names2 = read("Names2/123.txt").unwrap_or_default();
@@ -112,11 +125,14 @@ mod tests {
         // '=' must be kept like any other key=value line.
         let content = "\u{feff}一=nhất\n# comment\n二=nhị\na=b=c\nnoequals\n#note=x\n";
         let got = parse_dict(content);
-        assert_eq!(got, vec![
-            ("一".to_string(), "nhất".to_string()),
-            ("二".to_string(), "nhị".to_string()),
-            ("#note".to_string(), "x".to_string()),
-        ]);
+        assert_eq!(
+            got,
+            vec![
+                ("一".to_string(), "nhất".to_string()),
+                ("二".to_string(), "nhị".to_string()),
+                ("#note".to_string(), "x".to_string()),
+            ]
+        );
         assert!(got.contains(&("#note".to_string(), "x".to_string())));
     }
 
@@ -130,13 +146,25 @@ mod tests {
         let d = Dictionaries::build(hv, names, names2, vietphrase);
 
         // Names2 overrode Names in only_name
-        assert_eq!(d.only_name.get("张").map(String::as_str), Some("TruongName2"));
+        assert_eq!(
+            d.only_name.get("张").map(String::as_str),
+            Some("TruongName2")
+        );
         // vietphrase merged: name key wins over vietphrase key
-        assert_eq!(d.vietphrase.get("张").map(String::as_str), Some("TruongName2"));
+        assert_eq!(
+            d.vietphrase.get("张").map(String::as_str),
+            Some("TruongName2")
+        );
         // pure vietphrase entry present with full multi-meaning value
-        assert_eq!(d.vietphrase.get("很好").map(String::as_str), Some("rất tốt/rất ổn"));
+        assert_eq!(
+            d.vietphrase.get("很好").map(String::as_str),
+            Some("rất tốt/rất ổn")
+        );
         // one-meaning takes first split on '/' or '|'
-        assert_eq!(d.vietphrase_one_meaning.get("很好").map(String::as_str), Some("rất tốt"));
+        assert_eq!(
+            d.vietphrase_one_meaning.get("很好").map(String::as_str),
+            Some("rất tốt")
+        );
     }
 
     #[test]

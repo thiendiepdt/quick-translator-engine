@@ -10,7 +10,12 @@ use qt_core::{Dictionaries, Engine};
 
 fn test_state() -> Arc<AppState> {
     // Tiny engine: enough for routing/handler tests.
-    let d = Dictionaries::build("他=tha\n很=ngận\n好=hảo", "", "", "很好=rất tốt/rất ổn");
+    let d = Dictionaries::build(
+        "他=tha\n很=ngận\n好=hảo",
+        "丁格尔斯泰特=Dingelstedt",
+        "",
+        "很好=rất tốt/rất ổn",
+    );
     Arc::new(AppState {
         engine: Arc::new(Engine::from_dicts(d)),
     })
@@ -108,6 +113,21 @@ async fn translate_wraps_and_selects_one_meaning() {
     .await;
     assert_eq!(resp.status(), StatusCode::OK);
     assert_eq!(body_string(resp).await, r#"{"translated":" [rất tốt]"}"#);
+}
+
+#[tokio::test]
+async fn translate_uses_qt_scan_range_for_long_phrases() {
+    let resp = post_json(
+        build_router(test_state()),
+        "/translate",
+        serde_json::json!({
+            "text": "丁格尔斯泰特",
+            "mode": "vietphrase-one"
+        }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(body_string(resp).await, r#"{"translated":" Dingelstedt"}"#);
 }
 
 #[tokio::test]

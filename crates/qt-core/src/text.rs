@@ -28,13 +28,15 @@ pub fn to_upper_case(text: &str) -> String {
     }
 }
 
-const SENTENCE_ENDERS: [&str; 11] =
-    ["\n", "\t", ". ", "\"", "'", "? ", "! ", ".\" ", "?\" ", "!\" ", ": "];
+const SENTENCE_ENDERS: [&str; 11] = [
+    "\n", "\t", ". ", "\"", "'", "? ", "! ", ".\" ", "?\" ", "!\" ", ": ",
+];
 
 /// Append `translated` to `result`, tracking `last` (the previously appended chunk).
 /// - after a sentence-ender → capitalize first letter
 /// - after a space or '(' → join directly
 /// - otherwise → insert one leading space
+///
 /// Then, if the new chunk starts with , . ? ! and result ends with a space, drop that space.
 pub fn append_translated_word(result: &mut String, translated: &str, last: &mut String) {
     let new_last = if SENTENCE_ENDERS.iter().any(|e| last.ends_with(e)) {
@@ -47,7 +49,10 @@ pub fn append_translated_word(result: &mut String, translated: &str, last: &mut 
     *last = new_last;
 
     let starts_punct = translated.is_empty()
-        || matches!(translated.chars().next(), Some(',') | Some('.') | Some('?') | Some('!'));
+        || matches!(
+            translated.chars().next(),
+            Some(',') | Some('.') | Some('?') | Some('!')
+        );
     if starts_punct && result.ends_with(' ') {
         result.pop();
     }
@@ -93,11 +98,9 @@ mod tests {
 
     #[test]
     fn join_drops_space_before_punct() {
-        let mut r = String::from("hắn");
-        let mut last = String::from("hắn"); // does NOT end with space
-        // ',' start → new_last=" ,"? No: default branch makes " ," then punct rule trims result space.
+        let mut r = String::from("hắn ");
+        let mut last = String::from("hắn ");
         append_translated_word(&mut r, ",", &mut last);
-        // result had no trailing space, so nothing trimmed; last becomes " ,"
-        assert_eq!(r, "hắn ,");
+        assert_eq!(r, "hắn,");
     }
 }

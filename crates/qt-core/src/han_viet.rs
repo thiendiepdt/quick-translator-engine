@@ -1,7 +1,7 @@
 //! Han-Việt phonetic transcription (single-char) and QT's `isChinese` definition.
 
-use std::collections::HashMap;
 use crate::text::append_translated_word;
+use std::collections::HashMap;
 
 pub type HanVietMap = HashMap<char, String>;
 

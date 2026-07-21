@@ -26,10 +26,9 @@ chỉ khác **từ điển** truyền vào. HanViet đi đường riêng.
 | `prioritizedName` | bool | Ưu tiên tên riêng: bỏ qua cụm VietPhrase nếu nó "nuốt" một Name phía sau |
 | `scanRange` | int | Độ dài (số ký tự) tối đa để quét cụm từ mỗi vị trí |
 
-> **Default**: các giá trị này do UI QuickTranslator lưu trong `QuickTranslatorMain.config`
-> (binary). Khi implement, expose chúng làm option, default hợp lý:
-> `wrapType=0`, `translationAlgorithm=1`, `prioritizedName=true`, `scanRange=5`.
-> (Cần chốt lại bằng golden test khi có mẫu output thật.)
+> **Default**: `QT2025/Resources/QuickTranslatorMain.config` (BinaryFormatter, version 1)
+> lưu `scanRange=30`, `TranslationAlgorithm=1`, `PrioritizedName=true`. CLI/API chọn
+> `wrapType=0` để trả output không bọc theo mặc định.
 
 ## 3. Thứ tự ưu tiên khi dịch một vị trí
 

@@ -58,12 +58,18 @@ fn main() -> ExitCode {
     let dicts = match Dictionaries::load(&data_dir) {
         Ok(d) => d,
         Err(e) => {
-            eprintln!("error: failed to load dictionaries from {}: {e}", data_dir.display());
+            eprintln!(
+                "error: failed to load dictionaries from {}: {e}",
+                data_dir.display()
+            );
             return ExitCode::FAILURE;
         }
     };
     let engine = Engine::from_dicts(dicts);
-    let opts = Options { wrap_type: if wrap { 1 } else { 0 }, ..Options::default() };
+    let opts = Options {
+        wrap_type: if wrap { 1 } else { 0 },
+        ..Options::default()
+    };
 
     let mut input = String::new();
     if std::io::stdin().read_to_string(&mut input).is_err() {

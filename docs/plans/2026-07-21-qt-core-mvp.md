@@ -96,9 +96,8 @@ pub struct Options {
 
 impl Default for Options {
     fn default() -> Self {
-        // Defaults live in QT's binary UI config; these are the working defaults
-        // documented in docs/engine/overview.md, to be confirmed by golden tests.
-        Options { wrap_type: 0, translation_algorithm: 1, prioritized_name: true, scan_range: 5 }
+        // Defaults decoded from QT2025/Resources/QuickTranslatorMain.config.
+        Options { wrap_type: 0, translation_algorithm: 1, prioritized_name: true, scan_range: 30 }
     }
 }
 
@@ -112,7 +111,7 @@ mod tests {
         assert_eq!(o.wrap_type, 0);
         assert_eq!(o.translation_algorithm, 1);
         assert!(o.prioritized_name);
-        assert_eq!(o.scan_range, 5);
+        assert_eq!(o.scan_range, 30);
         assert_eq!(Mode::HanViet, Mode::HanViet);
     }
 }
@@ -594,28 +593,30 @@ mod tests {
     #[test]
     fn options_default_matches_spec() {
         let o = Options::default();
-        assert_eq!(o.scan_range, 5);
+        assert_eq!(o.scan_range, 30);
     }
 
     #[test]
-    fn hanviet_spaces_between_hanzi_and_capitalizes() {
+    fn hanviet_spaces_between_hanzi() {
         let e = engine_hv_only();
-        // 4 consecutive hanzi → readings joined by single spaces, first capitalized
+        // The engine initializes lastTranslatedWord="", so output starts with a space.
         let got = e.translate("他很厉害", Mode::HanViet, &Options::default());
-        assert_eq!(got, "Tha ngận lệ hại");
+        assert_eq!(got, " tha ngận lệ hại");
     }
 
     #[test]
     fn hanviet_passes_through_non_chinese() {
         let e = engine_hv_only();
         let got = e.translate("他, 好", Mode::HanViet, &Options::default());
-        // '他'→tha, then raw ", ", then '好' unknown → to_narrow('好')='好'
-        assert_eq!(got, "Tha, 好");
+        // '他'→tha with a leading space, then raw ", ", then unknown '好'.
+        assert_eq!(got, " tha, 好");
     }
 }
 ```
 
-> Note the expected value `"Tha, 好"`: after `他`→`tha` (capitalized `Tha`), the raw `,` and ` ` and unknown `好` pass through. `好` is not in `hv_map`, so `is_chinese('好')` is false and it is emitted raw.
+> Note the expected leading space in `" tha, 好"`: `lastTranslatedWord` starts empty, so
+> `appendTranslatedWord` takes its default branch. `好` is not in `hv_map`, so
+> `is_chinese('好')` is false and it is emitted raw.
 
 - [ ] **Step 5: Run tests to verify they pass**
 
@@ -1269,7 +1270,7 @@ fn cli_hanviet_over_stdin() {
 - [ ] **Step 4: Run the CLI test**
 
 Run: `cargo test -p qt-cli`
-Expected: PASS (builds `qt`, runs it, asserts `"Tha hảo"`).
+Expected: PASS (builds `qt`, runs it, asserts `" tha hảo"`).
 
 - [ ] **Step 5: Smoke-test against the real dictionaries**
 
@@ -1277,7 +1278,8 @@ Run:
 ```bash
 echo "他很厉害" | cargo run -q -p qt-cli -- translate --mode hanviet --data-dir QT2025
 ```
-Expected: a Han-Việt line (e.g. `Tha ngận lệ hại`) printed. Then try `--mode vietphrase`.
+Expected: a faithful Han-Việt line (for example ` tha ngận lệ hại`, with a leading space)
+printed. Then try `--mode vietphrase`.
 This is a manual sanity check over the full 28MB dictionary load; note load time.
 
 - [ ] **Step 6: Commit**

@@ -18,12 +18,13 @@ bằng Rust "y hệt" bản gốc.
 ## Quy ước
 
 - Pseudocode bám sát tên biến/hàm trong bản decompile để dễ đối chiếu
-  (`scratchpad/decompiled/TranslatorEngine.decompiled.cs`, không commit vào repo).
+  (`reference/decompiled/TranslatorEngine.decompiled.cs`).
 - Mọi hành vi "dễ sai khi tái tạo" được đánh dấu bằng blockquote hoặc **in đậm**.
 - Ưu tiên verify: HanViet → VietPhraseOneMeaning → VietPhrase → LuatNhan/số.
 
 ## Độ tin cậy
 
-Đặc tả dựa trên **đọc trực tiếp code decompile** (không đoán). Vài giá trị default cấu hình
-(`scanRange`, `translationAlgorithm`, `prioritizedName`) nằm trong file config binary của UI —
-cần chốt cuối cùng bằng **golden test** đối chiếu output QT thật khi có mẫu.
+Đặc tả dựa trên **đọc trực tiếp code decompile**. Các giá trị cấu hình đã được xác nhận từ
+`QT2025/Resources/QuickTranslatorMain.config`: `scanRange=30`,
+`TranslationAlgorithm=1`, `PrioritizedName=true`. Golden test bằng output QT thật vẫn cần
+cho Luật Nhân, chuyển số và các trường hợp ghép câu phức tạp.

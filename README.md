@@ -6,13 +6,24 @@ nhưng chạy headless, dễ tích hợp vào tool/server dịch truyện, và m
 
 ## Trạng thái
 
-🚧 Giai đoạn **tài liệu** (docs-first). Xem [docs/](docs/):
+MVP đã có đủ ba crate:
 
-- [docs/architecture.md](docs/architecture.md) — thiết kế hệ thống, lộ trình.
-- [docs/engine/](docs/engine/) — đặc tả thuật toán engine "y hệt" (từ decompile).
+- `qt-core`: HanViet, VietPhrase và VietPhraseOneMeaning.
+- `qt-cli`: đọc văn bản từ stdin và ghi bản dịch ra stdout.
+- `qt-api`: HTTP server với health check, danh sách mode, dịch đơn và dịch batch.
 
-Code (`crates/qt-core`, `qt-cli`, `qt-api`) sẽ triển khai theo spec ở giai đoạn sau.
+Luật Nhân, chuyển số Hán và tra nghĩa LacViet vẫn nằm trong lộ trình tiếp theo. Xem
+[kiến trúc](docs/architecture.md) và [đặc tả engine](docs/engine/).
+
+Chạy HTTP server từ thư mục repo:
+
+```powershell
+$env:QT_DATA_DIR="QT2025"
+$env:QT_PORT="3000"
+cargo run -p qt-api --bin qt-server
+```
 
 ## Nguồn gốc
 
-`QT2025/` chứa app gốc để tham chiếu (engine `TranslatorEngine.dll`, bộ từ điển). Không build.
+`QT2025/` chứa bộ từ điển và config của app gốc; code engine đã decompile nằm trong
+`reference/decompiled/` để đối chiếu hành vi.

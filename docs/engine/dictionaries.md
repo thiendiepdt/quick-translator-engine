@@ -20,13 +20,14 @@ LuatNhan=LuatNhan.txt
 Pronouns=Resources\Pronouns.txt
 ```
 
-> Rust: đọc config này, cho phép override thư mục gốc qua `--data-dir`. Dùng `\` trên Windows;
-> khi port sang Linux phải chuẩn hoá separator.
+> Rust MVP dùng đúng các đường dẫn chuẩn trong config này và cho phép đổi thư mục gốc qua
+> `--data-dir`/`QT_DATA_DIR`. Các path được ghép theo từng component nên chạy được trên cả
+> Windows và Linux; MVP chưa parse một file `Dictionaries.config` tùy biến.
 
 ## 2. Format chung của mỗi dòng
 
 - Encoding: **UTF-8, có BOM** (`detectEncodingFromByteOrderMarks: true`). Dòng đầu có `﻿`.
-- Mỗi dòng: `key=value`. **Split bằng ký tự `=` đầu tiên**, `array.Length == 2` mới nhận
+- Mỗi dòng: `key=value`. **Split theo mọi ký tự `=`**, `array.Length == 2` mới nhận
   → nếu `value` chứa `=`, split thành >2 phần và **dòng bị bỏ** (trừ LuatNhan cũng vậy).
   (Ghi chú tương thích: nên tôn trọng đúng hành vi này để "y hệt".)
 - Dòng trùng key: **chỉ dòng ĐẦU tiên được giữ** (`!ContainsKey` guard). Dòng sau bị bỏ.

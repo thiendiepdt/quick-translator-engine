@@ -21,14 +21,19 @@ pub struct Options {
     pub wrap_type: i32,             // 0 = plain, 1 = wrap each phrase in [...]
     pub translation_algorithm: i32, // 0/1/2, controls "longest phrase" rule
     pub prioritized_name: bool,
-    pub scan_range: usize,          // max phrase length scanned per position
+    pub scan_range: usize, // max phrase length scanned per position
 }
 
 impl Default for Options {
     fn default() -> Self {
-        // Defaults live in QT's binary UI config; these are the working defaults
-        // documented in docs/engine/overview.md, to be confirmed by golden tests.
-        Options { wrap_type: 0, translation_algorithm: 1, prioritized_name: true, scan_range: 5 }
+        // QuickTranslatorMain.config stores scanRange=30,
+        // TranslationAlgorithm=1, and PrioritizedName=true.
+        Options {
+            wrap_type: 0,
+            translation_algorithm: 1,
+            prioritized_name: true,
+            scan_range: 30,
+        }
     }
 }
 
@@ -46,10 +51,18 @@ impl Engine {
         match mode {
             Mode::HanViet => han_viet::chinese_to_han_viet_string(&chars, &self.dicts.han_viet),
             Mode::VietPhrase => translate::translate_all(
-                &chars, opts, &self.dicts.vietphrase, &self.dicts.only_name, &self.dicts.han_viet,
+                &chars,
+                opts,
+                &self.dicts.vietphrase,
+                &self.dicts.only_name,
+                &self.dicts.han_viet,
             ),
             Mode::VietPhraseOneMeaning => translate::translate_all(
-                &chars, opts, &self.dicts.vietphrase_one_meaning, &self.dicts.only_name, &self.dicts.han_viet,
+                &chars,
+                opts,
+                &self.dicts.vietphrase_one_meaning,
+                &self.dicts.only_name,
+                &self.dicts.han_viet,
             ),
         }
     }
@@ -69,14 +82,20 @@ mod tests {
     }
 
     fn engine_hv_only() -> Engine {
-        let d = Dictionaries { han_viet: hv_map(), ..Default::default() };
+        let d = Dictionaries {
+            han_viet: hv_map(),
+            ..Default::default()
+        };
         Engine::from_dicts(d)
     }
 
     #[test]
     fn options_default_matches_spec() {
         let o = Options::default();
-        assert_eq!(o.scan_range, 5);
+        assert_eq!(o.wrap_type, 0);
+        assert_eq!(o.translation_algorithm, 1);
+        assert!(o.prioritized_name);
+        assert_eq!(o.scan_range, 30);
     }
 
     #[test]
@@ -93,5 +112,25 @@ mod tests {
         let got = e.translate("他, 好", Mode::HanViet, &Options::default());
         // '他'→tha (leading space, lowercase), then raw ', ', then unknown '好' passes through
         assert_eq!(got, " tha, 好");
+    }
+
+    #[test]
+    fn default_scan_range_matches_long_qt_name_entries() {
+        let d = Dictionaries::build(
+            "丁=đinh\n格=cách\n尔=nhĩ\n斯=tư\n泰=thái\n特=đặc",
+            "丁格尔斯泰特=Dingelstedt",
+            "",
+            "",
+        );
+        let e = Engine::from_dicts(d);
+
+        assert_eq!(
+            e.translate(
+                "丁格尔斯泰特",
+                Mode::VietPhraseOneMeaning,
+                &Options::default()
+            ),
+            " Dingelstedt"
+        );
     }
 }

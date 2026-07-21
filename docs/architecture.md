@@ -8,7 +8,7 @@
 Tái tạo **Quick Translator (QT2025)** — công cụ dịch Trung → Việt theo từ điển longest-match —
 dưới dạng:
 
-1. **CLI** (`qt`): đọc `stdin`, dịch, xuất `stdout`; dịch file; batch.
+1. **CLI** (`qt`): đọc `stdin`, dịch và xuất `stdout` (dịch file/batch là bước mở rộng).
 2. **API** (`qt-server`): HTTP REST server, nạp từ điển 1 lần rồi phục vụ nhiều request,
    để tích hợp vào các tool/server dịch/convert truyện khác.
 3. Nền tảng cho **Tauri desktop GUI** về sau (dùng chung engine).
@@ -49,16 +49,16 @@ qt-cli/
 │   ├── qt-core/                 # Engine thuần Rust (no I/O bên ngoài dict loader)
 │   ├── qt-cli/                  # binary `qt`
 │   └── qt-api/                  # binary `qt-server` (axum)
-├── data/                        # Bộ từ điển (copy từ QT2025), có thể override qua config
-├── tests/golden/                # Cặp Trung→output QT thật, so từng ký tự
-└── QT2025/                      # Source gốc để tham chiếu (không build)
+├── reference/decompiled/        # C# decompile của TranslatorEngine
+└── QT2025/                      # Từ điển + config gốc dùng để chạy/smoke test
 ```
 
 ### Ranh giới module (isolation)
 
-- **`qt-core`** là thư viện thuần: `Engine::new(dictionaries) -> Engine`, rồi
-  `engine.translate(text, mode, options) -> TranslationResult`. Không phụ thuộc HTTP/CLI.
-  Toàn bộ độ chính xác "y hệt" nằm ở đây và được phủ bởi golden test.
+- **`qt-core`** là thư viện thuần: `Engine::from_dicts(dictionaries) -> Engine`, rồi
+  `engine.translate(text, mode, options) -> String`. Không phụ thuộc HTTP/CLI.
+  Toàn bộ độ chính xác "y hệt" nằm ở đây; source-level regression test đã có, còn bộ golden
+  output lấy trực tiếp từ app QT thật chưa có.
 - **`qt-cli`** và **`qt-api`** là vỏ mỏng: parse input → gọi `qt-core` → format output.
   Không chứa logic dịch.
 
@@ -92,38 +92,42 @@ Tham số dịch (khớp API gốc): `wrapType` (0=thường, 1=bọc `[...]`),
 `translationAlgorithm` (0/1/2 — ảnh hưởng luật "cụm dài nhất"), `prioritizedName` (bool),
 `scanRange` (độ dài quét tối đa). Xem [translation-algorithm.md](engine/translation-algorithm.md).
 
-## 6. API surface (dự kiến)
+## 6. API surface hiện tại
 
 **CLI** (`qt`):
 ```
 qt translate --mode vietphrase < input.txt > output.txt
 echo "他很厉害" | qt translate --mode hanviet
-qt translate --mode vietphrase-one --wrap file.txt
+qt translate --mode vietphrase-one --wrap < input.txt
 ```
 
 **HTTP** (`qt-server`):
 ```
-POST /translate   { "text": "...", "mode": "vietphrase", "options": {...} }
-                  -> { "translated": "...", "ranges": [...] }
-POST /meanings    { "text": "..." }        # tra cứu (ChineseToMeanings)
+POST /translate        { "text": "...", "mode": "vietphrase", "wrap": false, "pretty": false }
+                       -> { "translated": "..." }
+POST /translate/batch  { "texts": ["..."], "mode": "vietphrase" }
+                       -> { "translated": ["..."] }
+GET  /modes
 GET  /health
 ```
-Server nạp `data/` một lần khi khởi động (VietPhrase ~28MB, ~763k entry).
+Server nạp thư mục `QT_DATA_DIR` một lần khi khởi động (mặc định `data`; khi chạy repo dùng
+`QT2025`). `/meanings` và source↔target ranges được hoãn vì `qt-core` MVP chưa trả các dữ liệu đó.
 
 ## 7. Chiến lược verify "y hệt"
 
-- **Nguồn chân lý**: code decompile từ `TranslatorEngine.dll` (`scratchpad/decompiled/`).
-- **Golden test**: `tests/golden/` chứa cặp `input.zh → expected.txt` (output QT thật).
-  `qt-core` chạy qua phải khớp **từng ký tự**.
+- **Nguồn chân lý**: code decompile từ `TranslatorEngine.dll`
+  (`reference/decompiled/TranslatorEngine.decompiled.cs`) và config/từ điển trong `QT2025/`.
+- **Golden test (chưa có)**: sẽ chứa cặp `input.zh → expected.txt` lấy từ app QT thật;
+  `qt-core` phải khớp **từng ký tự**.
 - Ưu tiên verify theo thứ tự: HanViet (đơn giản nhất) → VietPhraseOneMeaning → VietPhrase
   → LuatNhan/số (phức tạp nhất).
 
 ## 8. Lộ trình (mỗi bước là 1 spec → plan riêng)
 
-1. **Docs** (bước hiện tại) — đặc tả engine + format dữ liệu. ✅ ưu tiên
-2. `qt-core` MVP: dict loader + HanViet + VietPhrase + VietPhraseOneMeaning.
-3. `qt-cli`: stdin/stdout, file, `--mode`.
-4. `qt-api`: HTTP server.
+1. **Docs** — đặc tả engine + format dữ liệu. ✅
+2. `qt-core` MVP: dict loader + HanViet + VietPhrase + VietPhraseOneMeaning. ✅
+3. `qt-cli`: stdin/stdout + `--mode`/`--data-dir`/`--wrap`. ✅
+4. `qt-api`: HTTP server. ✅
 5. LuatNhan + số Hán (tăng độ khớp) → Nghĩa/LacViet.
 6. (sau) Tauri GUI, quản lý từ điển (thêm/sửa Names, VietPhrase).
 
