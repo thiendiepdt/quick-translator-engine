@@ -8,6 +8,7 @@
 mod dict;
 mod han_viet;
 mod text;
+mod translate;
 
 pub use dict::Dictionaries;
 
