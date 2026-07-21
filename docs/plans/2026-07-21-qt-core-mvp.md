@@ -142,6 +142,8 @@ git commit -m "feat(qt-core): workspace skeleton + Mode/Options types"
 **Interfaces:**
 - Produces: `pub fn parse_dict(content: &str) -> Vec<(String, String)>` — splits `key=value` lines, mirrors QT: strips a leading UTF-8 BOM, splits on `=` into all parts and keeps a line **only if it yields exactly 2 parts**, skips `#` comment lines.
 
+> **CORRECTION (applied after final review):** the `#`-skip below is WRONG — the engine only skips `#` in the LuatNhan loader, not for HanViet/VietPhrase/Names (see docs/engine/dictionaries.md §2). The shipped code removed the `#`-skip from `parse_dict`; a `#key=val` line is kept. The LuatNhan loader will apply its own `#`-skip in a later plan. The code block below is the original (superseded) version.
+
 - [ ] **Step 1: Write the failing test in dict.rs**
 
 ```rust
