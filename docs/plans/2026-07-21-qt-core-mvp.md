@@ -902,23 +902,27 @@ Add to the `tests` module in `translate.rs`:
         let names = HashMap::new();
         let hanviet = hv(&[('他', "tha"), ('很', "ngận"), ('好', "hảo")]);
         let opts = Options::default();
-        // 他 not in dict → HanViet 'tha'; then 很好 phrase → 'rất tốt'
+        // 他 not in dict → HanViet 'tha'; then 很好 phrase → 'rất tốt'.
+        // Faithful to the engine: last starts "" so the first word gets a LEADING
+        // SPACE and stays lowercase (TranslateAll inits lastTranslatedWord = "").
         let got = translate_all(&chars, &opts, &d, &names, &hanviet);
-        assert_eq!(got, "Tha rất tốt");
+        assert_eq!(got, " tha rất tốt");
     }
 
     #[test]
     fn name_priority_skips_phrase_covering_a_name() {
-        // phrase 张三=ZhangSanVP covers name 三=Ba. With prioritized_name, phrase is skipped.
-        let chars: Vec<char> = "张三".chars().collect();
-        let d = dict(&[("张三", "TruongTamVP")]);
-        let names = dict(&[("三", "Tam")]);
-        let hanviet = hv(&[('张', "trương"), ('三', "tam")]);
+        // phrase 红中人 covers the 2-char name 中人 starting inside it.
+        // With prioritized_name, containsName rejects the phrase (inner name has
+        // length >= 2), so 红 falls to HanViet and 中人 is translated as the name.
+        // (A single-char inner name would NOT trigger containsName, which only
+        // scans lengths >= 2 — hence a 2-char inner name here.)
+        let chars: Vec<char> = "红中人".chars().collect();
+        let d = dict(&[("红中人", "cả cụm"), ("中人", "trung nhân")]);
+        let names = dict(&[("中人", "trung nhân")]);
+        let hanviet = hv(&[('红', "hồng"), ('中', "trung"), ('人', "nhân")]);
         let opts = Options { prioritized_name: true, ..Options::default() };
-        // 张三 rejected (contains inner name 三) → 张 via hanviet 'trương', 三 via name? 三 not in dict,
-        // only in names; names are only merged into `dict` by build(), here dict lacks it → hanviet 'tam'
         let got = translate_all(&chars, &opts, &d, &names, &hanviet);
-        assert_eq!(got, "Trương tam");
+        assert_eq!(got, " hồng trung nhân");
     }
 ```
 
@@ -1089,8 +1093,9 @@ fn end_to_end_vietphrase_and_one_meaning() {
     );
     let e = Engine::from_dicts(d);
     let o = Options::default();
-    assert_eq!(e.translate("他很好", Mode::VietPhrase, &o), "Tha rất tốt/rất ổn");
-    assert_eq!(e.translate("他很好", Mode::VietPhraseOneMeaning, &o), "Tha rất tốt");
+    // Faithful engine output: leading space, lowercase first word.
+    assert_eq!(e.translate("他很好", Mode::VietPhrase, &o), " tha rất tốt/rất ổn");
+    assert_eq!(e.translate("他很好", Mode::VietPhraseOneMeaning, &o), " tha rất tốt");
 }
 ```
 
@@ -1252,7 +1257,8 @@ fn cli_hanviet_over_stdin() {
     let out = child.wait_with_output().unwrap();
 
     assert!(out.status.success());
-    assert_eq!(String::from_utf8_lossy(&out.stdout), "Tha hảo");
+    // Faithful engine output: leading space, lowercase first word.
+    assert_eq!(String::from_utf8_lossy(&out.stdout), " tha hảo");
 
     let _ = std::fs::remove_dir_all(&dir);
 }
