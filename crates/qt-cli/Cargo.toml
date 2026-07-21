@@ -3,4 +3,9 @@ name = "qt-cli"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "qt"
+path = "src/main.rs"
+
 [dependencies]
+qt-core = { path = "../qt-core" }
