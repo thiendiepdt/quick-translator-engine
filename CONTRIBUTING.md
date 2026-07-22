@@ -45,6 +45,9 @@ test(qt-cli): cover invalid options
 
 Scope nên là `qt-core`, `qt-cli`, `qt-api` hoặc bỏ scope khi thay đổi trải rộng toàn repo.
 
+Bằng việc gửi đóng góp cho phần code Rust, contributor đồng ý phát hành phần đóng góp đó
+theo cùng giấy phép `GPL-3.0-only` của dự án.
+
 ## Thay đổi thuật toán
 
 Ưu tiên nguồn chứng cứ theo thứ tự:

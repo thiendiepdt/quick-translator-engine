@@ -126,9 +126,12 @@ một emoji fallback tạo một range có `length=2`; .NET có thể biểu di�
 surrogate. HanViet ranges là contract hai chiều mở rộng của bản Rust, không phải bản sao
 của mapping target-only trong QT2025.
 
-## Dữ liệu tham chiếu và giấy phép
+## Giấy phép và dữ liệu tham chiếu
 
-Repository chưa có giấy phép mã nguồn mở cho phần code Rust. Dữ liệu trong `QT2025/` và
-source decompile trong `reference/` có nguồn gốc riêng, không mặc nhiên được bao phủ bởi
-giấy phép của code. Trước khi phát hành công khai hoặc phân phối lại, cần xác nhận quyền
-phân phối và chọn license phù hợp; xem [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Phần code Rust của QT-CLI được phát hành theo
+[GNU General Public License v3.0 only](LICENSE) (`GPL-3.0-only`).
+
+Dữ liệu trong `QT2025/` và source decompile trong `reference/` có nguồn gốc riêng, không
+mặc nhiên được bao phủ bởi GPL-3.0 của code. Trước khi phát hành công khai hoặc phân phối
+lại các artifact này, cần xác nhận quyền phân phối; xem
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
