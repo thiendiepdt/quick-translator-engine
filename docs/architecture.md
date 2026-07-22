@@ -19,7 +19,11 @@ quick-translator-engine/
 ├── crates/
 │   ├── qt-core/   # thư viện dịch đồng bộ
 │   ├── qt-cli/    # binary qt, stdin -> stdout
-│   └── qt-api/    # binary qt-server, Axum HTTP API
+│   ├── qt-api/    # binary qt-server, Axum HTTP API
+│   └── qt-lambda/ # native AWS Lambda entrypoint
+├── deploy/
+│   ├── aws-lambda/       # SAM template, event và hướng dẫn deploy
+│   └── cloudflare-worker/ # edge gateway ký SigV4
 ├── docs/
 │   ├── api.md
 │   ├── architecture.md
@@ -75,6 +79,22 @@ Server nạp một `Engine` lúc khởi động và chia sẻ qua `Arc`. Nội d
 
 Batch giữ thứ tự và xử lý lần lượt từng item để không làm đầy blocking pool trong một
 request. Xem schema tại [api.md](api.md).
+
+### `qt-lambda`
+
+Lambda binary dùng `lambda_http` để chạy lại nguyên Axum router của `qt-api`. Hai
+dictionary cố định được nhúng vào executable bằng `include_str!`, vì vậy execution
+environment không cần filesystem dữ liệu hay bước download lúc cold start. Các dictionary
+phụ vẫn được parse riêng theo từng request và không làm thay đổi state dùng chung của warm
+instance.
+
+SAM template deploy runtime `provided.al2023` trên ARM64, tạo Function URL mặc định dùng
+`AWS_IAM` và giới hạn concurrency. Xem [hướng dẫn deploy](../deploy/aws-lambda/README.md).
+
+Cloudflare Worker trong `deploy/cloudflare-worker` là public gateway tùy chọn. Worker
+giới hạn route/body ở edge, ký request bằng SigV4 với IAM principal least-privilege rồi
+proxy tới Function URL. Lambda vẫn dùng `AWS_IAM`, nên request gọi thẳng origin mà không
+có chữ ký hợp lệ bị AWS từ chối trước khi engine chạy.
 
 ## Pipeline dịch
 

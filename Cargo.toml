@@ -1,3 +1,8 @@
 [workspace]
 resolver = "2"
-members = ["crates/qt-core", "crates/qt-cli", "crates/qt-api"]
+members = [
+    "crates/qt-core",
+    "crates/qt-cli",
+    "crates/qt-api",
+    "crates/qt-lambda",
+]

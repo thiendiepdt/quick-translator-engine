@@ -1,0 +1,27 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "InvokeQuickTranslatorFunctionUrl",
+      "Effect": "Allow",
+      "Action": "lambda:InvokeFunctionUrl",
+      "Resource": "arn:aws:lambda:ap-southeast-1:123456789012:function:quick-translator-engine",
+      "Condition": {
+        "StringEquals": {
+          "lambda:FunctionUrlAuthType": "AWS_IAM"
+        }
+      }
+    },
+    {
+      "Sid": "InvokeQuickTranslatorOnlyViaFunctionUrl",
+      "Effect": "Allow",
+      "Action": "lambda:InvokeFunction",
+      "Resource": "arn:aws:lambda:ap-southeast-1:123456789012:function:quick-translator-engine",
+      "Condition": {
+        "Bool": {
+          "lambda:InvokedViaFunctionUrl": "true"
+        }
+      }
+    }
+  ]
+}
