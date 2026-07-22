@@ -1,9 +1,9 @@
-# QT-CLI
+# Quick Translator Engine
 
-QT-CLI là bản tái hiện bằng Rust của engine Quick Translator (QT2025), phục vụ dịch
-Trung → Việt theo từ điển qua thư viện, CLI và HTTP API. Mục tiêu của dự án là giữ hành
-vi dịch sát engine .NET gốc, đồng thời chạy headless và dễ tích hợp vào các công cụ xử lý
-văn bản.
+Quick Translator Engine là bản tái hiện bằng Rust của engine Quick Translator (QT2025),
+phục vụ dịch Trung → Việt theo từ điển qua thư viện, CLI và HTTP API. Mục tiêu của dự án
+là giữ hành vi dịch sát engine .NET gốc, đồng thời chạy headless và dễ tích hợp vào các
+công cụ xử lý văn bản.
 
 > Dự án đang ở giai đoạn phát triển. Ba mode dịch chính đã hoạt động; tra nghĩa Lạc Việt,
 > quản lý từ điển và bộ golden test đối chiếu trực tiếp với ứng dụng QT vẫn chưa hoàn tất.
@@ -128,7 +128,7 @@ của mapping target-only trong QT2025.
 
 ## Giấy phép và dữ liệu tham chiếu
 
-Phần code Rust của QT-CLI được phát hành theo
+Phần code Rust của Quick Translator Engine được phát hành theo
 [GNU General Public License v3.0 only](LICENSE) (`GPL-3.0-only`).
 
 Dữ liệu trong `QT2025/` và source decompile trong `reference/` có nguồn gốc riêng, không

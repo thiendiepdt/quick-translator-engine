@@ -1,13 +1,13 @@
 # Đóng góp
 
-Cảm ơn bạn đã quan tâm tới QT-CLI. Dự án ưu tiên tính tương thích với hành vi QT2025 và
-thay đổi nhỏ, có test, dễ đối chiếu.
+Cảm ơn bạn đã quan tâm tới Quick Translator Engine. Dự án ưu tiên tính tương thích với
+hành vi QT2025 và thay đổi nhỏ, có test, dễ đối chiếu.
 
 ## Thiết lập
 
 ```bash
 git clone <repository-url>
-cd qt-cli
+cd quick-translator-engine
 cargo build --workspace
 ```
 

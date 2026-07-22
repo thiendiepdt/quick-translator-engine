@@ -1,7 +1,7 @@
 # Kiến trúc hệ thống
 
-Tài liệu này mô tả trạng thái hiện tại của QT-CLI. Đặc tả chi tiết thuật toán gốc nằm trong
-[engine/](engine/README.md); HTTP contract nằm trong [api.md](api.md).
+Tài liệu này mô tả trạng thái hiện tại của Quick Translator Engine. Đặc tả chi tiết thuật
+toán gốc nằm trong [engine/](engine/README.md); HTTP contract nằm trong [api.md](api.md).
 
 ## Mục tiêu thiết kế
 
@@ -14,7 +14,7 @@ Tài liệu này mô tả trạng thái hiện tại của QT-CLI. Đặc tả c
 ## Cargo workspace
 
 ```text
-qt-cli/
+quick-translator-engine/
 ├── crates/
 │   ├── qt-core/   # thư viện dịch đồng bộ
 │   ├── qt-cli/    # binary qt, stdin -> stdout
