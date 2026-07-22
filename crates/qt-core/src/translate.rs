@@ -2,6 +2,8 @@
 
 use std::collections::HashMap;
 
+use crate::dict::DictionaryLookup;
+
 fn substr(chars: &[char], start: usize, len: usize) -> String {
     chars[start..start + len].iter().collect()
 }
@@ -11,7 +13,7 @@ pub fn is_longest_phrase_in_sentence(
     chars: &[char],
     start: usize,
     phrase_len: usize,
-    dict: &HashMap<String, String>,
+    dict: &dyn DictionaryLookup,
     algo: i32,
 ) -> bool {
     if phrase_len < 2 {
@@ -40,7 +42,7 @@ pub fn contains_name(
     chars: &[char],
     start: usize,
     phrase_len: usize,
-    only_name: &HashMap<String, String>,
+    only_name: &dyn DictionaryLookup,
 ) -> bool {
     if phrase_len < 2 || only_name.contains_key(&substr(chars, start, phrase_len)) {
         return false;
@@ -222,6 +224,9 @@ pub fn translate_all(
         dict,
         han_viet,
         &LuatNhan::default(),
+        None,
+        None,
+        None,
     )
 }
 
@@ -230,12 +235,15 @@ pub(crate) fn translate_all_mapped(
     chars: &[char],
     source_ranges: &[CharRange],
     opts: &Options,
-    dict: &HashMap<String, String>,
-    only_name: &HashMap<String, String>,
+    dict: &dyn DictionaryLookup,
+    only_name: &dyn DictionaryLookup,
     only_vietphrase: &HashMap<String, String>,
-    full_vietphrase: &HashMap<String, String>,
+    full_vietphrase: &dyn DictionaryLookup,
     han_viet: &HanVietMap,
     luat_nhan: &LuatNhan,
+    dictionary_n: Option<&dyn DictionaryLookup>,
+    ho_nguoi: Option<&dyn DictionaryLookup>,
+    hau_tu: Option<&dyn DictionaryLookup>,
 ) -> TranslationResult {
     debug_assert_eq!(chars.len(), source_ranges.len());
     let numbers = prescan_numbers(chars, only_vietphrase);
@@ -297,6 +305,9 @@ pub(crate) fn translate_all_mapped(
                             &chars[num2..num2 + num6],
                             only_vietphrase,
                             full_vietphrase,
+                            dictionary_n,
+                            ho_nguoi,
+                            hau_tu,
                         );
                         if let Some(matched) = matched {
                             num4 = (num2 + matched.index) as isize;
@@ -306,9 +317,13 @@ pub(crate) fn translate_all_mapped(
                                     || !contains_name(chars, num2, matched.length, only_name))
                             {
                                 let chinese = substr(chars, num2, matched.length);
-                                if let Some(translation) =
-                                    luat_nhan.translate(&chinese, &matched.key, &matched.value_n)
-                                {
+                                if let Some(translation) = luat_nhan.translate(
+                                    &chinese,
+                                    &matched.key,
+                                    &matched.value_n,
+                                    ho_nguoi,
+                                    hau_tu,
+                                ) {
                                     process_translation(
                                         chars,
                                         translation.trim(),
@@ -339,6 +354,9 @@ pub(crate) fn translate_all_mapped(
                                         &chars[num2..num2 + longer],
                                         only_vietphrase,
                                         full_vietphrase,
+                                        dictionary_n,
+                                        ho_nguoi,
+                                        hau_tu,
                                     )
                                     .is_none()
                             {

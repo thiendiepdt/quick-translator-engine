@@ -11,7 +11,7 @@ use qt_core::{Dictionaries, Engine};
 fn test_state() -> Arc<AppState> {
     // Tiny engine: enough for routing/handler tests.
     let d = Dictionaries::build(
-        "他=tha\n很=ngận\n好=hảo\n红=hồng\n中=trung\n人=nhân\n甲=giáp\n乙=ất\n丙=bính\n丁=đinh\n格=cách\n尔=nhĩ\n斯=tư\n泰=thái\n特=đặc",
+        "他=tha\n很=ngận\n好=hảo\n红=hồng\n中=trung\n人=nhân\n甲=giáp\n乙=ất\n丙=bính\n丁=đinh\n格=cách\n尔=nhĩ\n斯=tư\n泰=thái\n特=đặc\n在=tại\n身=thân\n后=hậu\n张=trương\n先=tiên\n生=sinh",
         "丁格尔斯泰特=Dingelstedt\n中人=trung nhân",
         "",
         "很好=rất tốt/rất ổn\n红中人=cả cụm\n甲乙=A\n乙丙丁=B",
@@ -232,6 +232,109 @@ async fn translate_rejects_invalid_engine_options() {
         body_string(resp).await,
         r#"{"error":"translationAlgorithm must be 0, 1, or 2"}"#
     );
+}
+
+#[tokio::test]
+async fn translate_applies_request_names_without_leaking_between_requests() {
+    let resp = post_json(
+        build_router(test_state()),
+        "/translate",
+        serde_json::json!({
+            "text": "很好",
+            "mode": "vietphrase-one",
+            "dictionaries": {
+                "names": "很好=custom name/alternative"
+            }
+        }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(body_string(resp).await, r#"{"translated":" custom name"}"#);
+
+    let resp = post_json(
+        build_router(test_state()),
+        "/translate",
+        serde_json::json!({ "text": "很好", "mode": "vietphrase-one" }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(body_string(resp).await, r#"{"translated":" rất tốt"}"#);
+}
+
+#[tokio::test]
+async fn translate_applies_request_luat_nhan_and_pronouns() {
+    let resp = post_json(
+        build_router(test_state()),
+        "/translate",
+        serde_json::json!({
+            "text": "在他身后",
+            "mode": "vietphrase-one",
+            "dictionaries": {
+                "luatNhan": "在{n}身后=sau lưng {n}",
+                "pronouns": "他=hắn"
+            }
+        }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(body_string(resp).await, r#"{"translated":" sau lưng hắn"}"#);
+}
+
+#[tokio::test]
+async fn translate_applies_request_surname_and_suffix_dictionaries() {
+    let resp = post_json(
+        build_router(test_state()),
+        "/translate",
+        serde_json::json!({
+            "text": "张先生",
+            "mode": "vietphrase-one",
+            "dictionaries": {
+                "hoNguoi": "张=Trương",
+                "hauTu": "先生=tiên sinh"
+            }
+        }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(
+        body_string(resp).await,
+        r#"{"translated":" Trương tiên sinh"}"#
+    );
+}
+
+#[tokio::test]
+async fn translate_rejects_invalid_request_luat_nhan() {
+    let resp = post_json(
+        build_router(test_state()),
+        "/translate",
+        serde_json::json!({
+            "text": "他",
+            "mode": "vietphrase-one",
+            "dictionaries": {
+                "luatNhan": "([{n}=invalid"
+            }
+        }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    assert!(body_string(resp).await.contains("invalid LuatNhan rule"));
+}
+
+#[tokio::test]
+async fn translate_rejects_attempts_to_replace_fixed_dictionaries() {
+    let resp = post_json(
+        build_router(test_state()),
+        "/translate",
+        serde_json::json!({
+            "text": "他",
+            "mode": "vietphrase-one",
+            "dictionaries": {
+                "vietPhrase": "他=override"
+            }
+        }),
+    )
+    .await;
+    assert!(resp.status().is_client_error());
 }
 
 #[tokio::test]

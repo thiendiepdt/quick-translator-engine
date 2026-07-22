@@ -7,7 +7,8 @@ toán gốc nằm trong [engine/](engine/README.md); HTTP contract nằm trong [
 
 - Tái hiện hành vi dịch của Quick Translator/QT2025 bằng Rust.
 - Giữ engine độc lập với transport để dùng chung cho CLI, server và UI tương lai.
-- Nạp từ điển một lần, sau đó chỉ đọc trong quá trình dịch.
+- Nạp VietPhrase/Hán Việt một lần; áp dụng dictionary phụ theo request mà không mutate
+  state dùng chung.
 - Giữ source ↔ target ranges theo UTF-16 cho JavaScript/.NET consumers.
 - Tách rõ output “faithful” của engine và chuẩn hóa trình bày `pretty` của API.
 
@@ -38,6 +39,12 @@ let engine = Engine::from_dicts(dictionaries);
 
 let text = engine.translate(input, mode, &options);
 let mapped = engine.translate_with_ranges(input, mode, &options);
+
+let overrides = DictionaryOverrides::from_sources(DictionarySourceOverrides {
+    names: Some("萧炎=Tiêu Viêm"),
+    ..Default::default()
+});
+let custom = engine.translate_with_overrides(input, mode, &options, &overrides)?;
 ```
 
 `Engine` giữ ba nhóm state chỉ đọc:
@@ -46,15 +53,19 @@ let mapped = engine.translate_with_ranges(input, mode, &options);
 - cache Luật Nhân và regex;
 - bảng chuẩn hóa input, HTML entities và ignored phrases.
 
+`DictionaryOverrides` là state đã parse chỉ sống trong caller/request. Lookup custom dùng
+view ưu tiên trên dictionary cố định, không clone VietPhrase và không sửa `Engine`.
+
 ### `qt-cli`
 
-CLI parse argument, nạp dictionary, đọc toàn bộ UTF-8 từ `stdin`, gọi `Engine::translate`
-và ghi nguyên output vào `stdout`. Lỗi cấu hình/argument được ghi vào `stderr` và trả exit
-code khác 0. CLI không chứa thuật toán dịch.
+CLI parse argument, nạp dictionary, đọc các file override nếu được chỉ định, đọc toàn bộ
+UTF-8 từ `stdin`, gọi engine và ghi nguyên output vào `stdout`. Lỗi cấu hình/argument được
+ghi vào `stderr` và trả exit code khác 0. CLI không chứa thuật toán dịch.
 
 ### `qt-api`
 
-Server nạp một `Engine` lúc khởi động và chia sẻ qua `Arc`. Mỗi lần dịch chạy trong
+Server nạp một `Engine` lúc khởi động và chia sẻ qua `Arc`. Nội dung dictionary custom
+được parse thành state riêng cho request. Mỗi lần dịch chạy trong
 `tokio::task::spawn_blocking` vì engine là code đồng bộ, CPU-bound. Router cung cấp:
 
 - `GET /health`
@@ -113,9 +124,13 @@ TranslateAll                                                   |
 
 ## Dictionary lifecycle
 
-`Dictionaries::load` đọc các tên file chuẩn dưới một data directory. Ba file lõi là bắt
-buộc; các file phụ được load nếu tồn tại. Engine hiện không parse đường dẫn tùy biến từ
-`Dictionaries.config`.
+`Dictionaries::load` đọc các tên file chuẩn dưới một data directory. Chỉ VietPhrase và
+ChinesePhienAmWords là bắt buộc; các file còn lại được load làm mặc định nếu tồn tại.
+Engine không parse đường dẫn tùy biến từ `Dictionaries.config`.
+
+CLI có thể thay mỗi file phụ bằng option `--*-file`; API nhận nguyên nội dung file trong
+object `dictionaries`. `None` giữ bản mặc định, nội dung rỗng thay bằng dictionary rỗng.
+Override không mutate state chung và không thể thay VietPhrase hay ChinesePhienAmWords.
 
 Merge order quan trọng:
 

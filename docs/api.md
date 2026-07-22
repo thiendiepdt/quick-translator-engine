@@ -1,7 +1,8 @@
 # HTTP API
 
-`qt-server` nạp từ điển một lần khi khởi động và dùng chung một `Engine` cho mọi request.
-Request và response dùng JSON UTF-8.
+`qt-server` nạp VietPhrase, ChinesePhienAmWords và các dictionary mặc định một lần khi
+khởi động, sau đó dùng chung một `Engine` cho mọi request. Request có thể thay thế các
+dictionary phụ mà không sửa state dùng chung. Request và response dùng JSON UTF-8.
 
 ## Khởi động
 
@@ -14,8 +15,8 @@ Request và response dùng JSON UTF-8.
 QT_DATA_DIR=QT2025 QT_PORT=3000 cargo run -q -p qt-api --bin qt-server
 ```
 
-Server bind trên `0.0.0.0`. Bản hiện tại không có TLS, authentication, rate limit hay
-request-size limit; không nên expose trực tiếp ra Internet.
+Server bind trên `0.0.0.0`. JSON body được giới hạn 5 MiB. Bản hiện tại không có TLS,
+authentication hay rate limit; không nên expose trực tiếp ra Internet.
 
 ## Mode và option dùng chung
 
@@ -73,9 +74,44 @@ Request với đầy đủ option:
   "ranges": true,
   "scanRange": 30,
   "translationAlgorithm": 1,
-  "prioritizedName": true
+  "prioritizedName": true,
+  "dictionaries": {
+    "names": "萧炎=Tiêu Viêm\n云韵=Vân Vận",
+    "names2": "",
+    "pronouns": "他=hắn\n她=nàng",
+    "luatNhan": "在{n}身后=sau lưng {n}",
+    "danhTu": "",
+    "hoNguoi": "萧=Tiêu",
+    "hauTu": "先生=tiên sinh",
+    "ignoredChinesePhrases": "本章完"
+  }
 }
 ```
+
+### Dictionary theo request
+
+`dictionaries` là optional. Mỗi field chứa nguyên nội dung UTF-8 của file text tương ứng:
+
+| Field | File tương ứng | Tác dụng |
+|---|---|---|
+| `names` | `Names.txt` | Name chính |
+| `names2` | `Names2/123.txt` | Name phụ, ưu tiên hơn `names` |
+| `luatNhan` | `LuatNhan.txt` | Thay toàn bộ tập Luật Nhân và compile cho request |
+| `pronouns` | `Resources/Pronouns.txt` | Đại từ dùng cho luật `{n}` |
+| `danhTu` | `Resources/DanhTu.txt` | Được nhận/parse; đường dịch hiện tại chưa sử dụng |
+| `hoNguoi` | `Resources/HoNguoi.txt` | Họ dùng cho luật `{h}{t}` |
+| `hauTu` | `Resources/HauTu.txt` | Hậu tố dùng cho luật `{h}{t}` |
+| `ignoredChinesePhrases` | `IgnoredChinesePhrases.txt` | Cụm bị bỏ ở bước chuẩn hóa |
+
+Semantics của từng field:
+
+- Không truyền field: dùng dictionary mặc định đã nạp cùng engine.
+- Truyền chuỗi rỗng: thay dictionary đó bằng tập rỗng.
+- Truyền nội dung: thay toàn bộ file tương ứng trong request hiện tại.
+- `names2` vẫn ghi đè `names`; Name vẫn ưu tiên hơn VietPhrase khi trùng key.
+- `vietphrase` và `chinesePhienAmWords` không thuộc schema và không thể thay qua request.
+- Override chỉ sống trong request, không được lưu và không xuất hiện trong request khác.
+- Luật Nhân có regex không hợp lệ trả `400 Bad Request` thay vì làm dừng server.
 
 Response khi `ranges=false`:
 
@@ -117,7 +153,8 @@ Response giữ nguyên thứ tự input:
 
 Khi `ranges=true`, `sourceRanges` và `targetRanges` là hai ma trận song song với `texts`.
 Nội dung dịch phụ thuộc bộ từ điển đang nạp. Batch được xử lý tuần tự trong một request;
-các request độc lập vẫn có thể được runtime phục vụ đồng thời.
+các request độc lập vẫn có thể được runtime phục vụ đồng thời. `dictionaries` có cùng
+schema như `/translate` và được áp dụng cho toàn bộ phần tử trong `texts`.
 
 ## Range contract
 
@@ -135,7 +172,7 @@ dùng số code unit UTF-16, phù hợp với indexing của JavaScript và .NET
 
 ## Lỗi
 
-Mode hoặc option engine không hợp lệ trả `400 Bad Request`:
+Mode, option engine hoặc Luật Nhân custom không hợp lệ trả `400 Bad Request`:
 
 ```json
 {"error":"translationAlgorithm must be 0, 1, or 2"}

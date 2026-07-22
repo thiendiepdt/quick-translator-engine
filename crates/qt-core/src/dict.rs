@@ -4,10 +4,85 @@ use crate::han_viet::HanVietMap;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
+/// Raw contents for the dictionaries that callers may replace for one
+/// translation. `None` keeps the dictionary loaded with the engine; `Some("")`
+/// deliberately replaces it with an empty dictionary.
+#[derive(Default)]
+pub struct DictionarySourceOverrides<'a> {
+    pub names: Option<&'a str>,
+    pub names2: Option<&'a str>,
+    pub luat_nhan: Option<&'a str>,
+    pub pronouns: Option<&'a str>,
+    pub danh_tu: Option<&'a str>,
+    pub ho_nguoi: Option<&'a str>,
+    pub hau_tu: Option<&'a str>,
+    pub ignored_chinese_phrases: Option<&'a str>,
+}
+
+/// Parsed, request-scoped replacements for every runtime text dictionary
+/// except the fixed VietPhrase and ChinesePhienAmWords dictionaries.
+#[derive(Default)]
+pub struct DictionaryOverrides {
+    pub(crate) names: Option<HashMap<String, String>>,
+    pub(crate) names2: Option<HashMap<String, String>>,
+    pub(crate) luat_nhan: Option<Vec<(String, String)>>,
+    pub(crate) pronouns: Option<HashMap<String, String>>,
+    pub(crate) danh_tu: Option<HashMap<String, String>>,
+    pub(crate) ho_nguoi: Option<HashMap<String, String>>,
+    pub(crate) hau_tu: Option<HashMap<String, String>>,
+    pub(crate) ignored_chinese_phrases: Option<Vec<String>>,
+}
+
+impl DictionaryOverrides {
+    pub fn from_sources(sources: DictionarySourceOverrides<'_>) -> Self {
+        Self {
+            names: sources.names.map(first_wins_map),
+            names2: sources.names2.map(first_wins_map),
+            luat_nhan: sources.luat_nhan.map(parse_luat_nhan),
+            pronouns: sources.pronouns.map(first_wins_map),
+            danh_tu: sources.danh_tu.map(first_wins_map),
+            ho_nguoi: sources.ho_nguoi.map(first_wins_map),
+            hau_tu: sources.hau_tu.map(first_wins_map),
+            ignored_chinese_phrases: sources
+                .ignored_chinese_phrases
+                .map(parse_ignored_chinese_phrases),
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.names.is_none()
+            && self.names2.is_none()
+            && self.luat_nhan.is_none()
+            && self.pronouns.is_none()
+            && self.danh_tu.is_none()
+            && self.ho_nguoi.is_none()
+            && self.hau_tu.is_none()
+            && self.ignored_chinese_phrases.is_none()
+    }
+}
+
+pub(crate) trait DictionaryLookup {
+    fn get(&self, key: &str) -> Option<&str>;
+
+    fn contains_key(&self, key: &str) -> bool {
+        self.get(key).is_some()
+    }
+}
+
+impl DictionaryLookup for HashMap<String, String> {
+    fn get(&self, key: &str) -> Option<&str> {
+        HashMap::get(self, key).map(String::as_str)
+    }
+}
+
 /// All lookup maps used by the engine, after loading + priority merge.
 #[derive(Default)]
 pub struct Dictionaries {
     pub han_viet: HanVietMap,
+    /// Parsed Names.txt before Names2 is applied.
+    pub primary_names: HashMap<String, String>,
+    /// Parsed Names2 before it is merged over Names.txt.
+    pub secondary_names: HashMap<String, String>,
     pub only_name: HashMap<String, String>,
     pub only_name_one_meaning: HashMap<String, String>,
     /// Raw VietPhrase entries before Names are merged in. Number pre-scanning
@@ -72,15 +147,11 @@ impl Dictionaries {
         // but within Names2 itself the FIRST occurrence of a duplicate key wins
         // (engine guards the override with !onlyNamePhuDictionary.ContainsKey(key),
         // decompiled ~2103-2116).
-        let mut only_name: HashMap<String, String> = HashMap::new();
-        for (k, v) in parse_dict(names_src) {
-            only_name.entry(k).or_insert(v);
-        }
-        let mut seen_names2: HashSet<String> = HashSet::new();
-        for (k, v) in parse_dict(names2_src) {
-            if seen_names2.insert(k.clone()) {
-                only_name.insert(k, v); // override Names, but only on first Names2 occurrence
-            }
+        let primary_names = first_wins_map(names_src);
+        let secondary_names = first_wins_map(names2_src);
+        let mut only_name = primary_names.clone();
+        for (key, value) in &secondary_names {
+            only_name.insert(key.clone(), value.clone());
         }
 
         // only_vietphrase: first-wins
@@ -117,6 +188,8 @@ impl Dictionaries {
 
         Dictionaries {
             han_viet,
+            primary_names,
+            secondary_names,
             only_name,
             only_name_one_meaning,
             only_vietphrase,
@@ -146,18 +219,7 @@ impl Dictionaries {
         dictionaries.ho_nguoi = first_wins_map(ho_nguoi_src);
         dictionaries.hau_tu = first_wins_map(hau_tu_src);
         dictionaries.luat_nhan = parse_luat_nhan(luat_nhan_src);
-        dictionaries.ignored_chinese_phrases = ignored_src
-            .lines()
-            .enumerate()
-            .map(|(index, line)| {
-                if index == 0 {
-                    line.trim_start_matches('\u{feff}').to_string()
-                } else {
-                    line.to_string()
-                }
-            })
-            .filter(|line| !line.is_empty())
-            .collect();
+        dictionaries.ignored_chinese_phrases = parse_ignored_chinese_phrases(ignored_src);
         dictionaries
     }
 
@@ -166,7 +228,7 @@ impl Dictionaries {
         let read =
             |rel: &str| -> std::io::Result<String> { std::fs::read_to_string(data_dir.join(rel)) };
         let han_viet = read("Resources/ChinesePhienAmWords.txt")?;
-        let names = read("Names.txt")?;
+        let names = read("Names.txt").unwrap_or_default();
         let names2 = read("Names2/123.txt").unwrap_or_default();
         let vietphrase = read("VietPhrase/VietPhrase.txt")?;
         let pronouns = read("Resources/Pronouns.txt").unwrap_or_default();
@@ -196,6 +258,21 @@ fn first_wins_map(source: &str) -> HashMap<String, String> {
         dictionary.entry(key).or_insert(value);
     }
     dictionary
+}
+
+fn parse_ignored_chinese_phrases(source: &str) -> Vec<String> {
+    source
+        .lines()
+        .enumerate()
+        .map(|(index, line)| {
+            if index == 0 {
+                line.trim_start_matches('\u{feff}').to_string()
+            } else {
+                line.to_string()
+            }
+        })
+        .filter(|line| !line.is_empty())
+        .collect()
 }
 
 fn parse_luat_nhan(source: &str) -> Vec<(String, String)> {
@@ -289,5 +366,35 @@ mod tests {
         let d = Dictionaries::build(hv, names, names2, vietphrase);
 
         assert_eq!(d.only_name.get("甲"), Some(&"Two".to_string()));
+    }
+
+    #[test]
+    fn loader_requires_only_fixed_dictionaries() {
+        let unique = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let directory = std::env::temp_dir().join(format!("qt-core-fixed-dicts-{unique}"));
+        std::fs::create_dir_all(directory.join("Resources")).unwrap();
+        std::fs::create_dir_all(directory.join("VietPhrase")).unwrap();
+        std::fs::write(
+            directory.join("Resources/ChinesePhienAmWords.txt"),
+            "他=tha\n",
+        )
+        .unwrap();
+        std::fs::write(
+            directory.join("VietPhrase/VietPhrase.txt"),
+            "很好=rất tốt\n",
+        )
+        .unwrap();
+
+        let dictionaries = Dictionaries::load(&directory).unwrap();
+        assert!(dictionaries.only_name.is_empty());
+        assert_eq!(
+            dictionaries.only_vietphrase.get("很好").map(String::as_str),
+            Some("rất tốt")
+        );
+
+        let _ = std::fs::remove_dir_all(directory);
     }
 }

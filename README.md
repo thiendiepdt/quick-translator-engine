@@ -17,18 +17,20 @@ công cụ xử lý văn bản.
 - Ánh xạ source ↔ target bằng offset UTF-16 để dùng trực tiếp trong JavaScript UI.
 - CLI đọc UTF-8 từ `stdin`, ghi bản dịch ra `stdout`.
 - HTTP API hỗ trợ dịch đơn, dịch batch, tùy chọn engine và ranges.
+- Cho phép thay thế Names, Names2, Luật Nhân và các từ điển phụ theo từng lần gọi CLI/API;
+  VietPhrase và ChinesePhienAmWords luôn dùng bản cố định đã nạp lúc khởi động.
 
 ## Yêu cầu
 
 - Rust stable và Cargo.
-- Một thư mục dữ liệu theo cấu trúc QT. Các file bắt buộc khi khởi động là:
+- Một thư mục dữ liệu theo cấu trúc QT. Chỉ hai file bắt buộc khi khởi động là:
   - `Resources/ChinesePhienAmWords.txt`
-  - `Names.txt`
   - `VietPhrase/VietPhrase.txt`
 
-Các file `Names2/123.txt`, `LuatNhan.txt`, `IgnoredChinesePhrases.txt` và các từ điển phụ
-trong `Resources/` là optional; thiếu chúng sẽ làm giảm tính năng hoặc độ tương thích.
-Trong checkout hiện tại, có thể dùng `QT2025` làm data directory.
+`Names.txt`, `Names2/123.txt`, `LuatNhan.txt`, `IgnoredChinesePhrases.txt`, `Pronouns.txt`,
+`DanhTu.txt`, `HoNguoi.txt` và `HauTu.txt` là mặc định optional. Caller có thể thay thế
+từng file trong số này cho một lần dịch; file không được truyền vẫn dùng bản trong data
+directory. Trong checkout hiện tại, có thể dùng `QT2025` làm data directory.
 
 ## Chạy CLI
 
@@ -56,7 +58,25 @@ qt translate [--mode <hanviet|vietphrase|vietphrase-one>]
              [--scan-range 1..=100]
              [--translation-algorithm 0|1|2]
              [--prioritized-name true|false]
+             [--names-file PATH] [--names2-file PATH]
+             [--luat-nhan-file PATH] [--pronouns-file PATH]
+             [--danh-tu-file PATH] [--ho-nguoi-file PATH]
+             [--hau-tu-file PATH]
+             [--ignored-chinese-phrases-file PATH]
 ```
+
+Ví dụ thay Names và Pronouns cho đúng một lần dịch:
+
+```bash
+echo "萧炎看着她。" | cargo run -q -p qt-cli -- translate \
+  --data-dir QT2025 \
+  --mode vietphrase-one \
+  --names-file ./user/Names.txt \
+  --pronouns-file ./user/Pronouns.txt
+```
+
+Mỗi option file thay thế đúng dictionary tương ứng. Muốn vô hiệu dictionary mặc định,
+truyền đường dẫn tới một file rỗng.
 
 ## Chạy HTTP server
 
@@ -79,12 +99,12 @@ Thử request:
 ```bash
 curl -X POST http://localhost:3000/translate \
   -H "content-type: application/json" \
-  -d '{"text":"他的眼球很好。","mode":"vietphrase-one","pretty":true,"ranges":true}'
+  -d '{"text":"萧炎看着她。","mode":"vietphrase-one","dictionaries":{"names":"萧炎=Tiêu Viêm","pronouns":"她=nàng"}}'
 ```
 
-Server hiện bind `0.0.0.0`, không có authentication, rate limit hay giới hạn kích thước
-request. Chỉ nên dùng trong mạng tin cậy hoặc đặt sau reverse proxy có các lớp bảo vệ phù
-hợp; xem [SECURITY.md](SECURITY.md).
+Server hiện bind `0.0.0.0`, giới hạn JSON body ở 5 MiB nhưng không có authentication hay
+rate limit. Chỉ nên dùng trong mạng tin cậy hoặc đặt sau reverse proxy có các lớp bảo vệ
+phù hợp; xem [SECURITY.md](SECURITY.md).
 
 API contract đầy đủ nằm tại [docs/api.md](docs/api.md).
 

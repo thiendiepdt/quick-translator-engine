@@ -1,6 +1,6 @@
 //! QT2025's pattern-based “Luật Nhân” translation rules.
 
-use crate::dict::Dictionaries;
+use crate::dict::{Dictionaries, DictionaryLookup};
 use crate::number::{
     chinese_digit, convert_chinese_number_to_i64, is_number_start, number_to_vietnamese_text,
     translate_range_number,
@@ -34,6 +34,8 @@ pub(crate) struct LuatNhan {
 
 impl LuatNhan {
     pub fn new(dicts: &Dictionaries) -> Self {
+        let mut rules = Self::try_from_rules(&dicts.luat_nhan)
+            .unwrap_or_else(|error| panic!("invalid base LuatNhan dictionary: {error}"));
         let mut dictionary_n = dicts.pronouns.clone();
         for (key, value) in &dicts.only_name_one_meaning {
             dictionary_n
@@ -41,7 +43,14 @@ impl LuatNhan {
                 .or_insert_with(|| value.clone());
         }
 
-        let mut ordered_rules = dicts.luat_nhan.clone();
+        rules.dictionary_n = dictionary_n;
+        rules.ho_nguoi = dicts.ho_nguoi.clone();
+        rules.hau_tu = dicts.hau_tu.clone();
+        rules
+    }
+
+    pub fn try_from_rules(rules: &[(String, String)]) -> Result<Self, String> {
+        let mut ordered_rules = rules.to_vec();
         ordered_rules.sort_by(|(left, _), (right, _)| {
             right
                 .chars()
@@ -66,10 +75,10 @@ impl LuatNhan {
             .map(|(key, value)| {
                 let pattern = compile_n_pattern(&key);
                 let regex = FancyRegex::new(&pattern)
-                    .unwrap_or_else(|error| panic!("invalid LuatNhan rule {key:?}: {error}"));
-                CompiledRule { key, value, regex }
+                    .map_err(|error| format!("invalid LuatNhan rule {key:?}: {error}"))?;
+                Ok(CompiledRule { key, value, regex })
             })
-            .collect();
+            .collect::<Result<Vec<_>, String>>()?;
 
         let s_rules = ordered_rules
             .iter()
@@ -78,32 +87,38 @@ impl LuatNhan {
             .map(|(key, value)| {
                 let pattern = compile_s_pattern(&key);
                 let regex = FancyRegex::new(&pattern)
-                    .unwrap_or_else(|error| panic!("invalid LuatNhan rule {key:?}: {error}"));
-                CompiledRule { key, value, regex }
+                    .map_err(|error| format!("invalid LuatNhan rule {key:?}: {error}"))?;
+                Ok(CompiledRule { key, value, regex })
             })
-            .collect();
+            .collect::<Result<Vec<_>, String>>()?;
 
-        Self {
+        Ok(Self {
             n_rules,
             s_rules,
-            dictionary_n,
-            ho_nguoi: dicts.ho_nguoi.clone(),
-            hau_tu: dicts.hau_tu.clone(),
-        }
+            ..Default::default()
+        })
     }
 
     pub fn contains(
         &self,
         chinese: &[char],
         only_vietphrase: &HashMap<String, String>,
-        vietphrase: &HashMap<String, String>,
+        vietphrase: &dyn DictionaryLookup,
+        dictionary_n: Option<&dyn DictionaryLookup>,
+        ho_nguoi: Option<&dyn DictionaryLookup>,
+        hau_tu: Option<&dyn DictionaryLookup>,
     ) -> Option<RuleMatch> {
         let text: String = chinese.iter().collect();
-        let mut best = self.match_n(&text);
+        let dictionary_n = dictionary_n.unwrap_or(&self.dictionary_n);
+        let ho_nguoi = ho_nguoi.unwrap_or(&self.ho_nguoi);
+        let hau_tu = hau_tu.unwrap_or(&self.hau_tu);
+        let mut best = self.match_n(&text, dictionary_n);
         let mut best_index = best.as_ref().map_or(usize::MAX, |matched| matched.index);
 
         for index in 0..chinese.len().min(best_index) {
-            if let Some(length) = self.find_ho_hau_phrase(chinese, index, vietphrase) {
+            if let Some(length) =
+                self.find_ho_hau_phrase(chinese, index, vietphrase, ho_nguoi, hau_tu)
+            {
                 best = Some(RuleMatch {
                     index,
                     length,
@@ -125,7 +140,14 @@ impl LuatNhan {
         best
     }
 
-    pub fn translate(&self, chinese: &str, rule_key: &str, value_n: &str) -> Option<String> {
+    pub fn translate(
+        &self,
+        chinese: &str,
+        rule_key: &str,
+        value_n: &str,
+        ho_nguoi: Option<&dyn DictionaryLookup>,
+        hau_tu: Option<&dyn DictionaryLookup>,
+    ) -> Option<String> {
         if rule_key.contains("{n}") {
             if value_n.trim().is_empty() {
                 return None;
@@ -175,13 +197,13 @@ impl LuatNhan {
         }
 
         if rule_key == "{h}{t}" {
+            let ho_nguoi = ho_nguoi.unwrap_or(&self.ho_nguoi);
+            let hau_tu = hau_tu.unwrap_or(&self.hau_tu);
             let chars: Vec<char> = chinese.chars().collect();
             for split in 1..chars.len() {
                 let ho: String = chars[..split].iter().collect();
                 let hau: String = chars[split..].iter().collect();
-                if let (Some(ho_value), Some(hau_value)) =
-                    (self.ho_nguoi.get(&ho), self.hau_tu.get(&hau))
-                {
+                if let (Some(ho_value), Some(hau_value)) = (ho_nguoi.get(&ho), hau_tu.get(&hau)) {
                     return Some(format!("{} {}", ho_value.trim(), hau_value.trim()));
                 }
             }
@@ -189,7 +211,7 @@ impl LuatNhan {
         None
     }
 
-    fn match_n(&self, chinese: &str) -> Option<RuleMatch> {
+    fn match_n(&self, chinese: &str, dictionary_n: &dyn DictionaryLookup) -> Option<RuleMatch> {
         for rule in &self.n_rules {
             let captures = rule.regex.captures_iter(chinese);
             for captures in captures.flatten() {
@@ -207,33 +229,33 @@ impl LuatNhan {
                 if rule.key.ends_with("{n}") {
                     for length in (1..=captured_chars.len()).rev() {
                         let key: String = captured_chars[..length].iter().collect();
-                        if let Some(value) = self.dictionary_n.get(&key) {
+                        if let Some(value) = dictionary_n.get(&key) {
                             return Some(RuleMatch {
                                 index: match_index,
                                 length: match_length - (captured_chars.len() - length),
                                 key: rule.key.clone(),
-                                value_n: value.clone(),
+                                value_n: value.to_string(),
                             });
                         }
                     }
                 } else if rule.key.starts_with("{n}") {
                     for offset in 0..captured_chars.len() {
                         let key: String = captured_chars[offset..].iter().collect();
-                        if let Some(value) = self.dictionary_n.get(&key) {
+                        if let Some(value) = dictionary_n.get(&key) {
                             return Some(RuleMatch {
                                 index: match_index + offset,
                                 length: match_length - offset,
                                 key: rule.key.clone(),
-                                value_n: value.clone(),
+                                value_n: value.to_string(),
                             });
                         }
                     }
-                } else if let Some(value) = self.dictionary_n.get(captured) {
+                } else if let Some(value) = dictionary_n.get(captured) {
                     return Some(RuleMatch {
                         index: match_index,
                         length: match_length,
                         key: rule.key.clone(),
-                        value_n: value.clone(),
+                        value_n: value.to_string(),
                     });
                 }
             }
@@ -270,14 +292,16 @@ impl LuatNhan {
         &self,
         chinese: &[char],
         start: usize,
-        vietphrase: &HashMap<String, String>,
+        vietphrase: &dyn DictionaryLookup,
+        ho_nguoi: &dyn DictionaryLookup,
+        hau_tu: &dyn DictionaryLookup,
     ) -> Option<usize> {
         for length in (2..=6).rev() {
             if start + length > chinese.len() {
                 continue;
             }
             let phrase: String = chinese[start..start + length].iter().collect();
-            if !self.is_ho_hau(&phrase) || vietphrase.contains_key(&phrase) {
+            if !Self::is_ho_hau(&phrase, ho_nguoi, hau_tu) || vietphrase.contains_key(&phrase) {
                 continue;
             }
             let covered_by_longer_phrase = (length + 1..=20).any(|longer| {
@@ -292,14 +316,15 @@ impl LuatNhan {
         None
     }
 
-    fn is_ho_hau(&self, phrase: &str) -> bool {
+    fn is_ho_hau(
+        phrase: &str,
+        ho_nguoi: &dyn DictionaryLookup,
+        hau_tu: &dyn DictionaryLookup,
+    ) -> bool {
         let chars: Vec<char> = phrase.chars().collect();
         (1..chars.len()).any(|split| {
-            self.ho_nguoi
-                .contains_key(&chars[..split].iter().collect::<String>())
-                && self
-                    .hau_tu
-                    .contains_key(&chars[split..].iter().collect::<String>())
+            ho_nguoi.contains_key(&chars[..split].iter().collect::<String>())
+                && hau_tu.contains_key(&chars[split..].iter().collect::<String>())
         })
     }
 }
@@ -520,11 +545,13 @@ mod tests {
             ("2025年7月21号", "ngày 21 tháng 7 năm 2025"),
         ] {
             let chars: Vec<char> = input.chars().collect();
-            let matched = rules.contains(&chars, &empty, &empty).expect(input);
+            let matched = rules
+                .contains(&chars, &empty, &empty, None, None, None)
+                .expect(input);
             assert_eq!(matched.index, 0, "{input}");
             assert_eq!(
                 rules
-                    .translate(input, &matched.key, &matched.value_n)
+                    .translate(input, &matched.key, &matched.value_n, None, None)
                     .as_deref(),
                 Some(expected),
                 "{input}"
@@ -542,9 +569,11 @@ mod tests {
         let rules = LuatNhan::new(&dicts);
         let empty = HashMap::new();
         let chars: Vec<char> = "在他身后".chars().collect();
-        let matched = rules.contains(&chars, &empty, &empty).unwrap();
+        let matched = rules
+            .contains(&chars, &empty, &empty, None, None, None)
+            .unwrap();
         assert_eq!(
-            rules.translate("在他身后", &matched.key, &matched.value_n),
+            rules.translate("在他身后", &matched.key, &matched.value_n, None, None),
             Some("sau lưng hắn".into())
         );
     }

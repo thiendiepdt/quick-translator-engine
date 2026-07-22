@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use axum::extract::State;
+use axum::extract::{DefaultBodyLimit, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
@@ -10,9 +10,13 @@ use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use qt_core::{CharRange, Engine, Mode, Options, TranslationResult};
+use qt_core::{
+    CharRange, DictionaryOverrides, DictionarySourceOverrides, Engine, Mode, Options,
+    TranslationResult,
+};
 
 const MAX_REQUEST_SCAN_RANGE: usize = 100;
+const MAX_REQUEST_BODY_BYTES: usize = 5 * 1024 * 1024;
 
 /// Shared, read-only application state: the loaded engine behind an Arc.
 pub struct AppState {
@@ -28,6 +32,7 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/translate", post(translate))
         .route("/translate/batch", post(translate_batch))
         .with_state(state)
+        .layer(DefaultBodyLimit::max(MAX_REQUEST_BODY_BYTES))
 }
 
 async fn health() -> Json<serde_json::Value> {
@@ -48,6 +53,35 @@ struct TranslateReq {
     scan_range: Option<usize>,
     translation_algorithm: Option<i32>,
     prioritized_name: Option<bool>,
+    dictionaries: Option<DictionarySourcesReq>,
+}
+
+#[derive(Default, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct DictionarySourcesReq {
+    names: Option<String>,
+    names2: Option<String>,
+    luat_nhan: Option<String>,
+    pronouns: Option<String>,
+    danh_tu: Option<String>,
+    ho_nguoi: Option<String>,
+    hau_tu: Option<String>,
+    ignored_chinese_phrases: Option<String>,
+}
+
+impl DictionarySourcesReq {
+    fn into_overrides(self) -> DictionaryOverrides {
+        DictionaryOverrides::from_sources(DictionarySourceOverrides {
+            names: self.names.as_deref(),
+            names2: self.names2.as_deref(),
+            luat_nhan: self.luat_nhan.as_deref(),
+            pronouns: self.pronouns.as_deref(),
+            danh_tu: self.danh_tu.as_deref(),
+            ho_nguoi: self.ho_nguoi.as_deref(),
+            hau_tu: self.hau_tu.as_deref(),
+            ignored_chinese_phrases: self.ignored_chinese_phrases.as_deref(),
+        })
+    }
 }
 
 #[derive(Serialize)]
@@ -89,6 +123,7 @@ struct BatchReq {
     scan_range: Option<usize>,
     translation_algorithm: Option<i32>,
     prioritized_name: Option<bool>,
+    dictionaries: Option<DictionarySourcesReq>,
 }
 
 #[derive(Serialize)]
@@ -193,17 +228,32 @@ async fn run_translate(
     mode: Mode,
     opts: Options,
     pretty: bool,
+    dictionaries: Option<Arc<DictionaryOverrides>>,
 ) -> Result<TranslationResult, ApiError> {
     tokio::task::spawn_blocking(move || {
-        let out = engine.translate_with_ranges(&text, mode, &opts);
-        if pretty {
-            prettify_result(out)
-        } else {
-            out
-        }
+        let out = match dictionaries {
+            Some(dictionaries) => engine
+                .translate_with_ranges_and_overrides(&text, mode, &opts, &dictionaries)
+                .map_err(|error| error.to_string()),
+            None => Ok(engine.translate_with_ranges(&text, mode, &opts)),
+        }?;
+        Ok(if pretty { prettify_result(out) } else { out })
     })
     .await
     .map_err(|_| ApiError::internal("translate task failed"))
+    .and_then(|result: Result<TranslationResult, String>| result.map_err(ApiError::bad_request))
+}
+
+async fn prepare_dictionaries(
+    dictionaries: Option<DictionarySourcesReq>,
+) -> Result<Option<Arc<DictionaryOverrides>>, ApiError> {
+    let Some(dictionaries) = dictionaries else {
+        return Ok(None);
+    };
+    tokio::task::spawn_blocking(move || Arc::new(dictionaries.into_overrides()))
+        .await
+        .map(Some)
+        .map_err(|_| ApiError::internal("dictionary parse task failed"))
 }
 
 fn request_options(
@@ -254,11 +304,20 @@ async fn translate_batch(
         req.translation_algorithm,
         req.prioritized_name,
     )?;
+    let dictionaries = prepare_dictionaries(req.dictionaries).await?;
     let mut translated = Vec::with_capacity(req.texts.len());
     let mut source_ranges = req.ranges.then(|| Vec::with_capacity(req.texts.len()));
     let mut target_ranges = req.ranges.then(|| Vec::with_capacity(req.texts.len()));
     for text in req.texts {
-        let out = run_translate(state.engine.clone(), text, mode, options, req.pretty).await?;
+        let out = run_translate(
+            state.engine.clone(),
+            text,
+            mode,
+            options,
+            req.pretty,
+            dictionaries.clone(),
+        )
+        .await?;
         translated.push(out.translated_text);
         if let Some(ranges) = &mut source_ranges {
             ranges.push(out.source_ranges.into_iter().map(RangeDto::from).collect());
@@ -286,7 +345,16 @@ async fn translate(
         req.translation_algorithm,
         req.prioritized_name,
     )?;
-    let out = run_translate(state.engine.clone(), req.text, mode, options, req.pretty).await?;
+    let dictionaries = prepare_dictionaries(req.dictionaries).await?;
+    let out = run_translate(
+        state.engine.clone(),
+        req.text,
+        mode,
+        options,
+        req.pretty,
+        dictionaries,
+    )
+    .await?;
     let (source_ranges, target_ranges) = if req.ranges {
         (
             Some(out.source_ranges.into_iter().map(RangeDto::from).collect()),

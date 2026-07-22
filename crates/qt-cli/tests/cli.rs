@@ -12,7 +12,7 @@ fn cli_translates_hanviet_and_long_vietphrase_over_stdin() {
     std::fs::create_dir_all(dir.join("Names2")).unwrap();
     std::fs::write(
         dir.join("Resources/ChinesePhienAmWords.txt"),
-        "他=tha\n好=hảo\n",
+        "他=tha\n很=ngận\n好=hảo\n",
     )
     .unwrap();
     std::fs::write(dir.join("Names.txt"), "丁格尔斯泰特=Dingelstedt\n").unwrap();
@@ -97,6 +97,64 @@ fn cli_translates_hanviet_and_long_vietphrase_over_stdin() {
 
     assert!(out.status.success());
     assert_eq!(String::from_utf8_lossy(&out.stdout), "丁格尔斯泰特");
+
+    let custom_names = dir.join("custom-names.txt");
+    std::fs::write(&custom_names, "丁格尔斯泰特=Custom Name/Alternative\n").unwrap();
+    let mut child = Command::new(bin)
+        .args([
+            "translate",
+            "--mode",
+            "vietphrase-one",
+            "--data-dir",
+            dir.to_str().unwrap(),
+            "--names-file",
+            custom_names.to_str().unwrap(),
+        ])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all("丁格尔斯泰特".as_bytes())
+        .unwrap();
+    let out = child.wait_with_output().unwrap();
+
+    assert!(out.status.success());
+    assert_eq!(String::from_utf8_lossy(&out.stdout), " Custom Name");
+
+    let custom_luat_nhan = dir.join("custom-luat-nhan.txt");
+    let custom_pronouns = dir.join("custom-pronouns.txt");
+    std::fs::write(&custom_luat_nhan, "{n}很好={n} rất tốt\n").unwrap();
+    std::fs::write(&custom_pronouns, "他=hắn\n").unwrap();
+    let mut child = Command::new(bin)
+        .args([
+            "translate",
+            "--mode",
+            "vietphrase-one",
+            "--data-dir",
+            dir.to_str().unwrap(),
+            "--luat-nhan-file",
+            custom_luat_nhan.to_str().unwrap(),
+            "--pronouns-file",
+            custom_pronouns.to_str().unwrap(),
+        ])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all("他很好".as_bytes())
+        .unwrap();
+    let out = child.wait_with_output().unwrap();
+
+    assert!(out.status.success());
+    assert_eq!(String::from_utf8_lossy(&out.stdout), " hắn rất tốt");
 
     let _ = std::fs::remove_dir_all(&dir);
 }

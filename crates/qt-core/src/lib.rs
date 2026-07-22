@@ -8,7 +8,49 @@ mod standardize;
 mod text;
 mod translate;
 
-pub use dict::Dictionaries;
+pub use dict::{Dictionaries, DictionaryOverrides, DictionarySourceOverrides};
+
+use dict::DictionaryLookup;
+
+struct PriorityDictionary<'a> {
+    primary: &'a dyn DictionaryLookup,
+    fallback: &'a dyn DictionaryLookup,
+}
+
+impl DictionaryLookup for PriorityDictionary<'_> {
+    fn get(&self, key: &str) -> Option<&str> {
+        self.primary.get(key).or_else(|| self.fallback.get(key))
+    }
+}
+
+struct OneMeaningDictionary<'a> {
+    inner: &'a dyn DictionaryLookup,
+}
+
+impl DictionaryLookup for OneMeaningDictionary<'_> {
+    fn get(&self, key: &str) -> Option<&str> {
+        self.inner.get(key).map(first_meaning)
+    }
+}
+
+fn first_meaning(value: &str) -> &str {
+    value
+        .find(['/', '|'])
+        .map_or(value, |index| &value[..index])
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DictionaryOverrideError {
+    message: String,
+}
+
+impl std::fmt::Display for DictionaryOverrideError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(&self.message)
+    }
+}
+
+impl std::error::Error for DictionaryOverrideError {}
 
 /// A half-open range represented as a UTF-16 start offset and length.
 /// UTF-16 offsets can be consumed directly by JavaScript UIs. Range entries
@@ -105,6 +147,9 @@ impl Engine {
                 &self.dicts.vietphrase,
                 &self.dicts.han_viet,
                 &self.luat_nhan,
+                None,
+                None,
+                None,
             ),
             Mode::VietPhraseOneMeaning => translate::translate_all_mapped(
                 &chars,
@@ -116,8 +161,117 @@ impl Engine {
                 &self.dicts.vietphrase,
                 &self.dicts.han_viet,
                 &self.luat_nhan,
+                None,
+                None,
+                None,
             ),
         }
+    }
+
+    /// Translate with request-scoped replacements for every runtime text
+    /// dictionary except VietPhrase and ChinesePhienAmWords.
+    pub fn translate_with_overrides(
+        &self,
+        text: &str,
+        mode: Mode,
+        opts: &Options,
+        overrides: &DictionaryOverrides,
+    ) -> Result<String, DictionaryOverrideError> {
+        Ok(self
+            .translate_with_ranges_and_overrides(text, mode, opts, overrides)?
+            .translated_text)
+    }
+
+    pub fn translate_with_ranges_and_overrides(
+        &self,
+        text: &str,
+        mode: Mode,
+        opts: &Options,
+        overrides: &DictionaryOverrides,
+    ) -> Result<TranslationResult, DictionaryOverrideError> {
+        if overrides.is_empty() {
+            return Ok(self.translate_with_ranges(text, mode, opts));
+        }
+
+        let standardized = match &overrides.ignored_chinese_phrases {
+            Some(ignored) => self
+                .standardizer
+                .standardize_with_ignored_source(text, ignored),
+            None => self.standardizer.standardize(text),
+        };
+        let chars = standardized.chars;
+        let source_ranges = standardized.source_ranges;
+        if mode == Mode::HanViet {
+            return Ok(han_viet::chinese_to_han_viet_mapped(
+                &chars,
+                &self.dicts.han_viet,
+                &source_ranges,
+            ));
+        }
+
+        let primary_names = overrides
+            .names
+            .as_ref()
+            .unwrap_or(&self.dicts.primary_names);
+        let secondary_names = overrides
+            .names2
+            .as_ref()
+            .unwrap_or(&self.dicts.secondary_names);
+        let custom_names = PriorityDictionary {
+            primary: secondary_names,
+            fallback: primary_names,
+        };
+        let names: &dyn DictionaryLookup =
+            if overrides.names.is_none() && overrides.names2.is_none() {
+                &self.dicts.only_name
+            } else {
+                &custom_names
+            };
+        let vietphrase = PriorityDictionary {
+            primary: names,
+            fallback: &self.dicts.only_vietphrase,
+        };
+        let one_meaning_vietphrase = OneMeaningDictionary { inner: &vietphrase };
+        let one_meaning_names = OneMeaningDictionary { inner: names };
+        let pronouns = overrides.pronouns.as_ref().unwrap_or(&self.dicts.pronouns);
+        let dictionary_n = PriorityDictionary {
+            primary: pronouns,
+            fallback: &one_meaning_names,
+        };
+        let ho_nguoi = overrides.ho_nguoi.as_ref().unwrap_or(&self.dicts.ho_nguoi);
+        let hau_tu = overrides.hau_tu.as_ref().unwrap_or(&self.dicts.hau_tu);
+
+        // DanhTu is loaded by QT2025 and remains part of the public override
+        // contract, although the ported translation paths do not consume it.
+        let _danh_tu = overrides.danh_tu.as_ref().unwrap_or(&self.dicts.danh_tu);
+
+        let custom_luat_nhan = overrides
+            .luat_nhan
+            .as_ref()
+            .map(|rules| luat_nhan::LuatNhan::try_from_rules(rules))
+            .transpose()
+            .map_err(|message| DictionaryOverrideError { message })?;
+        let luat_nhan = custom_luat_nhan.as_ref().unwrap_or(&self.luat_nhan);
+        let dictionary: &dyn DictionaryLookup = match mode {
+            Mode::VietPhrase => &vietphrase,
+            Mode::VietPhraseOneMeaning => &one_meaning_vietphrase,
+            Mode::HanViet => unreachable!("HanViet returned above"),
+        };
+
+        Ok(translate::translate_all_mapped(
+            &chars,
+            &source_ranges,
+            opts,
+            dictionary,
+            names,
+            &self.dicts.only_vietphrase,
+            &vietphrase,
+            &self.dicts.han_viet,
+            luat_nhan,
+            Some(&dictionary_n),
+            Some(ho_nguoi),
+            Some(hau_tu),
+        ))
     }
 }
 
@@ -225,5 +379,137 @@ mod tests {
             ),
             " ngày 21 tháng 7 năm 2025"
         );
+    }
+
+    #[test]
+    fn request_names_replace_base_file_and_keep_vietphrase_fixed() {
+        let dictionaries = Dictionaries::build(
+            "萧=tiêu\n炎=viêm",
+            "萧炎=Base Name",
+            "",
+            "萧炎=Fixed VietPhrase",
+        );
+        let engine = Engine::from_dicts(dictionaries);
+        let custom = DictionaryOverrides::from_sources(DictionarySourceOverrides {
+            names: Some("萧炎=Custom Name/Alternative"),
+            ..Default::default()
+        });
+
+        assert_eq!(
+            engine
+                .translate_with_overrides(
+                    "萧炎",
+                    Mode::VietPhraseOneMeaning,
+                    &Options::default(),
+                    &custom,
+                )
+                .unwrap(),
+            " Custom Name"
+        );
+        assert_eq!(
+            engine.translate("萧炎", Mode::VietPhraseOneMeaning, &Options::default()),
+            " Base Name"
+        );
+
+        let custom_names2 = DictionaryOverrides::from_sources(DictionarySourceOverrides {
+            names: Some("萧炎=Custom Primary"),
+            names2: Some("萧炎=Custom Secondary"),
+            ..Default::default()
+        });
+        assert_eq!(
+            engine
+                .translate_with_overrides(
+                    "萧炎",
+                    Mode::VietPhraseOneMeaning,
+                    &Options::default(),
+                    &custom_names2,
+                )
+                .unwrap(),
+            " Custom Secondary"
+        );
+
+        let empty_names = DictionaryOverrides::from_sources(DictionarySourceOverrides {
+            names: Some(""),
+            ..Default::default()
+        });
+        assert_eq!(
+            engine
+                .translate_with_overrides(
+                    "萧炎",
+                    Mode::VietPhraseOneMeaning,
+                    &Options::default(),
+                    &empty_names,
+                )
+                .unwrap(),
+            " Fixed VietPhrase"
+        );
+    }
+
+    #[test]
+    fn request_luat_nhan_uses_request_pronouns() {
+        let dictionaries = Dictionaries::build("在=tại\n他=tha\n身=thân\n后=hậu", "", "", "");
+        let engine = Engine::from_dicts(dictionaries);
+        let custom = DictionaryOverrides::from_sources(DictionarySourceOverrides {
+            luat_nhan: Some("在{n}身后=sau lưng {n}"),
+            pronouns: Some("他=hắn"),
+            ..Default::default()
+        });
+
+        assert_eq!(
+            engine
+                .translate_with_overrides(
+                    "在他身后",
+                    Mode::VietPhraseOneMeaning,
+                    &Options::default(),
+                    &custom,
+                )
+                .unwrap(),
+            " sau lưng hắn"
+        );
+    }
+
+    #[test]
+    fn request_ignored_phrases_replace_base_file() {
+        let dictionaries = Dictionaries::build(
+            "他=tha\n本=bản\n章=chương\n完=hoàn",
+            "",
+            "",
+            "本章完=hết chương",
+        );
+        let engine = Engine::from_dicts(dictionaries);
+        let custom = DictionaryOverrides::from_sources(DictionarySourceOverrides {
+            ignored_chinese_phrases: Some("本章完"),
+            ..Default::default()
+        });
+
+        assert_eq!(
+            engine
+                .translate_with_overrides(
+                    "他本章完",
+                    Mode::VietPhraseOneMeaning,
+                    &Options::default(),
+                    &custom,
+                )
+                .unwrap(),
+            " tha"
+        );
+    }
+
+    #[test]
+    fn invalid_request_luat_nhan_returns_an_error() {
+        let engine = engine_hv_only();
+        let custom = DictionaryOverrides::from_sources(DictionarySourceOverrides {
+            luat_nhan: Some("([{n}=invalid"),
+            ..Default::default()
+        });
+
+        assert!(engine
+            .translate_with_overrides(
+                "他",
+                Mode::VietPhraseOneMeaning,
+                &Options::default(),
+                &custom,
+            )
+            .is_err());
     }
 }

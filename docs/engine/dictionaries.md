@@ -22,7 +22,8 @@ Pronouns=Resources\Pronouns.txt
 
 > Bản Rust dùng các đường dẫn chuẩn này và cho phép đổi thư mục gốc qua
 > `--data-dir`/`QT_DATA_DIR`. Các path được ghép theo từng component nên chạy được trên cả
-> Windows và Linux; engine chưa parse một file `Dictionaries.config` tùy biến.
+> Windows và Linux; engine chưa parse một file `Dictionaries.config` tùy biến. CLI/API có
+> contract riêng để thay nội dung các dictionary phụ theo từng lần dịch.
 
 ## 2. Format chung của mỗi dòng
 
@@ -104,7 +105,34 @@ Trong `LoadDictionaries` (song song hoá bằng `Task.WhenAll`, nhưng thứ t�
 
 ## 7. Ghi chú triển khai Rust
 
-- Các map hiện dùng `HashMap<String, String>` và được nạp một lần khi khởi động process.
-- Server giữ `Engine` trong `Arc`; handler không reload dictionary cho từng request.
+- VietPhrase và ChinesePhienAmWords dùng `HashMap<String, String>` cố định, được nạp một
+  lần khi khởi động process.
+- Server giữ `Engine` trong `Arc`; dictionary phụ custom được parse theo request và ghép
+  bằng lookup view, không clone VietPhrase và không mutate `Engine`.
 - Thứ tự merge ở mục 4 là invariant có regression test.
 - Loader strip BOM ở ký tự đầu file và giữ đúng hành vi split toàn bộ dấu `=`.
+
+## 8. Dictionary custom theo invocation/request
+
+Chỉ hai file bắt buộc và bất biến trong một engine instance:
+
+- `VietPhrase/VietPhrase.txt`
+- `Resources/ChinesePhienAmWords.txt`
+
+Các file `Names`, `Names2`, `LuatNhan`, `Pronouns`, `DanhTu`, `HoNguoi`, `HauTu` và
+`IgnoredChinesePhrases` là optional. CLI nhận path qua các option `--*-file`; HTTP API nhận
+nguyên nội dung UTF-8 qua object `dictionaries`.
+
+Mỗi file có semantics thay thế độc lập:
+
+- Không truyền: dùng file mặc định trong data directory, hoặc tập rỗng nếu file không có.
+- Truyền file/nội dung rỗng: thay dictionary tương ứng bằng tập rỗng.
+- Truyền nội dung: thay toàn bộ dictionary tương ứng trong invocation/request.
+
+Sau khi chọn nguồn cho từng file, engine vẫn áp dụng đúng merge order Names2 → Names →
+VietPhrase. Luật Nhân custom được compile riêng; Pronouns và Name một nghĩa được ghép thành
+`dictionaryN` của request. HoNguoi/HauTu custom được dùng cho `{h}{t}`. DanhTu được nhận và
+parse để giữ contract file, nhưng các đường dịch hiện đã port chưa đọc dictionary này.
+
+Lạc Việt không thuộc contract này vì endpoint/thuật toán `ChineseToMeanings` chưa được
+triển khai.

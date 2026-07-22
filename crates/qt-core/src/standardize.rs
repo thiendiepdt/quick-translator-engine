@@ -33,9 +33,14 @@ impl Standardizer {
             ignored: Vec::new(),
         };
 
+        standardizer.ignored = standardizer.normalize_ignored(ignored_source);
+        standardizer
+    }
+
+    fn normalize_ignored(&self, ignored_source: &[String]) -> Vec<Vec<char>> {
         let mut ignored = Vec::new();
         for phrase in ignored_source {
-            let normalized = standardizer.standardize_without_ignored(phrase);
+            let normalized = self.standardize_without_ignored(phrase);
             let text: String = normalized
                 .into_iter()
                 .map(|item| item.ch)
@@ -49,13 +54,29 @@ impl Standardizer {
         }
         // QT sorts by descending length, then descending lexical order.
         ignored.sort_by(|left, right| right.len().cmp(&left.len()).then_with(|| right.cmp(left)));
-        standardizer.ignored = ignored;
-        standardizer
+        ignored
     }
 
     pub fn standardize(&self, original: &str) -> StandardizedInput {
+        self.standardize_with_ignored(original, &self.ignored)
+    }
+
+    pub fn standardize_with_ignored_source(
+        &self,
+        original: &str,
+        ignored_source: &[String],
+    ) -> StandardizedInput {
+        let ignored = self.normalize_ignored(ignored_source);
+        self.standardize_with_ignored(original, &ignored)
+    }
+
+    fn standardize_with_ignored(
+        &self,
+        original: &str,
+        ignored_phrases: &[Vec<char>],
+    ) -> StandardizedInput {
         let mut mapped = self.standardize_without_ignored(original);
-        for ignored in &self.ignored {
+        for ignored in ignored_phrases {
             mapped = replace_all(&mapped, ignored, &[]);
         }
         mapped = replace_all(&mapped, &['\t', '\n', '\n'], &[]);

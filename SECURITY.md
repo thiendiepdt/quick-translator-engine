@@ -20,12 +20,15 @@ Server hiện:
 - bind `0.0.0.0`;
 - không có TLS hoặc authentication;
 - không có rate limit;
-- không giới hạn kích thước body/batch;
+- giới hạn JSON body ở 5 MiB nhưng chưa giới hạn số phần tử batch hay số entry dictionary;
 - xử lý dịch bằng blocking worker.
 
 Vì vậy không expose trực tiếp ra Internet. Khi triển khai ngoài máy cá nhân hoặc mạng tin
 cậy, đặt server sau reverse proxy có TLS, authentication, body-size limit, timeout,
 concurrency limit và logging đã loại nội dung nhạy cảm.
+
+Dictionary custom là dữ liệu không tin cậy. Đặc biệt, Luật Nhân có biểu thức regex được
+compile theo request; nên áp dụng timeout và quota CPU ở lớp triển khai.
 
 Không đặt credential trong `QT2025/`, config được track, command line hoặc log. Dùng secret
 manager/environment của nền tảng triển khai và chạy secret scanner trước khi push.
