@@ -68,6 +68,57 @@ describe("Cloudflare Lambda gateway", () => {
     expect(await signed.text()).toBe(body);
   });
 
+  it("answers browser preflight and attaches CORS headers for an allowed origin", async () => {
+    const upstreamFetch = vi.fn(() => new Response("unexpected"));
+    vi.stubGlobal("fetch", upstreamFetch);
+
+    const preflight = await invoke(
+      new Request("https://api.example.com/translate", {
+        method: "OPTIONS",
+        headers: {
+          origin: "http://localhost:5173",
+          "access-control-request-method": "POST",
+          "access-control-request-headers": "content-type",
+        },
+      }),
+    );
+
+    expect(preflight.status).toBe(204);
+    expect(preflight.headers.get("access-control-allow-origin")).toBe(
+      "http://localhost:5173",
+    );
+    expect(preflight.headers.get("access-control-allow-methods")).toBe("POST");
+    expect(preflight.headers.get("vary")).toBe("Origin");
+    expect(upstreamFetch).not.toHaveBeenCalled();
+
+    const upstream = vi.fn(() => Response.json({ status: "ok" }));
+    vi.stubGlobal("fetch", upstream);
+    const actual = await invoke(
+      new Request("https://api.example.com/health", {
+        headers: { origin: "http://localhost:5173" },
+      }),
+    );
+    expect(actual.headers.get("access-control-allow-origin")).toBe(
+      "http://localhost:5173",
+    );
+    expect(actual.headers.get("access-control-expose-headers")).toBe("x-request-id");
+  });
+
+  it("rejects browser origins outside the configured allowlist", async () => {
+    const upstreamFetch = vi.fn(() => new Response("unexpected"));
+    vi.stubGlobal("fetch", upstreamFetch);
+
+    const response = await invoke(
+      new Request("https://api.example.com/health", {
+        headers: { origin: "https://untrusted.example" },
+      }),
+    );
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({ error: "Origin is not allowed" });
+    expect(upstreamFetch).not.toHaveBeenCalled();
+  });
+
   it("allows only the engine routes and methods", async () => {
     const upstreamFetch = vi.fn(() => new Response("unexpected"));
     vi.stubGlobal("fetch", upstreamFetch);

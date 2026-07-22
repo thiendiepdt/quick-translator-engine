@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>qt-web — Precision Split</title>
+  <!--
+    ASSUMPTIONS: Cloudflare is the browser-facing endpoint; Lambda credentials never enter this UI.
+    REFERENCE: the familiar source/target translator model, tightened into a professional chapter tool.
+    FORM: one precise split surface plus a persistent inspector, with paired range marks as the signature.
+  -->
+  <style>
+    :root {
+      --ink: #15233b;
+      --muted: #6d7789;
+      --line: #d9dee7;
+      --soft: #f5f7fa;
+      --white: #ffffff;
+      --blue: #1d62d8;
+      --blue-soft: #eaf1ff;
+      --teal: #157f78;
+      --teal-soft: #e5f4f1;
+      --focus: #f1c96b;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: var(--soft); color: var(--ink); }
+    body { font-family: "Noto Sans", "DejaVu Sans", sans-serif; font-size: 14px; }
+    button, input, textarea, select { font: inherit; color: inherit; }
+    button { cursor: pointer; }
+    .app { height: 100vh; min-height: 720px; display: grid; grid-template-columns: 68px minmax(0, 1fr) 342px; grid-template-rows: 64px 1fr; overflow: hidden; }
+    .topbar { grid-column: 1 / -1; display: grid; grid-template-columns: auto minmax(260px, 620px) 1fr auto; align-items: center; gap: 28px; padding: 0 22px; background: var(--white); border-bottom: 1px solid var(--line); }
+    .wordmark { font: 700 17px/1 "Noto Sans Display", "Noto Sans", sans-serif; letter-spacing: -.4px; white-space: nowrap; }
+    .wordmark b { color: var(--blue); }
+    .endpoint { display: flex; align-items: center; min-width: 0; height: 36px; border: 1px solid var(--line); border-radius: 5px; background: var(--soft); }
+    .endpoint label { padding: 0 10px; border-right: 1px solid var(--line); font: 700 10px "Maple Mono Normal NL", monospace; color: var(--muted); text-transform: uppercase; }
+    .endpoint input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; padding: 0 10px; font: 12px "Maple Mono Normal NL", monospace; }
+    .connection { justify-self: end; display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); white-space: nowrap; }
+    .connection i { width: 7px; height: 7px; border-radius: 50%; background: #2cad79; box-shadow: 0 0 0 3px #e5f6ee; }
+    .run { height: 38px; padding: 0 18px; border: 0; border-radius: 5px; background: var(--blue); color: white; font-weight: 750; box-shadow: 0 1px 2px rgba(14,50,110,.25); }
+    .run:hover { background: #154fae; }
+    .run.loading { opacity: .55; pointer-events: none; }
+    .rail { min-height: 0; display: flex; flex-direction: column; align-items: center; padding: 14px 0; background: #10203a; color: white; }
+    .rail-mark { width: 34px; height: 34px; display: grid; place-items: center; margin-bottom: 28px; border: 1px solid rgba(255,255,255,.35); font: 800 12px "Maple Mono Normal NL", monospace; }
+    .rail-button { position: relative; width: 100%; min-height: 58px; border: 0; background: transparent; color: #b9c3d1; font-size: 10px; font-weight: 700; letter-spacing: .3px; }
+    .rail-button::before { content: attr(data-glyph); display: block; margin-bottom: 5px; color: inherit; font: 700 18px "Maple Mono Normal NL", monospace; }
+    .rail-button.active { color: white; background: rgba(255,255,255,.08); }
+    .rail-button.active::after { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; background: #69a4ff; }
+    .rail-spacer { flex: 1; }
+    .canvas { min-width: 0; min-height: 0; display: grid; grid-template-rows: 50px minmax(0, 1fr) 56px; padding: 18px 18px 16px; }
+    .canvas-head { display: flex; align-items: center; justify-content: space-between; padding: 0 4px; }
+    .language-flow { display: flex; align-items: center; gap: 12px; }
+    .language-flow strong { font-size: 13px; }
+    .language-flow span { color: var(--muted); }
+    .fixed-mode { padding: 6px 9px; border: 1px solid #a9c3ed; border-radius: 4px; background: var(--blue-soft); color: #174f9f; font: 700 10px "Maple Mono Normal NL", monospace; }
+    .chapter-meta { font-size: 12px; color: var(--muted); }
+    .split { min-width: 0; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; background: var(--white); border: 1px solid #cfd6e2; border-radius: 7px; box-shadow: 0 8px 30px rgba(38,53,78,.07); overflow: hidden; }
+    .pane { min-width: 0; min-height: 0; display: grid; grid-template-rows: 48px 1fr; }
+    .pane + .pane { border-left: 1px solid var(--line); }
+    .pane-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 16px; border-bottom: 1px solid var(--line); }
+    .pane-label { display: flex; align-items: baseline; gap: 8px; }
+    .pane-label strong { font-size: 12px; letter-spacing: .35px; text-transform: uppercase; }
+    .pane-label span { font: 10px "Maple Mono Normal NL", monospace; color: var(--muted); }
+    .tabs { display: flex; gap: 3px; padding: 3px; border-radius: 5px; background: var(--soft); }
+    .tabs button { border: 0; border-radius: 3px; background: transparent; padding: 6px 8px; font-size: 10px; font-weight: 750; color: var(--muted); }
+    .tabs button.active { background: white; color: var(--ink); box-shadow: 0 1px 3px rgba(30,50,80,.14); }
+    .text-stage { position: relative; min-height: 0; overflow: auto; }
+    #sourceInput { width: 100%; height: 100%; resize: none; border: 0; outline: 0; padding: 26px 28px 70px; font: 19px/1.95 "Noto Sans CJK SC", "Noto Sans", sans-serif; }
+    .mapped { min-height: 100%; padding: 26px 28px 70px; white-space: pre-wrap; font: 18px/1.95 "Noto Sans", sans-serif; text-wrap: pretty; }
+    #sourceMapped { font-size: 19px; font-family: "Noto Sans CJK SC", "Noto Sans", sans-serif; }
+    .segment { cursor: pointer; border-bottom: 1px solid transparent; transition: .14s ease; }
+    .segment:hover { background: var(--blue-soft); border-bottom-color: #6097e8; }
+    .segment.active { background: var(--focus); box-shadow: 0 0 0 3px rgba(241,201,107,.5); border-radius: 2px; }
+    .json { margin: 0; min-height: 100%; padding: 24px; background: #13213a; color: #dce8fa; white-space: pre-wrap; font: 12px/1.7 "Maple Mono Normal NL", monospace; }
+    .floating-hint { position: absolute; left: 24px; right: 24px; bottom: 18px; display: flex; align-items: center; gap: 8px; padding: 9px 11px; border: 1px solid #d8dfeb; border-radius: 5px; background: rgba(255,255,255,.94); color: var(--muted); font-size: 11px; box-shadow: 0 4px 18px rgba(30,47,72,.08); }
+    .floating-hint b { color: var(--ink); }
+    .hidden { display: none !important; }
+    .canvas-foot { display: flex; align-items: center; justify-content: space-between; padding: 0 4px; }
+    .status { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 11px; }
+    .status i { width: 6px; height: 6px; border-radius: 50%; background: var(--teal); }
+    .output-actions { display: flex; align-items: center; gap: 8px; }
+    .ghost { border: 1px solid var(--line); border-radius: 4px; background: var(--white); padding: 7px 10px; font-size: 11px; font-weight: 700; }
+    .inspector { min-height: 0; display: grid; grid-template-rows: auto auto auto 1fr auto; background: var(--white); border-left: 1px solid var(--line); overflow: hidden; }
+    .inspector-head { padding: 20px 20px 14px; border-bottom: 1px solid var(--line); }
+    .inspector-head span { font: 700 10px "Maple Mono Normal NL", monospace; color: var(--blue); text-transform: uppercase; }
+    .inspector-head h2 { margin: 5px 0 4px; font-size: 18px; letter-spacing: -.3px; }
+    .inspector-head p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .dictionary-list { padding: 13px 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; border-bottom: 1px solid var(--line); }
+    .dict { min-width: 0; height: 34px; border: 1px solid var(--line); border-radius: 4px; background: white; padding: 0 8px; text-align: left; font-size: 10px; font-weight: 750; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .dict::after { content: ""; float: right; width: 6px; height: 6px; margin-top: 3px; border-radius: 50%; background: #d4dae4; }
+    .dict.touched::after { background: var(--teal); }
+    .dict.active { border-color: #6e9ee6; background: var(--blue-soft); color: #194e9a; }
+    .dict-editor { padding: 15px 16px 12px; border-bottom: 1px solid var(--line); }
+    .dict-meta { display: flex; justify-content: space-between; margin-bottom: 8px; }
+    .dict-meta strong { font-size: 12px; }
+    .dict-meta span { font: 9px "Maple Mono Normal NL", monospace; color: var(--muted); }
+    #dictText { width: 100%; height: 110px; resize: none; border: 1px solid #cfd6e2; border-radius: 4px; outline: 0; padding: 9px; font: 11px/1.55 "Maple Mono Normal NL", monospace; }
+    #dictText:focus { border-color: #6998df; box-shadow: 0 0 0 3px var(--blue-soft); }
+    .dict-actions { margin-top: 8px; display: flex; justify-content: space-between; }
+    .link-button { border: 0; background: transparent; padding: 2px; color: var(--blue); font-size: 10px; font-weight: 750; }
+    .settings { min-height: 0; overflow: auto; padding: 15px 18px; }
+    .section-label { margin-bottom: 10px; font: 700 9px "Maple Mono Normal NL", monospace; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+    .switch-row { min-height: 34px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #eef1f5; font-size: 11px; }
+    .switch-row input { accent-color: var(--blue); }
+    .field-row { display: grid; grid-template-columns: 1fr 92px; align-items: center; min-height: 40px; border-bottom: 1px solid #eef1f5; font-size: 11px; }
+    .field-row input, .field-row select { width: 100%; height: 29px; border: 1px solid var(--line); border-radius: 3px; background: var(--soft); padding: 0 7px; }
+    .inspector-foot { padding: 12px 18px; border-top: 1px solid var(--line); background: var(--soft); color: var(--muted); font-size: 10px; line-height: 1.45; }
+    @media (max-width: 1120px) { .app { grid-template-columns: 58px 1fr 290px; } .topbar { grid-template-columns: auto 1fr auto; } .connection { display: none; } .mapped, #sourceInput { padding-left: 20px; padding-right: 20px; } }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="wordmark">quick translator <b>/ engine</b></div>
+      <div class="endpoint"><label for="endpoint">API</label><input id="endpoint" value="https://translate.example.com" spellcheck="false"></div>
+      <div class="connection"><i></i> Cloudflare → Lambda</div>
+      <button class="run" id="translateButton">Dịch chương</button>
+    </header>
+
+    <nav class="rail" aria-label="Điều hướng prototype">
+      <div class="rail-mark">QT</div>
+      <button class="rail-button active" data-glyph="文">Dịch</button>
+      <button class="rail-button" data-glyph="名">Tên</button>
+      <button class="rail-button" data-glyph="{}">API</button>
+      <div class="rail-spacer"></div>
+      <button class="rail-button" data-glyph="?">Trợ giúp</button>
+    </nav>
+
+    <main class="canvas">
+      <div class="canvas-head">
+        <div class="language-flow"><strong>中文 · Nguyên văn</strong><span>→</span><strong>Tiếng Việt · Một nghĩa</strong><span class="fixed-mode">VIETPHRASE-ONE</span></div>
+        <div class="chapter-meta"><span id="sourceCount">0</span> nguồn · <span id="targetCount">0</span> đích</div>
+      </div>
+      <div class="split">
+        <section class="pane">
+          <header class="pane-head">
+            <div class="pane-label"><strong>Source</strong><span>UTF-16</span></div>
+            <div class="tabs"><button id="sourceRaw">RAW</button><button id="sourceLinked" class="active">LINKED</button></div>
+          </header>
+          <div class="text-stage">
+            <textarea id="sourceInput" class="hidden" aria-label="Nguyên văn"></textarea>
+            <div id="sourceMapped" class="mapped"></div>
+            <div class="floating-hint">Click một cụm để soi mapping · <b id="mappingNote">chưa chọn cụm</b></div>
+          </div>
+        </section>
+        <section class="pane">
+          <header class="pane-head">
+            <div class="pane-label"><strong>Output</strong><span>PRETTY ON</span></div>
+            <div class="tabs"><button id="outputText" class="active">BẢN DỊCH</button><button id="outputJson">JSON</button></div>
+          </header>
+          <div class="text-stage">
+            <div id="targetMapped" class="mapped"></div>
+            <pre id="jsonView" class="json hidden"></pre>
+          </div>
+        </section>
+      </div>
+      <footer class="canvas-foot">
+        <div class="status"><i></i><span id="statusText">Demo local · range mapping sẵn sàng</span></div>
+        <div class="output-actions"><button class="ghost" id="clearSource">Xóa nguồn</button><button class="ghost" id="copyOutput">Sao chép output</button></div>
+      </footer>
+    </main>
+
+    <aside class="inspector">
+      <div class="inspector-head">
+        <span>Request inspector</span>
+        <h2>Từ điển & engine</h2>
+        <p>Tùy biến chỉ sống trong request hiện tại. Chấm xanh là bộ sẽ được gửi đi.</p>
+      </div>
+      <div class="dictionary-list" id="dictList"></div>
+      <div class="dict-editor">
+        <div class="dict-meta"><strong id="dictLabel">Names</strong><span id="dictFile">Names.txt</span></div>
+        <textarea id="dictText">萧炎=Tiêu Viêm
+云韵=Vân Vận</textarea>
+        <div class="dict-actions"><button class="link-button" id="uploadButton">Nạp file .txt</button><button class="link-button" id="emptyButton">Thay bằng tập rỗng</button></div>
+        <input id="fileInput" type="file" accept=".txt,text/plain" hidden>
+      </div>
+      <div class="settings">
+        <div class="section-label">Translation options</div>
+        <label class="switch-row">Pretty output <input id="pretty" type="checkbox" checked></label>
+        <label class="switch-row">Wrap phrase <input id="wrap" type="checkbox"></label>
+        <label class="switch-row">Prioritized Name <input id="prioritizedName" type="checkbox" checked></label>
+        <label class="switch-row">Range mapping <input type="checkbox" checked disabled></label>
+        <label class="field-row">Scan Range <input id="scanRange" type="number" min="1" max="100" value="30"></label>
+        <label class="field-row">Algorithm <select id="algorithm"><option>0</option><option selected>1</option><option>2</option></select></label>
+      </div>
+      <div class="inspector-foot">VietPhrase.txt và ChinesePhienAmWords.txt được nhúng cố định trong Lambda, không thể ghi đè ở đây.</div>
+    </aside>
+  </div>
+
+  <script>
+    const sampleSource = '萧炎看着她，轻声说道：“云韵，这一趟务必要小心。”';
+    const sampleTarget = 'Tiêu Viêm nhìn nàng, khẽ nói: “Vân Vận, chuyến đi này nhất định phải cẩn thận.”';
+    const pairs = [['萧炎','Tiêu Viêm'],['看着','nhìn'],['她','nàng'],['轻声说道','khẽ nói'],['云韵','Vân Vận'],['这一趟','chuyến đi này'],['务必要','nhất định phải'],['小心','cẩn thận']];
+    const dictionaries = [
+      ['names','Names','Names.txt'],['names2','Names2','Names2/*.txt'],['luatNhan','Luật Nhân','LuatNhan.txt'],['pronouns','Pronouns','Pronouns.txt'],
+      ['danhTu','Danh Từ','DanhTu.txt'],['hoNguoi','Họ Người','HoNguoi.txt'],['hauTu','Hậu Từ','HauTu.txt'],['ignoredChinesePhrases','Ignored','IgnoredChinesePhrases.txt']
+    ];
+    const values = { names: '萧炎=Tiêu Viêm\n云韵=Vân Vận', pronouns: '她=nàng' };
+    const touched = new Set(['names','pronouns']);
+    let activeDictionary = 'names';
+    let responseData;
+    const $ = (id) => document.getElementById(id);
+    const findRange = (text, fragment) => ({ start: text.indexOf(fragment), length: fragment.length });
+    const mockResponse = () => ({ translated: sampleTarget, sourceRanges: pairs.map(([text]) => findRange(sampleSource,text)), targetRanges: pairs.map(([,text]) => findRange(sampleTarget,text)) });
+
+    function draw(node, text, ranges) {
+      node.replaceChildren(); let cursor = 0;
+      ranges.map((value,index) => ({...value,index})).sort((a,b) => a.start-b.start).forEach((value) => {
+        if (value.start > cursor) node.append(document.createTextNode(text.slice(cursor,value.start)));
+        const span = document.createElement('span'); span.className = 'segment'; span.dataset.map = value.index;
+        span.textContent = text.slice(value.start,value.start+value.length); node.append(span); cursor = value.start+value.length;
+      });
+      if (cursor < text.length) node.append(document.createTextNode(text.slice(cursor)));
+    }
+    function showResponse(data, source = $('sourceInput').value) {
+      responseData = data; draw($('sourceMapped'),source,data.sourceRanges||[]); draw($('targetMapped'),data.translated||'',data.targetRanges||[]);
+      $('jsonView').textContent = JSON.stringify(data,null,2); $('sourceCount').textContent = `${source.length} ký tự`; $('targetCount').textContent = `${(data.translated||'').length} ký tự`;
+      sourceMode(false); outputMode(false);
+    }
+    function sourceMode(raw) { $('sourceInput').classList.toggle('hidden',!raw); $('sourceMapped').classList.toggle('hidden',raw); $('sourceRaw').classList.toggle('active',raw); $('sourceLinked').classList.toggle('active',!raw); }
+    function outputMode(json) { $('jsonView').classList.toggle('hidden',!json); $('targetMapped').classList.toggle('hidden',json); $('outputText').classList.toggle('active',!json); $('outputJson').classList.toggle('active',json); }
+    function renderDictionaries() {
+      $('dictList').replaceChildren(...dictionaries.map(([key,label]) => { const button=document.createElement('button'); button.className=`dict${activeDictionary===key?' active':''}${touched.has(key)?' touched':''}`; button.dataset.key=key; button.textContent=label; return button; }));
+    }
+    function pickDictionary(key) { activeDictionary=key; const [,label,file]=dictionaries.find(([candidate])=>candidate===key); $('dictLabel').textContent=label; $('dictFile').textContent=file; $('dictText').value=values[key]||''; renderDictionaries(); }
+    function payload() { const custom={}; touched.forEach((key)=>custom[key]=values[key]||''); return { text:$('sourceInput').value,mode:'vietphrase-one',wrap:$('wrap').checked,pretty:$('pretty').checked,ranges:true,scanRange:Number($('scanRange').value),translationAlgorithm:Number($('algorithm').value),prioritizedName:$('prioritizedName').checked,dictionaries:custom }; }
+    async function translate() {
+      const button=$('translateButton'); button.classList.add('loading'); button.textContent='Đang dịch…'; $('statusText').textContent='Đang gọi Cloudflare gateway';
+      const endpoint=$('endpoint').value.trim().replace(/\/$/,'');
+      try {
+        if (!endpoint||endpoint.includes('example.com')) { await new Promise((resolve)=>setTimeout(resolve,380)); showResponse(mockResponse(),sampleSource); $('statusText').textContent='Demo local · không gửi dữ liệu'; }
+        else { const result=await fetch(`${endpoint}/translate`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload())}); const data=await result.json(); if(!result.ok) throw new Error(data.error||`HTTP ${result.status}`); showResponse(data); $('statusText').textContent=`HTTP ${result.status} · Lambda response`; }
+      } catch(error) { $('statusText').textContent=`Lỗi: ${error.message}`; }
+      finally { button.classList.remove('loading'); button.textContent='Dịch chương'; }
+    }
+
+    $('sourceInput').value=sampleSource; renderDictionaries(); showResponse(mockResponse(),sampleSource);
+    $('sourceRaw').onclick=()=>sourceMode(true); $('sourceLinked').onclick=()=>sourceMode(false); $('outputText').onclick=()=>outputMode(false); $('outputJson').onclick=()=>outputMode(true); $('translateButton').onclick=translate;
+    $('dictList').onclick=(event)=>{const button=event.target.closest('[data-key]');if(button)pickDictionary(button.dataset.key);};
+    $('dictText').oninput=()=>{values[activeDictionary]=$('dictText').value;touched.add(activeDictionary);renderDictionaries();};
+    $('emptyButton').onclick=()=>{$('dictText').value='';values[activeDictionary]='';touched.add(activeDictionary);renderDictionaries();};
+    $('uploadButton').onclick=()=>$('fileInput').click(); $('fileInput').onchange=async()=>{const [file]=$('fileInput').files;if(!file)return;$('dictText').value=await file.text();values[activeDictionary]=$('dictText').value;touched.add(activeDictionary);renderDictionaries();};
+    $('sourceInput').oninput=()=>$('sourceCount').textContent=`${$('sourceInput').value.length} ký tự`;
+    $('clearSource').onclick=()=>{$('sourceInput').value='';sourceMode(true);$('sourceCount').textContent='0 ký tự';};
+    $('copyOutput').onclick=async()=>{try{await navigator.clipboard.writeText(responseData.translated);$('copyOutput').textContent='Đã sao chép';}catch{$('copyOutput').textContent='Không thể chép';}setTimeout(()=>$('copyOutput').textContent='Sao chép output',1200);};
+    document.addEventListener('click',(event)=>{const segment=event.target.closest('.segment');if(!segment)return;document.querySelectorAll('.segment').forEach((node)=>node.classList.toggle('active',node.dataset.map===segment.dataset.map));const pair=pairs[Number(segment.dataset.map)];$('mappingNote').textContent=pair?`${pair[0]} ↔ ${pair[1]}`:'range đã chọn';});
+  </script>
+</body>
+</html>

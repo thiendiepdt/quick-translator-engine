@@ -1,0 +1,123 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: "Noto Sans", "DejaVu Sans", sans-serif;
+  --font-serif: "Bitstream Charter", "Noto Serif", "DejaVu Serif", serif;
+  --font-mono: "Maple Mono Normal NL", "DejaVu Sans Mono", monospace;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --radius: 0.4rem;
+  --background: oklch(0.973 0.005 250);
+  --foreground: oklch(0.25 0.035 255);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.25 0.035 255);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.25 0.035 255);
+  --primary: oklch(0.53 0.16 255);
+  --primary-foreground: oklch(0.99 0.003 250);
+  --secondary: oklch(0.95 0.014 247);
+  --secondary-foreground: oklch(0.31 0.04 255);
+  --muted: oklch(0.955 0.008 250);
+  --muted-foreground: oklch(0.55 0.026 255);
+  --accent: oklch(0.94 0.025 250);
+  --accent-foreground: oklch(0.33 0.065 255);
+  --destructive: oklch(0.57 0.2 28);
+  --border: oklch(0.88 0.012 250);
+  --input: oklch(0.88 0.012 250);
+  --ring: oklch(0.61 0.14 255);
+  --reader-paper: oklch(0.985 0.014 83);
+  --reader-ink: oklch(0.24 0.025 63);
+  --reader-accent: oklch(0.57 0.16 32);
+  --sidebar: oklch(0.25 0.05 250);
+  --sidebar-foreground: oklch(0.94 0.015 245);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    margin: 0;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+
+  ::selection {
+    background: oklch(0.83 0.11 81 / 0.75);
+    color: var(--foreground);
+  }
+}
+
+@layer components {
+  .mapped-segment {
+    border-radius: 0.16rem;
+    box-decoration-break: clone;
+    cursor: pointer;
+    transition: background-color 140ms ease, box-shadow 140ms ease, color 140ms ease;
+    -webkit-box-decoration-break: clone;
+  }
+
+  .mapped-segment:hover {
+    background: oklch(0.92 0.04 250);
+    box-shadow: inset 0 -1px oklch(0.61 0.14 255);
+  }
+
+  .mapped-segment[data-active="true"] {
+    background: oklch(0.78 0.14 67);
+    box-shadow: 0 0 0 3px oklch(0.78 0.14 67 / 0.32);
+    color: oklch(0.2 0.025 50);
+  }
+
+  .reader-output .mapped-segment:hover {
+    background: oklch(0.92 0.04 35);
+    box-shadow: inset 0 -1px var(--reader-accent);
+  }
+
+  .reader-output .mapped-segment[data-active="true"] {
+    background: var(--reader-accent);
+    box-shadow: 0 0 0 3px oklch(0.57 0.16 32 / 0.25);
+    color: white;
+  }
+
+  .fine-scrollbar {
+    scrollbar-color: oklch(0.75 0.015 250) transparent;
+    scrollbar-width: thin;
+  }
+}

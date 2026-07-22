@@ -4,6 +4,8 @@ QT2025/Resources/mtcToken.txt
 target/
 .aws-sam/
 node_modules/
+dist/
+coverage/
 .wrangler/
 *.cpuprofile
 .dev.vars*
@@ -12,4 +14,5 @@ node_modules/
 .agents/
 .env
 .env.*
+!.env.example
 _tools/

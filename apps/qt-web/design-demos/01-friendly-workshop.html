@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>qt-web — Friendly Workshop</title>
+  <!--
+    ASSUMPTIONS
+    - Desktop-first chapter workflow; endpoint is a public Cloudflare gateway.
+    - VietPhrase One Meaning and UTF-16 ranges are always enabled.
+    - Provisional wordmark only; no official logo or brand palette exists yet.
+    REASONING
+    - Roulette direction #4: pressable candy controls make dense configuration friendlier.
+    - The product motif is a pair of linked text fragments, not generic AI decoration.
+  -->
+  <style>
+    :root {
+      --paper: #f8f2e4;
+      --ink: #17211d;
+      --muted: #68736d;
+      --line: #17211d;
+      --jade: #39b980;
+      --jade-dark: #197a54;
+      --red: #ef634f;
+      --red-dark: #b63d31;
+      --blue: #68b9e9;
+      --yellow: #f2c94c;
+      --white: #fffdf7;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: var(--paper); color: var(--ink); }
+    body { font-family: "Noto Sans", "DejaVu Sans", sans-serif; font-size: 15px; }
+    button, input, textarea, select { font: inherit; color: inherit; }
+    button { cursor: pointer; }
+    .app { height: 100vh; min-height: 720px; display: grid; grid-template-rows: 74px 1fr; overflow: hidden; }
+    .topbar {
+      display: grid; grid-template-columns: 270px 1fr auto; align-items: center; gap: 24px;
+      padding: 0 22px; border-bottom: 2px solid var(--line); background: var(--white);
+    }
+    .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .brand-stamp {
+      width: 40px; height: 40px; display: grid; place-items: center; border: 2px solid var(--line);
+      background: var(--red); box-shadow: 3px 3px 0 var(--line); font-weight: 900; letter-spacing: -1px;
+    }
+    .brand-name { font: 700 18px/1 "Bitstream Charter", serif; letter-spacing: -.3px; }
+    .brand-name small { display: block; margin-top: 5px; font: 700 10px/1 "Maple Mono Normal NL", monospace; letter-spacing: 1.6px; color: var(--muted); }
+    .endpoint { min-width: 0; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; }
+    .eyebrow { font: 700 10px/1 "Maple Mono Normal NL", monospace; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+    .endpoint input { min-width: 0; height: 38px; border: 2px solid var(--line); background: var(--paper); padding: 0 12px; outline: none; }
+    .endpoint input:focus { box-shadow: 0 0 0 3px rgba(104,185,233,.35); }
+    .health { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--jade); border: 1px solid var(--line); }
+    .mode-badge { border: 2px solid var(--line); padding: 9px 12px; background: var(--yellow); box-shadow: 3px 3px 0 var(--line); font: 700 12px/1 "Maple Mono Normal NL", monospace; }
+    .workspace { min-height: 0; display: grid; grid-template-columns: 286px minmax(0, 1fr) minmax(0, 1fr); }
+    .dictionary-panel { min-height: 0; border-right: 2px solid var(--line); background: #efe7d5; display: grid; grid-template-rows: auto auto 1fr auto; }
+    .panel-head { padding: 18px 18px 14px; border-bottom: 1px solid rgba(23,33,29,.35); }
+    .panel-head h2 { margin: 5px 0 4px; font: 700 24px/1.05 "Bitstream Charter", serif; }
+    .panel-head p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .dict-tabs { padding: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; border-bottom: 1px solid rgba(23,33,29,.35); }
+    .dict-tab { min-height: 40px; border: 2px solid var(--line); background: var(--white); font-size: 12px; font-weight: 800; text-align: left; padding: 8px 9px; box-shadow: 2px 2px 0 var(--line); }
+    .dict-tab.active { background: var(--blue); transform: translate(2px, 2px); box-shadow: none; }
+    .dict-tab .state { float: right; width: 8px; height: 8px; margin-top: 3px; border: 1px solid var(--line); border-radius: 50%; background: transparent; }
+    .dict-tab.touched .state { background: var(--red); }
+    .dict-editor { min-height: 0; padding: 14px; display: grid; grid-template-rows: auto 1fr auto; gap: 9px; }
+    .dict-title { display: flex; justify-content: space-between; align-items: end; }
+    .dict-title strong { font-size: 13px; }
+    .dict-title span { font: 10px "Maple Mono Normal NL", monospace; color: var(--muted); }
+    #dictText { width: 100%; min-height: 110px; resize: none; border: 2px solid var(--line); background: var(--white); padding: 11px; line-height: 1.55; outline: none; }
+    .dict-actions { display: flex; gap: 8px; }
+    .mini-button { border: 2px solid var(--line); background: var(--white); padding: 7px 10px; font-size: 11px; font-weight: 800; box-shadow: 2px 2px 0 var(--line); }
+    .mini-button:active { transform: translate(2px, 2px); box-shadow: none; }
+    .options { padding: 13px 14px 16px; border-top: 2px solid var(--line); background: var(--white); }
+    .option-grid { margin-top: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px 8px; }
+    .toggle { display: flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 700; }
+    .toggle input { accent-color: var(--jade-dark); }
+    .compact-field label { display: block; margin-bottom: 4px; font: 9px "Maple Mono Normal NL", monospace; color: var(--muted); text-transform: uppercase; }
+    .compact-field input, .compact-field select { width: 100%; height: 31px; border: 1.5px solid var(--line); background: var(--paper); padding: 0 7px; }
+    .text-panel { min-width: 0; min-height: 0; display: grid; grid-template-rows: 54px 1fr 72px; background: var(--white); }
+    .text-panel.source { border-right: 2px solid var(--line); }
+    .pane-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 18px; border-bottom: 1px solid rgba(23,33,29,.3); }
+    .pane-title { display: flex; align-items: baseline; gap: 9px; }
+    .pane-title h2 { margin: 0; font: 700 19px "Bitstream Charter", serif; }
+    .count { color: var(--muted); font: 10px "Maple Mono Normal NL", monospace; }
+    .segmented { display: flex; border: 1.5px solid var(--line); background: var(--paper); }
+    .segmented button { border: 0; background: transparent; padding: 7px 9px; font-size: 10px; font-weight: 900; letter-spacing: .5px; }
+    .segmented button.active { background: var(--ink); color: white; }
+    .editor-wrap { min-height: 0; position: relative; overflow: auto; }
+    #sourceInput { width: 100%; height: 100%; border: 0; resize: none; padding: 28px 30px; outline: none; background: transparent; font: 19px/2 "Noto Sans CJK SC", "Noto Sans", sans-serif; }
+    .mapped-text { min-height: 100%; padding: 28px 30px; white-space: pre-wrap; font: 18px/2 "Noto Sans", sans-serif; text-wrap: pretty; }
+    .source .mapped-text { font-family: "Noto Sans CJK SC", "Noto Sans", sans-serif; font-size: 19px; }
+    .mapped-segment { border-radius: 7px; padding: 2px 1px; transition: background .15s, box-shadow .15s; cursor: pointer; }
+    .mapped-segment:hover { background: rgba(104,185,233,.24); box-shadow: inset 0 -2px var(--blue); }
+    .mapped-segment.active { background: var(--yellow); box-shadow: 0 0 0 2px var(--ink); }
+    #jsonView { margin: 0; min-height: 100%; padding: 24px; white-space: pre-wrap; font: 12px/1.65 "Maple Mono Normal NL", monospace; background: #17211d; color: #f9f4e8; overflow: auto; }
+    .hidden { display: none !important; }
+    .pane-foot { border-top: 1px solid rgba(23,33,29,.3); padding: 0 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .hint { color: var(--muted); font-size: 11px; line-height: 1.4; }
+    .mapping-note { max-width: 260px; color: var(--ink); font-size: 11px; font-weight: 700; }
+    .primary { min-width: 128px; height: 44px; border: 2px solid var(--line); background: var(--jade); padding: 0 17px; font-weight: 900; box-shadow: 4px 4px 0 var(--line); }
+    .primary:hover { background: #55ce96; }
+    .primary:active { transform: translate(4px, 4px); box-shadow: none; }
+    .primary.loading { opacity: .65; pointer-events: none; }
+    .copy { border: 2px solid var(--line); background: var(--red); padding: 9px 12px; font-weight: 900; box-shadow: 3px 3px 0 var(--line); }
+    .copy:active { transform: translate(3px, 3px); box-shadow: none; }
+    .status { display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(--muted); }
+    @media (max-width: 1050px) {
+      .workspace { grid-template-columns: 230px 1fr; }
+      .text-panel.output { grid-column: 2; }
+      .text-panel.source { display: none; }
+      .topbar { grid-template-columns: 210px 1fr; }
+      .mode-badge { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-stamp">QT</div>
+        <div class="brand-name">quick translator<small>ENGINE / WEB</small></div>
+      </div>
+      <div class="endpoint">
+        <span class="eyebrow">Cloudflare API</span>
+        <input id="endpoint" aria-label="Cloudflare API endpoint" value="https://translate.example.com" spellcheck="false">
+        <span class="health"><i class="dot"></i>gateway ready</span>
+      </div>
+      <div class="mode-badge">VIETPHRASE·ONE</div>
+    </header>
+
+    <main class="workspace">
+      <aside class="dictionary-panel">
+        <div class="panel-head">
+          <span class="eyebrow">Hộp từ điển</span>
+          <h2>Tùy biến chương này</h2>
+          <p>Chỉ gửi những bộ đã chạm vào. VietPhrase và Phiên Âm được khóa ở engine.</p>
+        </div>
+        <div class="dict-tabs" id="dictTabs"></div>
+        <div class="dict-editor">
+          <div class="dict-title"><strong id="dictLabel">Names</strong><span id="dictFile">Names.txt</span></div>
+          <textarea id="dictText" aria-label="Nội dung từ điển">萧炎=Tiêu Viêm
+云韵=Vân Vận</textarea>
+          <div class="dict-actions">
+            <button class="mini-button" id="uploadButton">Nạp .txt</button>
+            <button class="mini-button" id="clearButton">Đặt rỗng</button>
+            <input id="fileInput" type="file" accept=".txt,text/plain" hidden>
+          </div>
+        </div>
+        <div class="options">
+          <span class="eyebrow">Engine options</span>
+          <div class="option-grid">
+            <label class="toggle"><input id="pretty" type="checkbox" checked> Pretty</label>
+            <label class="toggle"><input id="wrap" type="checkbox"> Wrap</label>
+            <label class="toggle"><input id="prioritizedName" type="checkbox" checked> Ưu tiên Name</label>
+            <label class="toggle"><input type="checkbox" checked disabled> Range mapping</label>
+            <div class="compact-field"><label for="scanRange">Scan range</label><input id="scanRange" type="number" min="1" max="100" value="30"></div>
+            <div class="compact-field"><label for="algorithm">Algorithm</label><select id="algorithm"><option>0</option><option selected>1</option><option>2</option></select></div>
+          </div>
+        </div>
+      </aside>
+
+      <section class="text-panel source">
+        <header class="pane-head">
+          <div class="pane-title"><h2>Nguyên văn</h2><span class="count" id="sourceCount">0 ký tự</span></div>
+          <div class="segmented"><button id="editSource">RAW</button><button id="mapSource" class="active">ĐỐI CHIẾU</button></div>
+        </header>
+        <div class="editor-wrap">
+          <textarea id="sourceInput" class="hidden" aria-label="Nguyên văn tiếng Trung"></textarea>
+          <div id="sourceMapped" class="mapped-text" aria-label="Nguyên văn có range mapping"></div>
+        </div>
+        <footer class="pane-foot">
+          <div class="hint">Chạm một cụm để tìm phần dịch tương ứng.</div>
+          <button class="primary" id="translateButton">Dịch chương →</button>
+        </footer>
+      </section>
+
+      <section class="text-panel output">
+        <header class="pane-head">
+          <div class="pane-title"><h2>Bản dịch</h2><span class="count" id="targetCount">0 ký tự</span></div>
+          <div class="segmented"><button id="showOutput" class="active">OUTPUT</button><button id="showJson">RAW JSON</button></div>
+        </header>
+        <div class="editor-wrap">
+          <div id="targetMapped" class="mapped-text" aria-label="Bản dịch tiếng Việt"></div>
+          <pre id="jsonView" class="hidden"></pre>
+        </div>
+        <footer class="pane-foot">
+          <div>
+            <div class="status"><i class="dot"></i><span id="statusText">Demo local · 8 cặp range</span></div>
+            <div class="mapping-note" id="mappingNote">Chọn một cụm ở bất kỳ phía nào</div>
+          </div>
+          <button class="copy" id="copyButton">Sao chép</button>
+        </footer>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const sampleSource = '萧炎看着她，轻声说道：“云韵，这一趟务必要小心。”';
+    const sampleTarget = 'Tiêu Viêm nhìn nàng, khẽ nói: “Vân Vận, chuyến đi này nhất định phải cẩn thận.”';
+    const samplePairs = [
+      ['萧炎', 'Tiêu Viêm'], ['看着', 'nhìn'], ['她', 'nàng'], ['轻声说道', 'khẽ nói'],
+      ['云韵', 'Vân Vận'], ['这一趟', 'chuyến đi này'], ['务必要', 'nhất định phải'], ['小心', 'cẩn thận']
+    ];
+    const dictDefs = [
+      ['names', 'Names', 'Names.txt'], ['names2', 'Names 2', 'Names2/*.txt'],
+      ['luatNhan', 'Luật Nhân', 'LuatNhan.txt'], ['pronouns', 'Pronouns', 'Pronouns.txt'],
+      ['danhTu', 'Danh Từ', 'DanhTu.txt'], ['hoNguoi', 'Họ Người', 'HoNguoi.txt'],
+      ['hauTu', 'Hậu Từ', 'HauTu.txt'], ['ignoredChinesePhrases', 'Ignored', 'IgnoredChinesePhrases.txt']
+    ];
+    const dictValues = { names: '萧炎=Tiêu Viêm\n云韵=Vân Vận', pronouns: '她=nàng' };
+    const touched = new Set(['names', 'pronouns']);
+    let activeDict = 'names';
+    let currentResponse;
+
+    const $ = (id) => document.getElementById(id);
+    function range(text, fragment) { const start = text.indexOf(fragment); return { start, length: fragment.length }; }
+    function sampleResponse() {
+      return {
+        translated: sampleTarget,
+        sourceRanges: samplePairs.map(([source]) => range(sampleSource, source)),
+        targetRanges: samplePairs.map(([, target]) => range(sampleTarget, target))
+      };
+    }
+    function renderRanges(node, text, ranges) {
+      node.replaceChildren();
+      const ordered = ranges.map((item, index) => ({ ...item, index })).sort((a, b) => a.start - b.start);
+      let cursor = 0;
+      for (const item of ordered) {
+        if (item.start > cursor) node.append(document.createTextNode(text.slice(cursor, item.start)));
+        const span = document.createElement('span');
+        span.className = 'mapped-segment';
+        span.dataset.map = item.index;
+        span.textContent = text.slice(item.start, item.start + item.length);
+        node.append(span);
+        cursor = Math.max(cursor, item.start + item.length);
+      }
+      if (cursor < text.length) node.append(document.createTextNode(text.slice(cursor)));
+    }
+    function showResponse(response, source = $('sourceInput').value) {
+      currentResponse = response;
+      const sourceRanges = response.sourceRanges || [];
+      const targetRanges = response.targetRanges || [];
+      renderRanges($('sourceMapped'), source, sourceRanges);
+      renderRanges($('targetMapped'), response.translated || '', targetRanges);
+      $('jsonView').textContent = JSON.stringify(response, null, 2);
+      $('sourceCount').textContent = `${source.length.toLocaleString('vi-VN')} ký tự`;
+      $('targetCount').textContent = `${(response.translated || '').length.toLocaleString('vi-VN')} ký tự`;
+      $('statusText').textContent = `${sourceRanges.length} cặp range · sẵn sàng đối chiếu`;
+      setSourceMode('mapped');
+      setOutputMode('output');
+    }
+    function setSourceMode(mode) {
+      const edit = mode === 'edit';
+      $('sourceInput').classList.toggle('hidden', !edit);
+      $('sourceMapped').classList.toggle('hidden', edit);
+      $('editSource').classList.toggle('active', edit);
+      $('mapSource').classList.toggle('active', !edit);
+    }
+    function setOutputMode(mode) {
+      const json = mode === 'json';
+      $('targetMapped').classList.toggle('hidden', json);
+      $('jsonView').classList.toggle('hidden', !json);
+      $('showOutput').classList.toggle('active', !json);
+      $('showJson').classList.toggle('active', json);
+    }
+    function renderDictTabs() {
+      $('dictTabs').replaceChildren(...dictDefs.map(([key, label]) => {
+        const button = document.createElement('button');
+        button.className = `dict-tab${key === activeDict ? ' active' : ''}${touched.has(key) ? ' touched' : ''}`;
+        button.dataset.key = key;
+        button.innerHTML = `${label}<i class="state"></i>`;
+        return button;
+      }));
+    }
+    function selectDictionary(key) {
+      activeDict = key;
+      const [, label, file] = dictDefs.find(([candidate]) => candidate === key);
+      $('dictLabel').textContent = label;
+      $('dictFile').textContent = file;
+      $('dictText').value = dictValues[key] || '';
+      renderDictTabs();
+    }
+    function buildRequest() {
+      const dictionaries = {};
+      for (const key of touched) dictionaries[key] = dictValues[key] || '';
+      return {
+        text: $('sourceInput').value,
+        mode: 'vietphrase-one', wrap: $('wrap').checked, pretty: $('pretty').checked,
+        ranges: true, scanRange: Number($('scanRange').value),
+        translationAlgorithm: Number($('algorithm').value), prioritizedName: $('prioritizedName').checked,
+        ...(Object.keys(dictionaries).length ? { dictionaries } : {})
+      };
+    }
+    async function translate() {
+      const button = $('translateButton');
+      button.classList.add('loading'); button.textContent = 'Đang dịch…';
+      $('statusText').textContent = 'Đang chuẩn bị request';
+      const endpoint = $('endpoint').value.trim().replace(/\/$/, '');
+      try {
+        if (!endpoint || endpoint.includes('example.com')) {
+          await new Promise((resolve) => setTimeout(resolve, 420));
+          showResponse(sampleResponse(), sampleSource);
+          $('statusText').textContent = 'Demo local · không gửi dữ liệu';
+        } else {
+          const response = await fetch(`${endpoint}/translate`, {
+            method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(buildRequest())
+          });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+          showResponse(data);
+          $('statusText').textContent = `HTTP ${response.status} · Lambda response`;
+        }
+      } catch (error) {
+        $('statusText').textContent = `Lỗi: ${error.message}`;
+      } finally {
+        button.classList.remove('loading'); button.textContent = 'Dịch chương →';
+      }
+    }
+
+    $('sourceInput').value = sampleSource;
+    renderDictTabs();
+    showResponse(sampleResponse(), sampleSource);
+    $('dictTabs').addEventListener('click', (event) => { const button = event.target.closest('[data-key]'); if (button) selectDictionary(button.dataset.key); });
+    $('dictText').addEventListener('input', () => { dictValues[activeDict] = $('dictText').value; touched.add(activeDict); renderDictTabs(); });
+    $('sourceInput').addEventListener('input', () => { $('sourceCount').textContent = `${$('sourceInput').value.length.toLocaleString('vi-VN')} ký tự`; });
+    $('editSource').addEventListener('click', () => setSourceMode('edit'));
+    $('mapSource').addEventListener('click', () => setSourceMode('mapped'));
+    $('showOutput').addEventListener('click', () => setOutputMode('output'));
+    $('showJson').addEventListener('click', () => setOutputMode('json'));
+    $('translateButton').addEventListener('click', translate);
+    $('clearButton').addEventListener('click', () => { $('dictText').value = ''; dictValues[activeDict] = ''; touched.add(activeDict); renderDictTabs(); });
+    $('uploadButton').addEventListener('click', () => $('fileInput').click());
+    $('fileInput').addEventListener('change', async () => { const [file] = $('fileInput').files; if (!file) return; $('dictText').value = await file.text(); dictValues[activeDict] = $('dictText').value; touched.add(activeDict); renderDictTabs(); });
+    $('copyButton').addEventListener('click', async () => { try { await navigator.clipboard.writeText(currentResponse.translated); $('copyButton').textContent = 'Đã chép'; } catch { $('copyButton').textContent = 'Không thể chép'; } setTimeout(() => $('copyButton').textContent = 'Sao chép', 1200); });
+    document.addEventListener('click', (event) => {
+      const segment = event.target.closest('.mapped-segment'); if (!segment) return;
+      document.querySelectorAll('.mapped-segment').forEach((node) => node.classList.toggle('active', node.dataset.map === segment.dataset.map));
+      const index = Number(segment.dataset.map);
+      const source = samplePairs[index]?.[0] || 'cụm nguồn'; const target = samplePairs[index]?.[1] || 'cụm đích';
+      $('mappingNote').textContent = `${source}  ↔  ${target}`;
+    });
+  </script>
+</body>
+</html>
