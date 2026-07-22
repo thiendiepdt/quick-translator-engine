@@ -78,10 +78,10 @@ ChineseToHanVietForAnalyzer(s): tương tự, append " " sau mỗi ký tự rồ
 ```
 
 Hai hàm này **khác** `ChineseToHanViet(string, out)` ở chỗ: chèn space giữa *mọi* token
-(kể cả ký tự thường) và không viết hoa. MVP CLI mode "hanviet" nên dùng
-`ChineseToHanViet(string, out)` (bản có mapping, giống UI). Ghi chú để không nhầm.
+(kể cả ký tự thường) và không viết hoa. CLI mode `hanviet` dùng hành vi của
+`ChineseToHanViet(string, out)` (bản có mapping, giống UI), không dùng hai biến thể này.
 
-## 5. Reimplement Rust — checklist
+## 5. Trạng thái triển khai Rust
 
 - [x] `han_viet: HashMap<char, String>` từ `ChinesePhienAmWords.txt`.
 - [x] `to_narrow(&str)`: chỉ dịch U+FF01..U+FF5E → ASCII.

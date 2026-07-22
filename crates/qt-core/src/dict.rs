@@ -33,8 +33,8 @@ pub struct Dictionaries {
 /// Note: '#'-prefixed lines are NOT treated as comments here. In the original
 /// engine, only `loadLuatNhanDictionary` skips '#' lines; HanViet/VietPhrase/
 /// Names/Names2 loaders do not. This generic helper is used by the latter, so
-/// it must not skip '#'. '#'-skipping will be applied by the LuatNhan loader
-/// specifically in a later plan. See docs/engine/dictionaries.md §2.
+/// it must not skip '#'. The LuatNhan loader applies its own '#'-skipping.
+/// See docs/engine/dictionaries.md §2.
 pub fn parse_dict(content: &str) -> Vec<(String, String)> {
     let mut out = Vec::new();
     for (i, raw) in content.lines().enumerate() {

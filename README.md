@@ -1,48 +1,134 @@
 # QT-CLI
 
-Quick Translator (dịch Trung → Việt theo từ điển) dưới dạng **CLI + HTTP API**, reimplement
-bằng Rust từ engine gốc `QT2025` (.NET WinForms). Mục tiêu: kết quả dịch **y hệt** bản gốc,
-nhưng chạy headless, dễ tích hợp vào tool/server dịch truyện, và mở rộng được.
+QT-CLI là bản tái hiện bằng Rust của engine Quick Translator (QT2025), phục vụ dịch
+Trung → Việt theo từ điển qua thư viện, CLI và HTTP API. Mục tiêu của dự án là giữ hành
+vi dịch sát engine .NET gốc, đồng thời chạy headless và dễ tích hợp vào các công cụ xử lý
+văn bản.
 
-## Trạng thái
+> Dự án đang ở giai đoạn phát triển. Ba mode dịch chính đã hoạt động; tra nghĩa Lạc Việt,
+> quản lý từ điển và bộ golden test đối chiếu trực tiếp với ứng dụng QT vẫn chưa hoàn tất.
 
-MVP đã có đủ ba crate:
+## Tính năng
 
-- `qt-core`: HanViet, VietPhrase, VietPhraseOneMeaning, chuyển số Hán và ánh xạ
-  source↔target theo UTF-16.
-- `qt-cli`: đọc văn bản từ stdin và ghi bản dịch ra stdout.
-- `qt-api`: HTTP server với health check, danh sách mode, dịch đơn và dịch batch.
+- Ba mode: `hanviet`, `vietphrase`, `vietphrase-one`.
+- Longest-match, ưu tiên tên riêng, Luật Nhân và chuyển số Hán.
+- Chuẩn hóa input theo pipeline QT2025: phồn thể → giản thể, HTML entity, full-width,
+  dấu câu, khoảng trắng và ignored phrases.
+- Ánh xạ source ↔ target bằng offset UTF-16 để dùng trực tiếp trong JavaScript UI.
+- CLI đọc UTF-8 từ `stdin`, ghi bản dịch ra `stdout`.
+- HTTP API hỗ trợ dịch đơn, dịch batch, tùy chọn engine và ranges.
 
-Input đi qua đầy đủ pipeline `StandardizeInput` của QT2025: giản thể hóa, HTML decode,
-đổi dấu câu/full-width, chèn khoảng trắng và loại ignored phrases; source ranges vẫn trỏ
-về đúng offset UTF-16 của input gốc.
+## Yêu cầu
 
-Luật Nhân tổng quát (`{s}`, `{n}`, `{h}{t}`) và chuyển số Hán đã có; tra nghĩa LacViet vẫn
-nằm trong lộ trình tiếp theo. Xem
-[kiến trúc](docs/architecture.md) và [đặc tả engine](docs/engine/).
+- Rust stable và Cargo.
+- Một thư mục dữ liệu theo cấu trúc QT. Các file bắt buộc khi khởi động là:
+  - `Resources/ChinesePhienAmWords.txt`
+  - `Names.txt`
+  - `VietPhrase/VietPhrase.txt`
 
-Chạy HTTP server từ thư mục repo:
+Các file `Names2/123.txt`, `LuatNhan.txt`, `IgnoredChinesePhrases.txt` và các từ điển phụ
+trong `Resources/` là optional; thiếu chúng sẽ làm giảm tính năng hoặc độ tương thích.
+Trong checkout hiện tại, có thể dùng `QT2025` làm data directory.
 
-```powershell
-$env:QT_DATA_DIR="QT2025"
-$env:QT_PORT="3000"
-cargo run -p qt-api --bin qt-server
+## Chạy CLI
+
+```bash
+cargo build --release
+echo "他的眼球很好。" | cargo run -q -p qt-cli -- translate \
+  --data-dir QT2025 \
+  --mode vietphrase-one
 ```
 
-Các tham số engine là optional và mặc định vẫn là QT2025 (`scanRange=30`,
-`translationAlgorithm=1`, `prioritizedName=true`):
+PowerShell:
 
 ```powershell
-Get-Content input.txt | cargo run -p qt-cli -- translate --mode vietphrase-one `
-  --data-dir QT2025 --scan-range 30 --translation-algorithm 1 `
-  --prioritized-name true
-
-curl.exe -X POST http://localhost:3000/translate `
-  -H "content-type: application/json" `
-  -d '{"text":"他很好","mode":"vietphrase","scanRange":30,"translationAlgorithm":1,"prioritizedName":true}'
+"他的眼球很好。" | cargo run -q -p qt-cli -- translate `
+  --data-dir QT2025 `
+  --mode vietphrase-one
 ```
 
-## Nguồn gốc
+CLI mặc định dùng `mode=vietphrase`, `data-dir=data` và các option tương thích QT2025:
+`scanRange=30`, `translationAlgorithm=1`, `prioritizedName=true`.
 
-`QT2025/` chứa bộ từ điển và config của app gốc; code engine đã decompile nằm trong
-`reference/decompiled/` để đối chiếu hành vi.
+```text
+qt translate [--mode <hanviet|vietphrase|vietphrase-one>]
+             [--data-dir DIR] [--wrap]
+             [--scan-range 1..=100]
+             [--translation-algorithm 0|1|2]
+             [--prioritized-name true|false]
+```
+
+## Chạy HTTP server
+
+Bash:
+
+```bash
+QT_DATA_DIR=QT2025 QT_PORT=3000 cargo run -q -p qt-api --bin qt-server
+```
+
+PowerShell:
+
+```powershell
+$env:QT_DATA_DIR = "QT2025"
+$env:QT_PORT = "3000"
+cargo run -q -p qt-api --bin qt-server
+```
+
+Thử request:
+
+```bash
+curl -X POST http://localhost:3000/translate \
+  -H "content-type: application/json" \
+  -d '{"text":"他的眼球很好。","mode":"vietphrase-one","pretty":true,"ranges":true}'
+```
+
+Server hiện bind `0.0.0.0`, không có authentication, rate limit hay giới hạn kích thước
+request. Chỉ nên dùng trong mạng tin cậy hoặc đặt sau reverse proxy có các lớp bảo vệ phù
+hợp; xem [SECURITY.md](SECURITY.md).
+
+API contract đầy đủ nằm tại [docs/api.md](docs/api.md).
+
+## Kiểm tra chất lượng
+
+```bash
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
+```
+
+## Cấu trúc repository
+
+```text
+crates/qt-core/   Engine và public Rust API
+crates/qt-cli/    Binary qt
+crates/qt-api/    Binary qt-server và HTTP handlers
+docs/             Kiến trúc, API và đặc tả thuật toán
+QT2025/           Dữ liệu/config tham chiếu từ bộ QT gốc
+reference/        Source C# decompile dùng để đối chiếu hành vi
+```
+
+Đọc tiếp:
+
+- [Kiến trúc hệ thống](docs/architecture.md)
+- [HTTP API](docs/api.md)
+- [Đặc tả engine](docs/engine/README.md)
+- [Cách tái tạo source decompile](docs/dev/decompile.md)
+- [Hướng dẫn đóng góp](CONTRIBUTING.md)
+
+## Độ tương thích
+
+Các test hiện tại kiểm tra engine, CLI và API ở source level. Chưa có bộ golden test được
+thu trực tiếp từ ứng dụng QT2025 cho toàn bộ Luật Nhân và trường hợp ghép câu phức tạp, vì
+vậy chưa nên hiểu “tương thích QT2025” là cam kết khớp 100% với mọi input.
+
+Ranges dùng đơn vị UTF-16, nhưng được chia theo phrase hoặc Unicode scalar của Rust. Ví dụ
+một emoji fallback tạo một range có `length=2`; .NET có thể biểu diễn nó bằng hai entry
+surrogate. HanViet ranges là contract hai chiều mở rộng của bản Rust, không phải bản sao
+của mapping target-only trong QT2025.
+
+## Dữ liệu tham chiếu và giấy phép
+
+Repository chưa có giấy phép mã nguồn mở cho phần code Rust. Dữ liệu trong `QT2025/` và
+source decompile trong `reference/` có nguồn gốc riêng, không mặc nhiên được bao phủ bởi
+giấy phép của code. Trước khi phát hành công khai hoặc phân phối lại, cần xác nhận quyền
+phân phối và chọn license phù hợp; xem [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

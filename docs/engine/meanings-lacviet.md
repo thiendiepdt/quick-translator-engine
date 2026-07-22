@@ -43,10 +43,10 @@ Value là định nghĩa nhiều dòng, dùng ký tự đặc biệt:
 - `\n`, `\t` là **chuỗi literal 2 ký tự** trong file (không phải newline thật) — engine giữ
   nguyên value, UI tự render. Khi xuất CLI/API nên giữ nguyên hoặc cung cấp option unescape.
 
-## 4. Reimplement Rust — lưu ý
+## 4. Trạng thái và lưu ý triển khai
 
-- Đây là mode **phụ** (giai đoạn 5+), không nằm trong MVP.
+- Chức năng này **chưa được triển khai** trong `qt-core`, CLI hoặc HTTP API.
 - Value VietPhrase/Names: thay `/` → `; ` khi hiển thị (bước 3), nhưng LacViet giữ nguyên.
 - Giữ đúng thứ tự mục và separator `\n-----------------\n` để "y hệt".
-- API: endpoint `POST /meanings` trả khối text này (hoặc parse thành mảng mục có cấu trúc —
-  cân nhắc thêm field `structured` sau).
+- API dự kiến có thể expose `POST /meanings`; schema response cần được chốt khi triển khai,
+  không nên suy ra từ endpoint dịch hiện tại.

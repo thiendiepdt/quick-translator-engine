@@ -117,7 +117,7 @@ fn main() -> ExitCode {
 
 fn print_usage() {
     eprintln!(
-        "usage: qt translate --mode <hanviet|vietphrase|vietphrase-one> \
+        "usage: qt translate [--mode <hanviet|vietphrase|vietphrase-one>] \
          [--data-dir DIR] [--wrap] [--scan-range 1..={MAX_SCAN_RANGE}] \
          [--translation-algorithm 0|1|2] [--prioritized-name true|false]"
     );

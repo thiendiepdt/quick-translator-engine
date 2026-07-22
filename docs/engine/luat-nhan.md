@@ -187,4 +187,5 @@ Chi tiết chuyển số: [number-conversion.md](number-conversion.md).
   cho lookahead của `{n}` và `{s}两`, còn `regex` dùng cho các bước không cần lookaround.
 - Thứ tự ưu tiên `{n}` > `{h}{t}` > `{s}` theo vị trí index nhỏ nhất — phải giữ đúng.
 - `{h}{t}` lấy nghĩa trực tiếp từ hai từ điển Họ người/Hậu tố, không fallback Hán Việt.
-- Golden test nên bao phủ riêng ngày, giờ, %, dải số, `{n}` và tên họ+hậu tố.
+- Regression tests bao phủ các nhánh chính; golden corpus lấy trực tiếp từ ứng dụng QT nên
+  bổ sung riêng ngày, giờ, %, dải số, `{n}` và tên họ+hậu tố.

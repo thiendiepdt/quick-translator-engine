@@ -1,151 +1,171 @@
-# QT-CLI — Kiến trúc & Thiết kế hệ thống
+# Kiến trúc hệ thống
 
-> Tài liệu thiết kế đã được duyệt (brainstorm). Đây là bản đồ gốc cho toàn bộ project.
-> Ngày: 2026-07-21.
+Tài liệu này mô tả trạng thái hiện tại của QT-CLI. Đặc tả chi tiết thuật toán gốc nằm trong
+[engine/](engine/README.md); HTTP contract nằm trong [api.md](api.md).
 
-## 1. Mục tiêu
+## Mục tiêu thiết kế
 
-Tái tạo **Quick Translator (QT2025)** — công cụ dịch Trung → Việt theo từ điển longest-match —
-dưới dạng:
+- Tái hiện hành vi dịch của Quick Translator/QT2025 bằng Rust.
+- Giữ engine độc lập với transport để dùng chung cho CLI, server và UI tương lai.
+- Nạp từ điển một lần, sau đó chỉ đọc trong quá trình dịch.
+- Giữ source ↔ target ranges theo UTF-16 cho JavaScript/.NET consumers.
+- Tách rõ output “faithful” của engine và chuẩn hóa trình bày `pretty` của API.
 
-1. **CLI** (`qt`): đọc `stdin`, dịch và xuất `stdout` (dịch file/batch là bước mở rộng).
-2. **API** (`qt-server`): HTTP REST server, nạp từ điển 1 lần rồi phục vụ nhiều request,
-   để tích hợp vào các tool/server dịch/convert truyện khác.
-3. Nền tảng cho **Tauri desktop GUI** về sau (dùng chung engine).
+## Cargo workspace
 
-Nguyên tắc tối thượng: **kết quả dịch phải "y hệt" QT2025**. Engine được reimplement bằng
-Rust nhưng bám sát từng bước thuật toán trong `TranslatorEngine.dll` (đã decompile — xem
-[engine/](engine/)).
-
-## 2. Nguồn gốc — QT2025 là gì
-
-QT2025 là app **.NET WinForms** (Windows):
-
-| Thành phần | Vai trò |
-|---|---|
-| `QuickTranslator.exe` | UI (WinForms + WeifenLuo docking) |
-| `TranslatorEngine.dll` | **Engine dịch** — nguồn chân lý thuật toán |
-| `JiebaNet.Segmenter.dll` | Segmentation (dùng cho phần Analyzer, không phải core dịch) |
-| `HtmlAgilityPack.dll` | Bóc text từ HTML |
-| Bộ từ điển (`data/`) | Names, VietPhrase, LacViet, ChinesePhienAmWords, LuatNhan, ... |
-
-Engine đã được decompile ra C# và phân tích đầy đủ. Tài liệu đặc tả nằm trong [docs/engine/](engine/).
-
-## 3. Kiến trúc repo — Cargo workspace
-
-```
+```text
 qt-cli/
-├── docs/                        # ← DELIVERABLE #1 (tài liệu ánh xạ, viết trước)
-│   ├── architecture.md          #   (file này)
-│   └── engine/                  #   đặc tả thuật toán "y hệt"
-│       ├── overview.md          #     pipeline tổng quát + thứ tự ưu tiên
-│       ├── translation-algorithm.md  # main loop TranslateAll
-│       ├── dictionaries.md      #     mọi dict: format, load order, priority
-│       ├── han-viet.md          #     phiên âm Hán Việt + fallback
-│       ├── luat-nhan.md         #     luật văn phạm {n}/{s}/{h}{t}
-│       ├── number-conversion.md #     số Hán → Việt
-│       └── meanings-lacviet.md  #     tra cứu nghĩa chi tiết
 ├── crates/
-│   ├── qt-core/                 # Engine thuần Rust (no I/O bên ngoài dict loader)
-│   ├── qt-cli/                  # binary `qt`
-│   └── qt-api/                  # binary `qt-server` (axum)
-├── reference/decompiled/        # C# decompile của TranslatorEngine
-└── QT2025/                      # Từ điển + config gốc dùng để chạy/smoke test
+│   ├── qt-core/   # thư viện dịch đồng bộ
+│   ├── qt-cli/    # binary qt, stdin -> stdout
+│   └── qt-api/    # binary qt-server, Axum HTTP API
+├── docs/
+│   ├── api.md
+│   ├── architecture.md
+│   ├── dev/
+│   └── engine/
+├── QT2025/        # dữ liệu/config tham chiếu
+└── reference/     # source decompile để đối chiếu
 ```
 
-### Ranh giới module (isolation)
+### `qt-core`
 
-- **`qt-core`** là thư viện thuần: `Engine::from_dicts(dictionaries) -> Engine`, rồi
-  `engine.translate(text, mode, options) -> String` hoặc
-  `engine.translate_with_ranges(...) -> TranslationResult`. Không phụ thuộc HTTP/CLI.
-  Toàn bộ độ chính xác "y hệt" nằm ở đây; source-level regression test đã có, còn bộ golden
-  output lấy trực tiếp từ app QT thật chưa có.
-- **`qt-cli`** và **`qt-api`** là vỏ mỏng: parse input → gọi `qt-core` → format output.
-  Không chứa logic dịch.
+`qt-core` không phụ thuộc HTTP hay CLI. Public API chính:
 
-## 4. Engine pipeline (ánh xạ DLL → module Rust)
+```rust
+let dictionaries = Dictionaries::load(data_dir)?;
+let engine = Engine::from_dicts(dictionaries);
 
-| Module Rust (dự kiến) | Ánh xạ trong `TranslatorEngine.dll` | Nhiệm vụ |
+let text = engine.translate(input, mode, &options);
+let mapped = engine.translate_with_ranges(input, mode, &options);
+```
+
+`Engine` giữ ba nhóm state chỉ đọc:
+
+- các dictionary đã parse/merge;
+- cache Luật Nhân và regex;
+- bảng chuẩn hóa input, HTML entities và ignored phrases.
+
+### `qt-cli`
+
+CLI parse argument, nạp dictionary, đọc toàn bộ UTF-8 từ `stdin`, gọi `Engine::translate`
+và ghi nguyên output vào `stdout`. Lỗi cấu hình/argument được ghi vào `stderr` và trả exit
+code khác 0. CLI không chứa thuật toán dịch.
+
+### `qt-api`
+
+Server nạp một `Engine` lúc khởi động và chia sẻ qua `Arc`. Mỗi lần dịch chạy trong
+`tokio::task::spawn_blocking` vì engine là code đồng bộ, CPU-bound. Router cung cấp:
+
+- `GET /health`
+- `GET /modes`
+- `POST /translate`
+- `POST /translate/batch`
+
+Batch giữ thứ tự và xử lý lần lượt từng item để không làm đầy blocking pool trong một
+request. Xem schema tại [api.md](api.md).
+
+## Pipeline dịch
+
+```text
+UTF-8 input
+    |
+    v
+StandardizeInput
+  - phồn thể -> giản thể
+  - HTML decode
+  - chuẩn hóa dấu câu/full-width/khoảng trắng
+  - bỏ ignored phrases
+  - giữ mapping về UTF-16 input gốc
+    |
+    +---------------------- mode=hanviet ----------------------+
+    |                                                          |
+    v                                                          v
+PreScanForNumbers                                      Hán Việt từng scalar
+    |                                                          |
+NumberModifier                                                |
+    |                                                          |
+TranslateAll                                                   |
+  1. longest dictionary phrase                                |
+  2. Luật Nhân                                                |
+  3. chuyển số                                                |
+  4. fallback Hán Việt                                        |
+    |                                                          |
+    +-----------------------------+----------------------------+
+                                  v
+             TranslationResult { text, source_ranges, target_ranges }
+```
+
+`VietPhrase` và `VietPhraseOneMeaning` dùng chung `TranslateAll`, chỉ khác dictionary.
+`HanViet` đi qua đường dịch từng Unicode scalar riêng.
+
+## Module `qt-core`
+
+| Module | Trách nhiệm | Đối chiếu QT2025 |
 |---|---|---|
-| `dict` | `LoadDictionaries`, `load*Dictionary`, `vPDictToVPOneMeaningDict` | Nạp & merge từ điển, dựng cache |
-| `translate` | `TranslateAll`, `ProcessTranslation`, `ProcessHanViet` | Main loop longest-match |
-| `priority` | `isLongestPhraseInSentence`, `containsName` | Quyết định chọn cụm |
-| `han_viet` | `ChineseToHanViet`, `ToNarrow` | Phiên âm từng chữ + fallback |
-| `luat_nhan` | `containsLuatNhan`, `matchLuatNhan*`, `ChineseToLuatNhanOneMeaning`, `TransLuatNhan` | Luật văn phạm |
-| `number` | `ConvertChineseNumberToLong`, `FindLongestNumber`, `NumberModifier`, ... | Số Hán |
-| `meanings` | `ChineseToMeanings` | Tra cứu nghĩa (LacViet) |
-| `text` | `appendTranslatedWord`, `WrapTranslation`, `nextCharIsChinese` | Ghép chuỗi, viết hoa, wrap |
+| `dict` | Parse file, merge Names/VietPhrase, dựng one-meaning | `LoadDictionaries`, `load*Dictionary` |
+| `standardize` | Chuẩn hóa input và giữ source mapping | `StandardizeInput` |
+| `translate` | Main loop, longest phrase, name priority | `TranslateAll`, `ProcessTranslation` |
+| `han_viet` | Phiên âm từng ký tự và fallback | `ChineseToHanViet`, `ToNarrow` |
+| `luat_nhan` | `{n}`, `{s}`, `{h}{t}` và regex cache | `TransLuatNhan`, `HandleNhanBy` |
+| `number` | Nhận diện/chuyển số và dải số | `PreScanForNumbers`, `NumberModifier` |
+| `text` | Nối từ, spacing, capitalization, wrapping | `appendTranslatedWord`, `WrapTranslation` |
 
-Chi tiết từng phần: [docs/engine/](engine/).
+## Dictionary lifecycle
 
-## 5. Các mode output
+`Dictionaries::load` đọc các tên file chuẩn dưới một data directory. Ba file lõi là bắt
+buộc; các file phụ được load nếu tồn tại. Engine hiện không parse đường dẫn tùy biến từ
+`Dictionaries.config`.
 
-QT xuất nhiều "view". MVP tập trung 3 mode mày dùng nhất:
+Merge order quan trọng:
 
-| Mode | Hàm gốc | Mô tả |
-|---|---|---|
-| **VietPhrase** | `ChineseToVietPhrase` | Dịch nghĩa, mỗi cụm giữ đủ nghĩa (`nghĩa1/nghĩa2`) |
-| **VietPhraseOneMeaning** | `ChineseToVietPhraseOneMeaning` | Như trên nhưng mỗi cụm chỉ lấy nghĩa đầu |
-| **HanViet** | `ChineseToHanViet` | Phiên âm Hán Việt từng chữ |
-| *(sau)* Nghĩa/LacViet | `ChineseToMeanings` | Tra cứu chi tiết, không dịch liền mạch |
+1. `Names.txt` được nạp first-wins.
+2. Dòng đầu tiên trong `Names2/123.txt` ghi đè `Names.txt` khi trùng key.
+3. Names được merge trước VietPhrase, nên Name thắng VietPhrase khi cùng key.
+4. OneMeaning lấy phần đầu trước `/` hoặc `|`.
 
-Tham số dịch (khớp API gốc): `wrapType` (0=thường, 1=bọc `[...]`),
-`translationAlgorithm` (0/1/2 — ảnh hưởng luật "cụm dài nhất"), `prioritizedName` (bool),
-`scanRange` (độ dài quét tối đa). Xem [translation-algorithm.md](engine/translation-algorithm.md).
+Chi tiết nằm trong [engine/dictionaries.md](engine/dictionaries.md).
 
-## 6. API surface hiện tại
+## Options và mode
 
-**CLI** (`qt`):
+| Option | Default | Ghi chú |
+|---|---:|---|
+| `wrap_type` / `wrap` | `0` / `false` | `1` bọc phrase trong `[...]` |
+| `translation_algorithm` | `1` | Chỉ nhận `0`, `1`, `2` ở CLI/API |
+| `prioritized_name` | `true` | Bảo vệ Name bị phrase khác che |
+| `scan_range` | `30` | CLI/API giới hạn `1..=100` |
+
+Các option longest-match/name không được dùng trong mode HanViet. Default lấy từ
+`QuickTranslatorMain.config` của bộ tham chiếu.
+
+## Range model
+
+`CharRange { start, length }` dùng UTF-16 code unit. Sau chuẩn hóa, mỗi scalar giữ range
+trỏ về phần input gốc đã sinh ra nó; một source range có thể được dùng cho nhiều ký tự đầu
+ra khi phép chuẩn hóa nở chuỗi, ví dụ `… -> ...`.
+
+Các cặp `source_ranges[i]` và `target_ranges[i]` biểu diễn một phrase/fallback tương ứng.
+Entry không bắt buộc tương ứng từng code unit: emoji là một Unicode scalar nhưng dài hai
+UTF-16 unit. Contract HanViet hai chiều là phần mở rộng hữu dụng của Rust và cố ý không sao
+chép mảng mapping target-only có trường hợp lệch entry cuối của QT2025.
+
+## Độ tương thích và giới hạn
+
+- Source-level tests bao phủ dictionary priority, HanViet, longest-match, số, Luật Nhân,
+  chuẩn hóa, ranges, CLI và HTTP API.
+- Chưa có golden corpus đầy đủ lấy trực tiếp từ ứng dụng QT2025; các trường hợp hiếm vẫn có
+  thể khác engine gốc.
+- `POST /meanings`/Lạc Việt chưa được triển khai.
+- Input/output của CLI và API là UTF-8; charset detector cũ không được port.
+- Server chưa có cơ chế bảo vệ để expose trực tiếp ra Internet.
+
+## Kiểm chứng thay đổi
+
+```bash
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
 ```
-qt translate --mode vietphrase < input.txt > output.txt
-echo "他很厉害" | qt translate --mode hanviet
-qt translate --mode vietphrase-one --wrap < input.txt
-qt translate --mode vietphrase --scan-range 30 --translation-algorithm 1 --prioritized-name true
-```
 
-**HTTP** (`qt-server`):
-```
-POST /translate        { "text": "...", "mode": "vietphrase", "wrap": false, "pretty": false,
-                         "scanRange": 30, "translationAlgorithm": 1, "prioritizedName": true }
-                       -> { "translated": "..." }
-                       Thêm `"ranges": true` để nhận `sourceRanges` + `targetRanges`.
-POST /translate/batch  { "texts": ["..."], "mode": "vietphrase" }
-                       -> { "translated": ["..."] }
-GET  /modes
-GET  /health
-```
-Server nạp thư mục `QT_DATA_DIR` một lần khi khởi động (mặc định `data`; khi chạy repo dùng
-`QT2025`). Ba tham số engine là optional; server giữ default `30/1/true`, chỉ nhận
-`scanRange` từ 1 đến 100 và `translationAlgorithm` thuộc `0/1/2`.
-
-Mỗi range có dạng `{ "start": n, "length": n }`; offset/length dùng đơn vị UTF-16 như
-.NET và JavaScript, nhưng entry được chia theo phrase/Unicode scalar của Rust chứ không
-theo từng UTF-16 code unit. Vì vậy emoji fallback là một range `length=2`, trong khi .NET
-có thể tạo hai entry. Với batch, hai field range là ma trận song song với `texts`.
-`/meanings` vẫn thuộc giai đoạn sau.
-
-## 7. Chiến lược verify "y hệt"
-
-- **Nguồn chân lý**: code decompile từ `TranslatorEngine.dll`
-  (`reference/decompiled/TranslatorEngine.decompiled.cs`) và config/từ điển trong `QT2025/`.
-- **Golden test (chưa có)**: sẽ chứa cặp `input.zh → expected.txt` lấy từ app QT thật;
-  `qt-core` phải khớp **từng ký tự**.
-- Ưu tiên verify theo thứ tự: HanViet (đơn giản nhất) → VietPhraseOneMeaning → VietPhrase
-  → LuatNhan/số (phức tạp nhất).
-
-## 8. Lộ trình (mỗi bước là 1 spec → plan riêng)
-
-1. **Docs** — đặc tả engine + format dữ liệu. ✅
-2. `qt-core` MVP: dict loader + HanViet + VietPhrase + VietPhraseOneMeaning. ✅
-3. `qt-cli`: stdin/stdout + `--mode`/`--data-dir`/`--wrap`. ✅
-4. `qt-api`: HTTP server. ✅
-5. Chuyển số Hán + source↔target ranges. ✅
-6. LuatNhan tổng quát + StandardizeInput đầy đủ. ✅
-7. Nghĩa/LacViet.
-8. (sau) Tauri GUI, quản lý từ điển (thêm/sửa Names, VietPhrase).
-
-## 9. Ngoài phạm vi (YAGNI giai đoạn đầu)
-
-- Charset detection (Mozilla `nsDetector` trong DLL) — input giả định UTF-8.
-- History/log từ điển (`*.History`, DataSet) — chỉ cần khi làm tính năng edit dict.
-- UI docking, hotkey, font/màu — thuộc GUI, làm sau.
+Khi thay đổi thuật toán, nên thêm một regression test nhỏ nhất có thể và ghi rõ điểm nào
+được đối chiếu từ source decompile, điểm nào là contract mở rộng của Rust.

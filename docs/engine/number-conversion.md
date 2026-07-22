@@ -90,10 +90,11 @@ Ví dụ `123456789` → "1 ức 2,345 vạn 6,789".
 - Luật `百分[之]?{s}`: `{s}` = `ConvertChineseDecimalToString(valueN)` → phần trăm.
 - Hậu xử lý ngày: khuôn kết quả `^ngày <1..9>` → đổi "ngày" thành "mùng".
 
-## 9. Reimplement Rust — lưu ý
+## 9. Ghi chú triển khai Rust
 
 - Cẩn thận `NumberToVietnameseText` dùng format `N0` (dấu phẩy `,` ngăn nghìn kiểu en-US).
   Rust: tự format thêm dấu phẩy, không dùng locale mặc định.
 - Đệ quy `ConvertChineseNumberToLong` giữ đúng thứ tự nhánh 亿 → 万 → ghép-rời → under-10k.
 - Overflow: dùng `i64` như `long` gốc.
-- Golden test: bộ số phong phú (đơn vị lồng, dải, thập phân, hỗn hợp Latin-Hán, 余/多).
+- Regression tests hiện bao phủ đơn vị lồng, dải, thập phân, hỗn hợp Latin-Hán và 余/多;
+  golden corpus lấy trực tiếp từ ứng dụng QT vẫn là bước kiểm chứng còn thiếu.

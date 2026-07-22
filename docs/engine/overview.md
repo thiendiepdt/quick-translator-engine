@@ -14,7 +14,7 @@ ChineseToHanViet(chinese, out mapping[])          # độc lập, không qua Tra
 ChineseToMeanings(chinese, out phraseLength)       # tra cứu, không dịch liền mạch
 ```
 
-Cả 3 mode dịch (VietPhrase, VietPhraseOneMeaning) đi qua **cùng một hàm `TranslateAll`**,
+Hai mode VietPhrase và VietPhraseOneMeaning đi qua **cùng một hàm `TranslateAll`**,
 chỉ khác **từ điển** truyền vào. HanViet đi đường riêng.
 
 ## 2. Tham số (khớp chữ ký gốc)
@@ -69,8 +69,9 @@ Nghĩa là **với cùng một key, Names thắng VietPhrase**. Chi tiết & m�
 ## 5. Sơ đồ khối
 
 ```
-input (chinese, UTF-8)
+input (UTF-8; ranges tính theo UTF-16)
       │
+      ├─ StandardizeInput ────────────────► chars + source mapping
       ├─ PreScanForNumbers  ─────────────► map vị trí→số
       ├─ NumberModifier (đổi 余/多 + 百千万亿)
       ▼
@@ -86,5 +87,5 @@ input (chinese, UTF-8)
 ```
 
 `ChinesePhraseRanges` / `VietPhraseRanges` là ánh xạ vị trí cụm nguồn ↔ cụm dịch,
-dùng cho highlight trong UI. Với CLI/API chỉ cần `TranslatedText`, nhưng nên giữ ranges
-để tương thích Tauri sau này.
+dùng cho highlight trong UI. Bản Rust expose chúng qua `translate_with_ranges` và HTTP
+option `ranges=true`; contract UTF-16 chi tiết nằm trong [../api.md](../api.md#range-contract).

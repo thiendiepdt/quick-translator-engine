@@ -20,9 +20,9 @@ LuatNhan=LuatNhan.txt
 Pronouns=Resources\Pronouns.txt
 ```
 
-> Rust MVP dùng đúng các đường dẫn chuẩn trong config này và cho phép đổi thư mục gốc qua
+> Bản Rust dùng các đường dẫn chuẩn này và cho phép đổi thư mục gốc qua
 > `--data-dir`/`QT_DATA_DIR`. Các path được ghép theo từng component nên chạy được trên cả
-> Windows và Linux; MVP chưa parse một file `Dictionaries.config` tùy biến.
+> Windows và Linux; engine chưa parse một file `Dictionaries.config` tùy biến.
 
 ## 2. Format chung của mỗi dòng
 
@@ -47,7 +47,10 @@ Pronouns=Resources\Pronouns.txt
 | DanhTu.txt | `danhTuDictionary` | danh từ | |
 | HoNguoi.txt | `hoNguoiDictionary` | họ người | Dựng `hoHauTuCache` |
 | HauTu.txt | `hauTuDictionary` | hậu tố | Dựng `hoHauTuCache` |
-| IgnoredChinesePhrases.txt | `ignoredChinesePhraseList` | (danh sách) | Cụm bị xoá trước khi dịch (mode analyzer) |
+| IgnoredChinesePhrases.txt | `ignoredChinesePhraseList` | (danh sách) | Cụm bị xoá trong `StandardizeInput` trước khi dịch |
+
+`Dictionaries::load` hiện nạp các dictionary phục vụ ba mode dịch và Luật Nhân; LacViet
+chưa được nạp vì chức năng `ChineseToMeanings` chưa triển khai.
 
 ## 4. <a name="merge"></a>Thứ tự nạp & dựng từ điển tổng hợp
 
@@ -99,10 +102,9 @@ Trong `LoadDictionaries` (song song hoá bằng `Task.WhenAll`, nhưng thứ t�
 | `luatNhanNCache` / `luatNhanSCache` | `Regex` đã compile | matching nhanh |
 | `hoHauTuCache` | tập `họ+hậu_tố` | luật `{h}{t}` dựng tên |
 
-## 7. Reimplement Rust — gợi ý cấu trúc
+## 7. Ghi chú triển khai Rust
 
-- Dùng `HashMap<String, String>` (hoặc `FxHashMap` cho tốc độ) cho từng từ điển.
-- VietPhrase 763k entry / 28MB: cân nhắc load 1 lần, giữ trong `Arc<Dictionaries>` để server
-  chia sẻ giữa request. Thời gian load chấp nhận được nếu đọc tuần tự + parse `split('=')`.
-- Giữ **đúng thứ tự merge** ở mục 4 — đây là nơi dễ lệch kết quả nhất.
-- BOM: strip `﻿` ở ký tự đầu file.
+- Các map hiện dùng `HashMap<String, String>` và được nạp một lần khi khởi động process.
+- Server giữ `Engine` trong `Arc`; handler không reload dictionary cho từng request.
+- Thứ tự merge ở mục 4 là invariant có regression test.
+- Loader strip BOM ở ký tự đầu file và giữ đúng hành vi split toàn bộ dấu `=`.

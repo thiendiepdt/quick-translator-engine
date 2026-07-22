@@ -11,6 +11,10 @@ TranslateAll(chinese, wrapType, translationAlgorithm, prioritizedName, scanRange
 `dictionary` = `vietPhraseDictionary` (mode VietPhrase) hoặc `vietPhraseOneMeaningDictionary`
 (mode OneMeaning). Xem [dictionaries.md](dictionaries.md).
 
+Trong bản Rust và các public entry point của QT, input đã đi qua `StandardizeInput` trước
+khi vào vòng lặp này. `TranslateAll` làm việc trên chuỗi đã chuẩn hóa; source ranges được
+map ngược về input gốc ở lớp gọi.
+
 ## 2. Chuẩn bị trước vòng lặp
 
 ```

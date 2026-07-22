@@ -1,8 +1,8 @@
 # QT Engine Reference
 
-Đặc tả **ngôn-ngữ-độc-lập** của engine dịch Quick Translator, reverse-engineer từ
-`TranslatorEngine.dll` (đã decompile ra C#). Đây là nguồn chân lý để reimplement `qt-core`
-bằng Rust "y hệt" bản gốc.
+Đặc tả **độc lập ngôn ngữ triển khai** của engine dịch Quick Translator, được phân tích từ
+`TranslatorEngine.dll`. Tài liệu này mô tả hành vi tham chiếu; source Rust hiện hành nằm
+trong `crates/qt-core` và có thể ghi rõ một contract mở rộng khi cần cho CLI/API.
 
 ## Đọc theo thứ tự
 
@@ -22,9 +22,13 @@ bằng Rust "y hệt" bản gốc.
 - Mọi hành vi "dễ sai khi tái tạo" được đánh dấu bằng blockquote hoặc **in đậm**.
 - Ưu tiên verify: HanViet → VietPhraseOneMeaning → VietPhrase → LuatNhan/số.
 
-## Độ tin cậy
+## Phạm vi và độ tin cậy
 
 Đặc tả dựa trên **đọc trực tiếp code decompile**. Các giá trị cấu hình đã được xác nhận từ
 `QT2025/Resources/QuickTranslatorMain.config`: `scanRange=30`,
-`TranslationAlgorithm=1`, `PrioritizedName=true`. Golden test bằng output QT thật vẫn cần
-cho Luật Nhân, chuyển số và các trường hợp ghép câu phức tạp.
+`TranslationAlgorithm=1`, `PrioritizedName=true`. Source-level regression tests đã bao phủ
+các nhánh chính, nhưng golden corpus lấy trực tiếp từ ứng dụng QT thật vẫn chưa đầy đủ cho
+Luật Nhân, chuyển số và các trường hợp ghép câu phức tạp.
+
+Những khác biệt có chủ đích của Rust—đặc biệt non-BMP và HanViet ranges—được ghi ngay tại
+tài liệu tương ứng, không được trình bày như hành vi nguyên bản của QT2025.

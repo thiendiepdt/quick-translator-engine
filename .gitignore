@@ -1,4 +1,9 @@
 QT2025/QuickTranslator.exe
 QT2025/*.dll
+QT2025/Resources/mtcToken.txt
 target/
 /scratchpad/
+.agents/
+.env
+.env.*
+_tools/
