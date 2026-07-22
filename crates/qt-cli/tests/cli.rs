@@ -27,6 +27,12 @@ fn cli_translates_hanviet_and_long_vietphrase_over_stdin() {
             "hanviet",
             "--data-dir",
             dir.to_str().unwrap(),
+            "--scan-range",
+            "30",
+            "--translation-algorithm",
+            "1",
+            "--prioritized-name",
+            "true",
         ])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -67,5 +73,50 @@ fn cli_translates_hanviet_and_long_vietphrase_over_stdin() {
     assert!(out.status.success());
     assert_eq!(String::from_utf8_lossy(&out.stdout), " Dingelstedt");
 
+    let mut child = Command::new(bin)
+        .args([
+            "translate",
+            "--mode",
+            "vietphrase-one",
+            "--data-dir",
+            dir.to_str().unwrap(),
+            "--scan-range",
+            "5",
+        ])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all("丁格尔斯泰特".as_bytes())
+        .unwrap();
+    let out = child.wait_with_output().unwrap();
+
+    assert!(out.status.success());
+    assert_eq!(String::from_utf8_lossy(&out.stdout), "丁格尔斯泰特");
+
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn cli_rejects_invalid_engine_options() {
+    let output = Command::new(env!("CARGO_BIN_EXE_qt"))
+        .args([
+            "translate",
+            "--translation-algorithm",
+            "3",
+            "--prioritized-name",
+            "false",
+        ])
+        .output()
+        .unwrap();
+
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stderr),
+        "error: --translation-algorithm must be 0, 1, or 2\n"
+    );
 }

@@ -12,6 +12,8 @@ use serde_json::json;
 
 use qt_core::{CharRange, Engine, Mode, Options, TranslationResult};
 
+const MAX_REQUEST_SCAN_RANGE: usize = 100;
+
 /// Shared, read-only application state: the loaded engine behind an Arc.
 pub struct AppState {
     pub engine: Arc<Engine>,
@@ -33,6 +35,7 @@ async fn health() -> Json<serde_json::Value> {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct TranslateReq {
     text: String,
     mode: String,
@@ -42,6 +45,9 @@ struct TranslateReq {
     pretty: bool,
     #[serde(default)]
     ranges: bool,
+    scan_range: Option<usize>,
+    translation_algorithm: Option<i32>,
+    prioritized_name: Option<bool>,
 }
 
 #[derive(Serialize)]
@@ -70,6 +76,7 @@ impl From<CharRange> for RangeDto {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct BatchReq {
     texts: Vec<String>,
     mode: String,
@@ -79,6 +86,9 @@ struct BatchReq {
     pretty: bool,
     #[serde(default)]
     ranges: bool,
+    scan_range: Option<usize>,
+    translation_algorithm: Option<i32>,
+    prioritized_name: Option<bool>,
 }
 
 #[derive(Serialize)]
@@ -181,13 +191,9 @@ async fn run_translate(
     engine: Arc<Engine>,
     text: String,
     mode: Mode,
-    wrap: bool,
+    opts: Options,
     pretty: bool,
 ) -> Result<TranslationResult, ApiError> {
-    let opts = Options {
-        wrap_type: if wrap { 1 } else { 0 },
-        ..Options::default()
-    };
     tokio::task::spawn_blocking(move || {
         let out = engine.translate_with_ranges(&text, mode, &opts);
         if pretty {
@@ -200,6 +206,38 @@ async fn run_translate(
     .map_err(|_| ApiError::internal("translate task failed"))
 }
 
+fn request_options(
+    wrap: bool,
+    scan_range: Option<usize>,
+    translation_algorithm: Option<i32>,
+    prioritized_name: Option<bool>,
+) -> Result<Options, ApiError> {
+    let mut options = Options {
+        wrap_type: if wrap { 1 } else { 0 },
+        ..Options::default()
+    };
+    if let Some(scan_range) = scan_range {
+        if !(1..=MAX_REQUEST_SCAN_RANGE).contains(&scan_range) {
+            return Err(ApiError::bad_request(format!(
+                "scanRange must be between 1 and {MAX_REQUEST_SCAN_RANGE}"
+            )));
+        }
+        options.scan_range = scan_range;
+    }
+    if let Some(translation_algorithm) = translation_algorithm {
+        if !matches!(translation_algorithm, 0..=2) {
+            return Err(ApiError::bad_request(
+                "translationAlgorithm must be 0, 1, or 2",
+            ));
+        }
+        options.translation_algorithm = translation_algorithm;
+    }
+    if let Some(prioritized_name) = prioritized_name {
+        options.prioritized_name = prioritized_name;
+    }
+    Ok(options)
+}
+
 async fn modes() -> Json<serde_json::Value> {
     Json(json!({ "modes": ["hanviet", "vietphrase", "vietphrase-one"] }))
 }
@@ -210,11 +248,17 @@ async fn translate_batch(
 ) -> Result<Json<BatchResp>, ApiError> {
     let mode = parse_mode(&req.mode)
         .ok_or_else(|| ApiError::bad_request(format!("invalid mode: {}", req.mode)))?;
+    let options = request_options(
+        req.wrap,
+        req.scan_range,
+        req.translation_algorithm,
+        req.prioritized_name,
+    )?;
     let mut translated = Vec::with_capacity(req.texts.len());
     let mut source_ranges = req.ranges.then(|| Vec::with_capacity(req.texts.len()));
     let mut target_ranges = req.ranges.then(|| Vec::with_capacity(req.texts.len()));
     for text in req.texts {
-        let out = run_translate(state.engine.clone(), text, mode, req.wrap, req.pretty).await?;
+        let out = run_translate(state.engine.clone(), text, mode, options, req.pretty).await?;
         translated.push(out.translated_text);
         if let Some(ranges) = &mut source_ranges {
             ranges.push(out.source_ranges.into_iter().map(RangeDto::from).collect());
@@ -236,7 +280,13 @@ async fn translate(
 ) -> Result<Json<TranslateResp>, ApiError> {
     let mode = parse_mode(&req.mode)
         .ok_or_else(|| ApiError::bad_request(format!("invalid mode: {}", req.mode)))?;
-    let out = run_translate(state.engine.clone(), req.text, mode, req.wrap, req.pretty).await?;
+    let options = request_options(
+        req.wrap,
+        req.scan_range,
+        req.translation_algorithm,
+        req.prioritized_name,
+    )?;
+    let out = run_translate(state.engine.clone(), req.text, mode, options, req.pretty).await?;
     let (source_ranges, target_ranges) = if req.ranges {
         (
             Some(out.source_ranges.into_iter().map(RangeDto::from).collect()),

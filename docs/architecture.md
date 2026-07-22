@@ -100,11 +100,13 @@ Tham số dịch (khớp API gốc): `wrapType` (0=thường, 1=bọc `[...]`),
 qt translate --mode vietphrase < input.txt > output.txt
 echo "他很厉害" | qt translate --mode hanviet
 qt translate --mode vietphrase-one --wrap < input.txt
+qt translate --mode vietphrase --scan-range 30 --translation-algorithm 1 --prioritized-name true
 ```
 
 **HTTP** (`qt-server`):
 ```
-POST /translate        { "text": "...", "mode": "vietphrase", "wrap": false, "pretty": false }
+POST /translate        { "text": "...", "mode": "vietphrase", "wrap": false, "pretty": false,
+                         "scanRange": 30, "translationAlgorithm": 1, "prioritizedName": true }
                        -> { "translated": "..." }
                        Thêm `"ranges": true` để nhận `sourceRanges` + `targetRanges`.
 POST /translate/batch  { "texts": ["..."], "mode": "vietphrase" }
@@ -113,9 +115,14 @@ GET  /modes
 GET  /health
 ```
 Server nạp thư mục `QT_DATA_DIR` một lần khi khởi động (mặc định `data`; khi chạy repo dùng
-`QT2025`). Mỗi range có dạng `{ "start": n, "length": n }`; offset/length dùng đơn vị
-UTF-16 như QT2025/.NET và JavaScript. Với batch, hai field range là ma trận song song với
-`texts`. `/meanings` vẫn thuộc giai đoạn sau.
+`QT2025`). Ba tham số engine là optional; server giữ default `30/1/true`, chỉ nhận
+`scanRange` từ 1 đến 100 và `translationAlgorithm` thuộc `0/1/2`.
+
+Mỗi range có dạng `{ "start": n, "length": n }`; offset/length dùng đơn vị UTF-16 như
+.NET và JavaScript, nhưng entry được chia theo phrase/Unicode scalar của Rust chứ không
+theo từng UTF-16 code unit. Vì vậy emoji fallback là một range `length=2`, trong khi .NET
+có thể tạo hai entry. Với batch, hai field range là ma trận song song với `texts`.
+`/meanings` vẫn thuộc giai đoạn sau.
 
 ## 7. Chiến lược verify "y hệt"
 

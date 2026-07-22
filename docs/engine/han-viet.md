@@ -57,6 +57,17 @@ ChineseToHanViet(chinese, out mapping):
 - Vẫn dùng `appendTranslatedWord` → **viết hoa chữ cái đầu câu** (sau `.`, `\n`, `"`...),
   nên output HanViet cũng có auto-capitalize giống VietPhrase.
 
+### Contract ranges của bản Rust
+
+`TranslationResult` của Rust luôn trả hai mảng song song `source_ranges` và
+`target_ranges`, kể cả mode HanViet. Đây là contract mở rộng để UI highlight hai chiều,
+không phải bản sao của `chineseHanVietMappingArray` trong QT2025 (mảng gốc chỉ chứa range
+đích và entry cuối được tính sau khi append nên có thể lệch khỏi đoạn text thực tế).
+
+Offset và length vẫn tính theo UTF-16. Tuy nhiên Rust duyệt theo Unicode scalar: ký tự
+ngoài BMP như emoji tạo một range dài 2, thay vì hai range surrogate dài 1 như vòng lặp
+`char` của .NET.
+
 ## 4. Ngoài ra — `TranslateChineseToHanViet` / `ChineseToHanVietForAnalyzer`
 
 Hai biến thể "đơn giản" (dùng cho Analyzer, **không** auto-capitalize):
@@ -72,9 +83,9 @@ Hai hàm này **khác** `ChineseToHanViet(string, out)` ở chỗ: chèn space g
 
 ## 5. Reimplement Rust — checklist
 
-- [ ] `han_viet: HashMap<char, String>` từ `ChinesePhienAmWords.txt`.
-- [ ] `to_narrow(&str)`: chỉ dịch U+FF01..U+FF5E → ASCII.
-- [ ] `is_chinese(c) = han_viet.contains_key(&c)`.
-- [ ] `char_to_han_viet(' ') == ""`; miss → `to_narrow`.
-- [ ] Chuỗi: space giữa 2 chữ Hán liên tiếp; auto-capitalize qua `append_translated_word`.
-- [ ] Golden test mode HanViet **trước tiên** (đơn giản nhất, dễ đối chiếu).
+- [x] `han_viet: HashMap<char, String>` từ `ChinesePhienAmWords.txt`.
+- [x] `to_narrow(&str)`: chỉ dịch U+FF01..U+FF5E → ASCII.
+- [x] `is_chinese(c) = han_viet.contains_key(&c)`.
+- [x] `char_to_han_viet(' ') == ""`; miss → `to_narrow`.
+- [x] Chuỗi: space giữa 2 chữ Hán liên tiếp; auto-capitalize qua `append_translated_word`.
+- [x] Regression test mode HanViet và non-BMP ranges.

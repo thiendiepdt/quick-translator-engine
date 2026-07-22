@@ -11,14 +11,18 @@ mod translate;
 pub use dict::Dictionaries;
 
 /// A half-open range represented as a UTF-16 start offset and length.
-/// UTF-16 matches QT2025/.NET and can be consumed directly by JavaScript UIs.
+/// UTF-16 offsets can be consumed directly by JavaScript UIs. Range entries
+/// are phrase/Rust-scalar spans, not necessarily one entry per UTF-16 code
+/// unit; for example, a fallback emoji is one range with `length == 2`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CharRange {
     pub start: usize,
     pub length: usize,
 }
 
-/// Translated text plus parallel source/target phrase ranges.
+/// Translated text plus parallel source/target phrase ranges. HanViet uses
+/// this same useful two-sided contract instead of QT2025's target-only,
+/// off-by-one-prone `chineseHanVietMappingArray`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TranslationResult {
     pub translated_text: String,

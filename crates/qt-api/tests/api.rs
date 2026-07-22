@@ -11,10 +11,10 @@ use qt_core::{Dictionaries, Engine};
 fn test_state() -> Arc<AppState> {
     // Tiny engine: enough for routing/handler tests.
     let d = Dictionaries::build(
-        "他=tha\n很=ngận\n好=hảo",
-        "丁格尔斯泰特=Dingelstedt",
+        "他=tha\n很=ngận\n好=hảo\n红=hồng\n中=trung\n人=nhân\n甲=giáp\n乙=ất\n丙=bính\n丁=đinh\n格=cách\n尔=nhĩ\n斯=tư\n泰=thái\n特=đặc",
+        "丁格尔斯泰特=Dingelstedt\n中人=trung nhân",
         "",
-        "很好=rất tốt/rất ổn",
+        "很好=rất tốt/rất ổn\n红中人=cả cụm\n甲乙=A\n乙丙丁=B",
     );
     Arc::new(AppState {
         engine: Arc::new(Engine::from_dicts(d)),
@@ -153,6 +153,107 @@ async fn translate_uses_qt_scan_range_for_long_phrases() {
 }
 
 #[tokio::test]
+async fn translate_exposes_engine_options() {
+    let resp = post_json(
+        build_router(test_state()),
+        "/translate",
+        serde_json::json!({
+            "text": "丁格尔斯泰特",
+            "mode": "vietphrase-one",
+            "scanRange": 5
+        }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(
+        body_string(resp).await,
+        r#"{"translated":" đinh cách nhĩ tư thái đặc"}"#
+    );
+
+    let resp = post_json(
+        build_router(test_state()),
+        "/translate",
+        serde_json::json!({
+            "text": "甲乙丙丁",
+            "mode": "vietphrase-one",
+            "translationAlgorithm": 0,
+            "pretty": true
+        }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(body_string(resp).await, r#"{"translated":"Giáp B"}"#);
+
+    let resp = post_json(
+        build_router(test_state()),
+        "/translate",
+        serde_json::json!({
+            "text": "红中人",
+            "mode": "vietphrase-one",
+            "prioritizedName": false,
+            "pretty": true
+        }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(body_string(resp).await, r#"{"translated":"Cả cụm"}"#);
+}
+
+#[tokio::test]
+async fn translate_rejects_invalid_engine_options() {
+    let resp = post_json(
+        build_router(test_state()),
+        "/translate",
+        serde_json::json!({
+            "text": "他",
+            "mode": "vietphrase",
+            "scanRange": 0
+        }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        body_string(resp).await,
+        r#"{"error":"scanRange must be between 1 and 100"}"#
+    );
+
+    let resp = post_json(
+        build_router(test_state()),
+        "/translate",
+        serde_json::json!({
+            "text": "他",
+            "mode": "vietphrase",
+            "translationAlgorithm": 3
+        }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        body_string(resp).await,
+        r#"{"error":"translationAlgorithm must be 0, 1, or 2"}"#
+    );
+}
+
+#[tokio::test]
+async fn non_bmp_fallback_uses_one_utf16_span_per_rust_scalar() {
+    let resp = post_json(
+        build_router(test_state()),
+        "/translate",
+        serde_json::json!({
+            "text": "😀",
+            "mode": "vietphrase-one",
+            "ranges": true
+        }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(
+        body_string(resp).await,
+        r#"{"translated":"😀","sourceRanges":[{"start":0,"length":2}],"targetRanges":[{"start":0,"length":2}]}"#
+    );
+}
+
+#[tokio::test]
 async fn translate_converts_chinese_numbers_and_returns_utf16_ranges() {
     let resp = post_json(
         build_router(test_state()),
@@ -184,6 +285,25 @@ async fn batch_preserves_order() {
     assert_eq!(
         body_string(resp).await,
         r#"{"translated":[" tha rất tốt/rất ổn"," tha"]}"#
+    );
+}
+
+#[tokio::test]
+async fn batch_accepts_engine_options() {
+    let resp = post_json(
+        build_router(test_state()),
+        "/translate/batch",
+        serde_json::json!({
+            "texts": ["丁格尔斯泰特"],
+            "mode": "vietphrase-one",
+            "scanRange": 5
+        }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(
+        body_string(resp).await,
+        r#"{"translated":[" đinh cách nhĩ tư thái đặc"]}"#
     );
 }
 

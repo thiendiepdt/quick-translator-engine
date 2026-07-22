@@ -29,6 +29,19 @@ $env:QT_PORT="3000"
 cargo run -p qt-api --bin qt-server
 ```
 
+Các tham số engine là optional và mặc định vẫn là QT2025 (`scanRange=30`,
+`translationAlgorithm=1`, `prioritizedName=true`):
+
+```powershell
+Get-Content input.txt | cargo run -p qt-cli -- translate --mode vietphrase-one `
+  --data-dir QT2025 --scan-range 30 --translation-algorithm 1 `
+  --prioritized-name true
+
+curl.exe -X POST http://localhost:3000/translate `
+  -H "content-type: application/json" `
+  -d '{"text":"他很好","mode":"vietphrase","scanRange":30,"translationAlgorithm":1,"prioritizedName":true}'
+```
+
 ## Nguồn gốc
 
 `QT2025/` chứa bộ từ điển và config của app gốc; code engine đã decompile nằm trong
