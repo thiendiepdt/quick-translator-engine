@@ -1,6 +1,7 @@
 import { AwsClient } from "aws4fetch";
 
 const MAX_REQUEST_BODY_BYTES = 5 * 1024 * 1024;
+const ALLOWED_CORS_REQUEST_HEADERS = new Set(["accept", "content-type"]);
 
 const ALLOWED_ROUTES = new Map<string, ReadonlySet<string>>([
   ["/health", new Set(["GET"])],
@@ -43,6 +44,64 @@ function validateRoute(method: string, pathname: string): void {
       allow: [...methods].join(", "),
     });
   }
+}
+
+function allowedCorsOrigin(request: Request, env: Env): string | undefined {
+  const origin = request.headers.get("origin");
+  if (origin === null) {
+    return undefined;
+  }
+  const configured = env.CORS_ALLOWED_ORIGINS.split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  if (configured.includes("*")) {
+    return "*";
+  }
+  return configured.includes(origin) ? origin : undefined;
+}
+
+function applyCors(response: Response, origin: string | undefined): Response {
+  if (origin === undefined) {
+    return response;
+  }
+  response.headers.set("access-control-allow-origin", origin);
+  response.headers.set("access-control-expose-headers", "x-request-id");
+  const vary = response.headers.get("vary");
+  if (origin !== "*" && !vary?.toLowerCase().split(",").map((value) => value.trim()).includes("origin")) {
+    response.headers.set("vary", vary ? `${vary}, Origin` : "Origin");
+  }
+  return response;
+}
+
+function preflightResponse(request: Request, origin: string): Response {
+  const pathname = new URL(request.url).pathname;
+  const requestedMethod = request.headers.get("access-control-request-method")?.toUpperCase();
+  if (!requestedMethod) {
+    throw new HttpError(400, "Missing Access-Control-Request-Method");
+  }
+  validateRoute(requestedMethod, pathname);
+
+  const requestedHeaders = (request.headers.get("access-control-request-headers") ?? "")
+    .split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+  if (requestedHeaders.some((header) => !ALLOWED_CORS_REQUEST_HEADERS.has(header))) {
+    throw new HttpError(403, "CORS request header is not allowed");
+  }
+
+  return applyCors(
+    new Response(null, {
+      status: 204,
+      headers: {
+        "access-control-allow-headers": "accept, content-type",
+        "access-control-allow-methods": requestedMethod,
+        "access-control-max-age": "86400",
+        "cache-control": "no-store",
+        "x-content-type-options": "nosniff",
+      },
+    }),
+    origin,
+  );
 }
 
 function lambdaOrigin(env: Env): URL {
@@ -188,8 +247,19 @@ export default {
   async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
     const requestId = crypto.randomUUID();
     const startedAt = performance.now();
+    const requestOrigin = request.headers.get("origin");
+    const corsOrigin = allowedCorsOrigin(request, env);
+    if (requestOrigin !== null && corsOrigin === undefined) {
+      return errorResponse(403, "Origin is not allowed", requestId);
+    }
     try {
-      const response = await proxyToLambda(request, env, requestId);
+      if (request.method === "OPTIONS") {
+        if (corsOrigin === undefined) {
+          throw new HttpError(400, "Missing Origin");
+        }
+        return preflightResponse(request, corsOrigin);
+      }
+      const response = applyCors(await proxyToLambda(request, env, requestId), corsOrigin);
       console.log(
         JSON.stringify({
           event: "lambda_proxy",
@@ -210,7 +280,7 @@ export default {
             response.headers.set(name, value);
           }
         }
-        return response;
+        return applyCors(response, corsOrigin);
       }
 
       console.error(
@@ -222,7 +292,7 @@ export default {
           error: error instanceof Error ? error.message : "Unknown error",
         }),
       );
-      return errorResponse(502, "Upstream request failed", requestId);
+      return applyCors(errorResponse(502, "Upstream request failed", requestId), corsOrigin);
     }
   },
 } satisfies ExportedHandler<Env>;

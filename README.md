@@ -19,6 +19,8 @@ công cụ xử lý văn bản.
 - HTTP API hỗ trợ dịch đơn, dịch batch, tùy chọn engine và ranges.
 - Native AWS Lambda entrypoint dùng lại nguyên Axum router, kèm SAM template ARM64.
 - Cloudflare Worker gateway ký SigV4 tới Lambda Function URL dùng `AWS_IAM`.
+- React web app để dịch theo chương, tùy biến dictionary và đối chiếu source/output bằng
+  UTF-16 ranges.
 - Cho phép thay thế Names, Names2, Luật Nhân và các từ điển phụ theo từng lần gọi CLI/API;
   VietPhrase và ChinesePhienAmWords luôn dùng bản cố định đã nạp lúc khởi động.
 
@@ -110,6 +112,24 @@ phù hợp; xem [SECURITY.md](SECURITY.md).
 
 API contract đầy đủ nằm tại [docs/api.md](docs/api.md).
 
+## Chạy web app
+
+`apps/qt-web` dùng Vite, React, TypeScript, Tailwind CSS, shadcn/ui, React Hook Form,
+TanStack Query, Zustand và Zod. Khi development, Vite proxy `/api` tới `qt-server` ở
+`http://localhost:3000`, nên không cần bật CORS cho local Rust server:
+
+```bash
+QT_DATA_DIR=QT2025 QT_PORT=3000 cargo run -q -p qt-api --bin qt-server
+
+cd apps/qt-web
+npm ci
+npm run dev
+```
+
+Để gọi Cloudflare gateway đã deploy, đặt `VITE_QT_API_URL` theo
+[`apps/qt-web/.env.example`](apps/qt-web/.env.example) và thêm origin của web app vào
+`CORS_ALLOWED_ORIGINS` của Worker. Xem [hướng dẫn qt-web](apps/qt-web/README.md).
+
 ## Kiểm tra chất lượng
 
 ```bash
@@ -125,6 +145,7 @@ crates/qt-core/   Engine và public Rust API
 crates/qt-cli/    Binary qt
 crates/qt-api/    Binary qt-server và HTTP handlers
 crates/qt-lambda/ Native AWS Lambda entrypoint
+apps/qt-web/      React web app dịch và đối chiếu theo range
 deploy/           Infrastructure và hướng dẫn deploy
 docs/             Kiến trúc, API và đặc tả thuật toán
 QT2025/           Dữ liệu/config tham chiếu từ bộ QT gốc
@@ -137,6 +158,7 @@ reference/        Source C# decompile dùng để đối chiếu hành vi
 - [HTTP API](docs/api.md)
 - [Deploy lên AWS Lambda](deploy/aws-lambda/README.md)
 - [Cloudflare gateway cho Lambda](deploy/cloudflare-worker/README.md)
+- [Web app](apps/qt-web/README.md)
 - [Đặc tả engine](docs/engine/README.md)
 - [Cách tái tạo source decompile](docs/dev/decompile.md)
 - [Hướng dẫn đóng góp](CONTRIBUTING.md)

@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>qt-web — Reader's Desk</title>
+  <!--
+    ASSUMPTIONS: review quality matters as much as request configuration.
+    DESIGNER LENS: Information Architects/iA Writer and Japanese editorial hierarchy.
+    FORM: translated prose is the hero; source becomes a numbered manuscript margin.
+  -->
+  <style>
+    :root {
+      --paper: #f1ecdf;
+      --paper-light: #fbf8ef;
+      --ink: #171815;
+      --indigo: #172b3a;
+      --indigo-2: #213d4f;
+      --mist: #94a8ad;
+      --vermillion: #c54a36;
+      --gold: #dcb65b;
+      --line: #cfc7b7;
+      --soft-line: #e2dccf;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: var(--paper); color: var(--ink); }
+    body { font-family: "Noto Sans", "DejaVu Sans", sans-serif; font-size: 14px; }
+    button, input, textarea, select { font: inherit; color: inherit; }
+    button { cursor: pointer; }
+    .app { height: 100vh; min-height: 720px; display: grid; grid-template-rows: 62px 1fr; overflow: hidden; }
+    .masthead { display: grid; grid-template-columns: 310px minmax(0,1fr) auto; align-items: center; border-bottom: 1px solid var(--line); background: var(--paper-light); }
+    .brand { height: 100%; display: flex; align-items: center; gap: 14px; padding: 0 20px; background: var(--indigo); color: #f8f3e7; }
+    .brand-kanji { width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.5); font-family: "Noto Serif CJK SC", "DejaVu Serif", serif; font-size: 18px; }
+    .brand strong { display: block; font: 700 16px/1 "Bitstream Charter", serif; letter-spacing: .2px; }
+    .brand small { display: block; margin-top: 4px; color: #adbec6; font: 9px "Maple Mono Normal NL", monospace; letter-spacing: 1.4px; }
+    .api-line { min-width: 0; display: grid; grid-template-columns: auto minmax(180px,560px) auto; align-items: center; gap: 12px; padding: 0 24px; }
+    .cap { font: 700 9px "Maple Mono Normal NL", monospace; letter-spacing: 1.2px; text-transform: uppercase; color: #756f65; }
+    .api-line input { min-width: 0; height: 33px; border: 0; border-bottom: 1px solid #8c867b; outline: 0; background: transparent; padding: 0 4px; font: 11px "Maple Mono Normal NL", monospace; }
+    .api-line span:last-child { color: #417662; font-size: 11px; font-weight: 700; }
+    .translate { align-self: stretch; min-width: 152px; border: 0; border-left: 1px solid #8e3528; background: var(--vermillion); color: white; font-weight: 800; letter-spacing: .2px; }
+    .translate:hover { background: #a73b2b; }
+    .translate.loading { opacity: .6; pointer-events: none; }
+    .desk { min-height: 0; display: grid; grid-template-columns: 310px minmax(430px,1fr) 330px; }
+    .manuscript { min-height: 0; display: grid; grid-template-rows: 70px 1fr 60px; background: var(--indigo); color: #eef2ec; border-right: 1px solid #0c1921; }
+    .section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 20px; border-bottom: 1px solid rgba(255,255,255,.14); }
+    .section-title small { display: block; margin-bottom: 4px; color: var(--mist); font: 9px "Maple Mono Normal NL", monospace; letter-spacing: 1.2px; text-transform: uppercase; }
+    .section-title h2 { margin: 0; font: 400 20px/1 "Bitstream Charter", serif; }
+    .manuscript .count { color: #9eb1b8; font: 10px "Maple Mono Normal NL", monospace; }
+    .manuscript-body { position: relative; min-height: 0; overflow: auto; }
+    .line-numbers { position: absolute; top: 30px; left: 18px; display: grid; gap: 30px; color: #67808a; font: 9px "Maple Mono Normal NL", monospace; pointer-events: none; }
+    #sourceInput { width: 100%; height: 100%; resize: none; border: 0; outline: 0; background: transparent; color: #eef2ec; padding: 26px 27px 50px 52px; font: 17px/2.05 "Noto Serif CJK SC", "Noto Serif", serif; }
+    .mapped { min-height: 100%; white-space: pre-wrap; text-wrap: pretty; }
+    #sourceMapped { padding: 26px 27px 50px 52px; font: 17px/2.05 "Noto Serif CJK SC", "Noto Serif", serif; }
+    .source-segment, .target-segment { cursor: pointer; white-space: nowrap; transition: background .15s, color .15s, box-shadow .15s; }
+    .source-segment:hover { background: rgba(220,182,91,.2); box-shadow: inset 0 -1px var(--gold); }
+    .target-segment:hover { background: rgba(197,74,54,.1); box-shadow: inset 0 -1px var(--vermillion); }
+    .source-segment.active { color: #111; background: var(--gold); box-shadow: 0 0 0 3px var(--gold); }
+    .target-segment.active { color: white; background: var(--vermillion); box-shadow: 0 0 0 3px var(--vermillion); }
+    .manuscript-foot { display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-top: 1px solid rgba(255,255,255,.14); }
+    .manuscript-foot button { border: 0; border-bottom: 1px solid currentColor; background: transparent; color: #cbd6d8; padding: 3px 0; font-size: 10px; font-weight: 700; }
+    .mapping { color: #d8c483; font: 10px/1.35 "Maple Mono Normal NL", monospace; text-align: right; }
+    .reading { min-width: 0; min-height: 0; display: grid; grid-template-rows: 70px minmax(0,1fr) 60px; background: var(--paper-light); }
+    .reading-head { display: flex; align-items: center; justify-content: space-between; padding: 0 34px; border-bottom: 1px solid var(--soft-line); }
+    .reading-title { display: flex; align-items: baseline; gap: 14px; }
+    .reading-title h1 { margin: 0; font: 400 27px/1 "Bitstream Charter", serif; letter-spacing: -.3px; }
+    .reading-title span { color: #777064; font: 9px "Maple Mono Normal NL", monospace; letter-spacing: 1px; }
+    .views { display: flex; gap: 15px; }
+    .views button { border: 0; border-bottom: 2px solid transparent; background: transparent; padding: 7px 0 5px; color: #777064; font: 700 10px "Maple Mono Normal NL", monospace; letter-spacing: .5px; }
+    .views button.active { border-color: var(--vermillion); color: var(--ink); }
+    .reading-body { min-height: 0; overflow: auto; position: relative; }
+    #targetMapped { max-width: 760px; margin: 0 auto; padding: 46px 56px 90px; font: 21px/2.05 "Bitstream Charter", "Noto Serif", serif; }
+    #targetMapped::first-letter { float: left; margin: 8px 9px 0 0; color: var(--vermillion); font-size: 58px; line-height: .7; }
+    #jsonView { margin: 0; min-height: 100%; padding: 34px 40px; background: #eee8db; white-space: pre-wrap; color: #3f423d; font: 12px/1.75 "Maple Mono Normal NL", monospace; }
+    .reading-note { position: absolute; left: 34px; bottom: 22px; display: flex; align-items: center; gap: 9px; padding: 8px 11px; border: 1px solid var(--line); background: rgba(251,248,239,.94); color: #756f65; font-size: 10px; }
+    .reading-note::before { content: "↔"; color: var(--vermillion); font-weight: 900; }
+    .reading-foot { display: flex; align-items: center; justify-content: space-between; padding: 0 34px; border-top: 1px solid var(--soft-line); }
+    .status { color: #756f65; font-size: 10px; }
+    .status b { color: #417662; }
+    .copy { border: 0; border-bottom: 1px solid var(--ink); background: transparent; padding: 5px 0; font-size: 11px; font-weight: 800; }
+    .folio { min-height: 0; display: grid; grid-template-rows: 70px auto 1fr auto; background: var(--paper); border-left: 1px solid var(--line); }
+    .folio-head { display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 1px solid var(--line); }
+    .folio-head h2 { margin: 0; font: 400 20px "Bitstream Charter", serif; }
+    .mode { writing-mode: vertical-rl; color: var(--vermillion); font: 700 8px "Maple Mono Normal NL", monospace; letter-spacing: 1px; }
+    .dict-index { display: grid; grid-template-columns: repeat(4,1fr); border-bottom: 1px solid var(--line); }
+    .dict { min-height: 50px; border: 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: transparent; padding: 8px 4px; font-size: 9px; font-weight: 800; line-height: 1.2; }
+    .dict:nth-child(4n) { border-right: 0; }
+    .dict.active { background: var(--indigo); color: white; }
+    .dict.touched::after { content: ""; display: block; width: 5px; height: 5px; margin: 5px auto 0; border-radius: 50%; background: var(--vermillion); }
+    .folio-body { min-height: 0; overflow: auto; padding: 17px 19px; }
+    .dict-meta { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+    .dict-meta strong { font-size: 12px; }
+    .dict-meta span { color: #777064; font: 8px "Maple Mono Normal NL", monospace; }
+    #dictText { width: 100%; height: 105px; resize: none; border: 1px solid #ada596; outline: 0; background: var(--paper-light); padding: 9px; font: 10px/1.55 "Maple Mono Normal NL", monospace; }
+    .dict-actions { margin: 8px 0 20px; display: flex; justify-content: space-between; }
+    .text-action { border: 0; border-bottom: 1px solid #81796d; background: transparent; padding: 3px 0; color: #665f54; font-size: 9px; font-weight: 750; }
+    .option-title { margin: 0 0 7px; color: #777064; font: 700 9px "Maple Mono Normal NL", monospace; letter-spacing: 1px; text-transform: uppercase; }
+    .option { min-height: 36px; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid #dcd5c7; font-size: 10px; }
+    .option input { accent-color: var(--vermillion); }
+    .option input[type=number], .option select { width: 78px; height: 27px; border: 1px solid #bcb4a5; background: var(--paper-light); padding: 0 5px; }
+    .folio-note { padding: 12px 19px; border-top: 1px solid var(--line); color: #777064; font-size: 9px; line-height: 1.45; }
+    .hidden { display: none !important; }
+    @media (max-width: 1120px) { .desk { grid-template-columns: 270px 1fr 285px; } .masthead { grid-template-columns: 270px 1fr auto; } .api-line { padding: 0 14px; } #targetMapped { padding-left: 38px; padding-right: 38px; } }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="masthead">
+      <div class="brand"><div class="brand-kanji">譯</div><div><strong>quick translator</strong><small>ENGINE · READER'S DESK</small></div></div>
+      <div class="api-line"><label class="cap" for="endpoint">Cloudflare endpoint</label><input id="endpoint" value="https://translate.example.com" spellcheck="false"><span>● sẵn sàng</span></div>
+      <button class="translate" id="translateButton">Dịch chương</button>
+    </header>
+
+    <main class="desk">
+      <section class="manuscript">
+        <header class="section-head">
+          <div class="section-title"><small>Raw manuscript</small><h2>Nguyên văn</h2></div>
+          <span class="count" id="sourceCount">0 ký tự</span>
+        </header>
+        <div class="manuscript-body">
+          <div class="line-numbers"><span>01</span><span>02</span><span>03</span><span>04</span><span>05</span></div>
+          <textarea id="sourceInput" class="hidden" aria-label="Nguyên văn tiếng Trung"></textarea>
+          <div id="sourceMapped" class="mapped"></div>
+        </div>
+        <footer class="manuscript-foot"><button id="sourceToggle">Sửa nguyên văn</button><div class="mapping" id="mappingNote">Chọn một cụm<br>để đối chiếu</div></footer>
+      </section>
+
+      <section class="reading">
+        <header class="reading-head">
+          <div class="reading-title"><h1>Bản dịch</h1><span>VIETPHRASE / ONE MEANING</span></div>
+          <div class="views"><button id="showOutput" class="active">OUTPUT</button><button id="showJson">RAW RESPONSE</button></div>
+        </header>
+        <div class="reading-body">
+          <article id="targetMapped" class="mapped"></article>
+          <pre id="jsonView" class="hidden"></pre>
+          <div class="reading-note">Click chữ ở hai phía để xem phần tương ứng</div>
+        </div>
+        <footer class="reading-foot"><div class="status"><b>●</b> <span id="statusText">Demo local · 8 range liên kết</span></div><button class="copy" id="copyButton">Sao chép bản dịch</button></footer>
+      </section>
+
+      <aside class="folio">
+        <header class="folio-head"><h2>Folio cấu hình</h2><div class="mode">RANGES · ON</div></header>
+        <div class="dict-index" id="dictIndex"></div>
+        <div class="folio-body">
+          <div class="dict-meta"><strong id="dictLabel">Names</strong><span id="dictFile">Names.txt</span></div>
+          <textarea id="dictText">萧炎=Tiêu Viêm
+云韵=Vân Vận</textarea>
+          <div class="dict-actions"><button class="text-action" id="uploadButton">Nạp .txt</button><button class="text-action" id="emptyButton">Dùng tập rỗng</button></div>
+          <input id="fileInput" type="file" accept=".txt,text/plain" hidden>
+          <h3 class="option-title">Engine options</h3>
+          <label class="option">Pretty output <input id="pretty" type="checkbox" checked></label>
+          <label class="option">Wrap phrase <input id="wrap" type="checkbox"></label>
+          <label class="option">Prioritized Name <input id="prioritizedName" type="checkbox" checked></label>
+          <label class="option">Scan Range <input id="scanRange" type="number" min="1" max="100" value="30"></label>
+          <label class="option">Algorithm <select id="algorithm"><option>0</option><option selected>1</option><option>2</option></select></label>
+        </div>
+        <div class="folio-note">VietPhrase và ChinesePhienAmWords là hai lớp cố định trong Lambda. Mọi nội dung ở folio chỉ áp dụng cho request hiện tại.</div>
+      </aside>
+    </main>
+  </div>
+
+  <script>
+    const sampleSource='萧炎看着她，轻声说道：“云韵，这一趟务必要小心。”';
+    const sampleTarget='Tiêu Viêm nhìn nàng, khẽ nói: “Vân Vận, chuyến đi này nhất định phải cẩn thận.”';
+    const pairs=[['萧炎','Tiêu Viêm'],['看着','nhìn'],['她','nàng'],['轻声说道','khẽ nói'],['云韵','Vân Vận'],['这一趟','chuyến đi này'],['务必要','nhất định phải'],['小心','cẩn thận']];
+    const dictionaries=[['names','Names','Names.txt'],['names2','Names2','Names2/*.txt'],['luatNhan','Luật Nhân','LuatNhan.txt'],['pronouns','Pronouns','Pronouns.txt'],['danhTu','Danh Từ','DanhTu.txt'],['hoNguoi','Họ Người','HoNguoi.txt'],['hauTu','Hậu Từ','HauTu.txt'],['ignoredChinesePhrases','Ignored','IgnoredChinesePhrases.txt']];
+    const values={names:'萧炎=Tiêu Viêm\n云韵=Vân Vận',pronouns:'她=nàng'}; const touched=new Set(['names','pronouns']);
+    let activeDictionary='names', responseData, editing=false; const $=(id)=>document.getElementById(id);
+    const range=(text,part)=>({start:text.indexOf(part),length:part.length});
+    const mock=()=>({translated:sampleTarget,sourceRanges:pairs.map(([text])=>range(sampleSource,text)),targetRanges:pairs.map(([,text])=>range(sampleTarget,text))});
+    function render(node,text,ranges,type){node.replaceChildren();let cursor=0;ranges.map((item,index)=>({...item,index})).sort((a,b)=>a.start-b.start).forEach((item)=>{if(item.start>cursor)node.append(document.createTextNode(text.slice(cursor,item.start)));const span=document.createElement('span');span.className=`${type}-segment`;span.dataset.map=item.index;span.textContent=text.slice(item.start,item.start+item.length);node.append(span);cursor=item.start+item.length;});if(cursor<text.length)node.append(document.createTextNode(text.slice(cursor)));}
+    function showResponse(data,source=$('sourceInput').value){responseData=data;render($('sourceMapped'),source,data.sourceRanges||[],'source');render($('targetMapped'),data.translated||'',data.targetRanges||[],'target');$('jsonView').textContent=JSON.stringify(data,null,2);$('sourceCount').textContent=`${source.length} ký tự`;setEditing(false);setView(false);}
+    function setEditing(value){editing=value;$('sourceInput').classList.toggle('hidden',!value);$('sourceMapped').classList.toggle('hidden',value);$('sourceToggle').textContent=value?'Xem đối chiếu':'Sửa nguyên văn';}
+    function setView(json){$('jsonView').classList.toggle('hidden',!json);$('targetMapped').classList.toggle('hidden',json);$('showOutput').classList.toggle('active',!json);$('showJson').classList.toggle('active',json);}
+    function renderDicts(){$('dictIndex').replaceChildren(...dictionaries.map(([key,label])=>{const button=document.createElement('button');button.className=`dict${key===activeDictionary?' active':''}${touched.has(key)?' touched':''}`;button.dataset.key=key;button.textContent=label;return button;}));}
+    function pick(key){activeDictionary=key;const [,label,file]=dictionaries.find(([candidate])=>candidate===key);$('dictLabel').textContent=label;$('dictFile').textContent=file;$('dictText').value=values[key]||'';renderDicts();}
+    function payload(){const custom={};touched.forEach((key)=>custom[key]=values[key]||'');return{text:$('sourceInput').value,mode:'vietphrase-one',wrap:$('wrap').checked,pretty:$('pretty').checked,ranges:true,scanRange:Number($('scanRange').value),translationAlgorithm:Number($('algorithm').value),prioritizedName:$('prioritizedName').checked,dictionaries:custom};}
+    async function translate(){const button=$('translateButton');button.classList.add('loading');button.textContent='Đang dịch…';$('statusText').textContent='Đang gọi Cloudflare gateway';const endpoint=$('endpoint').value.trim().replace(/\/$/,'');try{if(!endpoint||endpoint.includes('example.com')){await new Promise((resolve)=>setTimeout(resolve,410));showResponse(mock(),sampleSource);$('statusText').textContent='Demo local · không gửi dữ liệu';}else{const result=await fetch(`${endpoint}/translate`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload())});const data=await result.json();if(!result.ok)throw new Error(data.error||`HTTP ${result.status}`);showResponse(data);$('statusText').textContent=`HTTP ${result.status} · Lambda response`;}}catch(error){$('statusText').textContent=`Lỗi: ${error.message}`;}finally{button.classList.remove('loading');button.textContent='Dịch chương';}}
+    $('sourceInput').value=sampleSource;renderDicts();showResponse(mock(),sampleSource);
+    $('sourceToggle').onclick=()=>setEditing(!editing);$('showOutput').onclick=()=>setView(false);$('showJson').onclick=()=>setView(true);$('translateButton').onclick=translate;
+    $('dictIndex').onclick=(event)=>{const button=event.target.closest('[data-key]');if(button)pick(button.dataset.key);};
+    $('dictText').oninput=()=>{values[activeDictionary]=$('dictText').value;touched.add(activeDictionary);renderDicts();};$('emptyButton').onclick=()=>{$('dictText').value='';values[activeDictionary]='';touched.add(activeDictionary);renderDicts();};
+    $('uploadButton').onclick=()=>$('fileInput').click();$('fileInput').onchange=async()=>{const[file]=$('fileInput').files;if(!file)return;$('dictText').value=await file.text();values[activeDictionary]=$('dictText').value;touched.add(activeDictionary);renderDicts();};
+    $('sourceInput').oninput=()=>$('sourceCount').textContent=`${$('sourceInput').value.length} ký tự`;
+    $('copyButton').onclick=async()=>{try{await navigator.clipboard.writeText(responseData.translated);$('copyButton').textContent='Đã sao chép';}catch{$('copyButton').textContent='Không thể chép';}setTimeout(()=>$('copyButton').textContent='Sao chép bản dịch',1200);};
+    document.addEventListener('click',(event)=>{const segment=event.target.closest('[data-map]');if(!segment)return;document.querySelectorAll('[data-map]').forEach((node)=>node.classList.toggle('active',node.dataset.map===segment.dataset.map));const pair=pairs[Number(segment.dataset.map)];$('mappingNote').innerHTML=pair?`${pair[0]}<br>↔ ${pair[1]}`:'Range đã chọn';});
+  </script>
+</body>
+</html>
