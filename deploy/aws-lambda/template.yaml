@@ -1,0 +1,69 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Quick Translator Engine on AWS Lambda
+
+Parameters:
+  FunctionName:
+    Type: String
+    Default: quick-translator-engine
+  FunctionUrlAuthType:
+    Type: String
+    Default: AWS_IAM
+    AllowedValues:
+      - AWS_IAM
+      - NONE
+  FunctionArchitecture:
+    Type: String
+    Default: arm64
+    AllowedValues:
+      - arm64
+      - x86_64
+  FunctionMemorySize:
+    Type: Number
+    Default: 1769
+    MinValue: 512
+    MaxValue: 10240
+  ReservedConcurrency:
+    Type: Number
+    Default: 20
+    MinValue: 1
+
+Resources:
+  QuickTranslatorFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: rust-cargolambda
+      BuildProperties:
+        Binary: qt-lambda
+    Properties:
+      FunctionName: !Ref FunctionName
+      Description: Dictionary-based Chinese to Vietnamese translation API
+      CodeUri: ../../
+      Handler: bootstrap
+      Runtime: provided.al2023
+      Architectures:
+        - !Ref FunctionArchitecture
+      MemorySize: !Ref FunctionMemorySize
+      Timeout: 30
+      ReservedConcurrentExecutions: !Ref ReservedConcurrency
+      Tracing: PassThrough
+      Environment:
+        Variables:
+          RUST_LOG: info
+      FunctionUrlConfig:
+        AuthType: !Ref FunctionUrlAuthType
+        InvokeMode: BUFFERED
+
+  QuickTranslatorLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${FunctionName}
+      RetentionInDays: 14
+
+Outputs:
+  FunctionArn:
+    Description: Lambda function ARN
+    Value: !GetAtt QuickTranslatorFunction.Arn
+  FunctionUrl:
+    Description: Lambda Function URL
+    Value: !GetAtt QuickTranslatorFunctionUrl.FunctionUrl

@@ -17,6 +17,8 @@ công cụ xử lý văn bản.
 - Ánh xạ source ↔ target bằng offset UTF-16 để dùng trực tiếp trong JavaScript UI.
 - CLI đọc UTF-8 từ `stdin`, ghi bản dịch ra `stdout`.
 - HTTP API hỗ trợ dịch đơn, dịch batch, tùy chọn engine và ranges.
+- Native AWS Lambda entrypoint dùng lại nguyên Axum router, kèm SAM template ARM64.
+- Cloudflare Worker gateway ký SigV4 tới Lambda Function URL dùng `AWS_IAM`.
 - Cho phép thay thế Names, Names2, Luật Nhân và các từ điển phụ theo từng lần gọi CLI/API;
   VietPhrase và ChinesePhienAmWords luôn dùng bản cố định đã nạp lúc khởi động.
 
@@ -122,6 +124,8 @@ cargo test --workspace
 crates/qt-core/   Engine và public Rust API
 crates/qt-cli/    Binary qt
 crates/qt-api/    Binary qt-server và HTTP handlers
+crates/qt-lambda/ Native AWS Lambda entrypoint
+deploy/           Infrastructure và hướng dẫn deploy
 docs/             Kiến trúc, API và đặc tả thuật toán
 QT2025/           Dữ liệu/config tham chiếu từ bộ QT gốc
 reference/        Source C# decompile dùng để đối chiếu hành vi
@@ -131,6 +135,8 @@ reference/        Source C# decompile dùng để đối chiếu hành vi
 
 - [Kiến trúc hệ thống](docs/architecture.md)
 - [HTTP API](docs/api.md)
+- [Deploy lên AWS Lambda](deploy/aws-lambda/README.md)
+- [Cloudflare gateway cho Lambda](deploy/cloudflare-worker/README.md)
 - [Đặc tả engine](docs/engine/README.md)
 - [Cách tái tạo source decompile](docs/dev/decompile.md)
 - [Hướng dẫn đóng góp](CONTRIBUTING.md)

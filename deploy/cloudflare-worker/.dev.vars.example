@@ -1,0 +1,2 @@
+AWS_ACCESS_KEY_ID=replace-with-dedicated-iam-access-key-id
+AWS_SECRET_ACCESS_KEY=replace-with-dedicated-iam-secret-access-key

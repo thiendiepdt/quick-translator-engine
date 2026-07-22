@@ -2,6 +2,12 @@ QT2025/QuickTranslator.exe
 QT2025/*.dll
 QT2025/Resources/mtcToken.txt
 target/
+.aws-sam/
+node_modules/
+.wrangler/
+*.cpuprofile
+.dev.vars*
+!.dev.vars.example
 /scratchpad/
 .agents/
 .env
