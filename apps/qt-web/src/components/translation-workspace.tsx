@@ -1,5 +1,14 @@
-import { Braces, Copy, FileText, LoaderCircle, RotateCcw, Sparkles } from "lucide-react";
-import { useState } from "react";
+import {
+  Braces,
+  Copy,
+  FileText,
+  LoaderCircle,
+  Pin,
+  PinOff,
+  RotateCcw,
+  Sparkles,
+} from "lucide-react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { MappedText } from "@/components/mapped-text";
@@ -15,25 +24,86 @@ interface TranslationWorkspaceProps {
   requestStatus: string;
 }
 
+type MappedPane = "source" | "output";
+
+interface ScrollRequest {
+  pane: MappedPane;
+  rangeIndex: number;
+}
+
+function scrollRangeIntoView(container: HTMLDivElement | null, rangeIndex: number) {
+  if (!container) return;
+  const target = container.querySelector<HTMLElement>(
+    `[data-range-index="${rangeIndex}"]`,
+  );
+  if (!target) return;
+
+  const containerRect = container.getBoundingClientRect();
+  const targetRect = target.getBoundingClientRect();
+  const targetTop = container.scrollTop + targetRect.top - containerRect.top;
+  const centeredTop = targetTop - (container.clientHeight - targetRect.height) / 2;
+  const reduceMotion =
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  container.scrollTo({
+    top: Math.max(0, centeredTop),
+    behavior: reduceMotion ? "auto" : "smooth",
+  });
+}
+
 export function TranslationWorkspace({ isPending, requestStatus }: TranslationWorkspaceProps) {
   const sourceText = useWorkspaceStore((state) => state.sourceText);
   const response = useWorkspaceStore((state) => state.response);
   const activeRange = useWorkspaceStore((state) => state.activeRange);
   const sourceView = useWorkspaceStore((state) => state.sourceView);
   const outputView = useWorkspaceStore((state) => state.outputView);
+  const rangePinEnabled = useWorkspaceStore((state) => state.rangePinEnabled);
   const setSourceText = useWorkspaceStore((state) => state.setSourceText);
   const setActiveRange = useWorkspaceStore((state) => state.setActiveRange);
   const setSourceView = useWorkspaceStore((state) => state.setSourceView);
   const setOutputView = useWorkspaceStore((state) => state.setOutputView);
+  const setRangePinEnabled = useWorkspaceStore((state) => state.setRangePinEnabled);
   const clearWorkspace = useWorkspaceStore((state) => state.clearWorkspace);
   const loadSample = useWorkspaceStore((state) => state.loadSample);
   const [mobilePane, setMobilePane] = useState<"source" | "output">("source");
+  const [scrollRequest, setScrollRequest] = useState<ScrollRequest>();
+  const sourceScrollRef = useRef<HTMLDivElement>(null);
+  const outputScrollRef = useRef<HTMLDivElement>(null);
 
   const sourceRanges = response?.sourceRanges ?? [];
   const targetRanges = response?.targetRanges ?? [];
   const activeSource = rangeText(sourceText, activeRange === undefined ? undefined : sourceRanges[activeRange]);
   const activeTarget = rangeText(response?.translated ?? "", activeRange === undefined ? undefined : targetRanges[activeRange]);
   const hasMapping = Boolean(response && sourceRanges.length > 0 && targetRanges.length > 0);
+
+  useLayoutEffect(() => {
+    if (!scrollRequest) return;
+    const container =
+      scrollRequest.pane === "source" ? sourceScrollRef.current : outputScrollRef.current;
+    scrollRangeIntoView(container, scrollRequest.rangeIndex);
+  }, [scrollRequest]);
+
+  function selectRange(rangeIndex: number, pane: MappedPane) {
+    setActiveRange(rangeIndex);
+    if (!rangePinEnabled) return;
+
+    if (pane === "source") {
+      setOutputView("output");
+      setMobilePane("output");
+      setScrollRequest({ pane: "output", rangeIndex });
+    } else {
+      setSourceView("linked");
+      setMobilePane("source");
+      setScrollRequest({ pane: "source", rangeIndex });
+    }
+  }
+
+  function toggleRangePin() {
+    const enabled = !rangePinEnabled;
+    setRangePinEnabled(enabled);
+    if (!enabled) setScrollRequest(undefined);
+  }
 
   async function copyOutput() {
     if (!response?.translated) return;
@@ -62,10 +132,29 @@ export function TranslationWorkspace({ isPending, requestStatus }: TranslationWo
           <span className="ml-1 rounded border border-primary/25 bg-primary/6 px-2 py-1 font-mono text-[9px] font-semibold tracking-wide text-primary">VIETPHRASE-ONE</span>
         </div>
         {paneTabs}
-        <div className="ml-auto shrink-0 font-mono text-[10px] text-muted-foreground">
-          {sourceText.length.toLocaleString("vi-VN")} ký tự nguồn
-          <span className="mx-1.5">·</span>
-          {(response?.translated.length ?? 0).toLocaleString("vi-VN")} ký tự đích
+        <div className="ml-auto flex min-w-0 items-center gap-2">
+          <Button
+            type="button"
+            variant={rangePinEnabled ? "secondary" : "ghost"}
+            size="xs"
+            aria-label={rangePinEnabled ? "Tắt tự cuộn range" : "Bật tự cuộn range"}
+            aria-pressed={rangePinEnabled}
+            title={
+              rangePinEnabled
+                ? "Pin đang bật: click một range sẽ cuộn tới range tương ứng"
+                : "Pin đang tắt: click chỉ làm nổi bật range tương ứng"
+            }
+            onClick={toggleRangePin}
+            className="font-mono text-[9px] tracking-wide"
+          >
+            {rangePinEnabled ? <Pin /> : <PinOff />}
+            PIN
+          </Button>
+          <div className="shrink-0 font-mono text-[10px] text-muted-foreground">
+            {sourceText.length.toLocaleString("vi-VN")} ký tự nguồn
+            <span className="mx-1.5">·</span>
+            {(response?.translated.length ?? 0).toLocaleString("vi-VN")} ký tự đích
+          </div>
         </div>
       </div>
 
@@ -80,7 +169,7 @@ export function TranslationWorkspace({ isPending, requestStatus }: TranslationWo
               </TabsList>
             </Tabs>
           </header>
-          <div className="fine-scrollbar relative min-h-0 overflow-auto">
+          <div ref={sourceScrollRef} className="fine-scrollbar relative min-h-0 overflow-auto">
             {sourceView === "raw" ? (
               <Textarea
                 value={sourceText}
@@ -94,7 +183,7 @@ export function TranslationWorkspace({ isPending, requestStatus }: TranslationWo
                 text={sourceText}
                 ranges={sourceRanges}
                 activeRange={activeRange}
-                onRangeSelect={setActiveRange}
+                onRangeSelect={(rangeIndex) => selectRange(rangeIndex, "source")}
                 emptyMessage="Chưa có nguyên văn."
                 className="min-h-full px-7 py-6 text-[18px] leading-9"
               />
@@ -112,7 +201,7 @@ export function TranslationWorkspace({ isPending, requestStatus }: TranslationWo
               </TabsList>
             </Tabs>
           </header>
-          <div className="fine-scrollbar relative min-h-0 overflow-auto bg-[var(--reader-paper)]">
+          <div ref={outputScrollRef} className="fine-scrollbar relative min-h-0 overflow-auto bg-[var(--reader-paper)]">
             {outputView === "json" ? (
               <pre className="min-h-full overflow-auto bg-slate-950 p-6 font-mono text-xs leading-6 text-slate-200">
                 {response ? JSON.stringify(response, null, 2) : ""}
@@ -122,7 +211,7 @@ export function TranslationWorkspace({ isPending, requestStatus }: TranslationWo
                 text={response?.translated ?? ""}
                 ranges={targetRanges}
                 activeRange={activeRange}
-                onRangeSelect={setActiveRange}
+                onRangeSelect={(rangeIndex) => selectRange(rangeIndex, "output")}
                 emptyMessage={isPending ? "Đang dịch chương…" : "Bản dịch sẽ xuất hiện ở đây. Chọn “Dùng văn bản mẫu” để thử range mapping mà không gọi API."}
                 className="reader-output min-h-full px-8 py-8 font-serif text-[21px] leading-[2.05] text-[var(--reader-ink)] md:px-10"
               />
@@ -130,7 +219,11 @@ export function TranslationWorkspace({ isPending, requestStatus }: TranslationWo
             {hasMapping && outputView === "output" ? (
               <div className="pointer-events-none sticky bottom-4 mx-5 mt-auto flex w-fit max-w-[calc(100%-2.5rem)] items-center gap-2 border bg-[var(--reader-paper)]/95 px-3 py-2 text-[10px] text-muted-foreground shadow-sm backdrop-blur">
                 <span className="font-semibold text-[var(--reader-accent)]">↔</span>
-                {activeRange === undefined ? "Click chữ ở hai phía để xem phần tương ứng" : <><span className="truncate">{activeSource || "∅"}</span><span>↔</span><strong className="truncate text-foreground">{activeTarget || "∅"}</strong></>}
+                {activeRange === undefined
+                  ? rangePinEnabled
+                    ? "Click chữ ở hai phía để tự cuộn tới phần tương ứng"
+                    : "Click chữ ở hai phía để xem phần tương ứng"
+                  : <><span className="truncate">{activeSource || "∅"}</span><span>↔</span><strong className="truncate text-foreground">{activeTarget || "∅"}</strong></>}
               </div>
             ) : null}
           </div>

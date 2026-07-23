@@ -34,6 +34,7 @@ interface WorkspaceState {
   dictionaryDefaultsEndpoint?: string;
   sourceView: SourceView;
   outputView: OutputView;
+  rangePinEnabled: boolean;
   mobileInspectorOpen: boolean;
   workspaceView: WorkspaceView;
   nameFilterResponse?: NameFilterResponse;
@@ -50,6 +51,7 @@ interface WorkspaceState {
   hydrateDictionaryDefaults: (endpoint: string, defaults: DictionaryDefaults) => void;
   setSourceView: (sourceView: SourceView) => void;
   setOutputView: (outputView: OutputView) => void;
+  setRangePinEnabled: (rangePinEnabled: boolean) => void;
   setMobileInspectorOpen: (mobileInspectorOpen: boolean) => void;
   setWorkspaceView: (workspaceView: WorkspaceView) => void;
   setNameFilterResponse: (nameFilterResponse?: NameFilterResponse) => void;
@@ -102,6 +104,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(persist((set) => ({
   dictionaryDefaultsEndpoint: undefined,
   sourceView: "raw",
   outputView: "output",
+  rangePinEnabled: true,
   mobileInspectorOpen: false,
   workspaceView: "translate",
   nameFilterResponse: undefined,
@@ -160,6 +163,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(persist((set) => ({
     }),
   setSourceView: (sourceView) => set({ sourceView }),
   setOutputView: (outputView) => set({ outputView }),
+  setRangePinEnabled: (rangePinEnabled) => set({ rangePinEnabled }),
   setMobileInspectorOpen: (mobileInspectorOpen) => set({ mobileInspectorOpen }),
   setWorkspaceView: (workspaceView) => set({ workspaceView }),
   setNameFilterResponse: (nameFilterResponse) => set({ nameFilterResponse }),
@@ -315,6 +319,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(persist((set) => ({
     rejectedNames: state.rejectedNames,
     nameMemoryId: state.nameMemoryId,
     nameMemoryProfiles: state.nameMemoryProfiles,
+    rangePinEnabled: state.rangePinEnabled,
   }),
 }));
 
