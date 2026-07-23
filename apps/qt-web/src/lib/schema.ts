@@ -32,6 +32,34 @@ const textRangeSchema = z.object({
   length: z.number().int().nonnegative(),
 });
 
+const nameCandidateSchema = z.object({
+  text: z.string(),
+  suggested: z.string(),
+  entityType: z.enum(["person", "location", "organization", "title", "unknown"]),
+  score: z.number().min(0).max(1),
+  occurrences: z.number().int().nonnegative(),
+  ranges: z.array(textRangeSchema),
+  contexts: z.array(z.string()),
+  reasons: z.array(z.string()),
+  sources: z.array(z.string()),
+  known: z.boolean(),
+});
+
+export const nameFilterResponseSchema = z.object({
+  candidates: z.array(nameCandidateSchema),
+  stats: z.object({
+    scannedCharacters: z.number().int().nonnegative(),
+    ruleCandidates: z.number().int().nonnegative(),
+    nerCandidates: z.number().int().nonnegative(),
+    aiReviewed: z.number().int().nonnegative(),
+  }),
+  capabilities: z.object({
+    nerConfigured: z.boolean(),
+    aiConfigured: z.boolean(),
+  }),
+  warnings: z.array(z.string()).optional(),
+});
+
 export const translationResponseSchema = z
   .object({
     translated: z.string(),

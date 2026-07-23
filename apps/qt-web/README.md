@@ -10,10 +10,12 @@ hợp split workspace của direction B với typography/output reader của dir
 - shadcn/ui dạng open-code trên Radix primitives.
 - React Hook Form + Zod cho endpoint và engine options.
 - TanStack Query cho health check, default dictionaries và translate mutation.
-- Zustand cho source, output, range selection và dictionary draft trong session.
+- Zustand cho source, output, range selection, dictionary draft và memory lọc name.
 - Vitest cho UTF-16 range, API client và dictionary semantics.
 
-Nội dung chương và dictionary **không** được persist vào `localStorage`.
+Nội dung chương và dictionary **không** được persist vào `localStorage`. Chỉ hai tập nhỏ
+`knownNames`/`rejectedNames` của từng profile mã truyện được persist để dùng qua nhiều
+chương mà không lẫn name giữa các truyện.
 
 ## Development với Rust API local
 
@@ -96,5 +98,9 @@ npm run check
 - VietPhrase và ChinesePhienAmWords không xuất hiện trong form vì Lambda cố định hai bộ
   này.
 - Request timeout ở browser là 45 giây; Worker/Lambda vẫn giữ giới hạn riêng của hạ tầng.
+- Tab **Tên** gọi `POST /names/filter`, hỗ trợ QT/hybrid, bật ONNX/AI tùy chọn, search,
+  sửa tên Việt inline, duyệt/loại từng record và duyệt nhanh candidate ≥85%.
+- Name được duyệt tự append/update vào draft `Names2`, nên request dịch tiếp theo sử dụng
+  ngay mà không phải copy thủ công.
 
 Các bản thiết kế đã dùng để duyệt nằm trong `design-demos/`.

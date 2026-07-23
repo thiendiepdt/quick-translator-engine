@@ -105,3 +105,52 @@ export interface TranslationRequest {
 export interface HealthResponse {
   status: "ok";
 }
+
+export type NameEntityType = "person" | "location" | "organization" | "title" | "unknown";
+
+export interface NameCandidate {
+  text: string;
+  suggested: string;
+  entityType: NameEntityType;
+  score: number;
+  occurrences: number;
+  ranges: TextRange[];
+  contexts: string[];
+  reasons: string[];
+  sources: string[];
+  known: boolean;
+}
+
+export interface NameFilterResponse {
+  candidates: NameCandidate[];
+  stats: {
+    scannedCharacters: number;
+    ruleCandidates: number;
+    nerCandidates: number;
+    aiReviewed: number;
+  };
+  capabilities: {
+    nerConfigured: boolean;
+    aiConfigured: boolean;
+  };
+  warnings?: string[];
+}
+
+export interface NameFilterRequest {
+  text: string;
+  mode: "qt" | "hybrid";
+  minOccurrences: number;
+  minConfidence: number;
+  maxCandidates: number;
+  knownNames: Record<string, string>;
+  rejectedNames: string[];
+  ner: { enabled: boolean; minConfidence: number };
+  aiFallback: {
+    enabled: boolean;
+    minConfidence: number;
+    minRuleConfidence: number;
+    maxRuleConfidence: number;
+    maxCandidates: number;
+  };
+  dictionaries?: Partial<Record<DictionaryKey, string>>;
+}

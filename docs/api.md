@@ -10,6 +10,13 @@ dictionary phụ mà không sửa state dùng chung. Request và response dùng 
 |---|---:|---|
 | `QT_DATA_DIR` | `data` | Thư mục chứa bộ từ điển |
 | `QT_PORT` | `3000` | Cổng HTTP |
+| `QT_NER_MODEL` | không có | Path model token-classification ONNX; cần build feature `onnx` |
+| `QT_NER_TOKENIZER` | không có | Path `tokenizer.json` tương ứng model |
+| `QT_NER_CONFIG` | không có | Path `config.json` có `id2label` BIO |
+| `ORT_DYLIB_PATH` | theo ONNX Runtime | Path dynamic library ONNX Runtime khi bật feature |
+| `QT_GEMINI_API_KEY` | không có | API key cho AI fallback; chỉ dùng ở server |
+| `QT_GEMINI_MODEL` | không có | Model Gemini dùng cho structured output |
+| `QT_GEMINI_BASE_URL` | Google API | Base URL tùy chọn cho test/proxy |
 
 ```bash
 QT_DATA_DIR=QT2025 QT_PORT=3000 cargo run -q -p qt-api --bin qt-server
@@ -176,6 +183,81 @@ Khi `ranges=true`, `sourceRanges` và `targetRanges` là hai ma trận song song
 Nội dung dịch phụ thuộc bộ từ điển đang nạp. Batch được xử lý tuần tự trong một request;
 các request độc lập vẫn có thể được runtime phục vụ đồng thời. `dictionaries` có cùng
 schema như `/translate` và được áp dụng cho toàn bộ phần tử trong `texts`.
+
+## `POST /names/filter`
+
+Lọc candidate name cho một chương. Request mặc định chạy deterministic rules; ONNX và AI
+fallback chỉ chạy khi vừa được cấu hình ở server vừa có `enabled=true` trong request.
+
+```json
+{
+  "text": "来人名为萧炎。萧炎看向云韵。",
+  "mode": "hybrid",
+  "minOccurrences": 2,
+  "minConfidence": 0.60,
+  "maxCandidates": 200,
+  "knownNames": { "云韵": "Vân Vận" },
+  "rejectedNames": ["看向"],
+  "ner": { "enabled": true, "minConfidence": 0.65 },
+  "aiFallback": {
+    "enabled": true,
+    "minConfidence": 0.65,
+    "minRuleConfidence": 0.4,
+    "maxRuleConfidence": 0.82,
+    "maxCandidates": 25
+  },
+  "dictionaries": {
+    "names2": "云韵=Vân Vận",
+    "hoNguoi": "萧=Tiêu"
+  }
+}
+```
+
+| Field | Mặc định | Ý nghĩa |
+|---|---:|---|
+| `mode` | `hybrid` | `qt` dùng Jieba + giới hạn 2–5 + frequency; `hybrid` thêm rules mới |
+| `minOccurrences` | `2` | Số lần xuất hiện tối thiểu; context/họ/hậu tố có thể giữ name hiếm |
+| `minConfidence` | `0.55`/`0.60` | Ngưỡng rules từ `0` đến `1` cho QT/hybrid |
+| `maxCandidates` | `200` | Giới hạn `1..=1000` |
+| `maxNameLength` | `8` | Hybrid n-gram, giới hạn `2..=8` |
+| `includeKnown` | `true` | Trả lại name đã duyệt trong memory với score `1.0` |
+| `knownNames` | `{}` | Map name đã duyệt → bản dịch, do client lưu theo truyện |
+| `rejectedNames` | `[]` | Candidate đã loại, không đề xuất lại ở chương sau |
+| `ner` | disabled | Xác nhận/tạo candidate từ token-classification ONNX |
+| `aiFallback` | disabled | Chỉ gửi nhóm candidate mơ hồ sang Gemini để duyệt |
+| `dictionaries` | mặc định | Cùng schema override như `/translate` |
+
+Response:
+
+```json
+{
+  "candidates": [{
+    "text": "萧炎",
+    "suggested": "Tiêu Viêm",
+    "entityType": "person",
+    "score": 0.99,
+    "occurrences": 2,
+    "ranges": [{ "start": 4, "length": 2 }],
+    "contexts": ["来人名为【萧炎】。萧炎看向云韵。"],
+    "reasons": ["xuất hiện sau ngữ cảnh giới thiệu tên"],
+    "sources": ["qt-jieba", "context-rule", "surname-rule"],
+    "known": false
+  }],
+  "stats": {
+    "scannedCharacters": 14,
+    "ruleCandidates": 1,
+    "nerCandidates": 0,
+    "aiReviewed": 0
+  },
+  "capabilities": { "nerConfigured": false, "aiConfigured": false },
+  "warnings": ["NER was requested but no ONNX model is configured"]
+}
+```
+
+`ranges` dùng UTF-16 như endpoint dịch. Lỗi provider tùy chọn không làm hỏng kết quả
+rules: response vẫn là `200`, kèm `warnings`. API key Gemini không bao giờ nhận từ client.
+Server chỉ gửi tối đa 50 candidate cùng context ngắn và xác thực output AI phải thuộc tập
+candidate đầu vào.
 
 ## Range contract
 

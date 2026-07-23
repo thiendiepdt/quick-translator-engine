@@ -9,6 +9,7 @@ const ALLOWED_ROUTES = new Map<string, ReadonlySet<string>>([
   ["/dictionaries/defaults", new Set(["GET"])],
   ["/translate", new Set(["POST"])],
   ["/translate/batch", new Set(["POST"])],
+  ["/names/filter", new Set(["POST"])],
 ]);
 
 class HttpError extends Error {

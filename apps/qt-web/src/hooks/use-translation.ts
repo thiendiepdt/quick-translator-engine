@@ -1,8 +1,13 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 
-import { checkHealth, fetchDictionaryDefaults, translateChapter } from "@/lib/api";
+import {
+  checkHealth,
+  fetchDictionaryDefaults,
+  filterChapterNames,
+  translateChapter,
+} from "@/lib/api";
 import { endpointSchema } from "@/lib/schema";
-import type { TranslationRequest } from "@/lib/types";
+import type { NameFilterRequest, TranslationRequest } from "@/lib/types";
 
 export function useTranslationMutation() {
   return useMutation({
@@ -31,5 +36,14 @@ export function useDictionaryDefaultsQuery(endpoint: string) {
     enabled: endpointSchema.safeParse(normalizedEndpoint).success,
     retry: false,
     staleTime: Number.POSITIVE_INFINITY,
+  });
+}
+
+export function useNameFilterMutation() {
+  return useMutation({
+    mutationKey: ["names", "filter"],
+    mutationFn: ({ endpoint, request }: { endpoint: string; request: NameFilterRequest }) =>
+      filterChapterNames(endpoint, request),
+    retry: false,
   });
 }

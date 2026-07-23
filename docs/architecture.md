@@ -51,6 +51,13 @@ let overrides = DictionaryOverrides::from_sources(DictionarySourceOverrides {
     ..Default::default()
 });
 let custom = engine.translate_with_overrides(input, mode, &options, &overrides)?;
+
+let names = engine.filter_names(
+    input,
+    &NameFilterOptions::default(),
+    &NameFilterMemory::default(),
+    Some(&overrides),
+);
 ```
 
 `Engine` giữ ba nhóm state chỉ đọc:
@@ -58,6 +65,10 @@ let custom = engine.translate_with_overrides(input, mode, &options, &overrides)?
 - các dictionary đã parse/merge;
 - cache Luật Nhân và regex;
 - bảng chuẩn hóa input, HTML entities và ignored phrases.
+
+Bộ lọc name deterministic nằm trong core. `qt-api` mới orchestration provider bên ngoài:
+ONNX token classification chạy ở blocking pool, còn Gemini fallback chạy async và chỉ
+nhận candidate mơ hồ.
 
 `DictionaryOverrides` là state đã parse chỉ sống trong caller/request. Lookup custom dùng
 view ưu tiên trên dictionary cố định, không clone VietPhrase và không sửa `Engine`.
@@ -67,6 +78,10 @@ view ưu tiên trên dictionary cố định, không clone VietPhrase và không
 CLI parse argument, nạp dictionary, đọc các file override nếu được chỉ định, đọc toàn bộ
 UTF-8 từ `stdin`, gọi engine và ghi nguyên output vào `stdout`. Lỗi cấu hình/argument được
 ghi vào `stderr` và trả exit code khác 0. CLI không chứa thuật toán dịch.
+
+`qt names filter` gọi cùng core rules, nhận file accepted/rejected làm book memory và có
+thể xuất Names2-compatible hoặc JSON. Provider ONNX/Gemini thuộc HTTP server để CLI mặc
+định không kéo runtime/model/network dependency.
 
 ### `qt-api`
 
@@ -79,6 +94,7 @@ dictionary custom được parse thành state riêng cho request. Mỗi lần d�
 - `GET /dictionaries/defaults`
 - `POST /translate`
 - `POST /translate/batch`
+- `POST /names/filter`
 
 Batch giữ thứ tự và xử lý lần lượt từng item để không làm đầy blocking pool trong một
 request. Xem schema tại [api.md](api.md).
@@ -143,6 +159,7 @@ TranslateAll                                                   |
 | `han_viet` | Phiên âm từng ký tự và fallback | `ChineseToHanViet`, `ToNarrow` |
 | `luat_nhan` | `{n}`, `{s}`, `{h}{t}` và regex cache | `TransLuatNhan`, `HandleNhanBy` |
 | `number` | Nhận diện/chuyển số và dải số | `PreScanForNumbers`, `NumberModifier` |
+| `name_filter` | QT-compatible extraction, hybrid rules và book memory | `LocNameQT`, contract Rust mở rộng |
 | `text` | Nối từ, spacing, capitalization, wrapping | `appendTranslatedWord`, `WrapTranslation` |
 
 ## Dictionary lifecycle

@@ -3,7 +3,7 @@ use std::path::Path;
 use std::process::ExitCode;
 use std::sync::Arc;
 
-use qt_api::{build_router, AppState};
+use qt_api::{build_router, AppState, NameFilterServices};
 use qt_core::{Dictionaries, Engine};
 
 #[tokio::main]
@@ -25,6 +25,7 @@ async fn main() -> ExitCode {
     let state = Arc::new(AppState {
         engine: Arc::new(Engine::from_dicts(dicts)),
         dictionary_defaults: Arc::new(dictionary_defaults),
+        name_filter_services: NameFilterServices::from_env(),
     });
     let app = build_router(state);
 

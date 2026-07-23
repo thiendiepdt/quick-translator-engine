@@ -43,6 +43,12 @@ Build đúng artifact ARM64 của Lambda:
 cargo lambda build --release --arm64 --bin qt-lambda
 ```
 
+Build có ONNX NER (artifact mặc định không kèm ONNX để tránh tăng cold start):
+
+```bash
+cargo lambda build --release --arm64 --bin qt-lambda --features onnx
+```
+
 Build qua SAM. Build method Rust của SAM hiện cần bật beta feature và dùng Cargo Lambda:
 
 ```bash
@@ -101,6 +107,41 @@ origin và giữ Function URL ở `AWS_IAM`.
 Chỉ dùng `FunctionUrlAuthType=NONE` để test nhanh hoặc khi đã có một lớp gateway bảo vệ
 đúng cách. `NONE` biến URL thành public endpoint; engine chưa tự cung cấp authentication
 hay rate limiting.
+
+## Provider lọc name tùy chọn
+
+`POST /names/filter` luôn có QT/hybrid rules chạy local. Hai provider sau là opt-in:
+
+### ONNX NER
+
+Binary phải được build với `--features onnx`. Đặt model token-classification, tokenizer,
+config và dynamic library ONNX Runtime trong Lambda Layer hoặc container image, rồi cấu
+hình:
+
+```text
+QT_NER_MODEL=/opt/ner/model.onnx
+QT_NER_TOKENIZER=/opt/ner/tokenizer.json
+QT_NER_CONFIG=/opt/ner/config.json
+ORT_DYLIB_PATH=/opt/lib/libonnxruntime.so
+```
+
+`config.json` cần `id2label` theo BIO, ví dụ `B-PER`, `I-PER`, `B-LOC`, `B-ORG`. Adapter
+chạy một inference tại một thời điểm trên mỗi Lambda instance và cắt chương thành block
+400 ký tự. Với model lớn, nên tăng memory/timeout, đo cold start rồi cân nhắc Lambda
+container image thay cho zip + Layer.
+
+### Gemini fallback
+
+Gemini chỉ duyệt nhóm candidate có score mơ hồ, không thay toàn bộ rules/NER:
+
+```text
+QT_GEMINI_API_KEY=<secret>
+QT_GEMINI_MODEL=<model hỗ trợ structured output>
+```
+
+Không đưa key vào request từ web. Lưu key bằng cơ chế secret/KMS phù hợp của AWS và inject
+vào environment lúc deploy. Request provider lỗi vẫn trả kết quả rules kèm `warnings`, do
+đó một lỗi mạng ngoài không làm mất toàn bộ kết quả lọc name.
 
 ## Request
 

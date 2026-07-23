@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use lambda_http::{run, tracing, Error};
-use qt_api::{build_router, AppState};
+use qt_api::{build_router, AppState, NameFilterServices};
 use qt_core::{DictionaryDefaults, Engine};
 
 // Lambda embeds the same QT2025 defaults used by the CLI and HTTP server.
@@ -39,6 +39,7 @@ fn build_state() -> Arc<AppState> {
     Arc::new(AppState {
         engine: Arc::new(Engine::from_dicts(dictionaries)),
         dictionary_defaults: Arc::new(dictionary_defaults),
+        name_filter_services: NameFilterServices::from_env(),
     })
 }
 

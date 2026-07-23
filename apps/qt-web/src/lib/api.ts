@@ -1,11 +1,14 @@
 import {
   dictionaryDefaultsSchema,
   healthResponseSchema,
+  nameFilterResponseSchema,
   translationResponseSchema,
 } from "@/lib/schema";
 import type {
   DictionaryDefaults,
   HealthResponse,
+  NameFilterRequest,
+  NameFilterResponse,
   TranslationRequest,
   TranslationResponse,
 } from "@/lib/types";
@@ -102,5 +105,20 @@ export function fetchDictionaryDefaults(endpoint: string): Promise<DictionaryDef
     endpointUrl(endpoint, "/dictionaries/defaults"),
     { method: "GET" },
     (value) => dictionaryDefaultsSchema.parse(value),
+  );
+}
+
+export function filterChapterNames(
+  endpoint: string,
+  request: NameFilterRequest,
+): Promise<NameFilterResponse> {
+  return requestJson(
+    endpointUrl(endpoint, "/names/filter"),
+    {
+      method: "POST",
+      headers: { "content-type": "application/json; charset=utf-8" },
+      body: JSON.stringify(request),
+    },
+    (value) => nameFilterResponseSchema.parse(value),
   );
 }

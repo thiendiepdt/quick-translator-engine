@@ -54,6 +54,11 @@ const TranslationWorkspace = lazy(() =>
     default: module.TranslationWorkspace,
   })),
 );
+const NameFilterWorkspace = lazy(() =>
+  import("@/components/name-filter-workspace").then((module) => ({
+    default: module.NameFilterWorkspace,
+  })),
+);
 
 function useDebouncedValue(value: string, delayMs: number): string {
   const [debounced, setDebounced] = useState(value);
@@ -82,10 +87,14 @@ function InspectorFallback() {
 function RailItem({
   label,
   active = false,
+  onClick,
+  disabled = false,
   children,
 }: {
   label: string;
   active?: boolean;
+  onClick?: () => void;
+  disabled?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -93,9 +102,12 @@ function RailItem({
       <TooltipTrigger asChild>
         <button
           type="button"
+          disabled={disabled}
+          onClick={onClick}
           className={cn(
             "relative grid min-h-14 w-full place-items-center text-[10px] font-semibold text-slate-400 transition-colors hover:bg-white/8 hover:text-white",
             active && "bg-white/8 text-white before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:bg-blue-400",
+            disabled && "opacity-45",
           )}
           aria-label={label}
         >
@@ -107,13 +119,19 @@ function RailItem({
   );
 }
 
-function NavigationRail() {
+function NavigationRail({
+  active,
+  onChange,
+}: {
+  active: "translate" | "names";
+  onChange: (value: "translate" | "names") => void;
+}) {
   return (
     <nav className="hidden min-h-0 flex-col items-center bg-[var(--sidebar)] text-[var(--sidebar-foreground)] md:flex" aria-label="Điều hướng chính">
       <div className="my-3 grid size-9 place-items-center border border-white/25 font-mono text-xs font-bold">QT</div>
-      <RailItem label="Dịch" active><Languages className="size-5" /></RailItem>
-      <RailItem label="Tên"><BookType className="size-5" /></RailItem>
-      <RailItem label="API"><Braces className="size-5" /></RailItem>
+      <RailItem label="Dịch" active={active === "translate"} onClick={() => onChange("translate")}><Languages className="size-5" /></RailItem>
+      <RailItem label="Tên" active={active === "names"} onClick={() => onChange("names")}><BookType className="size-5" /></RailItem>
+      <RailItem label="API" disabled><Braces className="size-5" /></RailItem>
       <div className="flex-1" />
       <RailItem label="Trợ giúp"><CircleHelp className="size-5" /></RailItem>
     </nav>
@@ -131,6 +149,8 @@ export default function App() {
     (state) => state.hydrateDictionaryDefaults,
   );
   const setResponse = useWorkspaceStore((state) => state.setResponse);
+  const workspaceView = useWorkspaceStore((state) => state.workspaceView);
+  const setWorkspaceView = useWorkspaceStore((state) => state.setWorkspaceView);
   const mobileInspectorOpen = useWorkspaceStore((state) => state.mobileInspectorOpen);
   const setMobileInspectorOpen = useWorkspaceStore((state) => state.setMobileInspectorOpen);
 
@@ -232,6 +252,10 @@ export default function App() {
       <form
         className="h-dvh min-h-[720px] overflow-hidden"
         onSubmit={(event) => {
+          if (workspaceView !== "translate") {
+            event.preventDefault();
+            return;
+          }
           void form.handleSubmit(submit, () => toast.error("Kiểm tra lại cấu hình request"))(event);
         }}
       >
@@ -265,20 +289,29 @@ export default function App() {
           </div>
 
           <div className="flex h-full items-center justify-end gap-1 pr-3">
-            <Button type="button" variant="ghost" size="icon" className="xl:hidden" aria-label="Mở cấu hình" onClick={() => setMobileInspectorOpen(true)}><Settings2 /></Button>
-            <Button type="submit" className="h-10 px-4" disabled={translation.isPending || !dictionaryDefaultsReady}>
-              {translation.isPending || dictionaryDefaultsStatus === "loading" ? <LoaderCircle className="animate-spin" /> : <Send />}
-              <span className="hidden sm:inline">Dịch chương</span>
-            </Button>
+            <Button type="button" variant="ghost" size="icon" className={cn(workspaceView === "translate" && "xl:hidden")} aria-label="Mở cấu hình" onClick={() => setMobileInspectorOpen(true)}><Settings2 /></Button>
+            {workspaceView === "translate" ? (
+              <Button type="submit" className="h-10 px-4" disabled={translation.isPending || !dictionaryDefaultsReady}>
+                {translation.isPending || dictionaryDefaultsStatus === "loading" ? <LoaderCircle className="animate-spin" /> : <Send />}
+                <span className="hidden sm:inline">Dịch chương</span>
+              </Button>
+            ) : null}
           </div>
         </header>
 
-        <div className="grid h-[calc(100dvh-4rem)] min-h-0 md:grid-cols-[64px_minmax(0,1fr)] xl:grid-cols-[64px_minmax(0,1fr)_340px]">
-          <NavigationRail />
+        <div className={cn(
+          "grid h-[calc(100dvh-4rem)] min-h-0 md:grid-cols-[64px_minmax(0,1fr)]",
+          workspaceView === "translate" && "xl:grid-cols-[64px_minmax(0,1fr)_340px]",
+        )}>
+          <NavigationRail active={workspaceView} onChange={setWorkspaceView} />
           <Suspense fallback={<div className="m-4 animate-pulse rounded-lg border bg-card" />}>
-            <TranslationWorkspace isPending={translation.isPending} requestStatus={requestStatus} />
+            {workspaceView === "translate" ? (
+              <TranslationWorkspace isPending={translation.isPending} requestStatus={requestStatus} />
+            ) : (
+              <NameFilterWorkspace endpoint={normalizedEndpoint} defaultsReady={dictionaryDefaultsReady} />
+            )}
           </Suspense>
-          <aside className="hidden min-h-0 border-l xl:block" aria-label="Cấu hình request">
+          {workspaceView === "translate" ? <aside className="hidden min-h-0 border-l xl:block" aria-label="Cấu hình request">
             <Suspense fallback={<InspectorFallback />}>
               <DictionaryInspector
                 defaultsStatus={dictionaryDefaultsStatus}
@@ -286,11 +319,11 @@ export default function App() {
                 onRetry={() => void dictionaryDefaults.refetch()}
               />
             </Suspense>
-          </aside>
+          </aside> : null}
         </div>
 
         <Sheet open={mobileInspectorOpen} onOpenChange={setMobileInspectorOpen}>
-          <SheetContent side="right" className="w-[min(92vw,390px)] gap-0 p-0 sm:max-w-[390px] xl:hidden">
+          <SheetContent side="right" className={cn("w-[min(92vw,390px)] gap-0 p-0 sm:max-w-[390px]", workspaceView === "translate" && "xl:hidden")}>
             <SheetHeader className="sr-only">
               <SheetTitle>Cấu hình request</SheetTitle>
               <SheetDescription>Tùy chỉnh từ điển và engine.</SheetDescription>

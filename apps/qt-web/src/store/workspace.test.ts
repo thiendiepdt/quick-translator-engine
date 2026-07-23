@@ -21,6 +21,7 @@ beforeEach(() => {
   useWorkspaceStore
     .getState()
     .hydrateDictionaryDefaults(`/test-${endpointIndex}`, emptyDefaults);
+  useWorkspaceStore.getState().clearNameMemory();
   useWorkspaceStore.getState().clearWorkspace();
 });
 
@@ -57,5 +58,35 @@ describe("workspace dictionary semantics", () => {
     const payload = dictionaryPayload(state.dictionaries);
     expect(payload?.names).toContain("Tiêu Viêm");
     expect(payload?.pronouns).toBe("她=nàng");
+  });
+
+  it("persists accepted names into Names2 and removes them when rejected", () => {
+    useWorkspaceStore.getState().acceptNameCandidate("萧炎", "Tiêu Viêm");
+    let state = useWorkspaceStore.getState();
+    expect(state.knownNames).toEqual({ 萧炎: "Tiêu Viêm" });
+    expect(state.dictionaries.names2.value).toBe("萧炎=Tiêu Viêm");
+    expect(dictionaryPayload(state.dictionaries)).toEqual({ names2: "萧炎=Tiêu Viêm" });
+
+    useWorkspaceStore.getState().rejectNameCandidate("萧炎");
+    state = useWorkspaceStore.getState();
+    expect(state.knownNames).toEqual({});
+    expect(state.rejectedNames).toContain("萧炎");
+    expect(state.dictionaries.names2.value).toBe("");
+    expect(dictionaryPayload(state.dictionaries)).toBeUndefined();
+  });
+
+  it("isolates accepted and rejected names by book memory id", () => {
+    useWorkspaceStore.getState().acceptNameCandidate("萧炎", "Tiêu Viêm");
+    useWorkspaceStore.getState().switchNameMemory("book-b");
+    let state = useWorkspaceStore.getState();
+    expect(state.knownNames).toEqual({});
+    expect(state.dictionaries.names2.value).toBe("");
+
+    useWorkspaceStore.getState().acceptNameCandidate("林动", "Lâm Động");
+    useWorkspaceStore.getState().switchNameMemory("default");
+    state = useWorkspaceStore.getState();
+    expect(state.knownNames).toEqual({ 萧炎: "Tiêu Viêm" });
+    expect(state.dictionaries.names2.value).toBe("萧炎=Tiêu Viêm");
+    expect(state.dictionaries.names2.value).not.toContain("林动");
   });
 });
