@@ -5,4 +5,7 @@ members = [
     "crates/qt-cli",
     "crates/qt-api",
     "crates/qt-lambda",
+    "crates/qt-ner-cli",
+    "crates/qt-ner-api",
+    "crates/qt-ner-lambda",
 ]

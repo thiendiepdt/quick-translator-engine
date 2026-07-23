@@ -25,6 +25,35 @@ QT_DATA_DIR=QT2025 QT_PORT=3000 cargo run -q -p qt-api --bin qt-server
 Server bind trên `0.0.0.0`. JSON body được giới hạn 5 MiB. Bản hiện tại không có TLS,
 authentication hay rate limit; không nên expose trực tiếp ra Internet.
 
+### Name-filter API chuyên dụng
+
+`qt-ner-api` dùng cùng request/response `POST /names/filter` nhưng không expose endpoint
+dịch hoặc raw dictionary:
+
+```bash
+QT_NER_DATA_DIR=QT2025 QT_NER_PORT=3001 \
+  cargo run -q -p qt-ner-api --bin qt-ner-api
+```
+
+`QT_NER_DATA_DIR` fallback sang `QT_DATA_DIR`; `QT_NER_PORT` fallback sang `QT_PORT` rồi
+mặc định `3001`. Router chuyên dụng gồm:
+
+- `GET /health`
+- `GET /capabilities`
+- `POST /names/filter`
+
+`GET /capabilities` trả trạng thái provider đã khởi tạo:
+
+```json
+{
+  "nerConfigured": true,
+  "aiConfigured": false
+}
+```
+
+Nếu provider cấu hình lỗi, response có thêm `warnings`; chi tiết lỗi vẫn được ghi vào
+stderr/CloudWatch lúc process khởi động.
+
 ## Mode và option dùng chung
 
 | Field | Kiểu | Mặc định | Giá trị |

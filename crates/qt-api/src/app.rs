@@ -88,6 +88,16 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .layer(DefaultBodyLimit::max(MAX_REQUEST_BODY_BYTES))
 }
 
+/// Build the dedicated name-filter surface without exposing translation routes.
+pub fn build_name_filter_router(state: Arc<AppState>) -> Router {
+    Router::new()
+        .route("/health", get(health))
+        .route("/capabilities", get(name_filter_capabilities))
+        .route("/names/filter", post(filter_names))
+        .with_state(state)
+        .layer(DefaultBodyLimit::max(MAX_REQUEST_BODY_BYTES))
+}
+
 async fn health() -> Json<serde_json::Value> {
     Json(json!({ "status": "ok" }))
 }
@@ -234,6 +244,25 @@ struct NameFilterStats {
 struct NameFilterCapabilities {
     ner_configured: bool,
     ai_configured: bool,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NameFilterCapabilitiesResp {
+    ner_configured: bool,
+    ai_configured: bool,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    warnings: Vec<String>,
+}
+
+async fn name_filter_capabilities(
+    State(state): State<Arc<AppState>>,
+) -> Json<NameFilterCapabilitiesResp> {
+    Json(NameFilterCapabilitiesResp {
+        ner_configured: state.name_filter_services.ner_configured(),
+        ai_configured: state.name_filter_services.ai_configured(),
+        warnings: state.name_filter_services.startup_warnings.as_ref().clone(),
+    })
 }
 
 fn default_name_filter_mode() -> String {

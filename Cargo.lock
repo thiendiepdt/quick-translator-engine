@@ -1467,6 +1467,43 @@ dependencies = [
 ]
 
 [[package]]
+name = "qt-ner-api"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "http-body-util",
+ "qt-api",
+ "qt-core",
+ "serde_json",
+ "tokio",
+ "tower",
+]
+
+[[package]]
+name = "qt-ner-cli"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "http-body-util",
+ "qt-core",
+ "qt-ner-api",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tower",
+]
+
+[[package]]
+name = "qt-ner-lambda"
+version = "0.1.0"
+dependencies = [
+ "lambda_http",
+ "qt-core",
+ "qt-ner-api",
+ "tokio",
+]
+
+[[package]]
 name = "query_map"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

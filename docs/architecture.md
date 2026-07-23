@@ -22,7 +22,10 @@ quick-translator-engine/
 │   ├── qt-core/   # thư viện dịch đồng bộ
 │   ├── qt-cli/    # binary qt, stdin -> stdout
 │   ├── qt-api/    # binary qt-server, Axum HTTP API
-│   └── qt-lambda/ # native AWS Lambda entrypoint
+│   ├── qt-lambda/ # native AWS Lambda entrypoint đầy đủ
+│   ├── qt-ner-cli/    # CLI name filter chuyên dụng
+│   ├── qt-ner-api/    # Axum API name filter chuyên dụng
+│   └── qt-ner-lambda/ # Lambda name filter chuyên dụng
 ├── deploy/
 │   ├── aws-lambda/       # SAM template, event và hướng dẫn deploy
 │   └── cloudflare-worker/ # edge gateway ký SigV4
@@ -83,6 +86,20 @@ ghi vào `stderr` và trả exit code khác 0. CLI không chứa thuật toán d
 thể xuất Names2-compatible hoặc JSON. Provider ONNX/Gemini thuộc HTTP server để CLI mặc
 định không kéo runtime/model/network dependency.
 
+### Các runtime `qt-ner-*`
+
+Ba package chuyên dụng không sao chép thuật toán:
+
+- `qt-ner-cli` dựng request `/names/filter` rồi chạy name-only router trong process; nhờ
+  đó validation, ONNX merge, Gemini fallback và JSON output giống HTTP API;
+- `qt-ner-api` nạp dictionaries từ filesystem và chỉ expose health, capabilities cùng
+  name filter;
+- `qt-ner-lambda` nhúng defaults QT2025 như Lambda đầy đủ nhưng chỉ chạy name-only router.
+
+Feature `onnx` được bật mặc định cho các package này. ONNX Runtime chỉ được load khi
+`QT_NER_MODEL` có giá trị, nên vẫn có thể chạy rules/hybrid mà không ship model bằng cách
+không cấu hình provider hoặc dùng `qt-ner-cli filter --no-ner`.
+
 ### `qt-api`
 
 Server nạp một `Engine` và giữ raw customizable defaults lúc khởi động. Nội dung
@@ -98,6 +115,9 @@ dictionary custom được parse thành state riêng cho request. Mỗi lần d�
 
 Batch giữ thứ tự và xử lý lần lượt từng item để không làm đầy blocking pool trong một
 request. Xem schema tại [api.md](api.md).
+
+`build_name_filter_router` là surface thu gọn dùng chung cho ba runtime `qt-ner-*`; route
+`GET /capabilities` cho biết ONNX/Gemini đã khởi tạo thành công hay chưa.
 
 ### `qt-lambda`
 

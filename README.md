@@ -19,6 +19,8 @@ công cụ xử lý văn bản.
 - HTTP API hỗ trợ dịch đơn, dịch batch, tùy chọn engine và ranges.
 - Lọc name theo hai mode: QT-compatible hoặc hybrid rules + memory theo truyện; có thể
   bật thêm token-classification ONNX NER và Gemini fallback cho candidate mơ hồ.
+- Ba runtime lọc name chuyên dụng: `qt-ner-cli`, `qt-ner-api` và `qt-ner-lambda`, dùng
+  chung pipeline và JSON contract với `/names/filter`.
 - Native AWS Lambda entrypoint dùng lại nguyên Axum router, kèm SAM template ARM64.
 - Cloudflare Worker gateway ký SigV4 tới Lambda Function URL dùng `AWS_IAM`.
 - React web app để dịch theo chương, tùy biến dictionary và đối chiếu source/output bằng
@@ -98,6 +100,34 @@ Thêm `--json` để lấy score, loại entity, occurrences và nguồn phát h
 cửa sổ token 2–5 ký tự và ngưỡng tần suất kiểu QT; mode `hybrid` bổ sung overlapping
 n-gram, ngữ cảnh giới thiệu tên, họ/hậu tố và memory xuyên chương.
 
+## Chạy name filter chuyên dụng
+
+`qt-ner-cli` mặc định bật ONNX NER nếu bốn biến `QT_NER_*`/`ORT_DYLIB_PATH` hợp lệ. Input
+đọc từ `stdin` hoặc `--input`; output mặc định là Names2-compatible:
+
+```bash
+cat chapter.txt | cargo run -q -p qt-ner-cli -- filter \
+  --data-dir QT2025 \
+  --known-names-file ./book/accepted.txt \
+  --rejected-names-file ./book/rejected.txt
+```
+
+Dùng `--json` để lấy nguyên response `/names/filter`, `--no-ner` để chỉ chạy rules và
+`--ai-fallback` để bật Gemini reviewer đã cấu hình ở environment.
+
+HTTP server chuyên dụng chỉ expose `GET /health`, `GET /capabilities` và
+`POST /names/filter`:
+
+```bash
+QT_NER_DATA_DIR=QT2025 QT_NER_PORT=3001 \
+  cargo run -q -p qt-ner-api --bin qt-ner-api
+```
+
+Các package chuyên dụng bật feature ONNX mặc định, nhưng chỉ load native runtime/model khi
+`QT_NER_MODEL` được cấu hình. Xem quy trình chuẩn bị artifact tại
+[docs/engine/name-filter.md](docs/engine/name-filter.md#onnx-ner) và deploy
+`qt-ner-lambda` tại [deploy/aws-lambda/README.md](deploy/aws-lambda/README.md#lambda-lọc-name-chuyên-dụng).
+
 ## Chạy HTTP server
 
 Bash:
@@ -131,7 +161,8 @@ API contract đầy đủ nằm tại [docs/api.md](docs/api.md).
 Để bật provider tùy chọn cho `/names/filter`, build server với `--features onnx` và cấu
 hình `QT_NER_MODEL`, `QT_NER_TOKENIZER`, `QT_NER_CONFIG`; Gemini dùng
 `QT_GEMINI_API_KEY` và `QT_GEMINI_MODEL`. Không cấu hình provider thì rules vẫn chạy độc
-lập, không phát sinh network call.
+lập, không phát sinh network call. Xem hướng dẫn chọn model, export, tải ONNX Runtime và
+xử lý lỗi tại [docs/engine/name-filter.md](docs/engine/name-filter.md#onnx-ner).
 
 ## Chạy web app
 
@@ -173,6 +204,9 @@ crates/qt-core/   Engine và public Rust API
 crates/qt-cli/    Binary qt
 crates/qt-api/    Binary qt-server và HTTP handlers
 crates/qt-lambda/ Native AWS Lambda entrypoint
+crates/qt-ner-cli/    CLI lọc name với rules, ONNX và AI
+crates/qt-ner-api/    HTTP API chỉ dành cho name filter
+crates/qt-ner-lambda/ Lambda chỉ dành cho name filter
 apps/qt-web/      React web app dịch và đối chiếu theo range
 deploy/           Infrastructure và hướng dẫn deploy
 docs/             Kiến trúc, API và đặc tả thuật toán
