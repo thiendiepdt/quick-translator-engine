@@ -52,6 +52,27 @@ Response `200 OK`:
 {"modes":["hanviet","vietphrase","vietphrase-one"]}
 ```
 
+## `GET /dictionaries/defaults`
+
+Trả nguyên nội dung tám file mặc định được phép tùy biến. `vietphrase` và
+`chinesePhienAmWords` không xuất hiện vì hai bộ này cố định ở engine.
+
+```json
+{
+  "names": "萧炎=Tiêu Viêm\n...",
+  "names2": "药老=Dược Lão\n...",
+  "luatNhan": "在{n}身后=sau lưng {n}\n...",
+  "pronouns": "他=hắn\n她=nàng\n...",
+  "danhTu": "...",
+  "hoNguoi": "...",
+  "hauTu": "...",
+  "ignoredChinesePhrases": "本章完\n..."
+}
+```
+
+Response thành công có `Cache-Control: public, max-age=3600`. Web dùng nội dung này làm
+bản gốc để sửa; nếu một file không thay đổi thì không cần gửi lại trong request dịch.
+
 ## `POST /translate`
 
 Request tối thiểu:

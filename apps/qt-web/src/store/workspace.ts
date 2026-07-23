@@ -1,10 +1,16 @@
 import { create } from "zustand";
 
 import { sampleDictionaryValues, sampleResponse, sampleSource } from "@/lib/sample";
-import { dictionaryKeys, type DictionaryKey, type TranslationResponse } from "@/lib/types";
+import {
+  dictionaryKeys,
+  type DictionaryDefaults,
+  type DictionaryKey,
+  type TranslationResponse,
+} from "@/lib/types";
 
 interface DictionaryDraft {
   value: string;
+  defaultValue: string;
   touched: boolean;
 }
 
@@ -17,6 +23,7 @@ interface WorkspaceState {
   activeRange?: number;
   activeDictionary: DictionaryKey;
   dictionaries: Record<DictionaryKey, DictionaryDraft>;
+  dictionaryDefaultsEndpoint?: string;
   sourceView: SourceView;
   outputView: OutputView;
   mobileInspectorOpen: boolean;
@@ -26,6 +33,7 @@ interface WorkspaceState {
   setActiveDictionary: (activeDictionary: DictionaryKey) => void;
   setDictionaryValue: (key: DictionaryKey, value: string) => void;
   resetDictionary: (key: DictionaryKey) => void;
+  hydrateDictionaryDefaults: (endpoint: string, defaults: DictionaryDefaults) => void;
   setSourceView: (sourceView: SourceView) => void;
   setOutputView: (outputView: OutputView) => void;
   setMobileInspectorOpen: (mobileInspectorOpen: boolean) => void;
@@ -35,7 +43,33 @@ interface WorkspaceState {
 
 function emptyDictionaries(): Record<DictionaryKey, DictionaryDraft> {
   return Object.fromEntries(
-    dictionaryKeys.map((key) => [key, { value: "", touched: false }]),
+    dictionaryKeys.map((key) => [key, { value: "", defaultValue: "", touched: false }]),
+  ) as Record<DictionaryKey, DictionaryDraft>;
+}
+
+function dictionariesFromDefaults(
+  defaults: DictionaryDefaults,
+): Record<DictionaryKey, DictionaryDraft> {
+  return Object.fromEntries(
+    dictionaryKeys.map((key) => [
+      key,
+      { value: defaults[key], defaultValue: defaults[key], touched: false },
+    ]),
+  ) as Record<DictionaryKey, DictionaryDraft>;
+}
+
+function resetDictionaries(
+  dictionaries: Record<DictionaryKey, DictionaryDraft>,
+): Record<DictionaryKey, DictionaryDraft> {
+  return Object.fromEntries(
+    dictionaryKeys.map((key) => [
+      key,
+      {
+        value: dictionaries[key].defaultValue,
+        defaultValue: dictionaries[key].defaultValue,
+        touched: false,
+      },
+    ]),
   ) as Record<DictionaryKey, DictionaryDraft>;
 }
 
@@ -45,6 +79,7 @@ export const useWorkspaceStore = create<WorkspaceState>()((set) => ({
   activeRange: undefined,
   activeDictionary: "names",
   dictionaries: emptyDictionaries(),
+  dictionaryDefaultsEndpoint: undefined,
   sourceView: "raw",
   outputView: "output",
   mobileInspectorOpen: false,
@@ -58,41 +93,66 @@ export const useWorkspaceStore = create<WorkspaceState>()((set) => ({
     set((state) => ({
       dictionaries: {
         ...state.dictionaries,
-        [key]: { value, touched: true },
+        [key]: {
+          ...state.dictionaries[key],
+          value,
+          touched: value !== state.dictionaries[key].defaultValue,
+        },
       },
     })),
   resetDictionary: (key) =>
     set((state) => ({
       dictionaries: {
         ...state.dictionaries,
-        [key]: { value: "", touched: false },
+        [key]: {
+          value: state.dictionaries[key].defaultValue,
+          defaultValue: state.dictionaries[key].defaultValue,
+          touched: false,
+        },
       },
     })),
+  hydrateDictionaryDefaults: (endpoint, defaults) =>
+    set((state) => {
+      if (state.dictionaryDefaultsEndpoint === endpoint) return state;
+      return {
+        dictionaries: dictionariesFromDefaults(defaults),
+        dictionaryDefaultsEndpoint: endpoint,
+      };
+    }),
   setSourceView: (sourceView) => set({ sourceView }),
   setOutputView: (outputView) => set({ outputView }),
   setMobileInspectorOpen: (mobileInspectorOpen) => set({ mobileInspectorOpen }),
   clearWorkspace: () =>
-    set({
+    set((state) => ({
       sourceText: "",
       response: undefined,
       activeRange: undefined,
-      dictionaries: emptyDictionaries(),
+      dictionaries: resetDictionaries(state.dictionaries),
       sourceView: "raw",
       outputView: "output",
+    })),
+  loadSample: () =>
+    set((state) => {
+      const dictionaries = resetDictionaries(state.dictionaries);
+      dictionaries.names = {
+        ...dictionaries.names,
+        value: sampleDictionaryValues.names,
+        touched: sampleDictionaryValues.names !== dictionaries.names.defaultValue,
+      };
+      dictionaries.pronouns = {
+        ...dictionaries.pronouns,
+        value: sampleDictionaryValues.pronouns,
+        touched: sampleDictionaryValues.pronouns !== dictionaries.pronouns.defaultValue,
+      };
+      return {
+        sourceText: sampleSource,
+        response: sampleResponse,
+        activeRange: undefined,
+        dictionaries,
+        sourceView: "linked",
+        outputView: "output",
+      };
     }),
-  loadSample: () => {
-    const dictionaries = emptyDictionaries();
-    dictionaries.names = { value: sampleDictionaryValues.names, touched: true };
-    dictionaries.pronouns = { value: sampleDictionaryValues.pronouns, touched: true };
-    set({
-      sourceText: sampleSource,
-      response: sampleResponse,
-      activeRange: undefined,
-      dictionaries,
-      sourceView: "linked",
-      outputView: "output",
-    });
-  },
 }));
 
 export function dictionaryPayload(

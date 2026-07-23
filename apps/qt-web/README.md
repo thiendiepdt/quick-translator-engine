@@ -9,7 +9,7 @@ hợp split workspace của direction B với typography/output reader của dir
 - Tailwind CSS v4 qua `@tailwindcss/vite`.
 - shadcn/ui dạng open-code trên Radix primitives.
 - React Hook Form + Zod cho endpoint và engine options.
-- TanStack Query cho health check và translate mutation.
+- TanStack Query cho health check, default dictionaries và translate mutation.
 - Zustand cho source, output, range selection và dictionary draft trong session.
 - Vitest cho UTF-16 range, API client và dictionary semantics.
 
@@ -84,8 +84,11 @@ npm run check
 
 - `mode` luôn là `vietphrase-one`.
 - `ranges` luôn là `true` để click đối chiếu hai chiều.
-- Dictionary chưa chỉnh không xuất hiện trong payload.
+- Web tải tám raw dictionary mặc định từ `GET /dictionaries/defaults`.
+- Textarea hiển thị bản QT2025; dictionary chưa chỉnh không xuất hiện trong payload.
+- Khi người dùng sửa hoặc thêm entry, web gửi toàn bộ nội dung file đã thay đổi.
 - Dictionary được đặt rỗng sẽ gửi chuỗi rỗng, đúng semantics “thay bằng tập rỗng”.
+- Khôi phục đúng bản QT2025 sẽ bỏ dictionary đó khỏi payload.
 - VietPhrase và ChinesePhienAmWords không xuất hiện trong form vì Lambda cố định hai bộ
   này.
 - Request timeout ở browser là 45 giây; Worker/Lambda vẫn giữ giới hạn riêng của hạ tầng.

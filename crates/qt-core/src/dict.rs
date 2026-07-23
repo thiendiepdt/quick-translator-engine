@@ -4,6 +4,60 @@ use crate::han_viet::HanVietMap;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
+/// Raw QT2025 contents for every dictionary that can be replaced per request.
+/// VietPhrase and ChinesePhienAmWords stay fixed and are intentionally not
+/// included here.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct DictionaryDefaults {
+    pub names: String,
+    pub names2: String,
+    pub luat_nhan: String,
+    pub pronouns: String,
+    pub danh_tu: String,
+    pub ho_nguoi: String,
+    pub hau_tu: String,
+    pub ignored_chinese_phrases: String,
+}
+
+impl DictionaryDefaults {
+    /// Load optional QT2025 dictionaries. Missing optional files preserve the
+    /// engine's historical behavior by becoming empty dictionaries.
+    pub fn load(data_dir: &std::path::Path) -> Self {
+        let read = |rel: &str| std::fs::read_to_string(data_dir.join(rel)).unwrap_or_default();
+        Self {
+            names: read("Names.txt"),
+            names2: read("Names2/123.txt"),
+            luat_nhan: read("LuatNhan.txt"),
+            pronouns: read("Resources/Pronouns.txt"),
+            danh_tu: read("Resources/DanhTu.txt"),
+            ho_nguoi: read("Resources/HoNguoi.txt"),
+            hau_tu: read("Resources/HauTu.txt"),
+            ignored_chinese_phrases: read("IgnoredChinesePhrases.txt"),
+        }
+    }
+
+    /// Build an engine dictionary set by combining these customizable defaults
+    /// with the two fixed dictionaries.
+    pub fn build_dictionaries(
+        &self,
+        chinese_phien_am_words: &str,
+        vietphrase: &str,
+    ) -> Dictionaries {
+        Dictionaries::build_full(
+            chinese_phien_am_words,
+            &self.names,
+            &self.names2,
+            vietphrase,
+            &self.pronouns,
+            &self.danh_tu,
+            &self.ho_nguoi,
+            &self.hau_tu,
+            &self.luat_nhan,
+            &self.ignored_chinese_phrases,
+        )
+    }
+}
+
 /// Raw contents for the dictionaries that callers may replace for one
 /// translation. `None` keeps the dictionary loaded with the engine; `Some("")`
 /// deliberately replaces it with an empty dictionary.
@@ -223,32 +277,24 @@ impl Dictionaries {
         dictionaries
     }
 
-    /// Load from a data directory using the standard QT filenames.
-    pub fn load(data_dir: &std::path::Path) -> std::io::Result<Dictionaries> {
+    /// Load from a data directory using the standard QT filenames, retaining
+    /// the raw customizable defaults for API clients that need to edit them.
+    pub fn load_with_defaults(
+        data_dir: &std::path::Path,
+    ) -> std::io::Result<(Dictionaries, DictionaryDefaults)> {
         let read =
             |rel: &str| -> std::io::Result<String> { std::fs::read_to_string(data_dir.join(rel)) };
         let han_viet = read("Resources/ChinesePhienAmWords.txt")?;
-        let names = read("Names.txt").unwrap_or_default();
-        let names2 = read("Names2/123.txt").unwrap_or_default();
         let vietphrase = read("VietPhrase/VietPhrase.txt")?;
-        let pronouns = read("Resources/Pronouns.txt").unwrap_or_default();
-        let danh_tu = read("Resources/DanhTu.txt").unwrap_or_default();
-        let ho_nguoi = read("Resources/HoNguoi.txt").unwrap_or_default();
-        let hau_tu = read("Resources/HauTu.txt").unwrap_or_default();
-        let luat_nhan = read("LuatNhan.txt").unwrap_or_default();
-        let ignored = read("IgnoredChinesePhrases.txt").unwrap_or_default();
-        Ok(Dictionaries::build_full(
-            &han_viet,
-            &names,
-            &names2,
-            &vietphrase,
-            &pronouns,
-            &danh_tu,
-            &ho_nguoi,
-            &hau_tu,
-            &luat_nhan,
-            &ignored,
-        ))
+        let defaults = DictionaryDefaults::load(data_dir);
+        let dictionaries = defaults.build_dictionaries(&han_viet, &vietphrase);
+        Ok((dictionaries, defaults))
+    }
+
+    /// Load parsed dictionaries only. CLI callers use this when they do not
+    /// need to expose the raw defaults.
+    pub fn load(data_dir: &std::path::Path) -> std::io::Result<Dictionaries> {
+        Self::load_with_defaults(data_dir).map(|(dictionaries, _)| dictionaries)
     }
 }
 
@@ -393,6 +439,43 @@ mod tests {
         assert_eq!(
             dictionaries.only_vietphrase.get("很好").map(String::as_str),
             Some("rất tốt")
+        );
+
+        let _ = std::fs::remove_dir_all(directory);
+    }
+
+    #[test]
+    fn loader_retains_raw_customizable_defaults() {
+        let unique = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let directory = std::env::temp_dir().join(format!("qt-core-default-dicts-{unique}"));
+        std::fs::create_dir_all(directory.join("Resources")).unwrap();
+        std::fs::create_dir_all(directory.join("VietPhrase")).unwrap();
+        std::fs::create_dir_all(directory.join("Names2")).unwrap();
+        std::fs::write(
+            directory.join("Resources/ChinesePhienAmWords.txt"),
+            "他=tha\n",
+        )
+        .unwrap();
+        std::fs::write(
+            directory.join("VietPhrase/VietPhrase.txt"),
+            "很好=rất tốt\n",
+        )
+        .unwrap();
+        std::fs::write(directory.join("Names.txt"), "萧炎=Tiêu Viêm\n").unwrap();
+        std::fs::write(directory.join("Names2/123.txt"), "药老=Dược Lão\n").unwrap();
+        std::fs::write(directory.join("Resources/Pronouns.txt"), "她=nàng\n").unwrap();
+
+        let (dictionaries, defaults) = Dictionaries::load_with_defaults(&directory).unwrap();
+        assert_eq!(defaults.names, "萧炎=Tiêu Viêm\n");
+        assert_eq!(defaults.names2, "药老=Dược Lão\n");
+        assert_eq!(defaults.pronouns, "她=nàng\n");
+        assert!(defaults.luat_nhan.is_empty());
+        assert_eq!(
+            dictionaries.only_name.get("药老").map(String::as_str),
+            Some("Dược Lão")
         );
 
         let _ = std::fs::remove_dir_all(directory);

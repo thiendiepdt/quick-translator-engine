@@ -14,8 +14,9 @@ async fn main() -> ExitCode {
         .and_then(|s| s.parse().ok())
         .unwrap_or(3000);
 
-    let dicts = match Dictionaries::load(Path::new(&data_dir)) {
-        Ok(d) => d,
+    let (dicts, dictionary_defaults) = match Dictionaries::load_with_defaults(Path::new(&data_dir))
+    {
+        Ok(loaded) => loaded,
         Err(e) => {
             eprintln!("error: failed to load dictionaries from {data_dir}: {e}");
             return ExitCode::FAILURE;
@@ -23,6 +24,7 @@ async fn main() -> ExitCode {
     };
     let state = Arc::new(AppState {
         engine: Arc::new(Engine::from_dicts(dicts)),
+        dictionary_defaults: Arc::new(dictionary_defaults),
     });
     let app = build_router(state);
 
