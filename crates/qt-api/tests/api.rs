@@ -5,7 +5,7 @@ use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
 use tower::ServiceExt; // for `oneshot`
 
-use qt_api::{build_router, AppState};
+use qt_api::{build_router, AppState, NameFilterServices};
 use qt_core::{Dictionaries, DictionaryDefaults, Engine};
 
 fn test_state() -> Arc<AppState> {
@@ -24,6 +24,7 @@ fn test_state() -> Arc<AppState> {
             pronouns: "他=hắn".to_string(),
             ..DictionaryDefaults::default()
         }),
+        name_filter_services: NameFilterServices::default(),
     })
 }
 
@@ -498,4 +499,95 @@ async fn modes_lists_supported() {
         body_string(resp).await,
         r#"{"modes":["hanviet","vietphrase","vietphrase-one"]}"#
     );
+}
+
+#[tokio::test]
+async fn filters_names_with_book_memory_and_utf16_ranges() {
+    let resp = post_json(
+        build_router(test_state()),
+        "/names/filter",
+        serde_json::json!({
+            "text": "😀张先生走来。",
+            "mode": "hybrid",
+            "knownNames": { "张先生": "Trương Tiên Sinh" }
+        }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body: serde_json::Value = serde_json::from_str(&body_string(resp).await).unwrap();
+    let candidate = body["candidates"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|candidate| candidate["text"] == "张先生")
+        .expect("known name candidate");
+    assert_eq!(candidate["suggested"], "Trương Tiên Sinh");
+    assert_eq!(candidate["known"], true);
+    assert_eq!(candidate["ranges"][0]["start"], 2);
+    assert_eq!(candidate["ranges"][0]["length"], 3);
+    assert_eq!(body["stats"]["scannedCharacters"], 7);
+    assert_eq!(body["capabilities"]["nerConfigured"], false);
+}
+
+#[tokio::test]
+async fn name_filter_suppresses_book_rejections() {
+    let resp = post_json(
+        build_router(test_state()),
+        "/names/filter",
+        serde_json::json!({
+            "text": "张先生走来。张先生走来。",
+            "rejectedNames": ["张先生"]
+        }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body: serde_json::Value = serde_json::from_str(&body_string(resp).await).unwrap();
+    assert!(body["candidates"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|candidate| candidate["text"] != "张先生"));
+}
+
+#[tokio::test]
+async fn name_filter_reports_unconfigured_optional_providers_without_failing() {
+    let resp = post_json(
+        build_router(test_state()),
+        "/names/filter",
+        serde_json::json!({
+            "text": "张先生走来。",
+            "ner": { "enabled": true },
+            "aiFallback": { "enabled": true }
+        }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body: serde_json::Value = serde_json::from_str(&body_string(resp).await).unwrap();
+    assert_eq!(body["warnings"].as_array().unwrap().len(), 2);
+}
+
+#[tokio::test]
+async fn name_filter_rejects_unknown_mode() {
+    let resp = post_json(
+        build_router(test_state()),
+        "/names/filter",
+        serde_json::json!({ "text": "张先生", "mode": "magic" }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    assert!(body_string(resp).await.contains("invalid name filter mode"));
+}
+
+#[tokio::test]
+async fn name_filter_rejects_out_of_range_options() {
+    let resp = post_json(
+        build_router(test_state()),
+        "/names/filter",
+        serde_json::json!({ "text": "张先生", "maxCandidates": 0 }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    assert!(body_string(resp)
+        .await
+        .contains("maxCandidates must be between 1 and 1000"));
 }

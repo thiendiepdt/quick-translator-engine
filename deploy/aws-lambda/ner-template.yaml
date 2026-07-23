@@ -1,0 +1,96 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Quick Translator dedicated name-filter API on AWS Lambda
+
+Parameters:
+  FunctionName:
+    Type: String
+    Default: quick-translator-ner
+  FunctionUrlAuthType:
+    Type: String
+    Default: AWS_IAM
+    AllowedValues:
+      - AWS_IAM
+      - NONE
+  FunctionArchitecture:
+    Type: String
+    Default: arm64
+    AllowedValues:
+      - arm64
+      - x86_64
+  FunctionMemorySize:
+    Type: Number
+    Default: 3008
+    MinValue: 1769
+    MaxValue: 10240
+  ReservedConcurrency:
+    Type: Number
+    Default: 10
+    MinValue: 1
+  NerLayerArn:
+    Type: String
+    Default: ""
+    Description: Optional Layer containing ner/ and lib/ at its root
+  NerModelPath:
+    Type: String
+    Default: ""
+  NerTokenizerPath:
+    Type: String
+    Default: ""
+  NerConfigPath:
+    Type: String
+    Default: ""
+  OrtDylibPath:
+    Type: String
+    Default: ""
+
+Conditions:
+  HasNerLayer: !Not [!Equals [!Ref NerLayerArn, ""]]
+
+Resources:
+  QuickTranslatorNerFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: rust-cargolambda
+      BuildProperties:
+        Binary: qt-ner-lambda
+    Properties:
+      FunctionName: !Ref FunctionName
+      Description: Dedicated hybrid and ONNX name-filter API
+      CodeUri: ../../
+      Handler: bootstrap
+      Runtime: provided.al2023
+      Architectures:
+        - !Ref FunctionArchitecture
+      MemorySize: !Ref FunctionMemorySize
+      Timeout: 60
+      ReservedConcurrentExecutions: !Ref ReservedConcurrency
+      Tracing: PassThrough
+      Layers: !If
+        - HasNerLayer
+        - - !Ref NerLayerArn
+        - !Ref AWS::NoValue
+      Environment:
+        Variables:
+          RUST_LOG: info
+          QT_NER_MODEL: !Ref NerModelPath
+          QT_NER_TOKENIZER: !Ref NerTokenizerPath
+          QT_NER_CONFIG: !Ref NerConfigPath
+          ORT_DYLIB_PATH: !Ref OrtDylibPath
+      FunctionUrlConfig:
+        AuthType: !Ref FunctionUrlAuthType
+        InvokeMode: BUFFERED
+
+  QuickTranslatorNerLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${FunctionName}
+      RetentionInDays: 14
+
+Outputs:
+  FunctionArn:
+    Description: Name-filter Lambda function ARN
+    Value: !GetAtt QuickTranslatorNerFunction.Arn
+  FunctionUrl:
+    Description: Name-filter Function URL
+    Value: !GetAtt QuickTranslatorNerFunctionUrl.FunctionUrl

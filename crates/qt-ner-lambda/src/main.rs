@@ -1,13 +1,11 @@
-//! Native AWS Lambda entrypoint for Quick Translator Engine.
+//! Native AWS Lambda entrypoint dedicated to name filtering.
 
 use std::sync::Arc;
 
 use lambda_http::{run, tracing, Error};
-use qt_api::{build_router, AppState, NameFilterServices};
-use qt_core::{DictionaryDefaults, Engine};
+use qt_core::DictionaryDefaults;
+use qt_ner_api::AppState;
 
-// Lambda embeds the same QT2025 defaults used by the CLI and HTTP server.
-// Request-scoped overrides are parsed separately and never mutate this state.
 const CHINESE_PHIEN_AM_WORDS: &str =
     include_str!("../../../QT2025/Resources/ChinesePhienAmWords.txt");
 const VIETPHRASE: &str = include_str!("../../../QT2025/VietPhrase/VietPhrase.txt");
@@ -34,48 +32,38 @@ fn dictionary_defaults() -> DictionaryDefaults {
 }
 
 fn build_state() -> Arc<AppState> {
-    let dictionary_defaults = dictionary_defaults();
-    let dictionaries = dictionary_defaults.build_dictionaries(CHINESE_PHIEN_AM_WORDS, VIETPHRASE);
-    Arc::new(AppState {
-        engine: Arc::new(Engine::from_dicts(dictionaries)),
-        dictionary_defaults: Arc::new(dictionary_defaults),
-        name_filter_services: NameFilterServices::from_env(),
-    })
+    let defaults = dictionary_defaults();
+    let dictionaries = defaults.build_dictionaries(CHINESE_PHIEN_AM_WORDS, VIETPHRASE);
+    qt_ner_api::build_state(dictionaries, defaults)
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     tracing::init_default_subscriber();
-    run(build_router(build_state())).await
+    run(qt_ner_api::build_router(build_state())).await
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use qt_core::{Mode, Options};
+    use qt_core::{NameFilterMemory, NameFilterOptions};
 
     #[test]
-    fn embeds_and_loads_all_default_dictionaries() {
+    fn embeds_defaults_for_name_filtering() {
         let state = build_state();
-        assert_eq!(
-            state
-                .engine
-                .translate("很好", Mode::VietPhraseOneMeaning, &Options::default()),
-            " rất tốt"
+        let result = state.engine.filter_names(
+            "来人名为萧炎。萧炎走来。",
+            &NameFilterOptions {
+                min_occurrences: 1,
+                ..NameFilterOptions::default()
+            },
+            &NameFilterMemory::default(),
+            None,
         );
-        assert_eq!(
-            state
-                .engine
-                .translate("他", Mode::HanViet, &Options::default()),
-            " tha"
-        );
-        assert_eq!(
-            state
-                .engine
-                .translate("青阳宗", Mode::VietPhraseOneMeaning, &Options::default()),
-            " Thanh Dương tông"
-        );
+        assert!(result
+            .candidates
+            .iter()
+            .any(|candidate| candidate.text == "萧炎"));
         assert!(state.dictionary_defaults.names.len() > 2_000_000);
-        assert!(state.dictionary_defaults.pronouns.contains("他=hắn"));
     }
 }

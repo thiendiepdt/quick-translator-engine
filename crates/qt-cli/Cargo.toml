@@ -10,3 +10,4 @@ path = "src/main.rs"
 
 [dependencies]
 qt-core = { path = "../qt-core" }
+serde_json = "1"

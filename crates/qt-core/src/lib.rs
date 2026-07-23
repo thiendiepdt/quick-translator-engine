@@ -3,12 +3,19 @@
 mod dict;
 mod han_viet;
 mod luat_nhan;
+mod name_filter;
 mod number;
 mod standardize;
 mod text;
 mod translate;
 
-pub use dict::{Dictionaries, DictionaryDefaults, DictionaryOverrides, DictionarySourceOverrides};
+pub use dict::{
+    parse_dict, Dictionaries, DictionaryDefaults, DictionaryOverrides, DictionarySourceOverrides,
+};
+pub use name_filter::{
+    NameCandidate, NameCandidateSource, NameEntityType, NameFilterMemory, NameFilterMode,
+    NameFilterOptions, NameFilterResult,
+};
 
 use dict::DictionaryLookup;
 

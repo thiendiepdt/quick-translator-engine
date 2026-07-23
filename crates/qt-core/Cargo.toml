@@ -6,5 +6,6 @@ license = "GPL-3.0-only"
 
 [dependencies]
 fancy-regex = "0.18.0"
+jieba-rs = "0.10.3"
 regex = "1.12.2"
 unicode-general-category = "1.1.0"

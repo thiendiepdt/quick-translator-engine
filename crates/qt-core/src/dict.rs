@@ -254,7 +254,7 @@ impl Dictionaries {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn build_full(
+    pub(crate) fn build_full(
         han_viet_src: &str,
         names_src: &str,
         names2_src: &str,

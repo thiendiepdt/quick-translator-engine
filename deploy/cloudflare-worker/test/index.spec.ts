@@ -104,6 +104,40 @@ describe("Cloudflare Lambda gateway", () => {
     expect(actual.headers.get("access-control-expose-headers")).toBe("x-request-id");
   });
 
+  it("signs and proxies name filtering requests", async () => {
+    const body = JSON.stringify({
+      text: "来人名为萧炎。",
+      mode: "hybrid",
+      ner: { enabled: true },
+      aiFallback: { enabled: true },
+    });
+    let upstreamRequest: Request | undefined;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: RequestInfo | URL) => {
+        upstreamRequest = input instanceof Request ? input : new Request(input);
+        return Response.json({ candidates: [] });
+      }),
+    );
+
+    const response = await invoke(
+      new Request("https://api.example.com/names/filter", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body,
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(upstreamRequest?.url).toBe(
+      "https://test-function.lambda-url.ap-southeast-1.on.aws/names/filter",
+    );
+    expect(upstreamRequest?.headers.get("authorization")).toContain(
+      "/ap-southeast-1/lambda/aws4_request",
+    );
+    expect(await upstreamRequest?.text()).toBe(body);
+  });
+
   it("proxies and browser-caches the editable dictionary defaults", async () => {
     let upstreamRequest: Request | undefined;
     vi.stubGlobal(

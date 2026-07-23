@@ -1,24 +1,24 @@
 [package]
-name = "qt-lambda"
+name = "qt-ner-lambda"
 version = "0.1.0"
 edition = "2021"
 license = "GPL-3.0-only"
 
 [features]
-default = []
-onnx = ["qt-api/onnx"]
+default = ["onnx"]
+onnx = ["qt-ner-api/onnx"]
 
 [[bin]]
-name = "qt-lambda"
+name = "qt-ner-lambda"
 path = "src/main.rs"
 
 [dependencies]
-qt-api = { path = "../qt-api" }
 qt-core = { path = "../qt-core" }
+qt-ner-api = { path = "../qt-ner-api", default-features = false }
 lambda_http = "1.3.0"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 
 [package.metadata.lambda.deploy]
-memory = 1769
-timeout = 30
+memory = 3008
+timeout = 60
 env = { "RUST_LOG" = "info" }

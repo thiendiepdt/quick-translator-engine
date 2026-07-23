@@ -8,13 +8,14 @@ Client -> Cloudflare Worker -> SigV4 -> Lambda Function URL (AWS_IAM)
 
 Worker giữ Lambda URL ở chế độ `AWS_IAM`, ký mỗi request bằng SigV4 và stream response
 trở lại client. Client không nhận AWS credentials và không thể bypass Worker để gọi trực
-tiếp Lambda. Worker chỉ proxy năm route:
+tiếp Lambda. Worker chỉ proxy sáu route:
 
 - `GET /health`
 - `GET /modes`
 - `GET /dictionaries/defaults`
 - `POST /translate`
 - `POST /translate/batch`
+- `POST /names/filter`
 
 Request body được đọc có giới hạn 5 MiB để tạo payload hash cho SigV4. Cookie và
 `Authorization` của client không được forward tới AWS. Response defaults được browser

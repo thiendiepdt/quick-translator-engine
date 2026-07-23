@@ -178,3 +178,60 @@ fn cli_rejects_invalid_engine_options() {
         "error: --translation-algorithm must be 0, 1, or 2\n"
     );
 }
+
+#[test]
+fn cli_filters_names_as_names2_or_json() {
+    let dir = std::env::temp_dir().join(format!("qtcli-names-test-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("Resources")).unwrap();
+    std::fs::create_dir_all(dir.join("VietPhrase")).unwrap();
+    std::fs::write(
+        dir.join("Resources/ChinesePhienAmWords.txt"),
+        "来=lai\n人=nhân\n名=danh\n为=vi\n萧=tiêu\n炎=viêm\n走=tẩu\n",
+    )
+    .unwrap();
+    std::fs::write(dir.join("Resources/HoNguoi.txt"), "萧=Tiêu\n").unwrap();
+    std::fs::write(dir.join("VietPhrase/VietPhrase.txt"), "").unwrap();
+
+    let run = |json: bool| {
+        let mut command = Command::new(env!("CARGO_BIN_EXE_qt"));
+        command.args([
+            "names",
+            "filter",
+            "--data-dir",
+            dir.to_str().unwrap(),
+            "--mode",
+            "hybrid",
+        ]);
+        if json {
+            command.arg("--json");
+        }
+        let mut child = command
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .spawn()
+            .unwrap();
+        child
+            .stdin
+            .take()
+            .unwrap()
+            .write_all("来人名为萧炎。萧炎走来。".as_bytes())
+            .unwrap();
+        child.wait_with_output().unwrap()
+    };
+
+    let text = run(false);
+    assert!(text.status.success());
+    assert!(String::from_utf8_lossy(&text.stdout).contains("萧炎=Tiêu Viêm"));
+
+    let json = run(true);
+    assert!(json.status.success());
+    let json: serde_json::Value = serde_json::from_slice(&json.stdout).unwrap();
+    assert!(json["candidates"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|candidate| candidate["text"] == "萧炎"));
+
+    let _ = std::fs::remove_dir_all(&dir);
+}

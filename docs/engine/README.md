@@ -14,6 +14,7 @@ trong `crates/qt-core` và có thể ghi rõ một contract mở rộng khi cầ
 5. [luat-nhan.md](luat-nhan.md) — luật văn phạm `{n}` / `{s}` / `{h}{t}`.
 6. [number-conversion.md](number-conversion.md) — số Hán → Việt (đơn vị, dải, thập phân).
 7. [meanings-lacviet.md](meanings-lacviet.md) — tra cứu nghĩa chi tiết (mode phụ).
+8. [name-filter.md](name-filter.md) — `LocNameQT`, hybrid rules, book memory, ONNX/AI.
 
 ## Quy ước
 
