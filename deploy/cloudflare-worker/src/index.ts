@@ -6,6 +6,7 @@ const ALLOWED_CORS_REQUEST_HEADERS = new Set(["accept", "content-type"]);
 const ALLOWED_ROUTES = new Map<string, ReadonlySet<string>>([
   ["/health", new Set(["GET"])],
   ["/modes", new Set(["GET"])],
+  ["/dictionaries/defaults", new Set(["GET"])],
   ["/translate", new Set(["POST"])],
   ["/translate/batch", new Set(["POST"])],
 ]);
@@ -233,7 +234,12 @@ async function proxyToLambda(
   });
 
   const headers = new Headers(upstream.headers);
-  headers.set("cache-control", "no-store");
+  headers.set(
+    "cache-control",
+    incoming.pathname === "/dictionaries/defaults" && upstream.ok
+      ? "public, max-age=3600"
+      : "no-store",
+  );
   headers.set("x-content-type-options", "nosniff");
   headers.set("x-request-id", requestId);
   return new Response(upstream.body, {

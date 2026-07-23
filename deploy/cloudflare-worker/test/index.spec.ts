@@ -104,6 +104,33 @@ describe("Cloudflare Lambda gateway", () => {
     expect(actual.headers.get("access-control-expose-headers")).toBe("x-request-id");
   });
 
+  it("proxies and browser-caches the editable dictionary defaults", async () => {
+    let upstreamRequest: Request | undefined;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: RequestInfo | URL) => {
+        upstreamRequest = input instanceof Request ? input : new Request(input);
+        return Response.json({ names: "萧炎=Tiêu Viêm", names2: "" });
+      }),
+    );
+
+    const response = await invoke(
+      new Request("https://api.example.com/dictionaries/defaults", {
+        headers: { origin: "http://localhost:5173" },
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("public, max-age=3600");
+    expect(response.headers.get("access-control-allow-origin")).toBe(
+      "http://localhost:5173",
+    );
+    expect(upstreamRequest?.url).toBe(
+      "https://test-function.lambda-url.ap-southeast-1.on.aws/dictionaries/defaults",
+    );
+    expect(upstreamRequest?.method).toBe("GET");
+  });
+
   it("rejects browser origins outside the configured allowlist", async () => {
     const upstreamFetch = vi.fn(() => new Response("unexpected"));
     vi.stubGlobal("fetch", upstreamFetch);
@@ -135,6 +162,16 @@ describe("Cloudflare Lambda gateway", () => {
     );
     expect(wrongMethod.status).toBe(405);
     expect(wrongMethod.headers.get("allow")).toBe("POST");
+
+    const defaultsWrongMethod = await invoke(
+      new Request("https://api.example.com/dictionaries/defaults", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{}",
+      }),
+    );
+    expect(defaultsWrongMethod.status).toBe(405);
+    expect(defaultsWrongMethod.headers.get("allow")).toBe("GET");
     expect(upstreamFetch).not.toHaveBeenCalled();
   });
 

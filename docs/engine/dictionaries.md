@@ -121,7 +121,8 @@ Chỉ hai file bắt buộc và bất biến trong một engine instance:
 
 Các file `Names`, `Names2`, `LuatNhan`, `Pronouns`, `DanhTu`, `HoNguoi`, `HauTu` và
 `IgnoredChinesePhrases` là optional. CLI nhận path qua các option `--*-file`; HTTP API nhận
-nguyên nội dung UTF-8 qua object `dictionaries`.
+nguyên nội dung UTF-8 qua object `dictionaries`. API giữ raw default đã nạp và trả chúng
+qua `GET /dictionaries/defaults` để web có thể sửa trực tiếp.
 
 Mỗi file có semantics thay thế độc lập:
 

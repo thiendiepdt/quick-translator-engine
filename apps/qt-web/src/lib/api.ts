@@ -1,5 +1,14 @@
-import { healthResponseSchema, translationResponseSchema } from "@/lib/schema";
-import type { HealthResponse, TranslationRequest, TranslationResponse } from "@/lib/types";
+import {
+  dictionaryDefaultsSchema,
+  healthResponseSchema,
+  translationResponseSchema,
+} from "@/lib/schema";
+import type {
+  DictionaryDefaults,
+  HealthResponse,
+  TranslationRequest,
+  TranslationResponse,
+} from "@/lib/types";
 
 const REQUEST_TIMEOUT_MS = 45_000;
 
@@ -85,5 +94,13 @@ export function checkHealth(endpoint: string): Promise<HealthResponse> {
     endpointUrl(endpoint, "/health"),
     { method: "GET" },
     (value) => healthResponseSchema.parse(value),
+  );
+}
+
+export function fetchDictionaryDefaults(endpoint: string): Promise<DictionaryDefaults> {
+  return requestJson(
+    endpointUrl(endpoint, "/dictionaries/defaults"),
+    { method: "GET" },
+    (value) => dictionaryDefaultsSchema.parse(value),
   );
 }

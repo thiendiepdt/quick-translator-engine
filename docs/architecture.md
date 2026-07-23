@@ -6,7 +6,7 @@ toán gốc nằm trong [engine/](engine/README.md); HTTP contract nằm trong [
 ## Mục tiêu thiết kế
 
 - Tái hiện hành vi dịch của Quick Translator/QT2025 bằng Rust.
-- Giữ engine độc lập với transport để dùng chung cho CLI, server và UI tương lai.
+- Giữ engine độc lập với transport để dùng chung cho CLI, server, Lambda và web.
 - Nạp VietPhrase/Hán Việt một lần; áp dụng dictionary phụ theo request mà không mutate
   state dùng chung.
 - Giữ source ↔ target ranges theo UTF-16 cho JavaScript/.NET consumers.
@@ -16,6 +16,8 @@ toán gốc nằm trong [engine/](engine/README.md); HTTP contract nằm trong [
 
 ```text
 quick-translator-engine/
+├── apps/
+│   └── qt-web/    # React web client
 ├── crates/
 │   ├── qt-core/   # thư viện dịch đồng bộ
 │   ├── qt-cli/    # binary qt, stdin -> stdout
@@ -68,12 +70,13 @@ ghi vào `stderr` và trả exit code khác 0. CLI không chứa thuật toán d
 
 ### `qt-api`
 
-Server nạp một `Engine` lúc khởi động và chia sẻ qua `Arc`. Nội dung dictionary custom
-được parse thành state riêng cho request. Mỗi lần dịch chạy trong
+Server nạp một `Engine` và giữ raw customizable defaults lúc khởi động. Nội dung
+dictionary custom được parse thành state riêng cho request. Mỗi lần dịch chạy trong
 `tokio::task::spawn_blocking` vì engine là code đồng bộ, CPU-bound. Router cung cấp:
 
 - `GET /health`
 - `GET /modes`
+- `GET /dictionaries/defaults`
 - `POST /translate`
 - `POST /translate/batch`
 
@@ -82,11 +85,11 @@ request. Xem schema tại [api.md](api.md).
 
 ### `qt-lambda`
 
-Lambda binary dùng `lambda_http` để chạy lại nguyên Axum router của `qt-api`. Hai
-dictionary cố định được nhúng vào executable bằng `include_str!`, vì vậy execution
-environment không cần filesystem dữ liệu hay bước download lúc cold start. Các dictionary
-phụ vẫn được parse riêng theo từng request và không làm thay đổi state dùng chung của warm
-instance.
+Lambda binary dùng `lambda_http` để chạy lại nguyên Axum router của `qt-api`. Toàn bộ
+dictionary mặc định QT2025 được nhúng vào executable bằng `include_str!`, vì vậy execution
+environment không cần filesystem dữ liệu hay bước download lúc cold start. Tám raw
+dictionary được phép tùy biến được giữ để web tải về; bản custom vẫn được parse riêng theo
+từng request và không làm thay đổi state dùng chung của warm instance.
 
 SAM template deploy runtime `provided.al2023` trên ARM64, tạo Function URL mặc định dùng
 `AWS_IAM` và giới hạn concurrency. Xem [hướng dẫn deploy](../deploy/aws-lambda/README.md).

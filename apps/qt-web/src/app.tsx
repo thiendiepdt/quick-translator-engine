@@ -9,7 +9,7 @@ import {
   Server,
   Settings2,
 } from "lucide-react";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -36,7 +36,11 @@ import {
 } from "@/lib/schema";
 import type { TranslationRequest } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { useHealthQuery, useTranslationMutation } from "@/hooks/use-translation";
+import {
+  useDictionaryDefaultsQuery,
+  useHealthQuery,
+  useTranslationMutation,
+} from "@/hooks/use-translation";
 import { dictionaryPayload, useWorkspaceStore } from "@/store/workspace";
 
 const defaultEndpoint = import.meta.env.VITE_QT_API_URL?.trim() || "/api";
@@ -50,6 +54,15 @@ const TranslationWorkspace = lazy(() =>
     default: module.TranslationWorkspace,
   })),
 );
+
+function useDebouncedValue(value: string, delayMs: number): string {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setDebounced(value), delayMs);
+    return () => window.clearTimeout(timeout);
+  }, [delayMs, value]);
+  return debounced;
+}
 
 function InspectorFallback() {
   return (
@@ -111,6 +124,12 @@ export default function App() {
   const sourceText = useWorkspaceStore((state) => state.sourceText);
   const response = useWorkspaceStore((state) => state.response);
   const dictionaries = useWorkspaceStore((state) => state.dictionaries);
+  const dictionaryDefaultsEndpoint = useWorkspaceStore(
+    (state) => state.dictionaryDefaultsEndpoint,
+  );
+  const hydrateDictionaryDefaults = useWorkspaceStore(
+    (state) => state.hydrateDictionaryDefaults,
+  );
   const setResponse = useWorkspaceStore((state) => state.setResponse);
   const mobileInspectorOpen = useWorkspaceStore((state) => state.mobileInspectorOpen);
   const setMobileInspectorOpen = useWorkspaceStore((state) => state.setMobileInspectorOpen);
@@ -127,12 +146,35 @@ export default function App() {
     },
   });
   const endpoint = useWatch({ control: form.control, name: "endpoint" }) ?? defaultEndpoint;
+  const normalizedEndpoint = endpoint.trim();
+  const dictionaryEndpoint = useDebouncedValue(normalizedEndpoint, 400);
   const translation = useTranslationMutation();
   const health = useHealthQuery(endpoint);
+  const dictionaryDefaults = useDictionaryDefaultsQuery(dictionaryEndpoint);
+
+  useEffect(() => {
+    if (dictionaryDefaults.data) {
+      hydrateDictionaryDefaults(dictionaryEndpoint, dictionaryDefaults.data);
+    }
+  }, [dictionaryDefaults.data, dictionaryEndpoint, hydrateDictionaryDefaults]);
+
+  const dictionaryDefaultsReady =
+    dictionaryEndpoint === normalizedEndpoint &&
+    dictionaryDefaultsEndpoint === normalizedEndpoint &&
+    dictionaryDefaults.isSuccess;
+  const dictionaryDefaultsStatus = dictionaryDefaultsReady
+    ? "ready"
+    : dictionaryDefaults.isError && dictionaryEndpoint === normalizedEndpoint
+      ? "error"
+      : "loading";
 
   async function submit(values: ParsedTranslationOptions) {
     if (!sourceText.trim()) {
       toast.error("Dán nguyên văn tiếng Trung trước khi dịch");
+      return;
+    }
+    if (dictionaryDefaultsEndpoint !== values.endpoint || !dictionaryDefaults.isSuccess) {
+      toast.error("Chưa tải xong từ điển mặc định từ engine");
       return;
     }
 
@@ -169,15 +211,19 @@ export default function App() {
     else toast.error(result.error instanceof Error ? result.error.message : "Không kết nối được gateway");
   }
 
-  const requestStatus = translation.isPending
-    ? "Đang gọi Cloudflare gateway → Lambda"
-    : translation.isError
-      ? `Lỗi: ${translation.error.message}`
-      : response && translation.isSuccess
-        ? `Hoàn tất · ${response.sourceRanges?.length ?? 0} cặp range`
-        : response
-          ? "Văn bản mẫu · chưa gọi API"
-          : "Sẵn sàng dịch một chương";
+  const requestStatus = !dictionaryDefaultsReady
+    ? dictionaryDefaultsStatus === "error"
+      ? "Không tải được từ điển mặc định"
+      : "Đang tải từ điển mặc định QT2025"
+    : translation.isPending
+      ? "Đang gọi Cloudflare gateway → Lambda"
+      : translation.isError
+        ? `Lỗi: ${translation.error.message}`
+        : response && translation.isSuccess
+          ? `Hoàn tất · ${response.sourceRanges?.length ?? 0} cặp range`
+          : response
+            ? "Văn bản mẫu · chưa gọi API"
+            : "Sẵn sàng dịch một chương";
 
   const endpointError = form.formState.errors.endpoint?.message;
 
@@ -220,8 +266,8 @@ export default function App() {
 
           <div className="flex h-full items-center justify-end gap-1 pr-3">
             <Button type="button" variant="ghost" size="icon" className="xl:hidden" aria-label="Mở cấu hình" onClick={() => setMobileInspectorOpen(true)}><Settings2 /></Button>
-            <Button type="submit" className="h-10 px-4" disabled={translation.isPending}>
-              {translation.isPending ? <LoaderCircle className="animate-spin" /> : <Send />}
+            <Button type="submit" className="h-10 px-4" disabled={translation.isPending || !dictionaryDefaultsReady}>
+              {translation.isPending || dictionaryDefaultsStatus === "loading" ? <LoaderCircle className="animate-spin" /> : <Send />}
               <span className="hidden sm:inline">Dịch chương</span>
             </Button>
           </div>
@@ -233,7 +279,13 @@ export default function App() {
             <TranslationWorkspace isPending={translation.isPending} requestStatus={requestStatus} />
           </Suspense>
           <aside className="hidden min-h-0 border-l xl:block" aria-label="Cấu hình request">
-            <Suspense fallback={<InspectorFallback />}><DictionaryInspector /></Suspense>
+            <Suspense fallback={<InspectorFallback />}>
+              <DictionaryInspector
+                defaultsStatus={dictionaryDefaultsStatus}
+                defaultsError={dictionaryDefaults.error?.message}
+                onRetry={() => void dictionaryDefaults.refetch()}
+              />
+            </Suspense>
           </aside>
         </div>
 
@@ -243,7 +295,14 @@ export default function App() {
               <SheetTitle>Cấu hình request</SheetTitle>
               <SheetDescription>Tùy chỉnh từ điển và engine.</SheetDescription>
             </SheetHeader>
-            <Suspense fallback={<InspectorFallback />}><DictionaryInspector mobile /></Suspense>
+            <Suspense fallback={<InspectorFallback />}>
+              <DictionaryInspector
+                mobile
+                defaultsStatus={dictionaryDefaultsStatus}
+                defaultsError={dictionaryDefaults.error?.message}
+                onRetry={() => void dictionaryDefaults.refetch()}
+              />
+            </Suspense>
           </SheetContent>
         </Sheet>
       </form>

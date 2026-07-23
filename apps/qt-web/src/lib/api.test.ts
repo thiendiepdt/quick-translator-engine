@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { translateChapter } from "@/lib/api";
+import { fetchDictionaryDefaults, translateChapter } from "@/lib/api";
 import type { TranslationRequest } from "@/lib/types";
 
 const request: TranslationRequest = {
@@ -59,6 +59,27 @@ describe("translation API client", () => {
         status: 400,
         requestId: "request-123",
       }),
+    );
+  });
+
+  it("loads and validates editable default dictionaries", async () => {
+    const defaults = {
+      names: "萧炎=Tiêu Viêm",
+      names2: "",
+      luatNhan: "",
+      pronouns: "她=nàng",
+      danhTu: "",
+      hoNguoi: "",
+      hauTu: "",
+      ignoredChinesePhrases: "本章完",
+    };
+    const fetchMock = vi.fn(() => Promise.resolve(Response.json(defaults)));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(fetchDictionaryDefaults("/api")).resolves.toEqual(defaults);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/dictionaries/defaults",
+      expect.objectContaining({ method: "GET" }),
     );
   });
 });

@@ -1,14 +1,16 @@
 # Deploy lên AWS Lambda
 
 Lambda dùng native Rust runtime và trực tiếp chạy Axum router của `qt-api`. Artifact nhúng
-hai dictionary cố định:
+toàn bộ dictionary mặc định từ `QT2025`, gồm hai dictionary cố định:
 
 - `QT2025/VietPhrase/VietPhrase.txt`
 - `QT2025/Resources/ChinesePhienAmWords.txt`
 
-Các dictionary còn lại mặc định rỗng và được truyền theo field `dictionaries` của từng
-request. Vì dữ liệu cố định dùng `include_str!`, thay VietPhrase/Hán Việt cần build và
-deploy một version Lambda mới.
+Names, Names2, Luật Nhân, Pronouns, Danh Từ, Họ Người, Hậu Từ và Ignored Chinese Phrases
+cũng được nhúng làm default. Client có thể tải raw content qua `GET
+/dictionaries/defaults` và thay từng file bằng field `dictionaries` của request. Vì dữ
+liệu dùng `include_str!`, thay bất kỳ default nào cũng cần build và deploy version Lambda
+mới.
 
 ## Cấu hình mặc định
 
@@ -127,7 +129,8 @@ sung `dictionaryId` cùng storage/cache thay vì gửi và parse lại ở mọi
 
 ## Lưu ý về dữ liệu nhúng
 
-Artifact Lambda chứa nguyên VietPhrase và ChinesePhienAmWords từ `QT2025/`. Quyền phân
-phối các dữ liệu tham chiếu này tách biệt với license GPL-3.0-only của code Rust. Trước
-khi cung cấp artifact hoặc service công khai, cần kiểm tra quyền sử dụng và phân phối;
-xem [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md).
+Artifact Lambda chứa nguyên các dictionary mặc định từ `QT2025/`; endpoint defaults còn
+phân phối raw content của tám file tùy biến tới web client. Quyền phân phối các dữ liệu
+tham chiếu này tách biệt với license GPL-3.0-only của code Rust. Trước khi cung cấp
+artifact hoặc service công khai, cần kiểm tra quyền sử dụng và phân phối; xem
+[THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md).

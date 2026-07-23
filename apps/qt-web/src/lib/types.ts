@@ -10,6 +10,7 @@ export const dictionaryKeys = [
 ] as const;
 
 export type DictionaryKey = (typeof dictionaryKeys)[number];
+export type DictionaryDefaults = Record<DictionaryKey, string>;
 
 export interface DictionaryDefinition {
   key: DictionaryKey;

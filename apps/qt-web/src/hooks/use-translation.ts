@@ -1,6 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 
-import { checkHealth, translateChapter } from "@/lib/api";
+import { checkHealth, fetchDictionaryDefaults, translateChapter } from "@/lib/api";
+import { endpointSchema } from "@/lib/schema";
 import type { TranslationRequest } from "@/lib/types";
 
 export function useTranslationMutation() {
@@ -19,5 +20,16 @@ export function useHealthQuery(endpoint: string) {
     enabled: false,
     retry: false,
     staleTime: 30_000,
+  });
+}
+
+export function useDictionaryDefaultsQuery(endpoint: string) {
+  const normalizedEndpoint = endpoint.trim();
+  return useQuery({
+    queryKey: ["dictionary-defaults", normalizedEndpoint],
+    queryFn: () => fetchDictionaryDefaults(normalizedEndpoint),
+    enabled: endpointSchema.safeParse(normalizedEndpoint).success,
+    retry: false,
+    staleTime: Number.POSITIVE_INFINITY,
   });
 }

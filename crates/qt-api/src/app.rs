@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use axum::extract::{DefaultBodyLimit, State};
-use axum::http::StatusCode;
+use axum::http::{header, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
@@ -11,8 +11,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use qt_core::{
-    CharRange, DictionaryOverrides, DictionarySourceOverrides, Engine, Mode, Options,
-    TranslationResult,
+    CharRange, DictionaryDefaults, DictionaryOverrides, DictionarySourceOverrides, Engine, Mode,
+    Options, TranslationResult,
 };
 
 const MAX_REQUEST_SCAN_RANGE: usize = 100;
@@ -21,6 +21,7 @@ const MAX_REQUEST_BODY_BYTES: usize = 5 * 1024 * 1024;
 /// Shared, read-only application state: the loaded engine behind an Arc.
 pub struct AppState {
     pub engine: Arc<Engine>,
+    pub dictionary_defaults: Arc<DictionaryDefaults>,
 }
 
 /// Build the router from shared state. Kept separate from socket binding so
@@ -29,6 +30,7 @@ pub fn build_router(state: Arc<AppState>) -> Router {
     Router::new()
         .route("/health", get(health))
         .route("/modes", get(modes))
+        .route("/dictionaries/defaults", get(dictionary_defaults))
         .route("/translate", post(translate))
         .route("/translate/batch", post(translate_batch))
         .with_state(state)
@@ -37,6 +39,38 @@ pub fn build_router(state: Arc<AppState>) -> Router {
 
 async fn health() -> Json<serde_json::Value> {
     Json(json!({ "status": "ok" }))
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DictionaryDefaultsResp<'a> {
+    names: &'a str,
+    names2: &'a str,
+    luat_nhan: &'a str,
+    pronouns: &'a str,
+    danh_tu: &'a str,
+    ho_nguoi: &'a str,
+    hau_tu: &'a str,
+    ignored_chinese_phrases: &'a str,
+}
+
+async fn dictionary_defaults(State(state): State<Arc<AppState>>) -> Response {
+    let defaults = state.dictionary_defaults.as_ref();
+    let body = DictionaryDefaultsResp {
+        names: &defaults.names,
+        names2: &defaults.names2,
+        luat_nhan: &defaults.luat_nhan,
+        pronouns: &defaults.pronouns,
+        danh_tu: &defaults.danh_tu,
+        ho_nguoi: &defaults.ho_nguoi,
+        hau_tu: &defaults.hau_tu,
+        ignored_chinese_phrases: &defaults.ignored_chinese_phrases,
+    };
+    (
+        [(header::CACHE_CONTROL, "public, max-age=3600")],
+        Json(body),
+    )
+        .into_response()
 }
 
 #[derive(Deserialize)]

@@ -1,13 +1,37 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
+import type { DictionaryDefaults } from "@/lib/types";
 import { dictionaryPayload, useWorkspaceStore } from "@/store/workspace";
 
+const emptyDefaults: DictionaryDefaults = {
+  names: "",
+  names2: "",
+  luatNhan: "",
+  pronouns: "",
+  danhTu: "",
+  hoNguoi: "",
+  hauTu: "",
+  ignoredChinesePhrases: "",
+};
+
+let endpointIndex = 0;
+
 beforeEach(() => {
+  endpointIndex += 1;
+  useWorkspaceStore
+    .getState()
+    .hydrateDictionaryDefaults(`/test-${endpointIndex}`, emptyDefaults);
   useWorkspaceStore.getState().clearWorkspace();
 });
 
 describe("workspace dictionary semantics", () => {
-  it("omits untouched dictionaries and preserves an explicit empty override", () => {
+  it("loads defaults, sends only changed files, and restores the engine version", () => {
+    useWorkspaceStore.getState().hydrateDictionaryDefaults("/engine", {
+      ...emptyDefaults,
+      names: "萧炎=Tiêu Viêm\n药老=Dược Lão",
+    });
+
+    expect(useWorkspaceStore.getState().dictionaries.names.value).toContain("Tiêu Viêm");
     expect(dictionaryPayload(useWorkspaceStore.getState().dictionaries)).toBeUndefined();
 
     useWorkspaceStore.getState().setDictionaryValue("names", "");
@@ -15,6 +39,14 @@ describe("workspace dictionary semantics", () => {
 
     useWorkspaceStore.getState().resetDictionary("names");
     expect(dictionaryPayload(useWorkspaceStore.getState().dictionaries)).toBeUndefined();
+    expect(useWorkspaceStore.getState().dictionaries.names.value).toContain("Dược Lão");
+
+    useWorkspaceStore
+      .getState()
+      .setDictionaryValue("names", "萧炎=Tiêu Viêm bản sửa");
+    expect(dictionaryPayload(useWorkspaceStore.getState().dictionaries)).toEqual({
+      names: "萧炎=Tiêu Viêm bản sửa",
+    });
   });
 
   it("loads a fully mapped sample without persisting it", () => {

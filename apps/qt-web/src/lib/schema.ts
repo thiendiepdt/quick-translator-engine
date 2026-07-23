@@ -1,8 +1,8 @@
 import { z } from "zod";
 
-import { dictionaryKeys } from "@/lib/types";
+import { dictionaryKeys, type DictionaryDefaults } from "@/lib/types";
 
-const endpointSchema = z.string().trim().min(1, "Nhập URL Cloudflare Worker").refine(
+export const endpointSchema = z.string().trim().min(1, "Nhập URL Cloudflare Worker").refine(
   (value) => {
     if (value.startsWith("/")) return true;
     try {
@@ -44,6 +44,17 @@ export const translationResponseSchema = z
   );
 
 export const healthResponseSchema = z.object({ status: z.literal("ok") });
+
+export const dictionaryDefaultsSchema: z.ZodType<DictionaryDefaults> = z.object({
+  names: z.string(),
+  names2: z.string(),
+  luatNhan: z.string(),
+  pronouns: z.string(),
+  danhTu: z.string(),
+  hoNguoi: z.string(),
+  hauTu: z.string(),
+  ignoredChinesePhrases: z.string(),
+});
 
 export const dictionaryPayloadSchema = z.object(
   Object.fromEntries(dictionaryKeys.map((key) => [key, z.string().optional()])),

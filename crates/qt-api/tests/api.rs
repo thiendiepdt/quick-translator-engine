@@ -6,7 +6,7 @@ use http_body_util::BodyExt;
 use tower::ServiceExt; // for `oneshot`
 
 use qt_api::{build_router, AppState};
-use qt_core::{Dictionaries, Engine};
+use qt_core::{Dictionaries, DictionaryDefaults, Engine};
 
 fn test_state() -> Arc<AppState> {
     // Tiny engine: enough for routing/handler tests.
@@ -18,6 +18,12 @@ fn test_state() -> Arc<AppState> {
     );
     Arc::new(AppState {
         engine: Arc::new(Engine::from_dicts(d)),
+        dictionary_defaults: Arc::new(DictionaryDefaults {
+            names: "丁格尔斯泰特=Dingelstedt\n中人=trung nhân".to_string(),
+            names2: "红中人=Hồng Trung Nhân".to_string(),
+            pronouns: "他=hắn".to_string(),
+            ..DictionaryDefaults::default()
+        }),
     })
 }
 
@@ -57,6 +63,40 @@ async fn health_ok() {
         .unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
     assert_eq!(body_string(resp).await, r#"{"status":"ok"}"#);
+}
+
+#[tokio::test]
+async fn dictionary_defaults_returns_raw_customizable_files_only() {
+    let resp = build_router(test_state())
+        .oneshot(
+            Request::builder()
+                .uri("/dictionaries/defaults")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(
+        resp.headers().get("cache-control").unwrap(),
+        "public, max-age=3600"
+    );
+    let body: serde_json::Value = serde_json::from_str(&body_string(resp).await).unwrap();
+    assert_eq!(
+        body,
+        serde_json::json!({
+            "names": "丁格尔斯泰特=Dingelstedt\n中人=trung nhân",
+            "names2": "红中人=Hồng Trung Nhân",
+            "luatNhan": "",
+            "pronouns": "他=hắn",
+            "danhTu": "",
+            "hoNguoi": "",
+            "hauTu": "",
+            "ignoredChinesePhrases": ""
+        })
+    );
+    assert!(body.get("vietphrase").is_none());
+    assert!(body.get("chinesePhienAmWords").is_none());
 }
 
 #[tokio::test]

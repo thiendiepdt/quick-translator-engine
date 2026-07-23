@@ -8,7 +8,7 @@ mod standardize;
 mod text;
 mod translate;
 
-pub use dict::{Dictionaries, DictionaryOverrides, DictionarySourceOverrides};
+pub use dict::{Dictionaries, DictionaryDefaults, DictionaryOverrides, DictionarySourceOverrides};
 
 use dict::DictionaryLookup;
 
