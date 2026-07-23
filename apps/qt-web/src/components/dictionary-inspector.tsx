@@ -1,13 +1,22 @@
-import { AlertCircle, FileUp, LoaderCircle, RotateCcw, Trash2 } from "lucide-react";
-import { useRef } from "react";
+import {
+  AlertCircle,
+  FileUp,
+  LoaderCircle,
+  Maximize2,
+  PencilLine,
+  RotateCcw,
+  Trash2,
+} from "lucide-react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { DictionaryEditorDialog } from "@/components/dictionary-editor-dialog";
 import { EngineOptions } from "@/components/engine-options";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
+import { getDictionaryDocumentStats } from "@/lib/dictionary-document";
 import { dictionaryDefinitions } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useWorkspaceStore } from "@/store/workspace";
@@ -33,10 +42,15 @@ export function DictionaryInspector({
   const setDictionaryValue = useWorkspaceStore((state) => state.setDictionaryValue);
   const resetDictionary = useWorkspaceStore((state) => state.resetDictionary);
   const fileInput = useRef<HTMLInputElement>(null);
+  const [editorOpen, setEditorOpen] = useState(false);
 
   const definition = dictionaryDefinitions.find(({ key }) => key === activeDictionary);
-  if (!definition) return null;
   const activeDraft = dictionaries[activeDictionary];
+  const dictionaryStats = useMemo(
+    () => getDictionaryDocumentStats(activeDraft.value, activeDictionary),
+    [activeDictionary, activeDraft.value],
+  );
+  if (!definition) return null;
   const touchedCount = Object.values(dictionaries).filter(({ touched }) => touched).length;
   const defaultsReady = defaultsStatus === "ready";
 
@@ -115,17 +129,30 @@ export function DictionaryInspector({
                 <p className="mt-0.5 text-[10px] leading-4 text-muted-foreground">{definition.description}</p>
               </div>
               <span className="shrink-0 text-right font-mono text-[9px] text-muted-foreground">
-                {definition.filename}<br />{activeDraft.value.length.toLocaleString("vi-VN")} ký tự
+                {definition.filename}<br />
+                {dictionaryStats.recordCount.toLocaleString("vi-VN")} records
+                {dictionaryStats.rawCount > 0
+                  ? ` · ${dictionaryStats.rawCount.toLocaleString("vi-VN")} raw`
+                  : ""}
               </span>
             </div>
-            <Textarea
-              aria-label={`Nội dung ${definition.label}`}
-              value={activeDraft.value}
-              onChange={(event) => setDictionaryValue(activeDictionary, event.target.value)}
+            <button
+              type="button"
               disabled={!defaultsReady}
-              placeholder={defaultsStatus === "loading" ? "Đang tải bản mặc định QT2025…" : "Mỗi dòng theo định dạng của file QT tương ứng…"}
-              className="h-32 resize-none bg-background font-mono text-[11px] leading-5"
-            />
+              className="group flex w-full items-center gap-3 rounded-lg border bg-background p-3 text-left transition-colors hover:border-primary/35 hover:bg-primary/5 disabled:pointer-events-none disabled:opacity-55"
+              onClick={() => setEditorOpen(true)}
+            >
+              <span className="grid size-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
+                <PencilLine className="size-4" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-xs font-semibold">Mở trình chỉnh sửa records</span>
+                <span className="mt-0.5 block text-[10px] leading-4 text-muted-foreground">
+                  Search, phân trang, sửa inline, thêm và xóa record.
+                </span>
+              </span>
+              <Maximize2 className="size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
+            </button>
             <div className="mt-2 flex flex-wrap items-center gap-1">
               <Button type="button" variant="ghost" size="xs" disabled={!defaultsReady} onClick={() => fileInput.current?.click()}>
                 <FileUp /> Nạp .txt
@@ -158,6 +185,14 @@ export function DictionaryInspector({
         {defaultsStatus === "loading" ? <LoaderCircle className="mr-1 inline size-3 animate-spin" /> : null}
         <strong className="text-foreground/75">Cố định:</strong> VietPhrase.txt và ChinesePhienAmWords.txt được nhúng trong Lambda, không thể ghi đè từ web.
       </div>
+
+      <DictionaryEditorDialog
+        open={editorOpen}
+        onOpenChange={setEditorOpen}
+        definition={definition}
+        value={activeDraft.value}
+        onSave={(content) => setDictionaryValue(activeDictionary, content)}
+      />
     </div>
   );
 }

@@ -85,7 +85,11 @@ npm run check
 - `mode` luôn là `vietphrase-one`.
 - `ranges` luôn là `true` để click đối chiếu hai chiều.
 - Web tải tám raw dictionary mặc định từ `GET /dictionaries/defaults`.
-- Textarea hiển thị bản QT2025; dictionary chưa chỉnh không xuất hiện trong payload.
+- Sidebar chỉ chọn và hiển thị tóm tắt dictionary để không render file lớn khi đổi tab.
+- Dialog editor hiển thị records theo trang 100 dòng, hỗ trợ search key/value, sửa inline,
+  thêm và xóa record.
+- Editor bảo toàn BOM, kiểu xuống dòng, dòng raw/comment và trailing newline khi lưu.
+- Dictionary chưa chỉnh không xuất hiện trong payload.
 - Khi người dùng sửa hoặc thêm entry, web gửi toàn bộ nội dung file đã thay đổi.
 - Dictionary được đặt rỗng sẽ gửi chuỗi rỗng, đúng semantics “thay bằng tập rỗng”.
 - Khôi phục đúng bản QT2025 sẽ bỏ dictionary đó khỏi payload.
