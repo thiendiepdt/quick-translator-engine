@@ -105,8 +105,8 @@ Trong `LoadDictionaries` (song song hoá bằng `Task.WhenAll`, nhưng thứ t�
 
 ## 7. Ghi chú triển khai Rust
 
-- VietPhrase và ChinesePhienAmWords dùng `HashMap<String, String>` cố định, được nạp một
-  lần khi khởi động process.
+- VietPhrase và ChinesePhienAmWords có base cố định, được nạp một lần khi khởi động
+  process. Request có thể cung cấp một map patch nhỏ đặt trước base trong lookup.
 - Server giữ `Engine` trong `Arc`; dictionary phụ custom được parse theo request và ghép
   bằng lookup view, không clone VietPhrase và không mutate `Engine`.
 - Thứ tự merge ở mục 4 là invariant có regression test.
@@ -114,7 +114,7 @@ Trong `LoadDictionaries` (song song hoá bằng `Task.WhenAll`, nhưng thứ t�
 
 ## 8. Dictionary custom theo invocation/request
 
-Chỉ hai file bắt buộc và bất biến trong một engine instance:
+Chỉ hai file base bắt buộc và bất biến trong một engine instance:
 
 - `VietPhrase/VietPhrase.txt`
 - `Resources/ChinesePhienAmWords.txt`
@@ -124,6 +124,10 @@ Các file `Names`, `Names2`, `LuatNhan`, `Pronouns`, `DanhTu`, `HoNguoi`, `HauTu
 nguyên nội dung UTF-8 qua object `dictionaries`. API giữ raw default đã nạp và trả chúng
 qua `GET /dictionaries/defaults` để web có thể sửa trực tiếp.
 
+HTTP API còn nhận `dictionaryPatches` cho hai base cố định. `vietPhrase` là map cụm →
+nghĩa; `chinesePhienAmWords` là map một ký tự → âm đọc. Đây là lớp lookup ưu tiên theo
+request, không phải nội dung thay thế toàn file và không được ghi ngược vào engine.
+
 Mỗi file có semantics thay thế độc lập:
 
 - Không truyền: dùng file mặc định trong data directory, hoặc tập rỗng nếu file không có.
@@ -131,9 +135,10 @@ Mỗi file có semantics thay thế độc lập:
 - Truyền nội dung: thay toàn bộ dictionary tương ứng trong invocation/request.
 
 Sau khi chọn nguồn cho từng file, engine vẫn áp dụng đúng merge order Names2 → Names →
-VietPhrase. Luật Nhân custom được compile riêng; Pronouns và Name một nghĩa được ghép thành
-`dictionaryN` của request. HoNguoi/HauTu custom được dùng cho `{h}{t}`. DanhTu được nhận và
-parse để giữ contract file, nhưng các đường dịch hiện đã port chưa đọc dictionary này.
+VietPhrase patch → VietPhrase base. Name vẫn thắng VietPhrase khi trùng key. Luật Nhân
+custom được compile riêng; Pronouns và Name một nghĩa được ghép thành `dictionaryN` của
+request. HoNguoi/HauTu custom được dùng cho `{h}{t}`. DanhTu được nhận và parse để giữ
+contract file, nhưng các đường dịch hiện đã port chưa đọc dictionary này.
 
 Lạc Việt không thuộc contract này vì endpoint/thuật toán `ChineseToMeanings` chưa được
 triển khai.

@@ -1,5 +1,6 @@
 //! The TranslateAll longest-match loop, Luật Nhân, number branch, and ranges.
 
+#[cfg(test)]
 use std::collections::HashMap;
 
 use crate::dict::DictionaryLookup;
@@ -237,7 +238,7 @@ pub(crate) fn translate_all_mapped(
     opts: &Options,
     dict: &dyn DictionaryLookup,
     only_name: &dyn DictionaryLookup,
-    only_vietphrase: &HashMap<String, String>,
+    only_vietphrase: &dyn DictionaryLookup,
     full_vietphrase: &dyn DictionaryLookup,
     han_viet: &HanVietMap,
     luat_nhan: &LuatNhan,

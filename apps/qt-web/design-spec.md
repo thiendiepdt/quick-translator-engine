@@ -40,6 +40,8 @@ an actual endpoint.
    replacement with an empty dictionary; an untouched dictionary is omitted.
 10. A primary Translate action, request status, copy output action, character counts and
     an error state.
+11. A mapped-output context menu for local entry updates. VietPhrase and
+    ChinesePhienAmWords remain fixed base files; only compact user patches are sent.
 
 ## Interaction assumptions
 
@@ -48,8 +50,8 @@ an actual endpoint.
   immediately testable without a backend.
 - Changing the source returns the user to edit mode and clears stale pairing until the
   next translation.
-- Endpoint and dictionary content are prototype state only. Production decisions about
-  local persistence, authentication and content privacy happen after direction approval.
+- Raw dictionary content remains request state. Quick entry patches are persisted
+  locally; backend/user synchronization is deferred.
 - No decorative photography is required because removing it would not reduce product
   comprehension.
 

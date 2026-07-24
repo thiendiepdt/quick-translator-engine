@@ -13,9 +13,9 @@ hợp split workspace của direction B với typography/output reader của dir
 - Zustand cho source, output, range selection, dictionary draft và memory lọc name.
 - Vitest cho UTF-16 range, API client và dictionary semantics.
 
-Nội dung chương và dictionary **không** được persist vào `localStorage`. Chỉ hai tập nhỏ
-`knownNames`/`rejectedNames` của từng profile mã truyện được persist để dùng qua nhiều
-chương mà không lẫn name giữa các truyện.
+Nội dung chương và toàn bộ raw dictionary **không** được persist vào `localStorage`.
+Web chỉ lưu các entry cập nhật nhanh, trạng thái PIN và hai tập nhỏ
+`knownNames`/`rejectedNames` để dùng lại qua nhiều chương.
 
 ## Development với Rust API local
 
@@ -86,6 +86,12 @@ npm run check
 
 - `mode` luôn là `vietphrase-one`.
 - `ranges` luôn là `true` để click đối chiếu hai chiều.
+- Click phải một range output (long-press trên touch) mở menu cập nhật nhanh VietPhrase,
+  Name chính/phụ, Phiên Âm, Danh Từ, Hậu Từ, Họ Người và Luật Nhân.
+- Menu lấy key tiếng Trung bằng positional range mapping; text bôi đen trong cùng range
+  được dùng làm value tiếng Việt ban đầu.
+- Entry cập nhật nhanh được persist local. Các dictionary tùy biến được ghép vào draft;
+  VietPhrase/Phiên Âm được gửi dưới dạng `dictionaryPatches` nhỏ ở mỗi request.
 - Web tải tám raw dictionary mặc định từ `GET /dictionaries/defaults`.
 - Sidebar chỉ chọn và hiển thị tóm tắt dictionary để không render file lớn khi đổi tab.
 - Dialog editor hiển thị records theo trang 100 dòng, hỗ trợ search key/value, sửa inline,
@@ -95,8 +101,8 @@ npm run check
 - Khi người dùng sửa hoặc thêm entry, web gửi toàn bộ nội dung file đã thay đổi.
 - Dictionary được đặt rỗng sẽ gửi chuỗi rỗng, đúng semantics “thay bằng tập rỗng”.
 - Khôi phục đúng bản QT2025 sẽ bỏ dictionary đó khỏi payload.
-- VietPhrase và ChinesePhienAmWords không xuất hiện trong form vì Lambda cố định hai bộ
-  này.
+- VietPhrase và ChinesePhienAmWords không xuất hiện dưới dạng raw file trong form vì
+  Lambda giữ base cố định; chỉ entry patch local được gửi lên.
 - Request timeout ở browser là 45 giây; Worker/Lambda vẫn giữ giới hạn riêng của hạ tầng.
 - Tab **Tên** gọi `POST /names/filter`, hỗ trợ QT/hybrid, bật ONNX/AI tùy chọn, search,
   sửa tên Việt inline, duyệt/loại từng record và duyệt nhanh candidate ≥85%.

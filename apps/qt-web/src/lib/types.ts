@@ -12,6 +12,33 @@ export const dictionaryKeys = [
 export type DictionaryKey = (typeof dictionaryKeys)[number];
 export type DictionaryDefaults = Record<DictionaryKey, string>;
 
+export const fixedDictionaryPatchKeys = [
+  "vietPhrase",
+  "chinesePhienAmWords",
+] as const;
+
+export type FixedDictionaryPatchKey = (typeof fixedDictionaryPatchKeys)[number];
+
+export const dictionaryUpdateKeys = [
+  "vietPhrase",
+  "names",
+  "names2",
+  "chinesePhienAmWords",
+  "danhTu",
+  "hauTu",
+  "hoNguoi",
+  "luatNhan",
+] as const;
+
+export type DictionaryUpdateKey = (typeof dictionaryUpdateKeys)[number];
+export type LocalDictionaryEntries = Record<
+  DictionaryUpdateKey,
+  Record<string, string>
+>;
+export type DictionaryPatchPayload = Partial<
+  Record<FixedDictionaryPatchKey, Record<string, string>>
+>;
+
 export interface DictionaryDefinition {
   key: DictionaryKey;
   label: string;
@@ -100,6 +127,7 @@ export interface TranslationRequest {
   translationAlgorithm: 0 | 1 | 2;
   prioritizedName: boolean;
   dictionaries?: Partial<Record<DictionaryKey, string>>;
+  dictionaryPatches?: DictionaryPatchPayload;
 }
 
 export interface HealthResponse {

@@ -13,6 +13,10 @@ const request: TranslationRequest = {
   translationAlgorithm: 1,
   prioritizedName: true,
   dictionaries: { names: "很好=Rất tốt" },
+  dictionaryPatches: {
+    vietPhrase: { 很好: "Ổn lắm" },
+    chinesePhienAmWords: { 他: "hắn" },
+  },
 };
 
 afterEach(() => vi.unstubAllGlobals());

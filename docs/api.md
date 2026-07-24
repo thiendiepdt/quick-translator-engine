@@ -2,7 +2,8 @@
 
 `qt-server` nạp VietPhrase, ChinesePhienAmWords và các dictionary mặc định một lần khi
 khởi động, sau đó dùng chung một `Engine` cho mọi request. Request có thể thay thế các
-dictionary phụ mà không sửa state dùng chung. Request và response dùng JSON UTF-8.
+dictionary phụ hoặc gửi patch nhỏ cho hai dictionary cố định mà không sửa state dùng
+chung. Request và response dùng JSON UTF-8.
 
 ## Khởi động
 
@@ -141,6 +142,14 @@ Request với đầy đủ option:
     "hoNguoi": "萧=Tiêu",
     "hauTu": "先生=tiên sinh",
     "ignoredChinesePhrases": "本章完"
+  },
+  "dictionaryPatches": {
+    "vietPhrase": {
+      "很好": "rất ổn/rất tốt"
+    },
+    "chinesePhienAmWords": {
+      "他": "hắn"
+    }
   }
 }
 ```
@@ -166,9 +175,24 @@ Semantics của từng field:
 - Truyền chuỗi rỗng: thay dictionary đó bằng tập rỗng.
 - Truyền nội dung: thay toàn bộ file tương ứng trong request hiện tại.
 - `names2` vẫn ghi đè `names`; Name vẫn ưu tiên hơn VietPhrase khi trùng key.
-- `vietphrase` và `chinesePhienAmWords` không thuộc schema và không thể thay qua request.
+- `vietPhrase` và `chinesePhienAmWords` không thuộc object `dictionaries`, nên không thể
+  thay toàn bộ file qua request.
 - Override chỉ sống trong request, không được lưu và không xuất hiện trong request khác.
 - Luật Nhân có regex không hợp lệ trả `400 Bad Request` thay vì làm dừng server.
+
+### Patch VietPhrase và Phiên Âm
+
+`dictionaryPatches` là optional và chỉ chứa các entry user sửa. Base
+`VietPhrase.txt`/`ChinesePhienAmWords.txt` vẫn được nạp cố định trong engine:
+
+- `vietPhrase` là object `cụm tiếng Trung -> nghĩa tiếng Việt`.
+- `chinesePhienAmWords` là object `một ký tự Hán -> âm đọc`. Key rỗng hoặc nhiều hơn một
+  Unicode character trả `400 Bad Request`.
+- Patch thắng entry cùng key trong dictionary cố định, nhưng Name vẫn thắng VietPhrase
+  theo priority gốc của QT2025.
+- Patch chỉ áp dụng cho request hiện tại. API không lưu patch, không ghi file và không
+  mutate `Engine`.
+- Client nên chỉ gửi các entry đã sửa; không gửi lại toàn bộ file VietPhrase.
 
 Response khi `ranges=false`:
 
@@ -210,8 +234,9 @@ Response giữ nguyên thứ tự input:
 
 Khi `ranges=true`, `sourceRanges` và `targetRanges` là hai ma trận song song với `texts`.
 Nội dung dịch phụ thuộc bộ từ điển đang nạp. Batch được xử lý tuần tự trong một request;
-các request độc lập vẫn có thể được runtime phục vụ đồng thời. `dictionaries` có cùng
-schema như `/translate` và được áp dụng cho toàn bộ phần tử trong `texts`.
+các request độc lập vẫn có thể được runtime phục vụ đồng thời. `dictionaries` và
+`dictionaryPatches` có cùng schema như `/translate` và được áp dụng cho toàn bộ phần tử
+trong `texts`.
 
 ## `POST /names/filter`
 

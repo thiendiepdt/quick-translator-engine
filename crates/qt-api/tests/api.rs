@@ -379,6 +379,61 @@ async fn translate_rejects_attempts_to_replace_fixed_dictionaries() {
 }
 
 #[tokio::test]
+async fn translate_layers_compact_patches_over_fixed_dictionaries() {
+    let resp = post_json(
+        build_router(test_state()),
+        "/translate",
+        serde_json::json!({
+            "text": "他很好",
+            "mode": "vietphrase-one",
+            "dictionaryPatches": {
+                "vietPhrase": {
+                    "很好": "ổn lắm/rất ổn"
+                },
+                "chinesePhienAmWords": {
+                    "他": "hắn"
+                }
+            }
+        }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(body_string(resp).await, r#"{"translated":" hắn ổn lắm"}"#);
+
+    let resp = post_json(
+        build_router(test_state()),
+        "/translate",
+        serde_json::json!({ "text": "他很好", "mode": "vietphrase-one" }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(body_string(resp).await, r#"{"translated":" tha rất tốt"}"#);
+}
+
+#[tokio::test]
+async fn translate_rejects_multi_character_phien_am_patch_keys() {
+    let resp = post_json(
+        build_router(test_state()),
+        "/translate",
+        serde_json::json!({
+            "text": "他很好",
+            "mode": "vietphrase-one",
+            "dictionaryPatches": {
+                "chinesePhienAmWords": {
+                    "很好": "rất tốt"
+                }
+            }
+        }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        body_string(resp).await,
+        r#"{"error":"dictionaryPatches.chinesePhienAmWords keys must contain exactly one character"}"#
+    );
+}
+
+#[tokio::test]
 async fn non_bmp_fallback_uses_one_utf16_span_per_rust_scalar() {
     let resp = post_json(
         build_router(test_state()),
@@ -448,6 +503,28 @@ async fn batch_accepts_engine_options() {
     assert_eq!(
         body_string(resp).await,
         r#"{"translated":[" đinh cách nhĩ tư thái đặc"]}"#
+    );
+}
+
+#[tokio::test]
+async fn batch_applies_dictionary_patches_to_every_text() {
+    let resp = post_json(
+        build_router(test_state()),
+        "/translate/batch",
+        serde_json::json!({
+            "texts": ["很好", "他"],
+            "mode": "vietphrase-one",
+            "dictionaryPatches": {
+                "vietPhrase": { "很好": "ổn lắm" },
+                "chinesePhienAmWords": { "他": "hắn" }
+            }
+        }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(
+        body_string(resp).await,
+        r#"{"translated":[" ổn lắm"," hắn"]}"#
     );
 }
 

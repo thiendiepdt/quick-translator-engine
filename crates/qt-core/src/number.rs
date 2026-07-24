@@ -3,6 +3,8 @@
 
 use std::collections::HashMap;
 
+use crate::dict::DictionaryLookup;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct NumberInfo {
     pub start: usize,
@@ -135,7 +137,7 @@ fn find_longest_number(chars: &[char], start: usize) -> Option<NumberInfo> {
 
 pub(crate) fn prescan_numbers(
     chars: &[char],
-    only_vietphrase: &HashMap<String, String>,
+    only_vietphrase: &dyn DictionaryLookup,
 ) -> HashMap<usize, NumberInfo> {
     let mut numbers = HashMap::new();
     let mut cursor = 0;

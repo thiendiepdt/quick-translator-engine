@@ -12,9 +12,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use qt_core::{
-    CharRange, DictionaryDefaults, DictionaryOverrides, DictionarySourceOverrides, Engine, Mode,
-    NameCandidate, NameCandidateSource, NameEntityType, NameFilterDocument, NameFilterMemory,
-    NameFilterMode, NameFilterOptions, Options, TranslationResult,
+    CharRange, DictionaryDefaults, DictionaryOverrides, DictionaryPatches,
+    DictionarySourceOverrides, Engine, Mode, NameCandidate, NameCandidateSource, NameEntityType,
+    NameFilterDocument, NameFilterMemory, NameFilterMode, NameFilterOptions, Options,
+    TranslationResult,
 };
 
 use crate::name_ai::{entity_type_name, parse_entity_type, GeminiNameReviewer};
@@ -149,6 +150,7 @@ struct TranslateReq {
     translation_algorithm: Option<i32>,
     prioritized_name: Option<bool>,
     dictionaries: Option<DictionarySourcesReq>,
+    dictionary_patches: Option<DictionaryPatchesReq>,
 }
 
 #[derive(Default, Deserialize)]
@@ -162,6 +164,15 @@ struct DictionarySourcesReq {
     ho_nguoi: Option<String>,
     hau_tu: Option<String>,
     ignored_chinese_phrases: Option<String>,
+}
+
+#[derive(Default, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct DictionaryPatchesReq {
+    #[serde(default)]
+    viet_phrase: HashMap<String, String>,
+    #[serde(default)]
+    chinese_phien_am_words: HashMap<String, String>,
 }
 
 #[derive(Deserialize)]
@@ -284,6 +295,35 @@ impl DictionarySourcesReq {
     }
 }
 
+impl DictionaryPatchesReq {
+    fn into_patches(self) -> Result<DictionaryPatches, ApiError> {
+        let mut chinese_phien_am_words = HashMap::new();
+        for (key, value) in self.chinese_phien_am_words {
+            let mut chars = key.chars();
+            let Some(ch) = chars.next() else {
+                return Err(ApiError::bad_request(
+                    "dictionaryPatches.chinesePhienAmWords keys must contain exactly one character",
+                ));
+            };
+            if chars.next().is_some() {
+                return Err(ApiError::bad_request(
+                    "dictionaryPatches.chinesePhienAmWords keys must contain exactly one character",
+                ));
+            }
+            chinese_phien_am_words.insert(ch, value);
+        }
+        if self.viet_phrase.keys().any(|key| key.is_empty()) {
+            return Err(ApiError::bad_request(
+                "dictionaryPatches.vietPhrase keys must not be empty",
+            ));
+        }
+        Ok(DictionaryPatches {
+            vietphrase: self.viet_phrase,
+            chinese_phien_am_words,
+        })
+    }
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct TranslateResp {
@@ -324,6 +364,7 @@ struct BatchReq {
     translation_algorithm: Option<i32>,
     prioritized_name: Option<bool>,
     dictionaries: Option<DictionarySourcesReq>,
+    dictionary_patches: Option<DictionaryPatchesReq>,
 }
 
 #[derive(Serialize)]
@@ -446,14 +487,24 @@ async fn run_translate(
 
 async fn prepare_dictionaries(
     dictionaries: Option<DictionarySourcesReq>,
+    patches: Option<DictionaryPatchesReq>,
 ) -> Result<Option<Arc<DictionaryOverrides>>, ApiError> {
-    let Some(dictionaries) = dictionaries else {
+    if dictionaries.is_none() && patches.is_none() {
         return Ok(None);
-    };
-    tokio::task::spawn_blocking(move || Arc::new(dictionaries.into_overrides()))
-        .await
-        .map(Some)
-        .map_err(|_| ApiError::internal("dictionary parse task failed"))
+    }
+    let patches = patches
+        .map(DictionaryPatchesReq::into_patches)
+        .transpose()?;
+    tokio::task::spawn_blocking(move || {
+        let overrides = dictionaries
+            .map(DictionarySourcesReq::into_overrides)
+            .unwrap_or_default()
+            .with_patches(patches.unwrap_or_default());
+        Arc::new(overrides)
+    })
+    .await
+    .map(Some)
+    .map_err(|_| ApiError::internal("dictionary parse task failed"))
 }
 
 fn request_options(
@@ -530,7 +581,7 @@ async fn filter_names(
         known_names: req.known_names,
         rejected_names: req.rejected_names.into_iter().collect(),
     };
-    let dictionaries = prepare_dictionaries(req.dictionaries).await?;
+    let dictionaries = prepare_dictionaries(req.dictionaries, None).await?;
     let text = Arc::new(req.text);
     let engine = state.engine.clone();
     let rule_text = text.clone();
@@ -907,7 +958,7 @@ async fn translate_batch(
         req.translation_algorithm,
         req.prioritized_name,
     )?;
-    let dictionaries = prepare_dictionaries(req.dictionaries).await?;
+    let dictionaries = prepare_dictionaries(req.dictionaries, req.dictionary_patches).await?;
     let mut translated = Vec::with_capacity(req.texts.len());
     let mut source_ranges = req.ranges.then(|| Vec::with_capacity(req.texts.len()));
     let mut target_ranges = req.ranges.then(|| Vec::with_capacity(req.texts.len()));
@@ -948,7 +999,7 @@ async fn translate(
         req.translation_algorithm,
         req.prioritized_name,
     )?;
-    let dictionaries = prepare_dictionaries(req.dictionaries).await?;
+    let dictionaries = prepare_dictionaries(req.dictionaries, req.dictionary_patches).await?;
     let out = run_translate(
         state.engine.clone(),
         req.text,

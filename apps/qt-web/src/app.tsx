@@ -41,7 +41,11 @@ import {
   useHealthQuery,
   useTranslationMutation,
 } from "@/hooks/use-translation";
-import { dictionaryPayload, useWorkspaceStore } from "@/store/workspace";
+import {
+  dictionaryPatchPayload,
+  dictionaryPayload,
+  useWorkspaceStore,
+} from "@/store/workspace";
 
 const defaultEndpoint = import.meta.env.VITE_QT_API_URL?.trim() || "/api";
 const DictionaryInspector = lazy(() =>
@@ -142,6 +146,9 @@ export default function App() {
   const sourceText = useWorkspaceStore((state) => state.sourceText);
   const response = useWorkspaceStore((state) => state.response);
   const dictionaries = useWorkspaceStore((state) => state.dictionaries);
+  const localDictionaryEntries = useWorkspaceStore(
+    (state) => state.localDictionaryEntries,
+  );
   const dictionaryDefaultsEndpoint = useWorkspaceStore(
     (state) => state.dictionaryDefaultsEndpoint,
   );
@@ -208,6 +215,7 @@ export default function App() {
       translationAlgorithm: values.translationAlgorithm,
       prioritizedName: values.prioritizedName,
       dictionaries: dictionaryPayload(dictionaries),
+      dictionaryPatches: dictionaryPatchPayload(localDictionaryEntries),
     };
 
     try {

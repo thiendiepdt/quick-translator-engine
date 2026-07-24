@@ -1,7 +1,15 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import type { DictionaryDefaults } from "@/lib/types";
-import { dictionaryPayload, useWorkspaceStore } from "@/store/workspace";
+import {
+  dictionaryUpdateKeys,
+  type DictionaryDefaults,
+  type LocalDictionaryEntries,
+} from "@/lib/types";
+import {
+  dictionaryPatchPayload,
+  dictionaryPayload,
+  useWorkspaceStore,
+} from "@/store/workspace";
 
 const emptyDefaults: DictionaryDefaults = {
   names: "",
@@ -18,6 +26,11 @@ let endpointIndex = 0;
 
 beforeEach(() => {
   endpointIndex += 1;
+  useWorkspaceStore.setState({
+    localDictionaryEntries: Object.fromEntries(
+      dictionaryUpdateKeys.map((key) => [key, {}]),
+    ) as LocalDictionaryEntries,
+  });
   useWorkspaceStore
     .getState()
     .hydrateDictionaryDefaults(`/test-${endpointIndex}`, emptyDefaults);
@@ -88,5 +101,54 @@ describe("workspace dictionary semantics", () => {
     expect(state.knownNames).toEqual({ 萧炎: "Tiêu Viêm" });
     expect(state.dictionaries.names2.value).toBe("萧炎=Tiêu Viêm");
     expect(state.dictionaries.names2.value).not.toContain("林动");
+  });
+
+  it("persists compact VietPhrase and Phiên Âm patches", () => {
+    const store = useWorkspaceStore.getState();
+    store.saveLocalDictionaryEntries("vietPhrase", { 看着: "quan sát" });
+    store.saveLocalDictionaryEntries("chinesePhienAmWords", {
+      看: "khán",
+      着: "trứ",
+    });
+
+    const entries = useWorkspaceStore.getState().localDictionaryEntries;
+    expect(dictionaryPatchPayload(entries)).toEqual({
+      vietPhrase: { 看着: "quan sát" },
+      chinesePhienAmWords: { 看: "khán", 着: "trứ" },
+    });
+    expect(localStorage.getItem("qt-web-name-memory-v1")).toContain(
+      '"vietPhrase":{"看着":"quan sát"}',
+    );
+  });
+
+  it("keeps local editable entries across hydration and clear workspace", () => {
+    useWorkspaceStore.getState().hydrateDictionaryDefaults("/local-entry", {
+      ...emptyDefaults,
+      names: "萧炎=Tiêu Viêm",
+    });
+    useWorkspaceStore
+      .getState()
+      .saveLocalDictionaryEntries("names", { 萧炎: "Tiêu Viêm mới" });
+
+    useWorkspaceStore.getState().clearWorkspace();
+    let state = useWorkspaceStore.getState();
+    expect(state.dictionaries.names.value).toBe("萧炎=Tiêu Viêm mới");
+    expect(dictionaryPayload(state.dictionaries)).toEqual({
+      names: "萧炎=Tiêu Viêm mới",
+    });
+
+    useWorkspaceStore
+      .getState()
+      .hydrateDictionaryDefaults("/local-entry-next", {
+        ...emptyDefaults,
+        names: "萧炎=Tiêu Viêm",
+      });
+    state = useWorkspaceStore.getState();
+    expect(state.dictionaries.names.value).toBe("萧炎=Tiêu Viêm mới");
+
+    state.removeLocalDictionaryEntries("names", ["萧炎"]);
+    state = useWorkspaceStore.getState();
+    expect(state.dictionaries.names.value).toBe("萧炎=Tiêu Viêm");
+    expect(dictionaryPayload(state.dictionaries)).toBeUndefined();
   });
 });

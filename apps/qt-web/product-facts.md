@@ -10,7 +10,8 @@ Verified from the repository source and documentation on 2026-07-23.
 - Editable QT2025 defaults are loaded from `GET /dictionaries/defaults`.
 - The UI must request `ranges: true`; `sourceRanges[i]` maps to `targetRanges[i]`.
 - Range offsets and lengths use UTF-16 code units, so JavaScript can slice them directly.
-- Fixed dictionaries are VietPhrase and ChinesePhienAmWords.
+- VietPhrase and ChinesePhienAmWords keep fixed engine bases and accept compact,
+  request-scoped entry patches.
 - Request-scoped dictionaries are `names`, `names2`, `luatNhan`, `pronouns`,
   `danhTu`, `hoNguoi`, `hauTu`, and `ignoredChinesePhrases`.
 - Engine options exposed by the API are `wrap`, `pretty`, `scanRange`,
