@@ -4,6 +4,18 @@ Module `qt-core::name_filter` tách việc **đề xuất candidate** khỏi tha
 Core không gọi network và không giữ state theo người dùng; caller truyền book memory vào
 mỗi lần lọc. API mới ghép thêm ONNX NER và AI fallback.
 
+## Chuẩn hóa input
+
+Trước khi chạy rules, ONNX NER hoặc AI fallback, engine match
+`IgnoredChinesePhrases` bằng cùng logic chuẩn hóa dùng cho dịch, rồi mask các span tương
+ứng trên raw text bằng separator. Hai phía không bị nối lại nên không sinh candidate giả
+bắc cầu qua phần bị ignore. Override `ignoredChinesePhrases` trong request thay toàn bộ
+default, kể cả chuỗi rỗng.
+
+Scan document giữ mapping về UTF-16 của raw input. Vì vậy `ranges` và context trả về vẫn
+trỏ đúng nguyên văn, kể cả khi phía trước candidate có emoji, HTML entity, chữ phồn thể
+hoặc phrase đã bị ignore. Span NER đi qua separator bị loại trước khi merge.
+
 ## Mode `qt`
 
 Mode này tái hiện shape của `LocNameQT` trong QT2025:

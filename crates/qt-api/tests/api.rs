@@ -530,6 +530,40 @@ async fn filters_names_with_book_memory_and_utf16_ranges() {
 }
 
 #[tokio::test]
+async fn name_filter_applies_ignored_phrases_before_scanning() {
+    let resp = post_json(
+        build_router(test_state()),
+        "/names/filter",
+        serde_json::json!({
+            "text": "本章张先生完。😀张先生走来。",
+            "mode": "hybrid",
+            "knownNames": { "张先生": "Trương Tiên Sinh" },
+            "dictionaries": {
+                "ignoredChinesePhrases": "本章张先生完"
+            }
+        }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body: serde_json::Value = serde_json::from_str(&body_string(resp).await).unwrap();
+    let candidate = body["candidates"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|candidate| candidate["text"] == "张先生")
+        .expect("name outside ignored text");
+    assert_eq!(candidate["occurrences"], 1);
+    assert_eq!(candidate["ranges"][0]["start"], 9);
+    assert_eq!(candidate["ranges"][0]["length"], 3);
+    assert_eq!(candidate["contexts"].as_array().unwrap().len(), 1);
+    assert!(candidate["contexts"][0]
+        .as_str()
+        .unwrap()
+        .contains("😀【张先生】走来"));
+    assert_eq!(body["stats"]["scannedCharacters"], 14);
+}
+
+#[tokio::test]
 async fn name_filter_suppresses_book_rejections() {
     let resp = post_json(
         build_router(test_state()),

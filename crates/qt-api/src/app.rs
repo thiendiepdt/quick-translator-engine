@@ -13,8 +13,8 @@ use serde_json::json;
 
 use qt_core::{
     CharRange, DictionaryDefaults, DictionaryOverrides, DictionarySourceOverrides, Engine, Mode,
-    NameCandidate, NameCandidateSource, NameEntityType, NameFilterMemory, NameFilterMode,
-    NameFilterOptions, Options, TranslationResult,
+    NameCandidate, NameCandidateSource, NameEntityType, NameFilterDocument, NameFilterMemory,
+    NameFilterMode, NameFilterOptions, Options, TranslationResult,
 };
 
 use crate::name_ai::{entity_type_name, parse_entity_type, GeminiNameReviewer};
@@ -536,13 +536,16 @@ async fn filter_names(
     let rule_text = text.clone();
     let rule_memory = memory.clone();
     let rule_dictionaries = dictionaries.clone();
-    let mut result = tokio::task::spawn_blocking(move || {
-        engine.filter_names(
-            &rule_text,
+    let (mut result, document) = tokio::task::spawn_blocking(move || {
+        let document =
+            Arc::new(engine.prepare_name_filter_document(&rule_text, rule_dictionaries.as_deref()));
+        let result = engine.filter_names_in_document(
+            &document,
             &options,
             &rule_memory,
             rule_dictionaries.as_deref(),
-        )
+        );
+        (result, document)
     })
     .await
     .map_err(|_| ApiError::internal("name filter task failed"))?;
@@ -552,8 +555,14 @@ async fn filter_names(
     let mut ner_candidates = 0;
     if req.ner.enabled {
         if let Some(recognizer) = state.name_filter_services.recognizer.clone() {
-            let ner_text = text.clone();
-            match tokio::task::spawn_blocking(move || recognizer.recognize(&ner_text)).await {
+            let ner_document = document.clone();
+            match tokio::task::spawn_blocking(move || {
+                recognizer
+                    .recognize(ner_document.text())
+                    .map(|spans| remap_ner_spans(spans, &ner_document))
+            })
+            .await
+            {
                 Ok(Ok(spans)) => {
                     let threshold = confidence(req.ner.min_confidence, 0.65, "ner.minConfidence")?;
                     ner_candidates = merge_ner_candidates(
@@ -606,7 +615,10 @@ async fn filter_names(
                 50,
                 "aiFallback.maxCandidates",
             )?;
-            match reviewer.review(&text, &ambiguous, max_ai_candidates).await {
+            match reviewer
+                .review(document.text(), &ambiguous, max_ai_candidates)
+                .await
+            {
                 Ok(decisions) => {
                     ai_reviewed = decisions.len();
                     let decision_threshold = confidence(
@@ -748,6 +760,16 @@ fn merge_ner_candidates(
     count
 }
 
+fn remap_ner_spans(spans: Vec<NerNameSpan>, document: &NameFilterDocument) -> Vec<NerNameSpan> {
+    spans
+        .into_iter()
+        .filter_map(|mut span| {
+            span.range = document.map_range(span.range)?;
+            Some(span)
+        })
+        .collect()
+}
+
 fn combined_confidence(left: f32, right: f32) -> f32 {
     (1.0 - (1.0 - left) * (1.0 - right)).clamp(0.0, 1.0)
 }
@@ -793,7 +815,7 @@ fn apply_ai_decisions(
 
 fn name_candidate_response(chapter: &str, candidate: NameCandidate) -> NameCandidateResp {
     NameCandidateResp {
-        contexts: candidate_contexts(chapter, &candidate.text, 36, 3),
+        contexts: candidate_contexts(chapter, &candidate.ranges, 36, 3),
         text: candidate.text,
         suggested: candidate.suggested,
         entity_type: entity_type_name(candidate.entity_type),
@@ -819,11 +841,18 @@ fn source_name(source: NameCandidateSource) -> &'static str {
     }
 }
 
-fn candidate_contexts(chapter: &str, candidate: &str, radius: usize, limit: usize) -> Vec<String> {
-    chapter
-        .match_indices(candidate)
+fn candidate_contexts(
+    chapter: &str,
+    ranges: &[CharRange],
+    radius: usize,
+    limit: usize,
+) -> Vec<String> {
+    ranges
+        .iter()
         .take(limit)
-        .map(|(byte_start, value)| {
+        .filter_map(|range| {
+            let (byte_start, byte_end) = utf16_range_to_bytes(chapter, *range)?;
+            let value = &chapter[byte_start..byte_end];
             let before: String = chapter[..byte_start]
                 .chars()
                 .rev()
@@ -832,13 +861,38 @@ fn candidate_contexts(chapter: &str, candidate: &str, radius: usize, limit: usiz
                 .into_iter()
                 .rev()
                 .collect();
-            let after: String = chapter[byte_start + value.len()..]
-                .chars()
-                .take(radius)
-                .collect();
-            format!("{before}【{value}】{after}")
+            let after: String = chapter[byte_end..].chars().take(radius).collect();
+            Some(format!("{before}【{value}】{after}"))
         })
         .collect()
+}
+
+fn utf16_range_to_bytes(text: &str, range: CharRange) -> Option<(usize, usize)> {
+    let end = range.start.checked_add(range.length)?;
+    let mut utf16_offset = 0usize;
+    let mut byte_start = (range.start == 0).then_some(0);
+    let mut byte_end = (end == 0).then_some(0);
+    for (byte_offset, ch) in text.char_indices() {
+        if utf16_offset == range.start {
+            byte_start.get_or_insert(byte_offset);
+        }
+        utf16_offset += ch.len_utf16();
+        let next_byte = byte_offset + ch.len_utf8();
+        if utf16_offset == end {
+            byte_end.get_or_insert(next_byte);
+            break;
+        }
+        if utf16_offset > end {
+            return None;
+        }
+    }
+    if utf16_offset == range.start {
+        byte_start.get_or_insert(text.len());
+    }
+    if utf16_offset == end {
+        byte_end.get_or_insert(text.len());
+    }
+    Some((byte_start?, byte_end?))
 }
 
 async fn translate_batch(
@@ -971,5 +1025,50 @@ mod tests {
         assert!(candidates[0]
             .sources
             .contains(&NameCandidateSource::AiFallback));
+    }
+
+    #[test]
+    fn ner_ranges_map_to_raw_text_and_cannot_cross_ignored_phrases() {
+        let dictionaries = DictionaryDefaults {
+            ignored_chinese_phrases: "本章完".to_string(),
+            ..Default::default()
+        }
+        .build_dictionaries("本=bản\n章=chương\n完=hoàn\n萧=tiêu\n炎=viêm", "");
+        let engine = Engine::from_dicts(dictionaries);
+        let document = engine.prepare_name_filter_document("本章完萧炎", None);
+        assert_eq!(document.text(), "\n\n\n萧炎");
+
+        let spans = remap_ner_spans(
+            vec![
+                NerNameSpan {
+                    text: "萧炎".to_string(),
+                    entity_type: NameEntityType::Person,
+                    score: 0.9,
+                    range: CharRange {
+                        start: 3,
+                        length: 2,
+                    },
+                },
+                NerNameSpan {
+                    text: "ignored boundary".to_string(),
+                    entity_type: NameEntityType::Unknown,
+                    score: 0.9,
+                    range: CharRange {
+                        start: 0,
+                        length: 5,
+                    },
+                },
+            ],
+            &document,
+        );
+
+        assert_eq!(spans.len(), 1);
+        assert_eq!(
+            spans[0].range,
+            CharRange {
+                start: 3,
+                length: 2,
+            }
+        );
     }
 }
