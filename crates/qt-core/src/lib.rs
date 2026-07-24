@@ -13,8 +13,8 @@ pub use dict::{
     parse_dict, Dictionaries, DictionaryDefaults, DictionaryOverrides, DictionarySourceOverrides,
 };
 pub use name_filter::{
-    NameCandidate, NameCandidateSource, NameEntityType, NameFilterMemory, NameFilterMode,
-    NameFilterOptions, NameFilterResult,
+    NameCandidate, NameCandidateSource, NameEntityType, NameFilterDocument, NameFilterMemory,
+    NameFilterMode, NameFilterOptions, NameFilterResult,
 };
 
 use dict::DictionaryLookup;

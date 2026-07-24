@@ -121,6 +121,51 @@ pub struct NameFilterResult {
     pub scanned_characters: usize,
 }
 
+/// Ignored-filtered chapter text used by every name-filter provider, with
+/// ranges mapped back to the caller's original UTF-16 input.
+#[derive(Debug, Clone)]
+pub struct NameFilterDocument {
+    text: String,
+    source_ranges: Vec<CharRange>,
+    blocked: Vec<bool>,
+    utf16_boundaries: Vec<usize>,
+    scanned_characters: usize,
+}
+
+impl NameFilterDocument {
+    pub fn text(&self) -> &str {
+        &self.text
+    }
+
+    /// Map a provider range in filtered scan text back to the original
+    /// UTF-16 input. Spans crossing an ignored phrase separator are rejected.
+    pub fn map_range(&self, range: CharRange) -> Option<CharRange> {
+        if range.length == 0 {
+            return None;
+        }
+        let end = range.start.checked_add(range.length)?;
+        let start_index = self.utf16_boundaries.binary_search(&range.start).ok()?;
+        let end_index = self.utf16_boundaries.binary_search(&end).ok()?;
+        if start_index >= end_index
+            || self.blocked[start_index..end_index]
+                .iter()
+                .any(|value| *value)
+        {
+            return None;
+        }
+        let source = &self.source_ranges[start_index..end_index];
+        let source_start = source.iter().map(|range| range.start).min()?;
+        let source_end = source
+            .iter()
+            .map(|range| range.start + range.length)
+            .max()?;
+        Some(CharRange {
+            start: source_start,
+            length: source_end - source_start,
+        })
+    }
+}
+
 #[derive(Default)]
 struct CandidateSeed {
     from_jieba: bool,
@@ -137,6 +182,36 @@ struct CandidateFacts {
 }
 
 impl Engine {
+    /// Build the shared ignored-aware document consumed by rules, NER, and AI.
+    pub fn prepare_name_filter_document(
+        &self,
+        text: &str,
+        overrides: Option<&DictionaryOverrides>,
+    ) -> NameFilterDocument {
+        let scanned_characters = text.chars().count();
+        let scan = match overrides.and_then(|value| value.ignored_chinese_phrases.as_ref()) {
+            Some(ignored) => self
+                .standardizer
+                .standardize_for_name_scan_with_ignored_source(text, ignored),
+            None => self.standardizer.standardize_for_name_scan(text),
+        };
+        let text: String = scan.chars.iter().collect();
+        let mut utf16_boundaries = Vec::with_capacity(scan.chars.len() + 1);
+        let mut utf16_offset = 0usize;
+        utf16_boundaries.push(utf16_offset);
+        for ch in &scan.chars {
+            utf16_offset += ch.len_utf16();
+            utf16_boundaries.push(utf16_offset);
+        }
+        NameFilterDocument {
+            text,
+            source_ranges: scan.source_ranges,
+            blocked: scan.blocked,
+            utf16_boundaries,
+            scanned_characters,
+        }
+    }
+
     /// Extract likely names without any network or model dependency.
     pub fn filter_names(
         &self,
@@ -145,6 +220,19 @@ impl Engine {
         memory: &NameFilterMemory,
         overrides: Option<&DictionaryOverrides>,
     ) -> NameFilterResult {
+        let document = self.prepare_name_filter_document(text, overrides);
+        self.filter_names_in_document(&document, options, memory, overrides)
+    }
+
+    /// Extract names from a document prepared once for all filter providers.
+    pub fn filter_names_in_document(
+        &self,
+        document: &NameFilterDocument,
+        options: &NameFilterOptions,
+        memory: &NameFilterMemory,
+        overrides: Option<&DictionaryOverrides>,
+    ) -> NameFilterResult {
+        let text = document.text();
         let max_length = match options.mode {
             NameFilterMode::QtCompatible => QT_MAX_LENGTH,
             NameFilterMode::Hybrid => options
@@ -209,7 +297,7 @@ impl Engine {
             seed.byte_starts.sort_unstable();
             seed.byte_starts.dedup();
             let facts = candidate_facts(
-                text,
+                document,
                 &candidate,
                 &seed.byte_starts,
                 &utf16_offsets,
@@ -327,7 +415,7 @@ impl Engine {
 
         NameFilterResult {
             candidates,
-            scanned_characters: text.chars().count(),
+            scanned_characters: document.scanned_characters,
         }
     }
 
@@ -416,7 +504,7 @@ fn add_hybrid_ngrams(
 }
 
 fn candidate_facts(
-    text: &str,
+    document: &NameFilterDocument,
     candidate: &str,
     byte_starts: &[usize],
     utf16_offsets: &HashMap<usize, usize>,
@@ -424,13 +512,16 @@ fn candidate_facts(
     danh_tu: &HashMap<String, String>,
     hau_tu: &HashMap<String, String>,
 ) -> CandidateFacts {
+    let text = document.text();
     let candidate_utf16_length = candidate.encode_utf16().count();
     let ranges = byte_starts
         .iter()
         .filter_map(|byte_start| {
-            utf16_offsets.get(byte_start).map(|start| CharRange {
-                start: *start,
-                length: candidate_utf16_length,
+            utf16_offsets.get(byte_start).and_then(|start| {
+                document.map_range(CharRange {
+                    start: *start,
+                    length: candidate_utf16_length,
+                })
             })
         })
         .collect();
@@ -646,8 +737,12 @@ mod tests {
     use crate::Dictionaries;
 
     fn engine() -> Engine {
+        engine_with_ignored("")
+    }
+
+    fn engine_with_ignored(ignored: &str) -> Engine {
         Engine::from_dicts(Dictionaries::build_full(
-            "萧=tiêu\n炎=viêm\n林=lâm\n动=động\n天=thiên\n城=thành\n名=danh\n为=vi\n叫=khiếu\n张=trương\n三=tam\n走=tẩu\n来=lai",
+            "萧=tiêu\n炎=viêm\n林=lâm\n动=động\n天=thiên\n城=thành\n名=danh\n为=vi\n叫=khiếu\n张=trương\n三=tam\n走=tẩu\n来=lai\n本=bản\n章=chương\n完=hoàn",
             "",
             "",
             "走来=đi tới",
@@ -656,7 +751,7 @@ mod tests {
             "萧=Tiêu\n张=Trương",
             "",
             "",
-            "",
+            ignored,
         ))
     }
 
@@ -785,5 +880,90 @@ mod tests {
                 length: 2
             }]
         );
+    }
+
+    #[test]
+    fn ignored_phrases_remove_candidates_and_preserve_original_ranges() {
+        let memory = NameFilterMemory {
+            known_names: HashMap::from([
+                ("萧炎".to_string(), "Tiêu Viêm".to_string()),
+                ("林动".to_string(), "Lâm Động".to_string()),
+            ]),
+            ..Default::default()
+        };
+        let result = engine_with_ignored("本章萧炎完").filter_names(
+            "本章萧炎完。😀林动",
+            &NameFilterOptions::default(),
+            &memory,
+            None,
+        );
+
+        assert!(result
+            .candidates
+            .iter()
+            .all(|candidate| candidate.text != "萧炎"));
+        let candidate = result
+            .candidates
+            .iter()
+            .find(|candidate| candidate.text == "林动")
+            .expect("name outside ignored text");
+        assert_eq!(
+            candidate.ranges,
+            vec![CharRange {
+                start: 8,
+                length: 2,
+            }]
+        );
+        assert_eq!(result.scanned_characters, 9);
+    }
+
+    #[test]
+    fn ignored_phrase_overrides_replace_the_engine_default() {
+        let memory = NameFilterMemory {
+            known_names: HashMap::from([("萧炎".to_string(), "Tiêu Viêm".to_string())]),
+            ..Default::default()
+        };
+        let overrides = DictionaryOverrides::from_sources(crate::DictionarySourceOverrides {
+            ignored_chinese_phrases: Some(""),
+            ..Default::default()
+        });
+        let result = engine_with_ignored("本章萧炎完").filter_names(
+            "本章萧炎完",
+            &NameFilterOptions::default(),
+            &memory,
+            Some(&overrides),
+        );
+
+        let candidate = result
+            .candidates
+            .iter()
+            .find(|candidate| candidate.text == "萧炎")
+            .expect("empty request override restores raw text");
+        assert_eq!(
+            candidate.ranges,
+            vec![CharRange {
+                start: 2,
+                length: 2,
+            }]
+        );
+    }
+
+    #[test]
+    fn ignored_phrases_do_not_join_names_across_the_removed_text() {
+        let memory = NameFilterMemory {
+            known_names: HashMap::from([("萧炎".to_string(), "Tiêu Viêm".to_string())]),
+            ..Default::default()
+        };
+        let result = engine_with_ignored("本章完").filter_names(
+            "萧本章完炎",
+            &NameFilterOptions::default(),
+            &memory,
+            None,
+        );
+
+        assert!(result
+            .candidates
+            .iter()
+            .all(|candidate| candidate.text != "萧炎"));
     }
 }

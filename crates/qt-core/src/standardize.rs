@@ -17,6 +17,18 @@ pub(crate) struct StandardizedInput {
     pub source_ranges: Vec<CharRange>,
 }
 
+pub(crate) struct NameScanInput {
+    pub chars: Vec<char>,
+    pub source_ranges: Vec<CharRange>,
+    pub blocked: Vec<bool>,
+}
+
+#[derive(Clone)]
+struct TaggedMappedChar {
+    mapped: MappedChar,
+    blocked: bool,
+}
+
 pub(crate) struct Standardizer {
     simplified: HashMap<char, char>,
     html_entities: HashMap<String, Vec<char>>,
@@ -68,6 +80,43 @@ impl Standardizer {
     ) -> StandardizedInput {
         let ignored = self.normalize_ignored(ignored_source);
         self.standardize_with_ignored(original, &ignored)
+    }
+
+    pub fn standardize_for_name_scan(&self, original: &str) -> NameScanInput {
+        self.standardize_for_name_scan_with_ignored(original, &self.ignored)
+    }
+
+    pub fn standardize_for_name_scan_with_ignored_source(
+        &self,
+        original: &str,
+        ignored_source: &[String],
+    ) -> NameScanInput {
+        let ignored = self.normalize_ignored(ignored_source);
+        self.standardize_for_name_scan_with_ignored(original, &ignored)
+    }
+
+    fn standardize_for_name_scan_with_ignored(
+        &self,
+        original: &str,
+        ignored_phrases: &[Vec<char>],
+    ) -> NameScanInput {
+        let mut normalized: Vec<TaggedMappedChar> = self
+            .standardize_without_ignored(original)
+            .into_iter()
+            .map(|mapped| TaggedMappedChar {
+                mapped,
+                blocked: false,
+            })
+            .collect();
+        for ignored in ignored_phrases {
+            normalized = replace_all_with_blocked_separator(&normalized, ignored);
+        }
+        let ignored_ranges = normalized
+            .iter()
+            .filter(|item| item.blocked)
+            .map(|item| item.mapped.source)
+            .collect();
+        mask_original_ranges(original, ignored_ranges)
     }
 
     fn standardize_with_ignored(
@@ -342,6 +391,102 @@ fn replace_all(input: &[MappedChar], needle: &[char], replacement: &[char]) -> V
     output
 }
 
+fn mask_original_ranges(original: &str, mut ignored_ranges: Vec<CharRange>) -> NameScanInput {
+    ignored_ranges.sort_by_key(|range| range.start);
+    let ignored_ranges =
+        ignored_ranges
+            .into_iter()
+            .fold(Vec::<CharRange>::new(), |mut merged, range| {
+                if let Some(previous) = merged.last_mut() {
+                    let previous_end = previous.start + previous.length;
+                    if range.start <= previous_end {
+                        let end = previous_end.max(range.start + range.length);
+                        previous.length = end - previous.start;
+                        return merged;
+                    }
+                }
+                merged.push(range);
+                merged
+            });
+
+    let capacity = original.chars().count();
+    let mut chars = Vec::with_capacity(capacity);
+    let mut source_ranges = Vec::with_capacity(capacity);
+    let mut blocked = Vec::with_capacity(capacity);
+    let mut source_start = 0usize;
+    let mut ignored_index = 0usize;
+    for ch in original.chars() {
+        let source = CharRange {
+            start: source_start,
+            length: ch.len_utf16(),
+        };
+        source_start += source.length;
+        while ignored_ranges
+            .get(ignored_index)
+            .is_some_and(|range| range.start + range.length <= source.start)
+        {
+            ignored_index += 1;
+        }
+        let is_blocked = ignored_ranges.get(ignored_index).is_some_and(|range| {
+            source.start < range.start + range.length && range.start < source.start + source.length
+        });
+        chars.push(if is_blocked { '\n' } else { ch });
+        source_ranges.push(source);
+        blocked.push(is_blocked);
+    }
+
+    NameScanInput {
+        chars,
+        source_ranges,
+        blocked,
+    }
+}
+
+fn replace_all_with_blocked_separator(
+    input: &[TaggedMappedChar],
+    needle: &[char],
+) -> Vec<TaggedMappedChar> {
+    if needle.is_empty() || input.len() < needle.len() {
+        return input.to_vec();
+    }
+    let mut output = Vec::with_capacity(input.len());
+    let mut index = 0usize;
+    while index < input.len() {
+        let matches = index + needle.len() <= input.len()
+            && input[index..index + needle.len()]
+                .iter()
+                .map(|item| item.mapped.ch)
+                .eq(needle.iter().copied());
+        if matches {
+            let source_start = input[index..index + needle.len()]
+                .iter()
+                .map(|item| item.mapped.source.start)
+                .min()
+                .unwrap_or(0);
+            let source_end = input[index..index + needle.len()]
+                .iter()
+                .map(|item| item.mapped.source.start + item.mapped.source.length)
+                .max()
+                .unwrap_or(source_start);
+            output.push(TaggedMappedChar {
+                mapped: MappedChar {
+                    ch: '\n',
+                    source: CharRange {
+                        start: source_start,
+                        length: source_end - source_start,
+                    },
+                },
+                blocked: true,
+            });
+            index += needle.len();
+        } else {
+            output.push(input[index].clone());
+            index += 1;
+        }
+    }
+    output
+}
+
 fn merged_range(input: &[MappedChar], start: usize, length: usize) -> CharRange {
     let slice = &input[start..start + length];
     let source_start = slice
@@ -420,6 +565,25 @@ mod tests {
         let standardizer = standardizer(&["(本章完)"]);
         let value = standardizer.standardize("(本章完)");
         assert!(value.chars.is_empty());
+    }
+
+    #[test]
+    fn name_scan_matches_normalized_ignored_phrases_but_keeps_other_raw_text() {
+        let standardizer = standardizer(&["这是一本书"]);
+        let value = standardizer.standardize_for_name_scan("😀這是一本書林动");
+
+        assert_eq!(value.chars.iter().collect::<String>(), "😀\n\n\n\n\n林动");
+        assert_eq!(
+            value.source_ranges[6],
+            CharRange {
+                start: 7,
+                length: 1,
+            }
+        );
+        assert_eq!(
+            value.blocked,
+            vec![false, true, true, true, true, true, false, false]
+        );
     }
 
     #[test]

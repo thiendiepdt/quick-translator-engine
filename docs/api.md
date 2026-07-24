@@ -256,6 +256,11 @@ fallback chỉ chạy khi vừa được cấu hình ở server vừa có `enabl
 | `aiFallback` | disabled | Chỉ gửi nhóm candidate mơ hồ sang Gemini để duyệt |
 | `dictionaries` | mặc định | Cùng schema override như `/translate` |
 
+Rules, ONNX NER và AI fallback dùng chung scan document đã áp dụng
+`ignoredChinesePhrases`. Phrase bị ignore không sinh occurrence/candidate; range của phần
+còn lại vẫn dùng offset UTF-16 trên raw `text`. Nếu request gửi
+`dictionaries.ignoredChinesePhrases`, nội dung đó thay toàn bộ default của engine.
+
 Response:
 
 ```json
