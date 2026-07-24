@@ -8,14 +8,31 @@ import {
   RotateCcw,
   Sparkles,
 } from "lucide-react";
-import { useLayoutEffect, useRef, useState } from "react";
+import {
+  type MouseEvent,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 
+import {
+  DictionaryUpdateDialog,
+  type DictionaryUpdateSelection,
+} from "@/components/dictionary-update-dialog";
 import { MappedText } from "@/components/mapped-text";
 import { Button } from "@/components/ui/button";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { rangeText } from "@/lib/ranges";
+import type { DictionaryUpdateKey } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useWorkspaceStore } from "@/store/workspace";
 
@@ -66,8 +83,21 @@ export function TranslationWorkspace({ isPending, requestStatus }: TranslationWo
   const setRangePinEnabled = useWorkspaceStore((state) => state.setRangePinEnabled);
   const clearWorkspace = useWorkspaceStore((state) => state.clearWorkspace);
   const loadSample = useWorkspaceStore((state) => state.loadSample);
+  const localDictionaryEntries = useWorkspaceStore(
+    (state) => state.localDictionaryEntries,
+  );
+  const saveLocalDictionaryEntries = useWorkspaceStore(
+    (state) => state.saveLocalDictionaryEntries,
+  );
+  const removeLocalDictionaryEntries = useWorkspaceStore(
+    (state) => state.removeLocalDictionaryEntries,
+  );
   const [mobilePane, setMobilePane] = useState<"source" | "output">("source");
   const [scrollRequest, setScrollRequest] = useState<ScrollRequest>();
+  const [contextSelection, setContextSelection] =
+    useState<DictionaryUpdateSelection>();
+  const [dictionaryUpdateKey, setDictionaryUpdateKey] =
+    useState<DictionaryUpdateKey>();
   const sourceScrollRef = useRef<HTMLDivElement>(null);
   const outputScrollRef = useRef<HTMLDivElement>(null);
 
@@ -110,6 +140,53 @@ export function TranslationWorkspace({ isPending, requestStatus }: TranslationWo
     try {
       await navigator.clipboard.writeText(response.translated);
       toast.success("Đã sao chép bản dịch");
+    } catch {
+      toast.error("Trình duyệt không cho phép sao chép");
+    }
+  }
+
+  function captureOutputSelection(event: MouseEvent<HTMLDivElement>) {
+    const target = event.target;
+    const rangeElement =
+      target instanceof Element
+        ? target.closest<HTMLElement>("[data-range-index]")
+        : null;
+    if (!rangeElement || !event.currentTarget.contains(rangeElement)) {
+      setContextSelection(undefined);
+      return;
+    }
+    const rangeIndex = Number(rangeElement.dataset.rangeIndex);
+    const source = rangeText(sourceText, sourceRanges[rangeIndex]);
+    const fullTarget = rangeText(response?.translated ?? "", targetRanges[rangeIndex]);
+    if (!source || !fullTarget) {
+      setContextSelection(undefined);
+      return;
+    }
+
+    const selection = window.getSelection();
+    const selectedTarget =
+      selection &&
+      !selection.isCollapsed &&
+      selection.rangeCount > 0 &&
+      rangeElement.contains(selection.getRangeAt(0).commonAncestorContainer)
+        ? selection.toString().trim()
+        : "";
+    setActiveRange(rangeIndex);
+    setContextSelection({
+      source,
+      target: selectedTarget || fullTarget,
+    });
+  }
+
+  function beginDictionaryUpdate(key: DictionaryUpdateKey) {
+    if (!contextSelection) return;
+    setDictionaryUpdateKey(key);
+  }
+
+  async function copyContextText(text: string, label: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(label);
     } catch {
       toast.error("Trình duyệt không cho phép sao chép");
     }
@@ -207,22 +284,109 @@ export function TranslationWorkspace({ isPending, requestStatus }: TranslationWo
                 {response ? JSON.stringify(response, null, 2) : ""}
               </pre>
             ) : (
-              <MappedText
-                text={response?.translated ?? ""}
-                ranges={targetRanges}
-                activeRange={activeRange}
-                onRangeSelect={(rangeIndex) => selectRange(rangeIndex, "output")}
-                emptyMessage={isPending ? "Đang dịch chương…" : "Bản dịch sẽ xuất hiện ở đây. Chọn “Dùng văn bản mẫu” để thử range mapping mà không gọi API."}
-                className="reader-output min-h-full px-8 py-8 font-serif text-[21px] leading-[2.05] text-[var(--reader-ink)] md:px-10"
-              />
+              <ContextMenu>
+                <ContextMenuTrigger asChild>
+                  <div
+                    className="min-h-full"
+                    onContextMenuCapture={captureOutputSelection}
+                  >
+                    <MappedText
+                      text={response?.translated ?? ""}
+                      ranges={targetRanges}
+                      activeRange={activeRange}
+                      onRangeSelect={(rangeIndex) => selectRange(rangeIndex, "output")}
+                      emptyMessage={isPending ? "Đang dịch chương…" : "Bản dịch sẽ xuất hiện ở đây. Chọn “Dùng văn bản mẫu” để thử range mapping mà không gọi API."}
+                      className="reader-output min-h-full px-8 py-8 font-serif text-[21px] leading-[2.05] text-[var(--reader-ink)] md:px-10"
+                    />
+                  </div>
+                </ContextMenuTrigger>
+                <ContextMenuContent>
+                  <ContextMenuItem
+                    disabled={!contextSelection}
+                    onSelect={() => beginDictionaryUpdate("vietPhrase")}
+                  >
+                    Update VietPhrase
+                  </ContextMenuItem>
+                  <ContextMenuItem
+                    disabled={!contextSelection}
+                    onSelect={() => beginDictionaryUpdate("names")}
+                  >
+                    Update Name (chính)
+                  </ContextMenuItem>
+                  <ContextMenuItem
+                    disabled={!contextSelection}
+                    onSelect={() => beginDictionaryUpdate("names2")}
+                  >
+                    Update Name (phụ)
+                  </ContextMenuItem>
+                  <ContextMenuSeparator />
+                  <ContextMenuItem
+                    disabled={!contextSelection}
+                    onSelect={() => beginDictionaryUpdate("chinesePhienAmWords")}
+                  >
+                    Update Phiên Âm
+                  </ContextMenuItem>
+                  <ContextMenuItem
+                    disabled={!contextSelection}
+                    onSelect={() => beginDictionaryUpdate("danhTu")}
+                  >
+                    Update Danh Từ
+                  </ContextMenuItem>
+                  <ContextMenuItem
+                    disabled={!contextSelection}
+                    onSelect={() => beginDictionaryUpdate("hauTu")}
+                  >
+                    Update Hậu Từ
+                  </ContextMenuItem>
+                  <ContextMenuItem
+                    disabled={!contextSelection}
+                    onSelect={() => beginDictionaryUpdate("hoNguoi")}
+                  >
+                    Update Họ Người
+                  </ContextMenuItem>
+                  <ContextMenuItem
+                    disabled={!contextSelection}
+                    onSelect={() => beginDictionaryUpdate("luatNhan")}
+                  >
+                    Update Luật Nhân
+                  </ContextMenuItem>
+                  <ContextMenuSeparator />
+                  <ContextMenuItem
+                    disabled={!contextSelection}
+                    onSelect={() => {
+                      if (contextSelection) {
+                        void copyContextText(
+                          contextSelection.target,
+                          "Đã sao chép nghĩa tiếng Việt",
+                        );
+                      }
+                    }}
+                  >
+                    Copy To Việt
+                  </ContextMenuItem>
+                  <ContextMenuItem
+                    disabled={!contextSelection}
+                    onSelect={() => {
+                      if (contextSelection) {
+                        void copyContextText(
+                          `${contextSelection.source}=${contextSelection.target}`,
+                          "Đã sao chép cặp từ",
+                        );
+                      }
+                    }}
+                  >
+                    Copy To Clipboard
+                  </ContextMenuItem>
+                </ContextMenuContent>
+              </ContextMenu>
             )}
             {hasMapping && outputView === "output" ? (
               <div className="pointer-events-none sticky bottom-4 mx-5 mt-auto flex w-fit max-w-[calc(100%-2.5rem)] items-center gap-2 border bg-[var(--reader-paper)]/95 px-3 py-2 text-[10px] text-muted-foreground shadow-sm backdrop-blur">
                 <span className="font-semibold text-[var(--reader-accent)]">↔</span>
                 {activeRange === undefined
                   ? rangePinEnabled
-                    ? "Click chữ ở hai phía để tự cuộn tới phần tương ứng"
-                    : "Click chữ ở hai phía để xem phần tương ứng"
+                    ? "Click để đối chiếu · click phải output để cập nhật từ điển"
+                    : "Click để xem phần tương ứng · click phải output để cập nhật từ điển"
                   : <><span className="truncate">{activeSource || "∅"}</span><span>↔</span><strong className="truncate text-foreground">{activeTarget || "∅"}</strong></>}
               </div>
             ) : null}
@@ -241,6 +405,18 @@ export function TranslationWorkspace({ isPending, requestStatus }: TranslationWo
           <Button type="button" variant="outline" size="sm" disabled={!response?.translated} onClick={() => void copyOutput()}><Copy /> Sao chép output</Button>
         </div>
       </footer>
+      <DictionaryUpdateDialog
+        key={`${dictionaryUpdateKey ?? "closed"}-${contextSelection?.source ?? ""}-${contextSelection?.target ?? ""}`}
+        open={dictionaryUpdateKey !== undefined}
+        dictionaryKey={dictionaryUpdateKey}
+        selection={contextSelection}
+        localEntries={localDictionaryEntries}
+        onOpenChange={(open) => {
+          if (!open) setDictionaryUpdateKey(undefined);
+        }}
+        onSave={saveLocalDictionaryEntries}
+        onRemove={removeLocalDictionaryEntries}
+      />
     </main>
   );
 }

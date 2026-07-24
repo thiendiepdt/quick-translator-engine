@@ -10,7 +10,8 @@ mod text;
 mod translate;
 
 pub use dict::{
-    parse_dict, Dictionaries, DictionaryDefaults, DictionaryOverrides, DictionarySourceOverrides,
+    parse_dict, Dictionaries, DictionaryDefaults, DictionaryOverrides, DictionaryPatches,
+    DictionarySourceOverrides,
 };
 pub use name_filter::{
     NameCandidate, NameCandidateSource, NameEntityType, NameFilterDocument, NameFilterMemory,
@@ -175,8 +176,8 @@ impl Engine {
         }
     }
 
-    /// Translate with request-scoped replacements for every runtime text
-    /// dictionary except VietPhrase and ChinesePhienAmWords.
+    /// Translate with request-scoped file replacements and compact patches
+    /// layered over the fixed VietPhrase and ChinesePhienAmWords dictionaries.
     pub fn translate_with_overrides(
         &self,
         text: &str,
@@ -208,10 +209,21 @@ impl Engine {
         };
         let chars = standardized.chars;
         let source_ranges = standardized.source_ranges;
+        let custom_han_viet = (!overrides.chinese_phien_am_words_patches.is_empty()).then(|| {
+            let mut dictionary = self.dicts.han_viet.clone();
+            dictionary.extend(
+                overrides
+                    .chinese_phien_am_words_patches
+                    .iter()
+                    .map(|(key, value)| (*key, value.clone())),
+            );
+            dictionary
+        });
+        let han_viet = custom_han_viet.as_ref().unwrap_or(&self.dicts.han_viet);
         if mode == Mode::HanViet {
             return Ok(han_viet::chinese_to_han_viet_mapped(
                 &chars,
-                &self.dicts.han_viet,
+                han_viet,
                 &source_ranges,
             ));
         }
@@ -234,9 +246,18 @@ impl Engine {
             } else {
                 &custom_names
             };
+        let patched_only_vietphrase = PriorityDictionary {
+            primary: &overrides.vietphrase_patches,
+            fallback: &self.dicts.only_vietphrase,
+        };
+        let only_vietphrase: &dyn DictionaryLookup = if overrides.vietphrase_patches.is_empty() {
+            &self.dicts.only_vietphrase
+        } else {
+            &patched_only_vietphrase
+        };
         let vietphrase = PriorityDictionary {
             primary: names,
-            fallback: &self.dicts.only_vietphrase,
+            fallback: only_vietphrase,
         };
         let one_meaning_vietphrase = OneMeaningDictionary { inner: &vietphrase };
         let one_meaning_names = OneMeaningDictionary { inner: names };
@@ -271,9 +292,9 @@ impl Engine {
             opts,
             dictionary,
             names,
-            &self.dicts.only_vietphrase,
+            only_vietphrase,
             &vietphrase,
-            &self.dicts.han_viet,
+            han_viet,
             luat_nhan,
             Some(&dictionary_n),
             Some(ho_nguoi),
@@ -449,6 +470,60 @@ mod tests {
                 )
                 .unwrap(),
             " Fixed VietPhrase"
+        );
+    }
+
+    #[test]
+    fn request_patches_layer_over_fixed_vietphrase_and_han_viet() {
+        let dictionaries =
+            Dictionaries::build("他=tha\n很=ngận\n好=hảo", "", "", "很好=base phrase");
+        let engine = Engine::from_dicts(dictionaries);
+        let patches = DictionaryPatches {
+            vietphrase: HashMap::from([("很好".to_string(), "rất ổn/rất tốt".to_string())]),
+            chinese_phien_am_words: HashMap::from([('他', "hắn".to_string())]),
+        };
+        let custom = DictionaryOverrides::default().with_patches(patches);
+
+        assert_eq!(
+            engine
+                .translate_with_overrides(
+                    "他很好",
+                    Mode::VietPhraseOneMeaning,
+                    &Options::default(),
+                    &custom,
+                )
+                .unwrap(),
+            " hắn rất ổn"
+        );
+        assert_eq!(
+            engine.translate("他很好", Mode::VietPhraseOneMeaning, &Options::default()),
+            " tha base phrase"
+        );
+    }
+
+    #[test]
+    fn request_vietphrase_patch_prevents_number_prescan() {
+        let dictionaries =
+            Dictionaries::build("一=nhất\n百=bách\n二=nhị\n十=thập\n三=tam", "", "", "");
+        let engine = Engine::from_dicts(dictionaries);
+        let custom = DictionaryOverrides::default().with_patches(DictionaryPatches {
+            vietphrase: HashMap::from([(
+                "一百二十三".to_string(),
+                "một trăm hai mươi ba".to_string(),
+            )]),
+            ..DictionaryPatches::default()
+        });
+
+        assert_eq!(
+            engine
+                .translate_with_overrides(
+                    "一百二十三",
+                    Mode::VietPhraseOneMeaning,
+                    &Options::default(),
+                    &custom,
+                )
+                .unwrap(),
+            " một trăm hai mươi ba"
         );
     }
 

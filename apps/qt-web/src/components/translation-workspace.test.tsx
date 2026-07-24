@@ -1,8 +1,18 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TranslationWorkspace } from "@/components/translation-workspace";
+import {
+  dictionaryUpdateKeys,
+  type LocalDictionaryEntries,
+} from "@/lib/types";
 import { useWorkspaceStore } from "@/store/workspace";
 
 const scrollToMock = vi.fn();
@@ -14,6 +24,11 @@ beforeEach(() => {
     value: scrollToMock,
   });
   useWorkspaceStore.setState({ rangePinEnabled: true });
+  useWorkspaceStore.setState({
+    localDictionaryEntries: Object.fromEntries(
+      dictionaryUpdateKeys.map((key) => [key, {}]),
+    ) as LocalDictionaryEntries,
+  });
   useWorkspaceStore.getState().loadSample();
 });
 
@@ -83,5 +98,73 @@ describe("translation range pin", () => {
     expect(scrollToMock.mock.instances.at(-1)).toBe(
       sourcePane.querySelector(".fine-scrollbar"),
     );
+  });
+
+  it("updates a mapped VietPhrase entry from the output context menu", async () => {
+    const user = userEvent.setup();
+    render(<TranslationWorkspace isPending={false} requestStatus="Sẵn sàng" />);
+
+    const outputPane = screen.getByRole("region", { name: "Bản dịch" });
+    const segment = within(outputPane).getByRole("button", {
+      name: "Range 2: nhìn",
+    });
+    fireEvent.contextMenu(segment);
+    await user.click(await screen.findByText("Update VietPhrase"));
+
+    expect(screen.getByLabelText("Tiếng Trung")).toHaveValue("看着");
+    const target = screen.getByLabelText("Tiếng Việt");
+    expect(target).toHaveValue("nhìn");
+    await user.clear(target);
+    await user.type(target, "quan sát");
+    await user.click(screen.getByRole("button", { name: "Lưu local" }));
+
+    expect(
+      useWorkspaceStore.getState().localDictionaryEntries.vietPhrase,
+    ).toEqual({ 看着: "quan sát" });
+    expect(localStorage.getItem("qt-web-name-memory-v1")).toContain(
+      '"vietPhrase":{"看着":"quan sát"}',
+    );
+  });
+
+  it("splits a multi-character Phiên Âm update into one patch per character", async () => {
+    const user = userEvent.setup();
+    render(<TranslationWorkspace isPending={false} requestStatus="Sẵn sàng" />);
+
+    const outputPane = screen.getByRole("region", { name: "Bản dịch" });
+    fireEvent.contextMenu(
+      within(outputPane).getByRole("button", {
+        name: "Range 1: Tiêu Viêm",
+      }),
+    );
+    await user.click(await screen.findByText("Update Phiên Âm"));
+    await user.click(screen.getByRole("button", { name: "Lưu local" }));
+
+    expect(
+      useWorkspaceStore.getState().localDictionaryEntries
+        .chinesePhienAmWords,
+    ).toEqual({ 萧: "Tiêu", 炎: "Viêm" });
+  });
+
+  it("uses text selected inside one mapped range as the initial value", async () => {
+    const user = userEvent.setup();
+    render(<TranslationWorkspace isPending={false} requestStatus="Sẵn sàng" />);
+
+    const outputPane = screen.getByRole("region", { name: "Bản dịch" });
+    const segment = within(outputPane).getByRole("button", {
+      name: "Range 1: Tiêu Viêm",
+    });
+    const textNode = segment.firstChild;
+    if (!textNode) throw new Error("missing mapped text node");
+    const range = document.createRange();
+    range.setStart(textNode, 0);
+    range.setEnd(textNode, 4);
+    window.getSelection()?.removeAllRanges();
+    window.getSelection()?.addRange(range);
+
+    fireEvent.contextMenu(segment);
+    await user.click(await screen.findByText("Update Name (chính)"));
+
+    expect(screen.getByLabelText("Tiếng Trung")).toHaveValue("萧炎");
+    expect(screen.getByLabelText("Tiếng Việt")).toHaveValue("Tiêu");
   });
 });

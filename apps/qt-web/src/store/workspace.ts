@@ -3,11 +3,16 @@ import { persist } from "zustand/middleware";
 
 import { sampleDictionaryValues, sampleResponse, sampleSource } from "@/lib/sample";
 import {
+  dictionaryUpdateKeys,
   dictionaryKeys,
+  fixedDictionaryPatchKeys,
   type DictionaryDefaults,
   type DictionaryKey,
-  type TranslationResponse,
+  type DictionaryPatchPayload,
+  type DictionaryUpdateKey,
+  type LocalDictionaryEntries,
   type NameFilterResponse,
+  type TranslationResponse,
 } from "@/lib/types";
 
 interface DictionaryDraft {
@@ -42,6 +47,7 @@ interface WorkspaceState {
   rejectedNames: string[];
   nameMemoryId: string;
   nameMemoryProfiles: Record<string, NameMemoryProfile>;
+  localDictionaryEntries: LocalDictionaryEntries;
   setSourceText: (sourceText: string) => void;
   setResponse: (response: TranslationResponse) => void;
   setActiveRange: (activeRange?: number) => void;
@@ -59,6 +65,15 @@ interface WorkspaceState {
   rejectNameCandidate: (text: string) => void;
   clearNameMemory: () => void;
   switchNameMemory: (nameMemoryId: string) => void;
+  saveLocalDictionaryEntries: (
+    key: DictionaryUpdateKey,
+    entries: Record<string, string>,
+    previousKeys?: string[],
+  ) => void;
+  removeLocalDictionaryEntries: (
+    key: DictionaryUpdateKey,
+    keys: string[],
+  ) => void;
   clearWorkspace: () => void;
   loadSample: () => void;
 }
@@ -67,6 +82,38 @@ function emptyDictionaries(): Record<DictionaryKey, DictionaryDraft> {
   return Object.fromEntries(
     dictionaryKeys.map((key) => [key, { value: "", defaultValue: "", touched: false }]),
   ) as Record<DictionaryKey, DictionaryDraft>;
+}
+
+function emptyLocalDictionaryEntries(): LocalDictionaryEntries {
+  return Object.fromEntries(
+    dictionaryUpdateKeys.map((key) => [key, {}]),
+  ) as LocalDictionaryEntries;
+}
+
+function isEditableDictionaryKey(
+  key: DictionaryUpdateKey,
+): key is Exclude<DictionaryUpdateKey, "vietPhrase" | "chinesePhienAmWords"> {
+  return key !== "vietPhrase" && key !== "chinesePhienAmWords";
+}
+
+function applyPersistentEntries(
+  dictionaries: Record<DictionaryKey, DictionaryDraft>,
+  entries: LocalDictionaryEntries,
+  knownNames: Record<string, string>,
+): Record<DictionaryKey, DictionaryDraft> {
+  const next = { ...dictionaries };
+  for (const key of dictionaryUpdateKeys) {
+    if (!isEditableDictionaryKey(key)) continue;
+    let value = next[key].value;
+    if (key === "names2") value = upsertKnownNames(value, knownNames);
+    value = applyDictionaryEntries(value, entries[key]);
+    next[key] = {
+      ...next[key],
+      value,
+      touched: value !== next[key].defaultValue,
+    };
+  }
+  return next;
 }
 
 function dictionariesFromDefaults(
@@ -112,6 +159,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(persist((set) => ({
   rejectedNames: [],
   nameMemoryId: "default",
   nameMemoryProfiles: {},
+  localDictionaryEntries: emptyLocalDictionaryEntries(),
   setSourceText: (sourceText) =>
     set({
       sourceText,
@@ -136,26 +184,33 @@ export const useWorkspaceStore = create<WorkspaceState>()(persist((set) => ({
       },
     })),
   resetDictionary: (key) =>
-    set((state) => ({
-      dictionaries: {
-        ...state.dictionaries,
-        [key]: {
-          value: state.dictionaries[key].defaultValue,
-          defaultValue: state.dictionaries[key].defaultValue,
-          touched: false,
+    set((state) => {
+      const localDictionaryEntries = { ...state.localDictionaryEntries };
+      if (dictionaryUpdateKeys.includes(key as DictionaryUpdateKey)) {
+        localDictionaryEntries[key as DictionaryUpdateKey] = {};
+      }
+      let value = state.dictionaries[key].defaultValue;
+      if (key === "names2") value = upsertKnownNames(value, state.knownNames);
+      return {
+        localDictionaryEntries,
+        dictionaries: {
+          ...state.dictionaries,
+          [key]: {
+            value,
+            defaultValue: state.dictionaries[key].defaultValue,
+            touched: value !== state.dictionaries[key].defaultValue,
+          },
         },
-      },
-    })),
+      };
+    }),
   hydrateDictionaryDefaults: (endpoint, defaults) =>
     set((state) => {
       if (state.dictionaryDefaultsEndpoint === endpoint) return state;
-      const dictionaries = dictionariesFromDefaults(defaults);
-      const names2 = upsertKnownNames(dictionaries.names2.value, state.knownNames);
-      dictionaries.names2 = {
-        ...dictionaries.names2,
-        value: names2,
-        touched: names2 !== dictionaries.names2.defaultValue,
-      };
+      const dictionaries = applyPersistentEntries(
+        dictionariesFromDefaults(defaults),
+        state.localDictionaryEntries,
+        state.knownNames,
+      );
       return {
         dictionaries,
         dictionaryDefaultsEndpoint: endpoint,
@@ -279,19 +334,93 @@ export const useWorkspaceStore = create<WorkspaceState>()(persist((set) => ({
         },
       };
     }),
+  saveLocalDictionaryEntries: (key, entries, previousKeys = []) =>
+    set((state) => {
+      const group = { ...state.localDictionaryEntries[key] };
+      for (const previousKey of previousKeys) {
+        if (!(previousKey in entries)) delete group[previousKey];
+      }
+      Object.assign(group, entries);
+      const localDictionaryEntries = {
+        ...state.localDictionaryEntries,
+        [key]: group,
+      };
+      if (!isEditableDictionaryKey(key)) return { localDictionaryEntries };
+
+      let value = state.dictionaries[key].value;
+      for (const previousKey of previousKeys) {
+        if (previousKey in entries) continue;
+        value = restoreDictionaryEntry(
+          value,
+          state.dictionaries[key].defaultValue,
+          previousKey,
+          key === "names2" ? state.knownNames[previousKey] : undefined,
+        );
+      }
+      value = applyDictionaryEntries(value, entries);
+      return {
+        localDictionaryEntries,
+        dictionaries: {
+          ...state.dictionaries,
+          [key]: {
+            ...state.dictionaries[key],
+            value,
+            touched: value !== state.dictionaries[key].defaultValue,
+          },
+        },
+      };
+    }),
+  removeLocalDictionaryEntries: (key, keys) =>
+    set((state) => {
+      const group = { ...state.localDictionaryEntries[key] };
+      for (const entryKey of keys) delete group[entryKey];
+      const localDictionaryEntries = {
+        ...state.localDictionaryEntries,
+        [key]: group,
+      };
+      if (!isEditableDictionaryKey(key)) return { localDictionaryEntries };
+
+      let value = state.dictionaries[key].value;
+      for (const entryKey of keys) {
+        value = restoreDictionaryEntry(
+          value,
+          state.dictionaries[key].defaultValue,
+          entryKey,
+          key === "names2" ? state.knownNames[entryKey] : undefined,
+        );
+      }
+      return {
+        localDictionaryEntries,
+        dictionaries: {
+          ...state.dictionaries,
+          [key]: {
+            ...state.dictionaries[key],
+            value,
+            touched: value !== state.dictionaries[key].defaultValue,
+          },
+        },
+      };
+    }),
   clearWorkspace: () =>
-    set((state) => ({
-      sourceText: "",
-      response: undefined,
-      nameFilterResponse: undefined,
-      activeRange: undefined,
-      dictionaries: resetDictionaries(state.dictionaries),
-      sourceView: "raw",
-      outputView: "output",
-    })),
+    set((state) => {
+      const dictionaries = applyPersistentEntries(
+        resetDictionaries(state.dictionaries),
+        state.localDictionaryEntries,
+        state.knownNames,
+      );
+      return {
+        sourceText: "",
+        response: undefined,
+        nameFilterResponse: undefined,
+        activeRange: undefined,
+        dictionaries,
+        sourceView: "raw",
+        outputView: "output",
+      };
+    }),
   loadSample: () =>
     set((state) => {
-      const dictionaries = resetDictionaries(state.dictionaries);
+      let dictionaries = resetDictionaries(state.dictionaries);
       dictionaries.names = {
         ...dictionaries.names,
         value: sampleDictionaryValues.names,
@@ -302,6 +431,11 @@ export const useWorkspaceStore = create<WorkspaceState>()(persist((set) => ({
         value: sampleDictionaryValues.pronouns,
         touched: sampleDictionaryValues.pronouns !== dictionaries.pronouns.defaultValue,
       };
+      dictionaries = applyPersistentEntries(
+        dictionaries,
+        state.localDictionaryEntries,
+        state.knownNames,
+      );
       return {
         sourceText: sampleSource,
         response: sampleResponse,
@@ -320,6 +454,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(persist((set) => ({
     nameMemoryId: state.nameMemoryId,
     nameMemoryProfiles: state.nameMemoryProfiles,
     rangePinEnabled: state.rangePinEnabled,
+    localDictionaryEntries: state.localDictionaryEntries,
   }),
 }));
 
@@ -346,6 +481,50 @@ function upsertDictionaryEntry(content: string, key: string, value: string): str
   return `${hasBom ? "\uFEFF" : ""}${lines.join(lineEnding)}${suffix}`;
 }
 
+function applyDictionaryEntries(
+  content: string,
+  entries: Record<string, string>,
+): string {
+  return Object.entries(entries).reduce(
+    (current, [key, value]) => upsertDictionaryEntry(current, key, value),
+    content,
+  );
+}
+
+function dictionaryEntry(content: string, key: string): string | undefined {
+  const body = content.startsWith("\uFEFF") ? content.slice(1) : content;
+  const prefix = `${key}=`;
+  const line = body.split(/\r?\n/).find((value) => value.startsWith(prefix));
+  return line?.slice(prefix.length);
+}
+
+function removeDictionaryKey(content: string, key: string): string {
+  const hasBom = content.startsWith("\uFEFF");
+  const body = hasBom ? content.slice(1) : content;
+  const lineEnding = body.includes("\r\n") ? "\r\n" : "\n";
+  const trailingNewline = body.endsWith("\n");
+  const prefix = `${key}=`;
+  const lines = (body.length === 0 ? [] : body.split(/\r?\n/)).filter(
+    (line) => !line.startsWith(prefix),
+  );
+  if (trailingNewline && lines.at(-1) === "") lines.pop();
+  const suffix = trailingNewline && lines.length > 0 ? lineEnding : "";
+  return `${hasBom ? "\uFEFF" : ""}${lines.join(lineEnding)}${suffix}`;
+}
+
+function restoreDictionaryEntry(
+  content: string,
+  defaultContent: string,
+  key: string,
+  preferredValue?: string,
+): string {
+  const withoutEntry = removeDictionaryKey(content, key);
+  const value = preferredValue ?? dictionaryEntry(defaultContent, key);
+  return value === undefined
+    ? withoutEntry
+    : upsertDictionaryEntry(withoutEntry, key, value);
+}
+
 function removeDictionaryEntry(content: string, key: string, value: string): string {
   const hasBom = content.startsWith("\uFEFF");
   const body = hasBom ? content.slice(1) : content;
@@ -367,4 +546,15 @@ export function dictionaryPayload(
     .filter((key) => dictionaries[key].touched)
     .map((key) => [key, dictionaries[key].value] as const);
   return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+}
+
+export function dictionaryPatchPayload(
+  entries: LocalDictionaryEntries,
+): DictionaryPatchPayload | undefined {
+  const payload = Object.fromEntries(
+    fixedDictionaryPatchKeys
+      .filter((key) => Object.keys(entries[key]).length > 0)
+      .map((key) => [key, entries[key]]),
+  ) as DictionaryPatchPayload;
+  return Object.keys(payload).length > 0 ? payload : undefined;
 }

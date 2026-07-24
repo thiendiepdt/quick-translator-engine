@@ -23,7 +23,8 @@ present in the repository when these directions were made.
 
 - Do not imply machine-learning or conversational-AI features that the engine does not have.
 - Do not invent usage metrics, confidence scores, or translation quality scores.
-- Do not present VietPhrase or ChinesePhienAmWords as user-editable dictionaries.
+- Do not present VietPhrase or ChinesePhienAmWords as editable raw files. A mapped-text
+  action may create compact local entry patches without changing the fixed base.
 - Do not persist API secrets in the browser. The intended endpoint is the public
   Cloudflare gateway; Lambda credentials remain in Workers Secrets.
 - The three demos may use separate palettes while the visual identity is still undecided.

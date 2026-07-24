@@ -102,7 +102,7 @@ impl LuatNhan {
     pub fn contains(
         &self,
         chinese: &[char],
-        only_vietphrase: &HashMap<String, String>,
+        only_vietphrase: &dyn DictionaryLookup,
         vietphrase: &dyn DictionaryLookup,
         dictionary_n: Option<&dyn DictionaryLookup>,
         ho_nguoi: Option<&dyn DictionaryLookup>,
@@ -263,11 +263,7 @@ impl LuatNhan {
         None
     }
 
-    fn match_s(
-        &self,
-        chinese: &str,
-        only_vietphrase: &HashMap<String, String>,
-    ) -> Option<RuleMatch> {
+    fn match_s(&self, chinese: &str, only_vietphrase: &dyn DictionaryLookup) -> Option<RuleMatch> {
         for rule in &self.s_rules {
             let Some(captures) = rule.regex.captures(chinese).ok().flatten() else {
                 continue;

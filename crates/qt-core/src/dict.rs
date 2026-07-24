@@ -73,8 +73,19 @@ pub struct DictionarySourceOverrides<'a> {
     pub ignored_chinese_phrases: Option<&'a str>,
 }
 
+/// Compact, request-scoped entries layered over the two fixed dictionaries.
+///
+/// Unlike [`DictionarySourceOverrides`], these maps do not replace the base
+/// files. They only override matching keys for the current request.
+#[derive(Default)]
+pub struct DictionaryPatches {
+    pub vietphrase: HashMap<String, String>,
+    pub chinese_phien_am_words: HanVietMap,
+}
+
 /// Parsed, request-scoped replacements for every runtime text dictionary
-/// except the fixed VietPhrase and ChinesePhienAmWords dictionaries.
+/// plus compact patches layered over fixed VietPhrase and
+/// ChinesePhienAmWords dictionaries.
 #[derive(Default)]
 pub struct DictionaryOverrides {
     pub(crate) names: Option<HashMap<String, String>>,
@@ -85,6 +96,8 @@ pub struct DictionaryOverrides {
     pub(crate) ho_nguoi: Option<HashMap<String, String>>,
     pub(crate) hau_tu: Option<HashMap<String, String>>,
     pub(crate) ignored_chinese_phrases: Option<Vec<String>>,
+    pub(crate) vietphrase_patches: HashMap<String, String>,
+    pub(crate) chinese_phien_am_words_patches: HanVietMap,
 }
 
 impl DictionaryOverrides {
@@ -100,7 +113,15 @@ impl DictionaryOverrides {
             ignored_chinese_phrases: sources
                 .ignored_chinese_phrases
                 .map(parse_ignored_chinese_phrases),
+            vietphrase_patches: HashMap::new(),
+            chinese_phien_am_words_patches: HanVietMap::new(),
         }
+    }
+
+    pub fn with_patches(mut self, patches: DictionaryPatches) -> Self {
+        self.vietphrase_patches = patches.vietphrase;
+        self.chinese_phien_am_words_patches = patches.chinese_phien_am_words;
+        self
     }
 
     pub fn is_empty(&self) -> bool {
@@ -112,6 +133,8 @@ impl DictionaryOverrides {
             && self.ho_nguoi.is_none()
             && self.hau_tu.is_none()
             && self.ignored_chinese_phrases.is_none()
+            && self.vietphrase_patches.is_empty()
+            && self.chinese_phien_am_words_patches.is_empty()
     }
 }
 
