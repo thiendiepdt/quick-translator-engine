@@ -1,0 +1,19 @@
+[package]
+name = "qt-gui"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-only"
+description = "Local Tauri desktop client for Quick Translator Engine"
+
+[lib]
+name = "qt_gui_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+qt-core = { path = "../../../crates/qt-core" }
+serde = { version = "1", features = ["derive"] }
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"

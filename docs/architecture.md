@@ -6,7 +6,7 @@ toán gốc nằm trong [engine/](engine/README.md); HTTP contract nằm trong [
 ## Mục tiêu thiết kế
 
 - Tái hiện hành vi dịch của Quick Translator/QT2025 bằng Rust.
-- Giữ engine độc lập với transport để dùng chung cho CLI, server, Lambda và web.
+- Giữ engine độc lập với transport để dùng chung cho CLI, server, Lambda, web và desktop.
 - Nạp VietPhrase/Hán Việt một lần; áp dụng dictionary phụ theo request mà không mutate
   state dùng chung.
 - Giữ source ↔ target ranges theo UTF-16 cho JavaScript/.NET consumers.
@@ -17,7 +17,8 @@ toán gốc nằm trong [engine/](engine/README.md); HTTP contract nằm trong [
 ```text
 quick-translator-engine/
 ├── apps/
-│   └── qt-web/    # React web client
+│   ├── qt-web/    # React web client
+│   └── qt-gui/    # React + Tauri desktop client
 ├── crates/
 │   ├── qt-core/   # thư viện dịch đồng bộ
 │   ├── qt-cli/    # binary qt, stdin -> stdout
@@ -85,6 +86,19 @@ ghi vào `stderr` và trả exit code khác 0. CLI không chứa thuật toán d
 `qt names filter` gọi cùng core rules, nhận file accepted/rejected làm book memory và có
 thể xuất Names2-compatible hoặc JSON. Provider ONNX/Gemini thuộc HTTP server để CLI mặc
 định không kéo runtime/model/network dependency.
+
+### `qt-gui`
+
+Desktop app giữ một `Engine` chỉ đọc trong Tauri managed state. Lúc khởi động, app ưu
+tiên `QT_DATA_DIR`, sau đó tìm `QT2025`/`data` từ working directory và executable; người
+dùng cũng có thể chọn data directory trong UI. Translation và deterministic name filter
+chạy ở blocking task qua commands, không bind socket và không khởi động `qt-api`.
+
+Frontend dùng lại stack và interaction model của `qt-web`, nhưng transport là Tauri IPC.
+Compact quick-update entries và book memory được persist trong WebView local storage;
+raw dictionary draft chỉ sống trong session. Override được parse riêng cho từng lần dịch
+nên không mutate engine hoặc ghi đè dữ liệu QT2025. File open/save dùng native dialog,
+còn đọc/ghi UTF-8 đi qua commands có giới hạn 16 MiB.
 
 ### Các runtime `qt-ner-*`
 

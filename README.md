@@ -25,6 +25,8 @@ công cụ xử lý văn bản.
 - Cloudflare Worker gateway ký SigV4 tới Lambda Function URL dùng `AWS_IAM`.
 - React web app để dịch theo chương, tùy biến dictionary và đối chiếu source/output bằng
   UTF-16 ranges.
+- Tauri desktop app chạy `qt-core` trực tiếp trên máy, có đủ ba mode, lọc name local,
+  chỉnh dictionary theo workspace, mở chương và lưu output mà không cần HTTP API.
 - Cho phép thay thế Names, Names2, Luật Nhân và các từ điển phụ theo từng lần gọi CLI/API;
   VietPhrase và ChinesePhienAmWords luôn dùng bản cố định đã nạp lúc khởi động.
 
@@ -182,6 +184,20 @@ npm run dev
 [`apps/qt-web/.env.example`](apps/qt-web/.env.example) và thêm origin của web app vào
 `CORS_ALLOWED_ORIGINS` của Worker. Xem [hướng dẫn qt-web](apps/qt-web/README.md).
 
+## Chạy desktop app
+
+`apps/qt-gui` dùng cùng React/Tailwind/shadcn stack với web app nhưng gọi `qt-core` trực
+tiếp qua Tauri commands:
+
+```powershell
+cd apps/qt-gui
+npm ci
+npm run tauri dev
+```
+
+App tự tìm `QT2025` trong checkout; cũng có thể đặt `QT_DATA_DIR` hoặc chọn thư mục dữ
+liệu trong giao diện. Không cần chạy `qt-api`. Xem [hướng dẫn qt-gui](apps/qt-gui/README.md).
+
 ## Kiểm tra chất lượng
 
 ```bash
@@ -208,6 +224,7 @@ crates/qt-ner-cli/    CLI lọc name với rules, ONNX và AI
 crates/qt-ner-api/    HTTP API chỉ dành cho name filter
 crates/qt-ner-lambda/ Lambda chỉ dành cho name filter
 apps/qt-web/      React web app dịch và đối chiếu theo range
+apps/qt-gui/      Tauri desktop app chạy qt-core trực tiếp, không qua HTTP
 deploy/           Infrastructure và hướng dẫn deploy
 docs/             Kiến trúc, API và đặc tả thuật toán
 QT2025/           Dữ liệu/config tham chiếu từ bộ QT gốc
@@ -221,6 +238,7 @@ reference/        Source C# decompile dùng để đối chiếu hành vi
 - [Deploy lên AWS Lambda](deploy/aws-lambda/README.md)
 - [Cloudflare gateway cho Lambda](deploy/cloudflare-worker/README.md)
 - [Web app](apps/qt-web/README.md)
+- [Desktop app](apps/qt-gui/README.md)
 - [Đặc tả engine](docs/engine/README.md)
 - [Cách tái tạo source decompile](docs/dev/decompile.md)
 - [Hướng dẫn đóng góp](CONTRIBUTING.md)

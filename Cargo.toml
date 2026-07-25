@@ -8,4 +8,5 @@ members = [
     "crates/qt-ner-cli",
     "crates/qt-ner-api",
     "crates/qt-ner-lambda",
+    "apps/qt-gui/src-tauri",
 ]
