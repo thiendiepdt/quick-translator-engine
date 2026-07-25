@@ -6,6 +6,7 @@ target/
 node_modules/
 dist/
 coverage/
+apps/qt-gui/src-tauri/gen/schemas/
 .wrangler/
 *.cpuprofile
 .dev.vars*
