@@ -192,6 +192,7 @@ export function TranslationWorkspace({ isPending, requestStatus }: TranslationWo
     }
   }
 
+  // Bộ chuyển khung chỉ tồn tại dưới lg, nơi mỗi lần chỉ hiện được một khung.
   const paneTabs = (
     <Tabs value={mobilePane} onValueChange={(value) => setMobilePane(value as "source" | "output")} className="lg:hidden">
       <TabsList className="h-8">
@@ -202,51 +203,22 @@ export function TranslationWorkspace({ isPending, requestStatus }: TranslationWo
   );
 
   return (
-    <main className="grid min-h-0 min-w-0 grid-rows-[50px_minmax(0,1fr)_54px] bg-background px-3 pb-3 md:px-4 md:pb-4">
-      <div className="flex items-center justify-between gap-3 px-1">
-        <div className="hidden min-w-0 items-center gap-2 text-xs lg:flex">
-          <strong>中文 · Nguyên văn</strong><span className="text-muted-foreground">→</span><strong>Tiếng Việt · Một nghĩa</strong>
-          <span className="ml-1 rounded border border-primary/25 bg-primary/6 px-2 py-1 font-mono text-[9px] font-semibold tracking-wide text-primary">VIETPHRASE-ONE</span>
-        </div>
-        {paneTabs}
-        <div className="ml-auto flex min-w-0 items-center gap-2">
-          <Button
-            type="button"
-            variant={rangePinEnabled ? "secondary" : "ghost"}
-            size="xs"
-            aria-label={rangePinEnabled ? "Tắt tự cuộn range" : "Bật tự cuộn range"}
-            aria-pressed={rangePinEnabled}
-            title={
-              rangePinEnabled
-                ? "Pin đang bật: click một range sẽ cuộn tới range tương ứng"
-                : "Pin đang tắt: click chỉ làm nổi bật range tương ứng"
-            }
-            onClick={toggleRangePin}
-            className="font-mono text-[9px] tracking-wide"
-          >
-            {rangePinEnabled ? <Pin /> : <PinOff />}
-            PIN
-          </Button>
-          <div className="shrink-0 font-mono text-[10px] text-muted-foreground">
-            {sourceText.length.toLocaleString("vi-VN")} ký tự nguồn
-            <span className="mx-1.5">·</span>
-            {(response?.translated.length ?? 0).toLocaleString("vi-VN")} ký tự đích
-          </div>
-        </div>
-      </div>
-
-      <div className="grid min-h-0 min-w-0 overflow-hidden rounded-lg border bg-card shadow-[0_12px_40px_rgba(28,44,72,0.07)] lg:grid-cols-2">
-        <section className={cn("min-h-0 min-w-0 grid-rows-[48px_minmax(0,1fr)]", mobilePane === "source" ? "grid" : "hidden lg:grid")} aria-label="Nguyên văn">
-          <header className="flex items-center justify-between gap-3 border-b px-4">
-            <div className="flex items-baseline gap-2"><strong className="text-xs tracking-wide uppercase">Source</strong><span className="font-mono text-[9px] text-muted-foreground">UTF-16</span></div>
+    // Bản dịch tiếng Việt dài hơn nguyên văn tiếng Trung khoảng một phần ba,
+    // nên chia đôi đều làm khung phải luôn chật hơn — cho nó rộng hơn.
+    <main className="grid min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_44px] bg-background px-3 pt-3 pb-1 md:px-4 md:pt-4 md:pb-2">
+      <div className="grid min-h-0 min-w-0 overflow-hidden rounded-lg border bg-card shadow-[var(--shadow-panel)] lg:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)]">
+        <section className={cn("min-h-0 min-w-0 grid-rows-[40px_minmax(0,1fr)]", mobilePane === "source" ? "grid" : "hidden lg:grid")} aria-label="Nguyên văn">
+          <header className="flex items-center justify-between gap-3 border-b pr-2 pl-4">
+            <strong className="hidden text-xs lg:block">Nguyên văn</strong>
+            {paneTabs}
             <Tabs value={sourceView} onValueChange={(value) => setSourceView(value as "raw" | "linked")}>
-              <TabsList className="h-8">
-                <TabsTrigger value="raw" className="text-[10px]">RAW</TabsTrigger>
-                <TabsTrigger value="linked" disabled={!response} className="text-[10px]">LINKED</TabsTrigger>
+              <TabsList className="h-7">
+                <TabsTrigger value="raw" className="text-[11px]">Gốc</TabsTrigger>
+                <TabsTrigger value="linked" disabled={!response} className="text-[11px]">Đối chiếu</TabsTrigger>
               </TabsList>
             </Tabs>
           </header>
-          <div ref={sourceScrollRef} className="fine-scrollbar relative min-h-0 overflow-auto">
+          <div ref={sourceScrollRef} lang="zh-Hans" className="fine-scrollbar relative min-h-0 overflow-auto">
             {sourceView === "raw" ? (
               <Textarea
                 value={sourceText}
@@ -268,19 +240,39 @@ export function TranslationWorkspace({ isPending, requestStatus }: TranslationWo
           </div>
         </section>
 
-        <section className={cn("min-h-0 min-w-0 grid-rows-[48px_minmax(0,1fr)] border-l", mobilePane === "output" ? "grid border-l-0" : "hidden lg:grid")} aria-label="Bản dịch">
-          <header className="flex items-center justify-between gap-3 border-b px-4">
-            <div className="flex items-baseline gap-2"><strong className="text-xs tracking-wide uppercase">Output</strong><span className="font-mono text-[9px] text-muted-foreground">READER</span></div>
-            <Tabs value={outputView} onValueChange={(value) => setOutputView(value as "output" | "json")}>
-              <TabsList variant="line" className="h-8">
-                <TabsTrigger value="output" className="text-[10px]">BẢN DỊCH</TabsTrigger>
-                <TabsTrigger value="json" disabled={!response} className="text-[10px]">RAW JSON</TabsTrigger>
-              </TabsList>
-            </Tabs>
+        <section className={cn("min-h-0 min-w-0 grid-rows-[40px_minmax(0,1fr)] border-l", mobilePane === "output" ? "grid border-l-0" : "hidden lg:grid")} aria-label="Bản dịch">
+          <header className="flex items-center justify-between gap-2 border-b pr-2 pl-4">
+            <strong className="hidden text-xs lg:block">Bản dịch</strong>
+            {paneTabs}
+            <div className="flex items-center gap-1">
+              {/* Pin thuộc về hành vi của khung này, nên đặt ngay tại đây thay
+                  vì nằm trên một dải riêng chạy ngang toàn màn hình. */}
+              <Button
+                type="button"
+                variant={rangePinEnabled ? "secondary" : "ghost"}
+                size="icon-sm"
+                aria-label={rangePinEnabled ? "Tắt tự cuộn range" : "Bật tự cuộn range"}
+                aria-pressed={rangePinEnabled}
+                title={
+                  rangePinEnabled
+                    ? "Đang bật: click một cặp sẽ cuộn tới cặp tương ứng"
+                    : "Đang tắt: click chỉ làm nổi bật cặp tương ứng"
+                }
+                onClick={toggleRangePin}
+              >
+                {rangePinEnabled ? <Pin /> : <PinOff />}
+              </Button>
+              <Tabs value={outputView} onValueChange={(value) => setOutputView(value as "output" | "json")}>
+                <TabsList className="h-7">
+                  <TabsTrigger value="output" className="text-[11px]">Văn bản</TabsTrigger>
+                  <TabsTrigger value="json" disabled={!response} className="text-[11px]">JSON</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
           </header>
-          <div ref={outputScrollRef} className="fine-scrollbar relative min-h-0 overflow-auto bg-[var(--reader-paper)]">
+          <div ref={outputScrollRef} lang="vi" className="fine-scrollbar relative min-h-0 overflow-auto bg-reader-paper">
             {outputView === "json" ? (
-              <pre className="min-h-full overflow-auto bg-slate-950 p-6 font-mono text-xs leading-6 text-slate-200">
+              <pre className="min-h-full overflow-auto bg-code p-6 font-mono text-xs leading-6 text-code-foreground">
                 {response ? JSON.stringify(response, null, 2) : ""}
               </pre>
             ) : (
@@ -296,7 +288,7 @@ export function TranslationWorkspace({ isPending, requestStatus }: TranslationWo
                       activeRange={activeRange}
                       onRangeSelect={(rangeIndex) => selectRange(rangeIndex, "output")}
                       emptyMessage={isPending ? "Đang dịch chương…" : "Bản dịch sẽ xuất hiện ở đây. Chọn “Dùng văn bản mẫu” để thử range mapping mà không gọi API."}
-                      className="reader-output min-h-full px-8 py-8 font-serif text-[21px] leading-[2.05] text-[var(--reader-ink)] md:px-10"
+                      className="min-h-full px-8 py-8 font-serif text-[21px] leading-[2.05] text-reader-ink md:px-10"
                     />
                   </div>
                 </ContextMenuTrigger>
@@ -380,14 +372,14 @@ export function TranslationWorkspace({ isPending, requestStatus }: TranslationWo
                 </ContextMenuContent>
               </ContextMenu>
             )}
+            {/* Câu hướng dẫn chỉ hiện khi chưa chọn cặp nào; chọn rồi thì thanh
+                này chuyển hẳn sang việc của nó là hiển thị cặp đang xem. */}
             {hasMapping && outputView === "output" ? (
-              <div className="pointer-events-none sticky bottom-4 mx-5 mt-auto flex w-fit max-w-[calc(100%-2.5rem)] items-center gap-2 border bg-[var(--reader-paper)]/95 px-3 py-2 text-[10px] text-muted-foreground shadow-sm backdrop-blur">
-                <span className="font-semibold text-[var(--reader-accent)]">↔</span>
+              <div className="pointer-events-none sticky bottom-4 mx-5 mt-auto flex w-fit max-w-[calc(100%-2.5rem)] items-center gap-2 rounded-md border bg-reader-paper/95 px-3 py-1.5 text-[11px] text-muted-foreground shadow-sm backdrop-blur">
+                <span className="font-semibold text-pair">↔</span>
                 {activeRange === undefined
-                  ? rangePinEnabled
-                    ? "Click để đối chiếu · click phải output để cập nhật từ điển"
-                    : "Click để xem phần tương ứng · click phải output để cập nhật từ điển"
-                  : <><span className="truncate">{activeSource || "∅"}</span><span>↔</span><strong className="truncate text-foreground">{activeTarget || "∅"}</strong></>}
+                  ? "Click một cụm để đối chiếu · click phải để cập nhật từ điển"
+                  : <><span lang="zh-Hans" className="truncate">{activeSource || "∅"}</span><span>↔</span><strong className="truncate text-foreground">{activeTarget || "∅"}</strong></>}
               </div>
             ) : null}
           </div>
@@ -396,13 +388,24 @@ export function TranslationWorkspace({ isPending, requestStatus }: TranslationWo
 
       <footer className="flex min-w-0 items-center justify-between gap-3 px-1">
         <div className="flex min-w-0 items-center gap-2 text-[11px] text-muted-foreground">
-          {isPending ? <LoaderCircle className="size-3.5 shrink-0 animate-spin text-primary" /> : <span className="size-1.5 shrink-0 rounded-full bg-emerald-600" />}
+          {isPending ? <LoaderCircle className="size-3.5 shrink-0 animate-spin text-primary" /> : <span className="size-1.5 shrink-0 rounded-full bg-ok" />}
           <span className="truncate">{requestStatus}</span>
+          {/* Số ký tự chỉ có nghĩa khi đã có chữ — bằng 0 thì nó là nhiễu. */}
+          {sourceText.length > 0 ? (
+            <span
+              className="hidden shrink-0 font-mono text-[10px] sm:inline"
+              title="ký tự nguyên văn / ký tự bản dịch"
+            >
+              · {sourceText.length.toLocaleString("vi-VN")}
+              {" / "}
+              {(response?.translated.length ?? 0).toLocaleString("vi-VN")}
+            </span>
+          ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          <Button type="button" variant="ghost" size="sm" onClick={loadSample}><Braces /> Dùng văn bản mẫu</Button>
-          <Button type="button" variant="ghost" size="sm" disabled={!sourceText && !response} onClick={clearWorkspace}><RotateCcw /> Xóa workspace</Button>
-          <Button type="button" variant="outline" size="sm" disabled={!response?.translated} onClick={() => void copyOutput()}><Copy /> Sao chép output</Button>
+          <Button type="button" variant="ghost" size="sm" onClick={loadSample}><Braces /> Văn bản mẫu</Button>
+          <Button type="button" variant="ghost" size="sm" disabled={!sourceText && !response} onClick={clearWorkspace}><RotateCcw /> Xóa</Button>
+          <Button type="button" variant="outline" size="sm" disabled={!response?.translated} onClick={() => void copyOutput()}><Copy /> Sao chép</Button>
         </div>
       </footer>
       <DictionaryUpdateDialog

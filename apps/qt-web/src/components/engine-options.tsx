@@ -37,21 +37,23 @@ export function EngineOptions() {
 
   return (
     <section aria-labelledby="engine-options-title">
-      <h3 id="engine-options-title" className="mb-2 font-mono text-[10px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
-        Engine options
+      <h3 id="engine-options-title" className="mb-1 text-sm font-semibold">
+        Engine
       </h3>
       <OptionSwitch name="pretty" label="Pretty output" />
       <OptionSwitch name="wrap" label="Wrap phrase" />
-      <OptionSwitch name="prioritizedName" label="Prioritized Name" />
-      <div className="flex min-h-10 items-center justify-between border-b border-border/70 py-2">
-        <div>
-          <div className="text-xs font-medium">Range mapping</div>
-          <div className="mt-0.5 text-[10px] text-muted-foreground">Luôn bật để đối chiếu hai chiều</div>
-        </div>
+      <OptionSwitch name="prioritizedName" label="Prioritized name" />
+      {/* Dòng giải thích đã chuyển vào tooltip: công tắc này khoá cứng, người
+          dùng không có quyết định nào để đưa ra ở đây. */}
+      <div
+        className="flex min-h-10 items-center justify-between border-b border-border/70 py-2"
+        title="Luôn bật để đối chiếu hai chiều giữa nguyên văn và bản dịch"
+      >
+        <div className="text-xs font-medium">Range mapping</div>
         <Switch checked disabled aria-label="Range mapping luôn bật" />
       </div>
       <div className="grid min-h-12 grid-cols-[1fr_92px] items-center gap-3 border-b border-border/70 py-2">
-        <Label htmlFor="scanRange" className="text-xs font-medium">Scan Range</Label>
+        <Label htmlFor="scanRange" className="text-xs font-medium">Scan range</Label>
         <Input
           id="scanRange"
           type="number"
