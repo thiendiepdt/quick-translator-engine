@@ -4,9 +4,12 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-07-22",
   "compatibility_flags": ["nodejs_compat"],
+  "routes": [
+    { "pattern": "qt-api.vn-converter.org", "custom_domain": true }
+  ],
   "vars": {
     // Replace this after `sam deploy`; the URL itself is not a secret.
-    "LAMBDA_FUNCTION_URL": "https://replace-me.lambda-url.ap-southeast-1.on.aws/",
+    "LAMBDA_FUNCTION_URL": "https://e3xuzho3aahlliid63ecfaslvy0afgce.lambda-url.ap-southeast-1.on.aws/",
     "AWS_REGION": "ap-southeast-1",
     // Comma-separated exact browser origins. Replace/add the deployed qt-web origin.
     "CORS_ALLOWED_ORIGINS": "http://localhost:5173"
