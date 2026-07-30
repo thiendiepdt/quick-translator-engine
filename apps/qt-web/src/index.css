@@ -3,10 +3,36 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ----------------------------------------------------------------------------
+   Chữ.
+   Bản cũ khai báo "Noto Sans" / "Bitstream Charter" / "Maple Mono Normal NL"
+   nhưng KHÔNG hề nạp font nào (document.fonts rỗng), nên mọi thứ rơi về
+   fallback của hệ điều hành — và vì không chỗ nào khai báo font CJK, chữ Hán
+   rơi về SimSun trên Windows: mảnh, mờ, lệch hẳn với phần chữ Việt.
+
+   Cách sửa: giữ đúng ý đồ cũ (Noto Sans / Noto Serif) nhưng nạp thật, cộng
+   một stack CJK khai báo tường minh.
+
+   Vì sao CJK dùng font hệ thống chứ không tự host: bộ CJK đầy đủ nặng hàng
+   chục MB, trong khi mọi OS đều có sẵn một bộ CJK chất lượng cao (PingFang SC
+   trên macOS, Microsoft YaHei trên Windows, Noto Sans CJK trên Linux). Đặt
+   stack CJK NGAY SAU font Latin trong cả ba token: chữ Latin/Việt do Noto lo,
+   chữ Hán rơi xuống stack CJK — nên toàn app chỉ có duy nhất một mặt chữ Hán,
+   kể cả trong ô mono của trình sửa từ điển (trước đây chữ Hán trong ô mono
+   rơi về fallback của Courier New).
+   -------------------------------------------------------------------------- */
 @theme inline {
-  --font-sans: "Noto Sans", "DejaVu Sans", sans-serif;
-  --font-serif: "Bitstream Charter", "Noto Serif", "DejaVu Serif", serif;
-  --font-mono: "Maple Mono Normal NL", "DejaVu Sans Mono", monospace;
+  --font-cjk: "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei",
+    "Noto Sans CJK SC", "Noto Sans SC", "Source Han Sans SC", "Hiragino Sans GB",
+    sans-serif;
+  --font-sans: "Noto Sans Variable", "PingFang SC", "Microsoft YaHei UI",
+    "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", "Hiragino Sans GB",
+    system-ui, sans-serif;
+  --font-serif: "Noto Serif Variable", "PingFang SC", "Microsoft YaHei UI",
+    "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", Georgia, serif;
+  --font-mono: "JetBrains Mono Variable", "PingFang SC", "Microsoft YaHei UI",
+    "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", ui-monospace,
+    monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -25,37 +51,255 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-ok: var(--ok);
+  --color-ok-foreground: var(--ok-foreground);
+  --color-pair: var(--pair);
+  --color-pair-foreground: var(--pair-foreground);
+  --color-pair-soft: var(--pair-soft);
+  --color-highlight: var(--highlight);
+  --color-highlight-foreground: var(--highlight-foreground);
+  --color-code: var(--code);
+  --color-code-foreground: var(--code-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-field: var(--field);
+  --color-reader-paper: var(--reader-paper);
+  --color-reader-ink: var(--reader-ink);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-:root {
-  --radius: 0.4rem;
-  --background: oklch(0.973 0.005 250);
-  --foreground: oklch(0.25 0.035 255);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.25 0.035 255);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.25 0.035 255);
-  --primary: oklch(0.53 0.16 255);
-  --primary-foreground: oklch(0.99 0.003 250);
-  --secondary: oklch(0.95 0.014 247);
-  --secondary-foreground: oklch(0.31 0.04 255);
-  --muted: oklch(0.955 0.008 250);
-  --muted-foreground: oklch(0.55 0.026 255);
-  --accent: oklch(0.94 0.025 250);
-  --accent-foreground: oklch(0.33 0.065 255);
-  --destructive: oklch(0.57 0.2 28);
-  --border: oklch(0.88 0.012 250);
-  --input: oklch(0.88 0.012 250);
-  --ring: oklch(0.61 0.14 255);
-  --reader-paper: oklch(0.985 0.014 83);
-  --reader-ink: oklch(0.24 0.025 63);
-  --reader-accent: oklch(0.57 0.16 32);
-  --sidebar: oklch(0.25 0.05 250);
-  --sidebar-foreground: oklch(0.94 0.015 245);
+/* ============================================================================
+   Bảng màu theo theme.
+   Mỗi theme phải khai báo ĐỦ bộ token dưới đây, vì không còn màu nào được
+   hardcode trong component nữa — cứ thiếu một token là chỗ đó vỡ ở theme khác.
+
+   Nhóm token riêng của sản phẩm này:
+   --reader-*   mặt đọc bản dịch (hơi khác card để mắt phân biệt hai khung)
+   --pair-*     cặp nguyên văn ↔ bản dịch. MỘT màu duy nhất dùng chung cho cả
+                hai khung; trước đây mỗi khung một màu nên mắt không nối được
+                hai đầu của cùng một cặp.
+   --ok         trạng thái tốt (gateway sống, từ điển đã sửa)
+   --highlight  tô kết quả tìm kiếm trong trình sửa từ điển / lọc tên
+   --code-*     khung JSON thô
+   --sidebar-*  rail điều hướng
+   ========================================================================== */
+
+@layer base {
+  /* ---- QT (mặc định) — slate sáng, bản đang chạy ---- */
+  :root,
+  .theme-qt {
+    color-scheme: light;
+    --radius: 0.4rem;
+    --background: oklch(0.973 0.005 250);
+    --foreground: oklch(0.25 0.035 255);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.25 0.035 255);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.25 0.035 255);
+    --primary: oklch(0.53 0.16 255);
+    --primary-foreground: oklch(0.99 0.003 250);
+    --secondary: oklch(0.95 0.014 247);
+    --secondary-foreground: oklch(0.31 0.04 255);
+    --muted: oklch(0.955 0.008 250);
+    --muted-foreground: oklch(0.55 0.026 255);
+    --accent: oklch(0.94 0.025 250);
+    --accent-foreground: oklch(0.33 0.065 255);
+    --destructive: oklch(0.57 0.2 28);
+    --border: oklch(0.88 0.012 250);
+    --input: oklch(0.845 0.016 250);
+    --ring: oklch(0.61 0.14 255);
+    --reader-paper: oklch(0.985 0.014 83);
+    --reader-ink: oklch(0.24 0.025 63);
+    --sidebar: oklch(0.25 0.05 250);
+    --sidebar-foreground: oklch(0.94 0.015 245);
+    --sidebar-accent: oklch(1 0 0 / 0.09);
+    --sidebar-ring: oklch(0.72 0.13 250);
+    --ok: oklch(0.56 0.13 155);
+    --ok-foreground: oklch(0.99 0.01 155);
+    --pair: oklch(0.78 0.14 67);
+    --pair-foreground: oklch(0.22 0.03 50);
+    --pair-soft: oklch(0.92 0.05 72);
+    --highlight: oklch(0.87 0.12 85);
+    --highlight-foreground: oklch(0.28 0.06 70);
+    --code: oklch(0.22 0.02 255);
+    --code-foreground: oklch(0.9 0.012 250);
+    --field: oklch(0.945 0.008 250);
+    --scrollbar-thumb: oklch(0.75 0.015 250);
+    --shadow-panel: 0 12px 40px oklch(0.25 0.035 255 / 0.07);
+  }
+
+  /* ---- Claude sáng — giấy kem + đất nung ---- */
+  .theme-claude {
+    color-scheme: light;
+    --radius: 0.5rem;
+    --background: hsl(44 25% 89%);
+    --foreground: hsl(60 3% 11%);
+    --card: hsl(42 28% 94%);
+    --card-foreground: hsl(60 3% 11%);
+    --popover: hsl(42 28% 96%);
+    --popover-foreground: hsl(60 3% 11%);
+    --primary: hsl(15 57% 46%);
+    --primary-foreground: hsl(42 28% 96%);
+    --secondary: hsl(44 24% 83%);
+    --secondary-foreground: hsl(60 3% 11%);
+    --muted: hsl(44 24% 85%);
+    --muted-foreground: hsl(44 8% 38%);
+    --accent: hsl(44 24% 83%);
+    --accent-foreground: hsl(60 3% 11%);
+    --destructive: hsl(0 56% 42%);
+    --border: hsl(40 16% 79%);
+    --input: hsl(40 16% 72%);
+    --ring: hsl(15 57% 46%);
+    --reader-paper: hsl(42 34% 96%);
+    --reader-ink: hsl(30 8% 14%);
+    --sidebar: hsl(30 9% 17%);
+    --sidebar-foreground: hsl(42 20% 90%);
+    --sidebar-accent: hsl(42 30% 96% / 0.12);
+    --sidebar-ring: hsl(15 60% 60%);
+    --ok: hsl(150 42% 30%);
+    --ok-foreground: hsl(150 30% 96%);
+    --pair: hsl(38 72% 52%);
+    --pair-foreground: hsl(35 40% 10%);
+    --pair-soft: hsl(40 60% 84%);
+    --highlight: hsl(45 80% 70%);
+    --highlight-foreground: hsl(40 40% 15%);
+    --code: hsl(45 10% 13%);
+    --code-foreground: hsl(42 18% 87%);
+    --field: hsl(42 26% 90%);
+    --scrollbar-thumb: hsl(40 14% 70%);
+    --shadow-panel: 0 10px 32px hsl(35 20% 30% / 0.10);
+  }
+
+  /* ---- Claude tối — than ấm + đất nung ---- */
+  .theme-claude-dark {
+    color-scheme: dark;
+    --radius: 0.5rem;
+    --background: hsl(60 6% 10%);
+    --foreground: hsl(36 9% 90%);
+    --card: hsl(45 6% 13%);
+    --card-foreground: hsl(36 9% 90%);
+    --popover: hsl(45 6% 15%);
+    --popover-foreground: hsl(36 9% 90%);
+    --primary: hsl(15 57% 52%);
+    --primary-foreground: hsl(48 20% 97%);
+    --secondary: hsl(45 8% 18%);
+    --secondary-foreground: hsl(36 9% 90%);
+    --muted: hsl(45 8% 17%);
+    --muted-foreground: hsl(42 7% 62%);
+    --accent: hsl(45 7% 20%);
+    --accent-foreground: hsl(36 9% 92%);
+    --destructive: hsl(0 60% 55%);
+    --border: hsl(40 6% 22%);
+    --input: hsl(40 6% 26%);
+    --ring: hsl(15 57% 52%);
+    --reader-paper: hsl(42 8% 12%);
+    --reader-ink: hsl(38 13% 88%);
+    --sidebar: hsl(48 8% 8%);
+    --sidebar-foreground: hsl(36 9% 84%);
+    --sidebar-accent: hsl(36 20% 90% / 0.10);
+    --sidebar-ring: hsl(15 57% 58%);
+    --ok: hsl(150 40% 48%);
+    --ok-foreground: hsl(150 30% 8%);
+    --pair: hsl(40 70% 58%);
+    --pair-foreground: hsl(38 45% 10%);
+    --pair-soft: hsl(40 40% 26%);
+    --highlight: hsl(45 60% 45%);
+    --highlight-foreground: hsl(45 40% 96%);
+    --code: hsl(45 10% 7%);
+    --code-foreground: hsl(38 10% 82%);
+    --field: hsl(45 7% 9%);
+    --scrollbar-thumb: hsl(42 6% 32%);
+    --shadow-panel: 0 12px 40px hsl(0 0% 0% / 0.45);
+  }
+
+  /* ---- KTT — than ấm + vàng kim, hợp truyện tiên hiệp ---- */
+  .theme-ktt {
+    color-scheme: dark;
+    --radius: 0.375rem;
+    --background: hsl(0 0% 7%);
+    --foreground: hsl(39 11% 86%);
+    --card: hsl(0 0% 10%);
+    --card-foreground: hsl(39 11% 86%);
+    --popover: hsl(0 0% 12%);
+    --popover-foreground: hsl(39 11% 86%);
+    --primary: hsl(39 46% 61%);
+    --primary-foreground: hsl(0 0% 7%);
+    --secondary: hsl(0 0% 15%);
+    --secondary-foreground: hsl(39 11% 86%);
+    --muted: hsl(0 0% 14%);
+    --muted-foreground: hsl(37 8% 60%);
+    --accent: hsl(0 0% 18%);
+    --accent-foreground: hsl(39 14% 90%);
+    --destructive: hsl(0 58% 58%);
+    --border: hsl(0 0% 19%);
+    --input: hsl(0 0% 23%);
+    --ring: hsl(39 46% 61%);
+    --reader-paper: hsl(30 5% 9%);
+    --reader-ink: hsl(39 14% 88%);
+    --sidebar: hsl(0 0% 5%);
+    --sidebar-foreground: hsl(39 11% 80%);
+    --sidebar-accent: hsl(39 30% 90% / 0.10);
+    --sidebar-ring: hsl(39 46% 61%);
+    --ok: hsl(150 34% 46%);
+    --ok-foreground: hsl(150 30% 7%);
+    --pair: hsl(162 38% 46%);
+    --pair-foreground: hsl(160 40% 7%);
+    --pair-soft: hsl(162 25% 22%);
+    --highlight: hsl(39 46% 45%);
+    --highlight-foreground: hsl(39 30% 96%);
+    --code: hsl(0 0% 4%);
+    --code-foreground: hsl(39 8% 80%);
+    --field: hsl(0 0% 6%);
+    --scrollbar-thumb: hsl(0 0% 26%);
+    --shadow-panel: 0 12px 40px hsl(0 0% 0% / 0.55);
+  }
+
+  /* ---- Discord — xám xanh tối ---- */
+  .theme-discord {
+    color-scheme: dark;
+    --radius: 0.375rem;
+    --background: hsl(220 7% 18%);
+    --foreground: hsl(210 9% 87%);
+    --card: hsl(223 7% 21%);
+    --card-foreground: hsl(210 9% 87%);
+    --popover: hsl(223 7% 23%);
+    --popover-foreground: hsl(210 9% 90%);
+    --primary: hsl(235 70% 62%);
+    --primary-foreground: hsl(0 0% 100%);
+    --secondary: hsl(225 6% 15%);
+    --secondary-foreground: hsl(210 9% 87%);
+    --muted: hsl(225 6% 15%);
+    --muted-foreground: hsl(217 9% 68%);
+    --accent: hsl(223 6% 26%);
+    --accent-foreground: hsl(220 9% 95%);
+    --destructive: hsl(359 78% 60%);
+    --border: hsl(225 6% 28%);
+    --input: hsl(225 6% 32%);
+    --ring: hsl(235 70% 62%);
+    --reader-paper: hsl(223 8% 23%);
+    --reader-ink: hsl(210 12% 91%);
+    --sidebar: hsl(225 6% 13%);
+    --sidebar-foreground: hsl(210 9% 82%);
+    --sidebar-accent: hsl(210 20% 90% / 0.10);
+    --sidebar-ring: hsl(235 70% 70%);
+    --ok: hsl(145 45% 45%);
+    --ok-foreground: hsl(145 40% 8%);
+    --pair: hsl(38 82% 58%);
+    --pair-foreground: hsl(35 50% 10%);
+    --pair-soft: hsl(38 30% 28%);
+    --highlight: hsl(45 60% 48%);
+    --highlight-foreground: hsl(45 40% 97%);
+    --code: hsl(225 7% 12%);
+    --code-foreground: hsl(210 9% 85%);
+    --field: hsl(225 7% 14%);
+    --scrollbar-thumb: hsl(225 6% 34%);
+    --shadow-panel: 0 12px 40px hsl(225 20% 4% / 0.5);
+  }
 }
 
 @layer base {
@@ -72,6 +316,17 @@
   body {
     @apply bg-background text-foreground antialiased;
     margin: 0;
+    /* Noto là font biến thiên: bật optical sizing để cỡ nhỏ trong chrome và
+       cỡ 21px ở mặt đọc không dùng chung một hình dạng chữ. */
+    font-optical-sizing: auto;
+    font-synthesis-weight: none;
+  }
+
+  /* Chữ Hán và chữ Việt có chiều cao chữ khác nhau; nhích nhẹ chữ Hán cho hai
+     bên cân nhau khi đứng cạnh trong cùng một dòng (thanh cầu nối, bảng từ điển). */
+  :lang(zh),
+  [data-cjk] {
+    font-family: var(--font-cjk);
   }
 
   button:not(:disabled),
@@ -80,12 +335,14 @@
   }
 
   ::selection {
-    background: oklch(0.83 0.11 81 / 0.75);
+    background: var(--pair-soft);
     color: var(--foreground);
   }
 }
 
 @layer components {
+  /* Cặp nguyên văn ↔ bản dịch. Cùng một màu ở cả hai khung để mắt nối được
+     hai đầu của cùng một cặp mà không cần vẽ đường nối. */
   .mapped-segment {
     border-radius: 0.16rem;
     box-decoration-break: clone;
@@ -95,29 +352,18 @@
   }
 
   .mapped-segment:hover {
-    background: oklch(0.92 0.04 250);
-    box-shadow: inset 0 -1px oklch(0.61 0.14 255);
+    background: var(--pair-soft);
+    box-shadow: inset 0 -1px var(--pair);
   }
 
   .mapped-segment[data-active="true"] {
-    background: oklch(0.78 0.14 67);
-    box-shadow: 0 0 0 3px oklch(0.78 0.14 67 / 0.32);
-    color: oklch(0.2 0.025 50);
-  }
-
-  .reader-output .mapped-segment:hover {
-    background: oklch(0.92 0.04 35);
-    box-shadow: inset 0 -1px var(--reader-accent);
-  }
-
-  .reader-output .mapped-segment[data-active="true"] {
-    background: var(--reader-accent);
-    box-shadow: 0 0 0 3px oklch(0.57 0.16 32 / 0.25);
-    color: white;
+    background: var(--pair);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--pair) 32%, transparent);
+    color: var(--pair-foreground);
   }
 
   .fine-scrollbar {
-    scrollbar-color: oklch(0.75 0.015 250) transparent;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
     scrollbar-width: thin;
   }
 }

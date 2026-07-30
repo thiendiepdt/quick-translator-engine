@@ -181,7 +181,7 @@ export function NameFilterWorkspace({ endpoint, defaultsReady }: NameFilterWorks
         </Button>
       </div>
 
-      <div className="grid min-h-0 overflow-hidden rounded-lg border bg-card shadow-[0_12px_40px_rgba(28,44,72,0.07)] lg:grid-cols-[minmax(320px,0.78fr)_minmax(520px,1.22fr)]">
+      <div className="grid min-h-0 overflow-hidden rounded-lg border bg-card shadow-[var(--shadow-panel)] lg:grid-cols-[minmax(320px,0.78fr)_minmax(520px,1.22fr)]">
         <section className="grid min-h-0 grid-rows-[46px_minmax(0,1fr)_auto] border-r" aria-label="Chương nguồn">
           <header className="flex items-center justify-between border-b px-4">
             <strong className="text-xs tracking-wide uppercase">Chương nguồn</strong>
@@ -335,9 +335,9 @@ function CandidateRow({
         />
         <div className="flex items-center gap-1">
           {acceptedValue ? (
-            <Badge className="h-8 rounded-md bg-emerald-600 px-2"><Check /> Đã duyệt</Badge>
+            <Badge className="h-8 rounded-md bg-ok px-2 text-ok-foreground"><Check /> Đã duyệt</Badge>
           ) : (
-            <Button type="button" size="icon-sm" variant="outline" className="text-emerald-700" aria-label={`Duyệt ${candidate.text}`} onClick={(event) => { event.stopPropagation(); onAccept(suggested); }}>
+            <Button type="button" size="icon-sm" variant="outline" className="text-ok" aria-label={`Duyệt ${candidate.text}`} onClick={(event) => { event.stopPropagation(); onAccept(suggested); }}>
               <Check />
             </Button>
           )}
@@ -368,7 +368,7 @@ function HighlightedContext({ value }: { value: string }) {
   return (
     <>
       {value.slice(0, start)}
-      <mark className="rounded bg-amber-200 px-1 font-semibold text-amber-950">{value.slice(start + 1, end)}</mark>
+      <mark className="rounded bg-highlight px-1 font-semibold text-highlight-foreground">{value.slice(start + 1, end)}</mark>
       {value.slice(end + 1)}
     </>
   );

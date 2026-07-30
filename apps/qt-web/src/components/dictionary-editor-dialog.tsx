@@ -56,6 +56,7 @@ interface RecordRowProps {
 
 interface HighlightedInputProps {
   ariaLabel: string;
+  lang?: string;
   value: string;
   highlightQuery: string;
   onChange: (value: string) => void;
@@ -84,7 +85,7 @@ function HighlightedText({
     parts.push(
       <mark
         key={`${matchIndex}-${matchEnd}`}
-        className="rounded-[2px] bg-amber-300/80 text-foreground dark:bg-amber-500/45"
+        className="rounded-[2px] bg-highlight text-highlight-foreground"
       >
         {value.slice(matchIndex, matchEnd)}
       </mark>,
@@ -98,6 +99,7 @@ function HighlightedText({
 
 function HighlightedInput({
   ariaLabel,
+  lang,
   value,
   highlightQuery,
   onChange,
@@ -114,6 +116,7 @@ function HighlightedInput({
       {hasHighlight && !focused ? (
         <div
           aria-hidden="true"
+          lang={lang}
           className="pointer-events-none absolute inset-0 z-10 flex items-center overflow-hidden px-3 py-1 font-mono text-xs whitespace-pre"
         >
           <span className="truncate">
@@ -123,8 +126,9 @@ function HighlightedInput({
       ) : null}
       <Input
         aria-label={ariaLabel}
+        lang={lang}
         className={cn(
-          "h-8 min-w-0 bg-background font-mono text-xs",
+          "h-8 min-w-0 bg-field font-mono text-xs shadow-none focus-visible:bg-card",
           hasHighlight && !focused && "text-transparent",
         )}
         value={value}
@@ -164,13 +168,13 @@ function RecordRow({
   return (
     <div
       className={cn(
-        "grid min-w-[720px] items-center gap-2 border-b px-3 py-1.5 hover:bg-muted/35",
+        "grid min-w-[720px] items-center gap-2 border-b bg-card px-3 py-1.5 transition-colors hover:bg-accent/45",
         valueOnly || raw
           ? "grid-cols-[58px_minmax(0,1fr)_36px]"
           : "grid-cols-[58px_minmax(220px,0.8fr)_minmax(320px,1.4fr)_36px]",
       )}
     >
-      <span className="truncate text-center font-mono text-[10px] text-muted-foreground">
+      <span className="truncate border-r border-border/70 pr-2 text-center font-mono text-[10px] text-muted-foreground">
         {record.lineNumber ?? "Mới"}
       </span>
       {valueOnly || raw ? (
@@ -187,6 +191,7 @@ function RecordRow({
       ) : (
         <>
           <HighlightedInput
+            lang="zh-Hans"
             ariaLabel={`Key dòng ${record.lineNumber ?? "mới"}`}
             value={key}
             highlightQuery={highlightQuery}
@@ -344,7 +349,7 @@ function DictionaryEditorSession({
         </DialogHeader>
       </div>
 
-      <div className="flex shrink-0 flex-col gap-3 border-b bg-muted/20 px-6 py-3 lg:flex-row lg:items-center">
+      <div className="flex shrink-0 flex-col gap-3 border-b bg-muted/60 px-6 py-3 lg:flex-row lg:items-center">
         <div className="relative min-w-0 flex-1">
           <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -353,7 +358,7 @@ function DictionaryEditorSession({
               setQuery(event.target.value);
               setPage(0);
             }}
-            className="h-10 bg-background pl-9"
+            className="h-10 bg-card pl-9"
             placeholder={document.valueOnly ? "Tìm nội dung cụm…" : "Tìm theo key hoặc value…"}
             autoFocus
           />
@@ -365,6 +370,10 @@ function DictionaryEditorSession({
             type="button"
             size="sm"
             variant={adding ? "secondary" : "outline"}
+            className={cn(
+              !adding &&
+                "border-primary/45 bg-primary/10 text-primary hover:border-primary/60 hover:bg-primary/18 hover:text-primary",
+            )}
             onClick={() => setAdding((current) => !current)}
           >
             <Plus /> Thêm record
@@ -380,7 +389,7 @@ function DictionaryEditorSession({
                 value={newKey}
                 onChange={(event) => setNewKey(event.target.value)}
                 placeholder="Key tiếng Trung"
-                className="bg-background font-mono text-xs"
+                className="bg-card font-mono text-xs"
               />
             ) : null}
             <Input
@@ -390,17 +399,17 @@ function DictionaryEditorSession({
                 if (event.key === "Enter") addRecord();
               }}
               placeholder={document.valueOnly ? "Nội dung cụm" : "Giá trị tiếng Việt"}
-              className="bg-background font-mono text-xs"
+              className="bg-card font-mono text-xs"
             />
             <Button type="button" onClick={addRecord}><Plus /> Thêm</Button>
           </div>
         </div>
       ) : null}
 
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div className="min-h-0 flex-1 overflow-auto bg-card">
         <div
           className={cn(
-            "sticky top-0 z-10 grid min-w-[720px] gap-2 border-b bg-muted/95 px-3 py-2 font-mono text-[10px] font-semibold tracking-wide text-muted-foreground uppercase backdrop-blur",
+            "sticky top-0 z-10 grid min-w-[720px] gap-2 border-b bg-secondary px-3 py-2 font-mono text-[10px] font-semibold tracking-wide text-secondary-foreground uppercase",
             document.valueOnly
               ? "grid-cols-[58px_minmax(0,1fr)_36px]"
               : "grid-cols-[58px_minmax(220px,0.8fr)_minmax(320px,1.4fr)_36px]",

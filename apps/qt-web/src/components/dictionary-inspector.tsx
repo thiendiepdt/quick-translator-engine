@@ -1,6 +1,7 @@
 import {
   AlertCircle,
   FileUp,
+  Info,
   LoaderCircle,
   Maximize2,
   PencilLine,
@@ -66,26 +67,31 @@ export function DictionaryInspector({
   }
 
   return (
-    <div className={cn("flex h-full min-h-0 flex-col bg-card", mobile && "h-[calc(100dvh-5rem)]")}>
-      <div className="shrink-0 border-b px-5 py-4">
+    // Trong sheet, chiều cao phải do flex quyết định. Trước đây dùng
+    // h-[calc(100dvh-5rem)] cứng nên đổi chiều cao header là panel hụt đáy,
+    // dòng ghi chú đè lên hàng cuối và không cuộn tới được.
+    <div className={cn("flex h-full min-h-0 flex-col bg-card", mobile && "min-h-0 flex-1")}>
+      {/* Đã bỏ eyebrow "REQUEST INSPECTOR" và đoạn giải thích QT2025: tiêu đề
+          đã nói đủ, còn ý nghĩa chấm xanh nằm trong tooltip của chính chấm đó. */}
+      <div className="shrink-0 border-b px-4 py-3">
         <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="font-mono text-[10px] font-semibold tracking-[0.14em] text-primary uppercase">Request inspector</p>
-            <h2 className="mt-1 text-lg font-semibold tracking-tight">Từ điển & engine</h2>
-          </div>
-          <Badge variant={touchedCount > 0 ? "default" : "secondary"}>{touchedCount}/8 custom</Badge>
+          <h2 className="text-base font-semibold tracking-tight">Từ điển &amp; engine</h2>
+          <Badge
+            variant={touchedCount > 0 ? "default" : "secondary"}
+            title="Số bộ từ điển đã sửa và sẽ được gửi kèm request"
+          >
+            {touchedCount}/8
+          </Badge>
         </div>
-        <p className="mt-2 text-xs leading-5 text-muted-foreground">
-          {defaultsStatus === "ready"
-            ? "Đã tải bản mặc định QT2025. Chấm xanh là file đã sửa và sẽ được gửi."
-            : defaultsStatus === "error"
-              ? "Không tải được từ điển mặc định từ engine."
-              : "Đang tải các file mặc định từ engine…"}
-        </p>
+        {defaultsStatus === "loading" ? (
+          <p className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+            <LoaderCircle className="size-3 animate-spin" /> Đang tải từ điển mặc định…
+          </p>
+        ) : null}
         {defaultsStatus === "error" ? (
-          <div className="mt-3 flex items-center gap-2 rounded-md border border-destructive/25 bg-destructive/5 p-2 text-[10px] text-destructive">
+          <div className="mt-2 flex items-center gap-2 rounded-md border border-destructive/25 bg-destructive/5 p-2 text-[11px] text-destructive">
             <AlertCircle className="size-3.5 shrink-0" />
-            <span className="min-w-0 flex-1 truncate">{defaultsError ?? "Request thất bại"}</span>
+            <span className="min-w-0 flex-1 truncate">{defaultsError ?? "Không tải được từ điển mặc định"}</span>
             <Button type="button" variant="outline" size="xs" onClick={onRetry}>Thử lại</Button>
           </div>
         ) : null}
@@ -113,55 +119,55 @@ export function DictionaryInspector({
                   <span
                     className={cn(
                       "ml-2 size-1.5 shrink-0 rounded-full bg-border",
-                      defaultsReady && draft.touched && "bg-emerald-600",
+                      defaultsReady && draft.touched && "bg-ok",
                     )}
-                    aria-label={draft.touched ? "Sẽ gửi bản đã sửa" : "Dùng mặc định QT2025"}
+                    title={draft.touched ? "Đã sửa · sẽ gửi bản này" : "Dùng mặc định QT2025"}
+                    aria-label={draft.touched ? "Đã sửa, sẽ gửi bản này" : "Dùng mặc định QT2025"}
                   />
                 </button>
               );
             })}
           </div>
 
-          <div className="mt-5">
-            <div className="mb-2 flex items-end justify-between gap-3">
-              <div>
-                <h3 className="text-xs font-semibold">{definition.label}</h3>
-                <p className="mt-0.5 text-[10px] leading-4 text-muted-foreground">{definition.description}</p>
+          <div className="mt-4">
+            <div className="mb-2">
+              <div className="flex items-baseline justify-between gap-3">
+                <h3 className="min-w-0 truncate text-sm font-semibold">{definition.label}</h3>
+                {/* Tên file + số record gộp một dòng thay vì xuống hai dòng. */}
+                <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
+                  {dictionaryStats.recordCount.toLocaleString("vi-VN")}
+                  {dictionaryStats.rawCount > 0
+                    ? ` · ${dictionaryStats.rawCount.toLocaleString("vi-VN")} raw`
+                    : ""}
+                </span>
               </div>
-              <span className="shrink-0 text-right font-mono text-[9px] text-muted-foreground">
-                {definition.filename}<br />
-                {dictionaryStats.recordCount.toLocaleString("vi-VN")} records
-                {dictionaryStats.rawCount > 0
-                  ? ` · ${dictionaryStats.rawCount.toLocaleString("vi-VN")} raw`
-                  : ""}
-              </span>
+              <p className="mt-0.5 text-[11px] leading-4 text-muted-foreground">
+                <span className="font-mono">{definition.filename}</span> · {definition.description}
+              </p>
             </div>
+            {/* Nút này trước đây mô tả chính nó bằng 8 chữ ở dòng thứ hai. */}
             <button
               type="button"
               disabled={!defaultsReady}
-              className="group flex w-full items-center gap-3 rounded-lg border bg-background p-3 text-left transition-colors hover:border-primary/35 hover:bg-primary/5 disabled:pointer-events-none disabled:opacity-55"
+              title="Tìm kiếm, phân trang, sửa inline, thêm và xóa record"
+              className="group flex w-full items-center gap-2.5 rounded-lg border bg-background p-2.5 text-left transition-colors hover:border-primary/35 hover:bg-primary/5 disabled:pointer-events-none disabled:opacity-55"
               onClick={() => setEditorOpen(true)}
             >
-              <span className="grid size-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
+              <span className="grid size-8 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
                 <PencilLine className="size-4" />
               </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-xs font-semibold">Mở trình chỉnh sửa records</span>
-                <span className="mt-0.5 block text-[10px] leading-4 text-muted-foreground">
-                  Search, phân trang, sửa inline, thêm và xóa record.
-                </span>
-              </span>
+              <span className="min-w-0 flex-1 text-xs font-semibold">Sửa records</span>
               <Maximize2 className="size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
             </button>
             <div className="mt-2 flex flex-wrap items-center gap-1">
               <Button type="button" variant="ghost" size="xs" disabled={!defaultsReady} onClick={() => fileInput.current?.click()}>
                 <FileUp /> Nạp .txt
               </Button>
-              <Button type="button" variant="ghost" size="xs" disabled={!defaultsReady} onClick={() => setDictionaryValue(activeDictionary, "")}>
-                <Trash2 /> Dùng tập rỗng
+              <Button type="button" variant="ghost" size="xs" title="Gửi một bộ rỗng thay cho bản mặc định" disabled={!defaultsReady} onClick={() => setDictionaryValue(activeDictionary, "")}>
+                <Trash2 /> Tập rỗng
               </Button>
-              <Button type="button" variant="ghost" size="xs" disabled={!defaultsReady || !activeDraft.touched} onClick={() => resetDictionary(activeDictionary)}>
-                <RotateCcw /> Khôi phục QT2025
+              <Button type="button" variant="ghost" size="xs" title="Quay lại bản mặc định QT2025" disabled={!defaultsReady || !activeDraft.touched} onClick={() => resetDictionary(activeDictionary)}>
+                <RotateCcw /> Khôi phục
               </Button>
               <input
                 ref={fileInput}
@@ -181,9 +187,13 @@ export function DictionaryInspector({
         </div>
       </ScrollArea>
 
-      <div className="shrink-0 border-t bg-muted/35 px-5 py-3 text-[10px] leading-4 text-muted-foreground">
-        {defaultsStatus === "loading" ? <LoaderCircle className="mr-1 inline size-3 animate-spin" /> : null}
-        <strong className="text-foreground/75">Cố định:</strong> VietPhrase.txt và ChinesePhienAmWords.txt được nhúng trong Lambda, không thể ghi đè từ web.
+      {/* Đoạn giải thích Lambda dài hai dòng đã rút thành một dòng + tooltip. */}
+      <div
+        className="flex shrink-0 items-center gap-1.5 border-t bg-muted/35 px-4 py-2 text-[11px] text-muted-foreground"
+        title="VietPhrase.txt và ChinesePhienAmWords.txt được nhúng trong Lambda, không thể ghi đè từ web. Chỉ gửi được các bản vá entry lẻ."
+      >
+        <Info className="size-3.5 shrink-0" />
+        VietPhrase &amp; Phiên Âm cố định trong engine
       </div>
 
       <DictionaryEditorDialog

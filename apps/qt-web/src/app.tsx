@@ -1,21 +1,19 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   BookType,
-  Braces,
   CircleHelp,
   Languages,
   LoaderCircle,
+  PanelRight,
   Send,
-  Server,
   Settings2,
 } from "lucide-react";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
+import { SettingsDialog } from "@/components/settings-dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Sheet,
   SheetContent,
@@ -75,10 +73,9 @@ function useDebouncedValue(value: string, delayMs: number): string {
 
 function InspectorFallback() {
   return (
-    <div className="flex h-full flex-col gap-3 bg-card p-5" aria-label="Đang tải cấu hình">
-      <div className="h-3 w-28 animate-pulse rounded bg-muted" />
-      <div className="h-6 w-44 animate-pulse rounded bg-muted" />
-      <div className="mt-3 grid grid-cols-2 gap-2">
+    <div className="flex h-full flex-col gap-3 bg-card p-4" aria-label="Đang tải cấu hình">
+      <div className="h-6 w-40 animate-pulse rounded bg-muted" />
+      <div className="mt-1 grid grid-cols-2 gap-2">
         {Array.from({ length: 8 }, (_, index) => (
           <div key={index} className="h-9 animate-pulse rounded bg-muted" />
         ))}
@@ -92,13 +89,11 @@ function RailItem({
   label,
   active = false,
   onClick,
-  disabled = false,
   children,
 }: {
   label: string;
   active?: boolean;
   onClick?: () => void;
-  disabled?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -106,12 +101,11 @@ function RailItem({
       <TooltipTrigger asChild>
         <button
           type="button"
-          disabled={disabled}
           onClick={onClick}
           className={cn(
-            "relative grid min-h-14 w-full place-items-center text-[10px] font-semibold text-slate-400 transition-colors hover:bg-white/8 hover:text-white",
-            active && "bg-white/8 text-white before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:bg-blue-400",
-            disabled && "opacity-45",
+            "relative grid min-h-13 w-full place-items-center text-[10px] font-semibold text-sidebar-foreground/55 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground",
+            active &&
+              "bg-sidebar-accent text-sidebar-foreground before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:bg-sidebar-ring",
           )}
           aria-label={label}
         >
@@ -126,17 +120,19 @@ function RailItem({
 function NavigationRail({
   active,
   onChange,
+  onOpenSettings,
 }: {
   active: "translate" | "names";
   onChange: (value: "translate" | "names") => void;
+  onOpenSettings: () => void;
 }) {
   return (
-    <nav className="hidden min-h-0 flex-col items-center bg-[var(--sidebar)] text-[var(--sidebar-foreground)] md:flex" aria-label="Điều hướng chính">
-      <div className="my-3 grid size-9 place-items-center border border-white/25 font-mono text-xs font-bold">QT</div>
+    <nav className="hidden min-h-0 flex-col items-center bg-sidebar text-sidebar-foreground md:flex" aria-label="Điều hướng chính">
+      <div className="my-3 grid size-9 place-items-center rounded-sm border border-sidebar-foreground/25 font-mono text-xs font-bold">QT</div>
       <RailItem label="Dịch" active={active === "translate"} onClick={() => onChange("translate")}><Languages className="size-5" /></RailItem>
       <RailItem label="Tên" active={active === "names"} onClick={() => onChange("names")}><BookType className="size-5" /></RailItem>
-      <RailItem label="API" disabled><Braces className="size-5" /></RailItem>
       <div className="flex-1" />
+      <RailItem label="Cài đặt" onClick={onOpenSettings}><Settings2 className="size-5" /></RailItem>
       <RailItem label="Trợ giúp"><CircleHelp className="size-5" /></RailItem>
     </nav>
   );
@@ -160,6 +156,7 @@ export default function App() {
   const setWorkspaceView = useWorkspaceStore((state) => state.setWorkspaceView);
   const mobileInspectorOpen = useWorkspaceStore((state) => state.mobileInspectorOpen);
   const setMobileInspectorOpen = useWorkspaceStore((state) => state.setMobileInspectorOpen);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const form = useForm<TranslationOptionsValues, unknown, ParsedTranslationOptions>({
     resolver: zodResolver(translationOptionsSchema),
@@ -194,6 +191,8 @@ export default function App() {
     : dictionaryDefaults.isError && dictionaryEndpoint === normalizedEndpoint
       ? "error"
       : "loading";
+  const canTranslate =
+    workspaceView === "translate" && !translation.isPending && dictionaryDefaultsReady;
 
   async function submit(values: ParsedTranslationOptions) {
     if (!sourceText.trim()) {
@@ -222,7 +221,7 @@ export default function App() {
       const result = await translation.mutateAsync({ endpoint: values.endpoint, request });
       setResponse(result);
       const rangeCount = result.sourceRanges?.length ?? 0;
-      toast.success(`Dịch xong${rangeCount > 0 ? ` · ${rangeCount} range` : ""}`);
+      toast.success(`Dịch xong${rangeCount > 0 ? ` · ${rangeCount} cặp` : ""}`);
     } catch (error) {
       const requestId = error instanceof ApiError ? error.requestId : undefined;
       toast.error(error instanceof Error ? error.message : "Không thể dịch chương", {
@@ -230,6 +229,25 @@ export default function App() {
       });
     }
   }
+
+  function runTranslate() {
+    void form.handleSubmit(submit, () => {
+      setSettingsOpen(true);
+      toast.error("Endpoint chưa hợp lệ");
+    })();
+  }
+
+  // ⌘/Ctrl + Enter dịch ngay, không phải rời tay khỏi bàn phím để bấm nút.
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Enter" || !(event.metaKey || event.ctrlKey)) return;
+      if (!canTranslate) return;
+      event.preventDefault();
+      runTranslate();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  });
 
   async function testConnection() {
     const valid = await form.trigger("endpoint");
@@ -242,77 +260,116 @@ export default function App() {
   const requestStatus = !dictionaryDefaultsReady
     ? dictionaryDefaultsStatus === "error"
       ? "Không tải được từ điển mặc định"
-      : "Đang tải từ điển mặc định QT2025"
+      : "Đang tải từ điển mặc định"
     : translation.isPending
-      ? "Đang gọi Cloudflare gateway → Lambda"
+      ? "Đang dịch…"
       : translation.isError
         ? `Lỗi: ${translation.error.message}`
         : response && translation.isSuccess
-          ? `Hoàn tất · ${response.sourceRanges?.length ?? 0} cặp range`
+          ? `Xong · ${response.sourceRanges?.length ?? 0} cặp`
           : response
             ? "Văn bản mẫu · chưa gọi API"
-            : "Sẵn sàng dịch một chương";
+            : "Sẵn sàng";
 
-  const endpointError = form.formState.errors.endpoint?.message;
+  const gatewayStatus = health.data?.status === "ok" ? "ok" : health.isError ? "error" : "unknown";
+  const touchedCount = Object.values(dictionaries).filter(({ touched }) => touched).length;
+  const endpointInvalid = Boolean(form.formState.errors.endpoint);
 
   return (
     <FormProvider {...form}>
       <form
-        className="h-dvh min-h-[720px] overflow-hidden"
+        className="flex h-dvh min-h-0 flex-col overflow-hidden"
         onSubmit={(event) => {
-          if (workspaceView !== "translate") {
-            event.preventDefault();
-            return;
-          }
-          void form.handleSubmit(submit, () => toast.error("Kiểm tra lại cấu hình request"))(event);
+          event.preventDefault();
+          if (workspaceView !== "translate") return;
+          runTranslate();
         }}
       >
-        <header className="grid h-16 grid-cols-[minmax(200px,280px)_minmax(260px,1fr)_auto] items-center border-b bg-card md:grid-cols-[280px_minmax(300px,640px)_1fr_auto]">
-          <div className="flex h-full items-center gap-3 px-4 md:px-5">
-            <div className="grid size-9 shrink-0 place-items-center border border-foreground/30 font-mono text-[11px] font-bold">QT</div>
-            <div className="min-w-0">
-              <div className="truncate text-sm font-bold tracking-tight md:text-base">quick translator <span className="text-primary">/ engine</span></div>
-              <div className="mt-1 hidden font-mono text-[9px] tracking-[0.16em] text-muted-foreground uppercase sm:block">web · vietphrase one</div>
-            </div>
+        {/* Thanh trên gom toàn bộ chrome toàn cục. Endpoint và nút kiểm tra
+            gateway đã chuyển vào dialog Cài đặt — chỉ còn một chấm trạng thái. */}
+        <header className="flex h-14 shrink-0 items-center gap-3 border-b bg-card px-3 md:px-4">
+          <div className="grid size-9 shrink-0 place-items-center rounded-sm border border-foreground/25 font-mono text-[11px] font-bold md:hidden">QT</div>
+          <div className="min-w-0 truncate text-sm font-bold tracking-tight md:text-base">
+            Quick Translator <span className="text-primary">/ Engine</span>
           </div>
+          {/* Chip đã thay cho dấu ngoặc đơn, nên không lồng thêm ngoặc vào trong.
+              Bỏ mono in hoa dãn chữ để cùng nhịp với wordmark viết hoa đầu từ. */}
+          <span className="hidden shrink-0 rounded border border-primary/25 bg-primary/6 px-2 py-0.5 text-xs font-medium text-primary sm:block">
+            VietPhrase 1 nghĩa
+          </span>
 
-          <div className="relative hidden items-center gap-2 px-2 md:flex">
-            <Label htmlFor="endpoint" className="shrink-0 font-mono text-[9px] font-semibold tracking-wide text-muted-foreground uppercase">Cloudflare API</Label>
-            <Input
-              id="endpoint"
-              aria-invalid={Boolean(endpointError)}
-              className="h-9 min-w-0 bg-muted/60 font-mono text-[11px]"
-              spellCheck={false}
-              {...form.register("endpoint")}
-            />
-            {endpointError ? <span className="absolute top-[46px] left-28 z-20 rounded bg-destructive px-2 py-1 text-[9px] text-white shadow">{endpointError}</span> : null}
-          </div>
+          <div className="flex-1" />
 
-          <div className="hidden items-center justify-end gap-2 px-3 md:flex">
-            <Button type="button" size="sm" variant="ghost" disabled={health.isFetching} onClick={() => void testConnection()}>
-              {health.isFetching ? <LoaderCircle className="animate-spin" /> : <Server />}
-              {health.data?.status === "ok" ? "Gateway online" : "Test gateway"}
-            </Button>
-            <span className={cn("size-1.5 rounded-full bg-slate-300", health.data?.status === "ok" && "bg-emerald-600", health.isError && "bg-destructive")} />
-          </div>
-
-          <div className="flex h-full items-center justify-end gap-1 pr-3">
-            <Button type="button" variant="ghost" size="icon" className={cn(workspaceView === "translate" && "xl:hidden")} aria-label="Mở cấu hình" onClick={() => setMobileInspectorOpen(true)}><Settings2 /></Button>
-            {workspaceView === "translate" ? (
-              <Button type="submit" className="h-10 px-4" disabled={translation.isPending || !dictionaryDefaultsReady}>
-                {translation.isPending || dictionaryDefaultsStatus === "loading" ? <LoaderCircle className="animate-spin" /> : <Send />}
-                <span className="hidden sm:inline">Dịch chương</span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label="Cài đặt endpoint và giao diện"
+                onClick={() => setSettingsOpen(true)}
+              >
+                <span className="relative">
+                  <Settings2 />
+                  <span
+                    className={cn(
+                      "absolute -top-0.5 -right-0.5 size-1.5 rounded-full",
+                      endpointInvalid || gatewayStatus === "error"
+                        ? "bg-destructive"
+                        : gatewayStatus === "ok"
+                          ? "bg-ok"
+                          : "bg-transparent",
+                    )}
+                  />
+                </span>
               </Button>
-            ) : null}
-          </div>
+            </TooltipTrigger>
+            <TooltipContent>Cài đặt · giao diện</TooltipContent>
+          </Tooltip>
+
+          {workspaceView === "translate" ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="xl:hidden"
+                  aria-label="Mở từ điển và engine"
+                  onClick={() => setMobileInspectorOpen(true)}
+                >
+                  <span className="relative">
+                    <PanelRight />
+                    {touchedCount > 0 ? (
+                      <span className="absolute -top-0.5 -right-0.5 size-1.5 rounded-full bg-ok" />
+                    ) : null}
+                  </span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                Từ điển &amp; engine{touchedCount > 0 ? ` · ${touchedCount} đã sửa` : ""}
+              </TooltipContent>
+            </Tooltip>
+          ) : null}
+
+          {workspaceView === "translate" ? (
+            <Button type="submit" className="h-9 px-4" disabled={!canTranslate}>
+              {translation.isPending || dictionaryDefaultsStatus === "loading" ? <LoaderCircle className="animate-spin" /> : <Send />}
+              <span className="hidden sm:inline">Dịch chương</span>
+            </Button>
+          ) : null}
         </header>
 
         <div className={cn(
-          "grid h-[calc(100dvh-4rem)] min-h-0 md:grid-cols-[64px_minmax(0,1fr)]",
-          workspaceView === "translate" && "xl:grid-cols-[64px_minmax(0,1fr)_340px]",
+          "grid min-h-0 flex-1 md:grid-cols-[56px_minmax(0,1fr)]",
+          workspaceView === "translate" && "xl:grid-cols-[56px_minmax(0,1fr)_320px]",
         )}>
-          <NavigationRail active={workspaceView} onChange={setWorkspaceView} />
-          <Suspense fallback={<div className="m-4 animate-pulse rounded-lg border bg-card" />}>
+          <NavigationRail
+            active={workspaceView}
+            onChange={setWorkspaceView}
+            onOpenSettings={() => setSettingsOpen(true)}
+          />
+          <Suspense fallback={<div className="m-3 animate-pulse rounded-lg border bg-card" />}>
             {workspaceView === "translate" ? (
               <TranslationWorkspace isPending={translation.isPending} requestStatus={requestStatus} />
             ) : (
@@ -331,7 +388,7 @@ export default function App() {
         </div>
 
         <Sheet open={mobileInspectorOpen} onOpenChange={setMobileInspectorOpen}>
-          <SheetContent side="right" className={cn("w-[min(92vw,390px)] gap-0 p-0 sm:max-w-[390px]", workspaceView === "translate" && "xl:hidden")}>
+          <SheetContent side="right" className={cn("w-[min(92vw,390px)] gap-0 overflow-hidden p-0 sm:max-w-[390px]", workspaceView === "translate" && "xl:hidden")}>
             <SheetHeader className="sr-only">
               <SheetTitle>Cấu hình request</SheetTitle>
               <SheetDescription>Tùy chỉnh từ điển và engine.</SheetDescription>
@@ -346,6 +403,14 @@ export default function App() {
             </Suspense>
           </SheetContent>
         </Sheet>
+
+        <SettingsDialog
+          open={settingsOpen}
+          onOpenChange={setSettingsOpen}
+          gatewayStatus={gatewayStatus}
+          gatewayChecking={health.isFetching}
+          onTestGateway={() => void testConnection()}
+        />
       </form>
     </FormProvider>
   );
