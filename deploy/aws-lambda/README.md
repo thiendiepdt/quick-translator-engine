@@ -18,7 +18,7 @@ mới.
 - Kiến trúc: ARM64.
 - Memory: 1.769 MB, tương đương khoảng một vCPU Lambda.
 - Timeout: 30 giây cho một chương/request.
-- Reserved concurrency: 20 để giới hạn burst và chi phí.
+- Reserved concurrency: 50 để giới hạn burst và chi phí.
 - Function URL auth: `AWS_IAM`.
 - CloudWatch log retention: 14 ngày.
 
@@ -96,7 +96,7 @@ sam deploy \
     FunctionArchitecture=arm64 \
     FunctionUrlAuthType=AWS_IAM \
     FunctionMemorySize=1769 \
-    ReservedConcurrency=20
+    ReservedConcurrency=50
 ```
 
 `AWS_IAM` là mặc định an toàn. Client gọi Function URL phải ký SigV4 và có cả
