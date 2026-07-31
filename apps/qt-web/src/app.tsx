@@ -3,9 +3,7 @@ import {
   BookType,
   CircleHelp,
   Languages,
-  LoaderCircle,
   PanelRight,
-  Send,
   Settings2,
 } from "lucide-react";
 import { lazy, Suspense, useEffect, useState } from "react";
@@ -393,12 +391,6 @@ export default function App() {
             </Tooltip>
           ) : null}
 
-          {workspaceView === "translate" ? (
-            <Button type="submit" className="h-9 px-4" disabled={!canTranslate}>
-              {translation.isPending || dictionaryDefaultsStatus === "loading" ? <LoaderCircle className="animate-spin" /> : <Send />}
-              <span className="hidden sm:inline">Dịch chương</span>
-            </Button>
-          ) : null}
         </header>
 
         <div className={cn(
@@ -414,7 +406,9 @@ export default function App() {
             {workspaceView === "translate" ? (
               <TranslationWorkspace
                 key={activeWorkspaceId}
+                canTranslate={canTranslate}
                 isPending={translation.isPending}
+                onTranslate={runTranslate}
                 requestStatus={requestStatus}
               />
             ) : (

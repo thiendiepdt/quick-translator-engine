@@ -20,6 +20,18 @@ import {
 } from "@/store/workspace";
 
 const scrollToMock = vi.fn();
+const onTranslateMock = vi.fn();
+
+function renderWorkspace() {
+  return render(
+    <TranslationWorkspace
+      canTranslate
+      isPending={false}
+      onTranslate={onTranslateMock}
+      requestStatus="Sẵn sàng"
+    />,
+  );
+}
 
 async function persistedWorkspace(): Promise<string> {
   return (await workspaceStateStorage.getItem(workspaceStorageKey)) ?? "";
@@ -27,6 +39,7 @@ async function persistedWorkspace(): Promise<string> {
 
 beforeEach(() => {
   scrollToMock.mockClear();
+  onTranslateMock.mockClear();
   Object.defineProperty(HTMLElement.prototype, "scrollTo", {
     configurable: true,
     value: scrollToMock,
@@ -43,9 +56,28 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("translation range pin", () => {
+  it("keeps the translation action next to the source text", async () => {
+    const user = userEvent.setup();
+    useWorkspaceStore.getState().setSourceText("天地");
+    renderWorkspace();
+
+    const sourcePane = screen.getByRole("region", { name: "Nguyên văn" });
+    expect(within(sourcePane).getByText("2")).toBeInTheDocument();
+    const translateButton = within(sourcePane).getByRole("button", {
+      name: /Dịch chương/,
+    });
+    expect(translateButton).toHaveAttribute(
+      "title",
+      "Dịch chương (Ctrl/⌘ + Enter)",
+    );
+
+    await user.click(translateButton);
+    expect(onTranslateMock).toHaveBeenCalledOnce();
+  });
+
   it("scrolls the matching output range when a source range is selected", async () => {
     const user = userEvent.setup();
-    render(<TranslationWorkspace isPending={false} requestStatus="Sẵn sàng" />);
+    renderWorkspace();
 
     const sourcePane = screen.getByRole("region", { name: "Nguyên văn" });
     const outputPane = screen.getByRole("region", { name: "Bản dịch" });
@@ -67,7 +99,7 @@ describe("translation range pin", () => {
 
   it("keeps range highlighting but stops auto-scroll when pin is off", async () => {
     const user = userEvent.setup();
-    render(<TranslationWorkspace isPending={false} requestStatus="Sẵn sàng" />);
+    renderWorkspace();
 
     await user.click(screen.getByRole("button", { name: "Tắt tự cuộn range" }));
     scrollToMock.mockClear();
@@ -91,7 +123,7 @@ describe("translation range pin", () => {
   it("opens the linked source view before scrolling from the output", async () => {
     const user = userEvent.setup();
     useWorkspaceStore.getState().setSourceView("raw");
-    render(<TranslationWorkspace isPending={false} requestStatus="Sẵn sàng" />);
+    renderWorkspace();
 
     const outputPane = screen.getByRole("region", { name: "Bản dịch" });
     await user.click(
@@ -110,7 +142,7 @@ describe("translation range pin", () => {
 
   it("updates a mapped VietPhrase entry from the output context menu", async () => {
     const user = userEvent.setup();
-    render(<TranslationWorkspace isPending={false} requestStatus="Sẵn sàng" />);
+    renderWorkspace();
 
     const outputPane = screen.getByRole("region", { name: "Bản dịch" });
     const segment = within(outputPane).getByRole("button", {
@@ -136,7 +168,7 @@ describe("translation range pin", () => {
 
   it("splits a multi-character Phiên Âm update into one patch per character", async () => {
     const user = userEvent.setup();
-    render(<TranslationWorkspace isPending={false} requestStatus="Sẵn sàng" />);
+    renderWorkspace();
 
     const outputPane = screen.getByRole("region", { name: "Bản dịch" });
     fireEvent.contextMenu(
@@ -155,7 +187,7 @@ describe("translation range pin", () => {
 
   it("uses text selected inside one mapped range as the initial value", async () => {
     const user = userEvent.setup();
-    render(<TranslationWorkspace isPending={false} requestStatus="Sẵn sàng" />);
+    renderWorkspace();
 
     const outputPane = screen.getByRole("region", { name: "Bản dịch" });
     const segment = within(outputPane).getByRole("button", {

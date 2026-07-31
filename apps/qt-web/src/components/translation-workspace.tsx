@@ -6,6 +6,7 @@ import {
   Pin,
   PinOff,
   RotateCcw,
+  Send,
   Sparkles,
 } from "lucide-react";
 import {
@@ -37,7 +38,9 @@ import { cn } from "@/lib/utils";
 import { useWorkspaceStore } from "@/store/workspace";
 
 interface TranslationWorkspaceProps {
+  canTranslate: boolean;
   isPending: boolean;
+  onTranslate: () => void;
   requestStatus: string;
 }
 
@@ -69,7 +72,12 @@ function scrollRangeIntoView(container: HTMLDivElement | null, rangeIndex: numbe
   });
 }
 
-export function TranslationWorkspace({ isPending, requestStatus }: TranslationWorkspaceProps) {
+export function TranslationWorkspace({
+  canTranslate,
+  isPending,
+  onTranslate,
+  requestStatus,
+}: TranslationWorkspaceProps) {
   const sourceText = useWorkspaceStore((state) => state.sourceText);
   const response = useWorkspaceStore((state) => state.response);
   const activeRange = useWorkspaceStore((state) => state.activeRange);
@@ -207,7 +215,7 @@ export function TranslationWorkspace({ isPending, requestStatus }: TranslationWo
     // nên chia đôi đều làm khung phải luôn chật hơn — cho nó rộng hơn.
     <main className="grid min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_44px] bg-background px-3 pt-3 pb-1 md:px-4 md:pt-4 md:pb-2">
       <div className="grid min-h-0 min-w-0 overflow-hidden rounded-lg border bg-card shadow-[var(--shadow-panel)] lg:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)]">
-        <section className={cn("min-h-0 min-w-0 grid-rows-[40px_minmax(0,1fr)]", mobilePane === "source" ? "grid" : "hidden lg:grid")} aria-label="Nguyên văn">
+        <section className={cn("min-h-0 min-w-0 grid-rows-[40px_minmax(0,1fr)_44px]", mobilePane === "source" ? "grid" : "hidden lg:grid")} aria-label="Nguyên văn">
           <header className="flex items-center justify-between gap-3 border-b pr-2 pl-4">
             <strong className="hidden text-xs lg:block">Nguyên văn</strong>
             {paneTabs}
@@ -238,6 +246,27 @@ export function TranslationWorkspace({ isPending, requestStatus }: TranslationWo
               />
             )}
           </div>
+          <footer className="flex items-center justify-between gap-3 border-t bg-card/95 px-3 backdrop-blur">
+            <span className="shrink-0 text-[11px] text-muted-foreground">
+              <strong className="font-mono font-medium text-foreground">
+                {sourceText.length.toLocaleString("vi-VN")}
+              </strong>{" "}
+              ký tự
+            </span>
+            <Button
+              type="button"
+              size="sm"
+              disabled={!canTranslate}
+              title="Dịch chương (Ctrl/⌘ + Enter)"
+              onClick={onTranslate}
+            >
+              {isPending ? <LoaderCircle className="animate-spin" /> : <Send />}
+              <span>Dịch chương</span>
+              <kbd className="hidden border-l border-primary-foreground/25 pl-2 font-sans text-[10px] font-normal opacity-80 sm:inline">
+                Ctrl/⌘ Enter
+              </kbd>
+            </Button>
+          </footer>
         </section>
 
         <section className={cn("min-h-0 min-w-0 grid-rows-[40px_minmax(0,1fr)] border-l", mobilePane === "output" ? "grid border-l-0" : "hidden lg:grid")} aria-label="Bản dịch">
@@ -390,15 +419,12 @@ export function TranslationWorkspace({ isPending, requestStatus }: TranslationWo
         <div className="flex min-w-0 items-center gap-2 text-[11px] text-muted-foreground">
           {isPending ? <LoaderCircle className="size-3.5 shrink-0 animate-spin text-primary" /> : <span className="size-1.5 shrink-0 rounded-full bg-ok" />}
           <span className="truncate">{requestStatus}</span>
-          {/* Số ký tự chỉ có nghĩa khi đã có chữ — bằng 0 thì nó là nhiễu. */}
-          {sourceText.length > 0 ? (
+          {response?.translated ? (
             <span
               className="hidden shrink-0 font-mono text-[10px] sm:inline"
-              title="ký tự nguyên văn / ký tự bản dịch"
+              title="Số ký tự bản dịch"
             >
-              · {sourceText.length.toLocaleString("vi-VN")}
-              {" / "}
-              {(response?.translated.length ?? 0).toLocaleString("vi-VN")}
+              · {response.translated.length.toLocaleString("vi-VN")} ký tự bản dịch
             </span>
           ) : null}
         </div>
