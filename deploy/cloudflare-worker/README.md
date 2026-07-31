@@ -82,10 +82,10 @@ npx wrangler secret put AWS_SECRET_ACCESS_KEY
 Hai secret được khai báo trong `secrets.required`; Wrangler sẽ chặn deploy nếu thiếu.
 
 Đặt `CORS_ALLOWED_ORIGINS` thành danh sách origin chính xác được phép gọi API từ browser,
-phân tách bằng dấu phẩy. Ví dụ khi deploy `qt-web` lên Pages:
+phân tách bằng dấu phẩy. Ví dụ khi deploy `qt-web` bằng Workers Static Assets:
 
 ```jsonc
-"CORS_ALLOWED_ORIGINS": "https://qt.example.com,http://localhost:5173"
+"CORS_ALLOWED_ORIGINS": "https://dich.vn-converter.org,http://localhost:5173"
 ```
 
 Worker chỉ chấp nhận preflight cho route/method hợp lệ và hai request header `accept`,

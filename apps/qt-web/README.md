@@ -54,23 +54,33 @@ Trong `deploy/cloudflare-worker/wrangler.jsonc`, thêm origin chính xác của 
 `CORS_ALLOWED_ORIGINS`, ví dụ:
 
 ```jsonc
-"CORS_ALLOWED_ORIGINS": "https://qt.example.com,http://localhost:5173"
+"CORS_ALLOWED_ORIGINS": "https://dich.vn-converter.org,http://localhost:5173"
 ```
 
 Web app không cần và không được nhận AWS credentials. Worker giữ credentials trong
 Workers Secrets và ký SigV4 tới Lambda.
 
-## Cloudflare Pages
+## Cloudflare Workers Static Assets
 
-Cấu hình project Pages:
+Web app được cấu hình trong `wrangler.jsonc` dưới dạng SPA, nên các đường dẫn không khớp
+asset sẽ trả về `index.html`. Trước khi build, đặt gateway public trong `.env.local`:
 
-- Root directory: `apps/qt-web`
-- Build command: `npm run build`
-- Build output directory: `dist`
-- Environment variable: `VITE_QT_API_URL=https://<worker-domain>`
+```dotenv
+VITE_QT_API_URL=https://qt-api.vn-converter.org
+```
 
-Sau lần deploy Pages đầu tiên, thêm origin Pages hoặc custom domain vào
-`CORS_ALLOWED_ORIGINS` rồi deploy lại gateway.
+Kiểm tra và deploy từ thư mục này:
+
+```bash
+npm ci
+npm run check
+npm run deploy:dry-run
+npm run deploy
+```
+
+Production được phục vụ tại `https://dich.vn-converter.org`. URL `workers.dev` bị tắt
+bằng `workers_dev: false`. Origin production phải có trong `CORS_ALLOWED_ORIGINS` của
+gateway trước khi web app gọi API từ browser.
 
 ## Commands
 
