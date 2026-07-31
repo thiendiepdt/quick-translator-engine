@@ -164,9 +164,11 @@ export interface NameFilterResponse {
   warnings?: string[];
 }
 
+export type NameFilterMode = "qt" | "hybrid";
+
 export interface NameFilterRequest {
   text: string;
-  mode: "qt" | "hybrid";
+  mode: NameFilterMode;
   minOccurrences: number;
   minConfidence: number;
   maxCandidates: number;

@@ -9,7 +9,7 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +21,12 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useNameFilterMutation } from "@/hooks/use-translation";
 import { ApiError } from "@/lib/api";
-import type { NameCandidate, NameFilterRequest } from "@/lib/types";
+import {
+  isNameFilterMode,
+  readStoredNameFilterMode,
+  storeNameFilterMode,
+} from "@/lib/name-filter-mode";
+import type { NameCandidate, NameFilterMode, NameFilterRequest } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { dictionaryPayload, useWorkspaceStore } from "@/store/workspace";
 
@@ -52,12 +57,16 @@ export function NameFilterWorkspace({ endpoint, defaultsReady }: NameFilterWorks
   const nameMemoryId = useWorkspaceStore((state) => state.nameMemoryId);
   const switchNameMemory = useWorkspaceStore((state) => state.switchNameMemory);
   const mutation = useNameFilterMutation();
-  const [mode, setMode] = useState<"qt" | "hybrid">("hybrid");
+  const [mode, setMode] = useState<NameFilterMode>(readStoredNameFilterMode);
   const [nerEnabled, setNerEnabled] = useState(false);
   const [aiEnabled, setAiEnabled] = useState(false);
   const [search, setSearch] = useState("");
   const [activeText, setActiveText] = useState<string>();
   const [memoryIdDraft, setMemoryIdDraft] = useState(nameMemoryId);
+
+  useEffect(() => {
+    storeNameFilterMode(mode);
+  }, [mode]);
 
   const rejected = useMemo(() => new Set(rejectedNames), [rejectedNames]);
   const candidates = useMemo(() => {
@@ -167,7 +176,13 @@ export function NameFilterWorkspace({ endpoint, defaultsReady }: NameFilterWorks
             aria-label="Mã memory của truyện"
           />
         </Label>
-        <Tabs value={mode} onValueChange={(value) => setMode(value as "qt" | "hybrid")} className="ml-auto lg:ml-0">
+        <Tabs
+          value={mode}
+          onValueChange={(value) => {
+            if (isNameFilterMode(value)) setMode(value);
+          }}
+          className="ml-auto lg:ml-0"
+        >
           <TabsList className="h-9">
             <TabsTrigger value="qt" className="text-[10px]">QT LEGACY</TabsTrigger>
             <TabsTrigger value="hybrid" className="text-[10px]">HYBRID</TabsTrigger>

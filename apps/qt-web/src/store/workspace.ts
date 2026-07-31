@@ -1,6 +1,7 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
 
+import { createIndexedDbStateStorage } from "@/lib/indexed-db-storage";
 import { sampleDictionaryValues, sampleResponse, sampleSource } from "@/lib/sample";
 import {
   dictionaryUpdateKeys,
@@ -36,6 +37,7 @@ interface WorkspaceState {
   activeRange?: number;
   activeDictionary: DictionaryKey;
   dictionaries: Record<DictionaryKey, DictionaryDraft>;
+  dictionaryOverrides: Partial<Record<DictionaryKey, string>>;
   dictionaryDefaultsEndpoint?: string;
   sourceView: SourceView;
   outputView: OutputView;
@@ -118,29 +120,54 @@ function applyPersistentEntries(
 
 function dictionariesFromDefaults(
   defaults: DictionaryDefaults,
+  overrides: Partial<Record<DictionaryKey, string>> = {},
 ): Record<DictionaryKey, DictionaryDraft> {
   return Object.fromEntries(
-    dictionaryKeys.map((key) => [
-      key,
-      { value: defaults[key], defaultValue: defaults[key], touched: false },
-    ]),
+    dictionaryKeys.map((key) => {
+      const hasOverride = Object.hasOwn(overrides, key);
+      const value = hasOverride ? (overrides[key] ?? defaults[key]) : defaults[key];
+      return [
+        key,
+        { value, defaultValue: defaults[key], touched: value !== defaults[key] },
+      ];
+    }),
   ) as Record<DictionaryKey, DictionaryDraft>;
 }
 
 function resetDictionaries(
   dictionaries: Record<DictionaryKey, DictionaryDraft>,
+  overrides: Partial<Record<DictionaryKey, string>> = {},
 ): Record<DictionaryKey, DictionaryDraft> {
   return Object.fromEntries(
-    dictionaryKeys.map((key) => [
-      key,
-      {
-        value: dictionaries[key].defaultValue,
-        defaultValue: dictionaries[key].defaultValue,
-        touched: false,
-      },
-    ]),
+    dictionaryKeys.map((key) => {
+      const defaultValue = dictionaries[key].defaultValue;
+      const hasOverride = Object.hasOwn(overrides, key);
+      const value = hasOverride ? (overrides[key] ?? defaultValue) : defaultValue;
+      return [
+        key,
+        {
+          value,
+          defaultValue,
+          touched: value !== defaultValue,
+        },
+      ];
+    }),
   ) as Record<DictionaryKey, DictionaryDraft>;
 }
+
+function dictionaryBaseValue(
+  overrides: Partial<Record<DictionaryKey, string>>,
+  key: DictionaryKey,
+  defaultValue: string,
+): string {
+  return Object.hasOwn(overrides, key) ? (overrides[key] ?? defaultValue) : defaultValue;
+}
+
+export const legacyWorkspaceStorageKey = "qt-web-name-memory-v1";
+export const workspaceStorageKey = "qt-web-workspace-v1";
+export const workspaceStateStorage = createIndexedDbStateStorage({
+  legacyLocalStorageKeys: [legacyWorkspaceStorageKey],
+});
 
 export const useWorkspaceStore = create<WorkspaceState>()(persist((set) => ({
   sourceText: "",
@@ -148,6 +175,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(persist((set) => ({
   activeRange: undefined,
   activeDictionary: "names",
   dictionaries: emptyDictionaries(),
+  dictionaryOverrides: {},
   dictionaryDefaultsEndpoint: undefined,
   sourceView: "raw",
   outputView: "output",
@@ -173,25 +201,45 @@ export const useWorkspaceStore = create<WorkspaceState>()(persist((set) => ({
   setActiveRange: (activeRange) => set({ activeRange }),
   setActiveDictionary: (activeDictionary) => set({ activeDictionary }),
   setDictionaryValue: (key, value) =>
-    set((state) => ({
-      dictionaries: {
-        ...state.dictionaries,
-        [key]: {
-          ...state.dictionaries[key],
-          value,
-          touched: value !== state.dictionaries[key].defaultValue,
+    set((state) => {
+      const dictionaryOverrides = { ...state.dictionaryOverrides };
+      let localDictionaryEntries = state.localDictionaryEntries;
+      if (state.dictionaryDefaultsEndpoint) {
+        if (value === state.dictionaries[key].defaultValue) delete dictionaryOverrides[key];
+        else dictionaryOverrides[key] = value;
+
+        if (dictionaryUpdateKeys.includes(key as DictionaryUpdateKey)) {
+          localDictionaryEntries = {
+            ...state.localDictionaryEntries,
+            [key as DictionaryUpdateKey]: {},
+          };
+        }
+      }
+      return {
+        dictionaryOverrides,
+        localDictionaryEntries,
+        dictionaries: {
+          ...state.dictionaries,
+          [key]: {
+            ...state.dictionaries[key],
+            value,
+            touched: value !== state.dictionaries[key].defaultValue,
+          },
         },
-      },
-    })),
+      };
+    }),
   resetDictionary: (key) =>
     set((state) => {
       const localDictionaryEntries = { ...state.localDictionaryEntries };
+      const dictionaryOverrides = { ...state.dictionaryOverrides };
+      delete dictionaryOverrides[key];
       if (dictionaryUpdateKeys.includes(key as DictionaryUpdateKey)) {
         localDictionaryEntries[key as DictionaryUpdateKey] = {};
       }
       let value = state.dictionaries[key].defaultValue;
       if (key === "names2") value = upsertKnownNames(value, state.knownNames);
       return {
+        dictionaryOverrides,
         localDictionaryEntries,
         dictionaries: {
           ...state.dictionaries,
@@ -207,7 +255,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(persist((set) => ({
     set((state) => {
       if (state.dictionaryDefaultsEndpoint === endpoint) return state;
       const dictionaries = applyPersistentEntries(
-        dictionariesFromDefaults(defaults),
+        dictionariesFromDefaults(defaults, state.dictionaryOverrides),
         state.localDictionaryEntries,
         state.knownNames,
       );
@@ -352,7 +400,11 @@ export const useWorkspaceStore = create<WorkspaceState>()(persist((set) => ({
         if (previousKey in entries) continue;
         value = restoreDictionaryEntry(
           value,
-          state.dictionaries[key].defaultValue,
+          dictionaryBaseValue(
+            state.dictionaryOverrides,
+            key,
+            state.dictionaries[key].defaultValue,
+          ),
           previousKey,
           key === "names2" ? state.knownNames[previousKey] : undefined,
         );
@@ -384,7 +436,11 @@ export const useWorkspaceStore = create<WorkspaceState>()(persist((set) => ({
       for (const entryKey of keys) {
         value = restoreDictionaryEntry(
           value,
-          state.dictionaries[key].defaultValue,
+          dictionaryBaseValue(
+            state.dictionaryOverrides,
+            key,
+            state.dictionaries[key].defaultValue,
+          ),
           entryKey,
           key === "names2" ? state.knownNames[entryKey] : undefined,
         );
@@ -404,7 +460,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(persist((set) => ({
   clearWorkspace: () =>
     set((state) => {
       const dictionaries = applyPersistentEntries(
-        resetDictionaries(state.dictionaries),
+        resetDictionaries(state.dictionaries, state.dictionaryOverrides),
         state.localDictionaryEntries,
         state.knownNames,
       );
@@ -420,7 +476,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(persist((set) => ({
     }),
   loadSample: () =>
     set((state) => {
-      let dictionaries = resetDictionaries(state.dictionaries);
+      let dictionaries = resetDictionaries(state.dictionaries, state.dictionaryOverrides);
       dictionaries.names = {
         ...dictionaries.names,
         value: sampleDictionaryValues.names,
@@ -447,7 +503,22 @@ export const useWorkspaceStore = create<WorkspaceState>()(persist((set) => ({
       };
     }),
 }), {
-  name: "qt-web-name-memory-v1",
+  name: workspaceStorageKey,
+  storage: createJSONStorage(() => workspaceStateStorage),
+  merge: (persistedState, currentState) => {
+    const merged = {
+      ...currentState,
+      ...(persistedState as Partial<WorkspaceState>),
+    };
+    return {
+      ...merged,
+      dictionaries: applyPersistentEntries(
+        resetDictionaries(merged.dictionaries, merged.dictionaryOverrides),
+        merged.localDictionaryEntries,
+        merged.knownNames,
+      ),
+    };
+  },
   partialize: (state) => ({
     knownNames: state.knownNames,
     rejectedNames: state.rejectedNames,
@@ -455,6 +526,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(persist((set) => ({
     nameMemoryProfiles: state.nameMemoryProfiles,
     rangePinEnabled: state.rangePinEnabled,
     localDictionaryEntries: state.localDictionaryEntries,
+    dictionaryOverrides: state.dictionaryOverrides,
   }),
 }));
 

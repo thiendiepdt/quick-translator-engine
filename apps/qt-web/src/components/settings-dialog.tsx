@@ -49,12 +49,12 @@ export function SettingsDialog({
         <DialogHeader className="pr-8">
           <DialogTitle>Cài đặt</DialogTitle>
           <DialogDescription className="sr-only">
-            Endpoint gateway và giao diện.
+            Đường dẫn API và giao diện.
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-2">
-          <Label htmlFor="endpoint">Cloudflare gateway</Label>
+          <Label htmlFor="endpoint">Đường dẫn API</Label>
           <div className="flex gap-2">
             <Input
               id="endpoint"
@@ -87,9 +87,9 @@ export function SettingsDialog({
           >
             {endpointError
               ?? (gatewayStatus === "ok"
-                ? "Gateway đang hoạt động."
+                ? "API đang hoạt động."
                 : gatewayStatus === "error"
-                  ? "Không kết nối được gateway."
+                  ? "Không kết nối được API."
                   : "Chưa kiểm tra.")}
           </p>
         </div>

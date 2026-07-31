@@ -78,7 +78,7 @@ export function DictionaryInspector({
           <h2 className="text-base font-semibold tracking-tight">Từ điển &amp; engine</h2>
           <Badge
             variant={touchedCount > 0 ? "default" : "secondary"}
-            title="Số bộ từ điển đã sửa và sẽ được gửi kèm request"
+            title="Số bộ từ điển đã sửa, lưu cục bộ và sẽ được gửi kèm request"
           >
             {touchedCount}/8
           </Badge>
@@ -121,8 +121,8 @@ export function DictionaryInspector({
                       "ml-2 size-1.5 shrink-0 rounded-full bg-border",
                       defaultsReady && draft.touched && "bg-ok",
                     )}
-                    title={draft.touched ? "Đã sửa · sẽ gửi bản này" : "Dùng mặc định QT2025"}
-                    aria-label={draft.touched ? "Đã sửa, sẽ gửi bản này" : "Dùng mặc định QT2025"}
+                    title={draft.touched ? "Đã sửa · lưu cục bộ · sẽ gửi bản này" : "Dùng mặc định từ server"}
+                    aria-label={draft.touched ? "Đã sửa, lưu cục bộ và sẽ gửi bản này" : "Dùng mặc định từ server"}
                   />
                 </button>
               );
@@ -166,7 +166,7 @@ export function DictionaryInspector({
               <Button type="button" variant="ghost" size="xs" title="Gửi một bộ rỗng thay cho bản mặc định" disabled={!defaultsReady} onClick={() => setDictionaryValue(activeDictionary, "")}>
                 <Trash2 /> Tập rỗng
               </Button>
-              <Button type="button" variant="ghost" size="xs" title="Quay lại bản mặc định QT2025" disabled={!defaultsReady || !activeDraft.touched} onClick={() => resetDictionary(activeDictionary)}>
+              <Button type="button" variant="ghost" size="xs" title="Xóa bản sửa cục bộ và quay lại mặc định từ server" disabled={!defaultsReady || !activeDraft.touched} onClick={() => resetDictionary(activeDictionary)}>
                 <RotateCcw /> Khôi phục
               </Button>
               <input

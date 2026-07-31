@@ -28,10 +28,15 @@ import {
 } from "@/components/ui/tooltip";
 import { ApiError } from "@/lib/api";
 import {
+  readStoredEngineSettings,
+  storeEngineSettings,
+} from "@/lib/engine-settings";
+import {
   type ParsedTranslationOptions,
   type TranslationOptionsValues,
   translationOptionsSchema,
 } from "@/lib/schema";
+import { readStoredEndpoint, storeEndpoint } from "@/lib/endpoint-setting";
 import type { TranslationRequest } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import {
@@ -45,7 +50,9 @@ import {
   useWorkspaceStore,
 } from "@/store/workspace";
 
-const defaultEndpoint = import.meta.env.VITE_QT_API_URL?.trim() || "/api";
+const configuredEndpoint = import.meta.env.VITE_QT_API_URL?.trim() || "/api";
+const defaultEndpoint = readStoredEndpoint(configuredEndpoint);
+const defaultEngineSettings = readStoredEngineSettings();
 const DictionaryInspector = lazy(() =>
   import("@/components/dictionary-inspector").then((module) => ({
     default: module.DictionaryInspector,
@@ -162,19 +169,37 @@ export default function App() {
     resolver: zodResolver(translationOptionsSchema),
     defaultValues: {
       endpoint: defaultEndpoint,
-      pretty: true,
-      wrap: false,
-      prioritizedName: true,
-      scanRange: 30,
-      translationAlgorithm: 1,
+      ...defaultEngineSettings,
     },
   });
   const endpoint = useWatch({ control: form.control, name: "endpoint" }) ?? defaultEndpoint;
+  const pretty = useWatch({ control: form.control, name: "pretty" });
+  const wrap = useWatch({ control: form.control, name: "wrap" });
+  const prioritizedName = useWatch({ control: form.control, name: "prioritizedName" });
+  const scanRange = useWatch({ control: form.control, name: "scanRange" });
+  const translationAlgorithm = useWatch({
+    control: form.control,
+    name: "translationAlgorithm",
+  });
   const normalizedEndpoint = endpoint.trim();
   const dictionaryEndpoint = useDebouncedValue(normalizedEndpoint, 400);
   const translation = useTranslationMutation();
   const health = useHealthQuery(endpoint);
   const dictionaryDefaults = useDictionaryDefaultsQuery(dictionaryEndpoint);
+
+  useEffect(() => {
+    storeEndpoint(endpoint);
+  }, [endpoint]);
+
+  useEffect(() => {
+    storeEngineSettings({
+      pretty,
+      wrap,
+      prioritizedName,
+      scanRange,
+      translationAlgorithm,
+    });
+  }, [pretty, prioritizedName, scanRange, translationAlgorithm, wrap]);
 
   useEffect(() => {
     if (dictionaryDefaults.data) {
@@ -253,8 +278,8 @@ export default function App() {
     const valid = await form.trigger("endpoint");
     if (!valid) return;
     const result = await health.refetch();
-    if (result.data?.status === "ok") toast.success("Cloudflare gateway đang hoạt động");
-    else toast.error(result.error instanceof Error ? result.error.message : "Không kết nối được gateway");
+    if (result.data?.status === "ok") toast.success("API đang hoạt động");
+    else toast.error(result.error instanceof Error ? result.error.message : "Không kết nối được API");
   }
 
   const requestStatus = !dictionaryDefaultsReady

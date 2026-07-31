@@ -9,6 +9,8 @@ import {
   dictionaryPatchPayload,
   dictionaryPayload,
   useWorkspaceStore,
+  workspaceStateStorage,
+  workspaceStorageKey,
 } from "@/store/workspace";
 
 const emptyDefaults: DictionaryDefaults = {
@@ -24,9 +26,14 @@ const emptyDefaults: DictionaryDefaults = {
 
 let endpointIndex = 0;
 
+async function persistedWorkspace(): Promise<string> {
+  return (await workspaceStateStorage.getItem(workspaceStorageKey)) ?? "";
+}
+
 beforeEach(() => {
   endpointIndex += 1;
   useWorkspaceStore.setState({
+    dictionaryOverrides: {},
     localDictionaryEntries: Object.fromEntries(
       dictionaryUpdateKeys.map((key) => [key, {}]),
     ) as LocalDictionaryEntries,
@@ -60,6 +67,106 @@ describe("workspace dictionary semantics", () => {
       .setDictionaryValue("names", "萧炎=Tiêu Viêm bản sửa");
     expect(dictionaryPayload(useWorkspaceStore.getState().dictionaries)).toEqual({
       names: "萧炎=Tiêu Viêm bản sửa",
+    });
+  });
+
+  it("persists only dictionary overrides created after server hydration", async () => {
+    const serverDefault = "萧炎=Tiêu Viêm từ server";
+    useWorkspaceStore.getState().hydrateDictionaryDefaults("/override", {
+      ...emptyDefaults,
+      names: serverDefault,
+    });
+
+    expect(useWorkspaceStore.getState().dictionaryOverrides).toEqual({});
+    expect(await persistedWorkspace()).not.toContain(serverDefault);
+
+    const customValue = "萧炎=Tiêu Viêm tùy chỉnh";
+    useWorkspaceStore.getState().setDictionaryValue("names", customValue);
+    expect(useWorkspaceStore.getState().dictionaryOverrides).toEqual({
+      names: customValue,
+    });
+    expect(await persistedWorkspace()).toContain(customValue);
+
+    useWorkspaceStore.getState().clearWorkspace();
+    expect(useWorkspaceStore.getState().dictionaries.names.value).toBe(customValue);
+
+    const nextServerDefault = "萧炎=Tiêu Viêm server mới";
+    useWorkspaceStore.getState().hydrateDictionaryDefaults("/override-next", {
+      ...emptyDefaults,
+      names: nextServerDefault,
+    });
+    expect(useWorkspaceStore.getState().dictionaries.names).toMatchObject({
+      value: customValue,
+      defaultValue: nextServerDefault,
+      touched: true,
+    });
+
+    useWorkspaceStore.getState().resetDictionary("names");
+    expect(useWorkspaceStore.getState().dictionaries.names.value).toBe(nextServerDefault);
+    expect(useWorkspaceStore.getState().dictionaryOverrides).toEqual({});
+    expect(await persistedWorkspace()).not.toContain(customValue);
+  });
+
+  it("does not persist dictionary drafts before defaults are ready", async () => {
+    useWorkspaceStore.setState({
+      dictionaryDefaultsEndpoint: undefined,
+      dictionaryOverrides: {},
+    });
+
+    useWorkspaceStore.getState().setDictionaryValue("names", "draft-before-server");
+
+    expect(useWorkspaceStore.getState().dictionaryOverrides).toEqual({});
+    expect(await persistedWorkspace()).not.toContain("draft-before-server");
+  });
+
+  it("keeps compact record patches layered above a full dictionary override", () => {
+    useWorkspaceStore.getState().hydrateDictionaryDefaults("/layered", {
+      ...emptyDefaults,
+      names: "萧炎=Server",
+    });
+    useWorkspaceStore.getState().setDictionaryValue("names", "萧炎=Override");
+    useWorkspaceStore
+      .getState()
+      .saveLocalDictionaryEntries("names", { 萧炎: "Patch" });
+
+    expect(useWorkspaceStore.getState().dictionaries.names.value).toBe("萧炎=Patch");
+
+    useWorkspaceStore.getState().removeLocalDictionaryEntries("names", ["萧炎"]);
+    expect(useWorkspaceStore.getState().dictionaries.names.value).toBe(
+      "萧炎=Override",
+    );
+    expect(useWorkspaceStore.getState().dictionaryOverrides.names).toBe(
+      "萧炎=Override",
+    );
+  });
+
+  it("reapplies IndexedDB data when async hydration finishes after server defaults", async () => {
+    const serverDefault = "萧炎=Server";
+    useWorkspaceStore.getState().hydrateDictionaryDefaults("/async-hydration", {
+      ...emptyDefaults,
+      names: serverDefault,
+    });
+    const localDictionaryEntries = Object.fromEntries(
+      dictionaryUpdateKeys.map((key) => [key, {}]),
+    ) as LocalDictionaryEntries;
+    localDictionaryEntries.names = { 萧炎: "Patch" };
+
+    await workspaceStateStorage.setItem(
+      workspaceStorageKey,
+      JSON.stringify({
+        state: {
+          dictionaryOverrides: { names: "萧炎=Override" },
+          localDictionaryEntries,
+        },
+        version: 0,
+      }),
+    );
+    await useWorkspaceStore.persist.rehydrate();
+
+    expect(useWorkspaceStore.getState().dictionaries.names).toMatchObject({
+      value: "萧炎=Patch",
+      defaultValue: serverDefault,
+      touched: true,
     });
   });
 
@@ -103,7 +210,7 @@ describe("workspace dictionary semantics", () => {
     expect(state.dictionaries.names2.value).not.toContain("林动");
   });
 
-  it("persists compact VietPhrase and Phiên Âm patches", () => {
+  it("persists compact VietPhrase and Phiên Âm patches", async () => {
     const store = useWorkspaceStore.getState();
     store.saveLocalDictionaryEntries("vietPhrase", { 看着: "quan sát" });
     store.saveLocalDictionaryEntries("chinesePhienAmWords", {
@@ -116,7 +223,7 @@ describe("workspace dictionary semantics", () => {
       vietPhrase: { 看着: "quan sát" },
       chinesePhienAmWords: { 看: "khán", 着: "trứ" },
     });
-    expect(localStorage.getItem("qt-web-name-memory-v1")).toContain(
+    expect(await persistedWorkspace()).toContain(
       '"vietPhrase":{"看着":"quan sát"}',
     );
   });
