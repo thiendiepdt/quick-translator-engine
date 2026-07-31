@@ -18,35 +18,73 @@ hoặc phrase đã bị ignore. Span NER đi qua separator bị loại trước 
 
 ## Mode `qt`
 
-Mode này tái hiện shape của `LocNameQT` trong QT2025:
+Mode này là port trung thực của `LocNameOff.LocNameQT` trong QuickTranslator.exe
+(QT2025), đối chiếu từ bản decompile của GUI:
 
-1. Jieba cắt từ với HMM.
-2. Chỉ giữ token Hán dài 2–5 ký tự.
-3. Đếm số lần xuất hiện và áp dụng `minOccurrences`.
-4. Loại entry đã có trong Names/Names2, VietPhrase thông thường và danh sách reject.
-5. Với các candidate có cùng hai ký tự đầu, ưu tiên candidate ngắn hơn.
-6. Gợi ý value từ VietPhrase một nghĩa hoặc âm Hán Việt title-case.
+1. Jieba cắt từ với HMM; giữ token Hán dài 2–5 ký tự có số lần xuất hiện ≥
+   `minOccurrences` (QT2025 dùng threshold theo độ dài văn bản: `<50k` chữ → 1,
+   `<100k` → 2, `<200k` → 3, còn lại 4 — với một chương lẻ hãy truyền `1`).
+2. Loại token chứa stopword cứng của QT2025 (`的`, `了`, `在`, `什么`, …) hoặc chữ số.
+3. Trong mỗi nhóm cùng hai ký tự đầu chỉ giữ candidate ngắn nhất
+   (`FilterUnnecessaryPhrasesOptimized`).
+4. Lọc chuỗi nối Names2 (`FilterUnnecessaryItems`, chạy hai lần khi Names2 khác rỗng).
+5. `ValidateAndMergeTerms`: term 2 chữ không thuộc VietPhrase phải bắt đầu bằng
+   `HoNguoi` hoặc merge được với segment `DanhTu` liền sau (`冷涯`+`郡`→`冷涯郡`);
+   term 4 chữ phải là `<prefix><DanhTu>` và không phải hai từ VietPhrase ghép lại.
+6. Loại candidate đã có trong VietPhrase/Names/Names2 (vô điều kiện), candidate
+   giao thoa với Names2 (`IsPartOfAnyPhraseInDictionary`), chuỗi số Hán và
+   candidate mà value gợi ý chỉ có một âm tiết.
+7. Value gợi ý theo `BuildFormattedHanViet`: template `DanhTu` dạng `{0}`
+   (`郡={0} quận` → `Lãnh Nhai quận`), VietPhrase một nghĩa, hoặc âm Hán Việt
+   title-case.
+8. Tách thêm tựa sách `《…》` và sắp toàn bộ kết quả theo vị trí xuất hiện đầu tiên.
 
-Đây là compatibility mode để so sánh/benchmark, không phải cam kết byte-for-byte với UI
-Windows. `jieba-rs` dùng dictionary mặc định tương thích Jieba; QT2025 có thể chứa resource
-Jieba khác phiên bản.
+Trên corpus thật (8 chương `phuong-thon-dao-chu`), output mode này trùng byte-for-byte
+với replica Python của thuật toán QT2025 chạy cùng bộ từ điển. Khác biệt duy nhất còn
+lại là phiên bản resource Jieba (jieba-rs dùng dict mặc định tương thích) và book
+memory của engine (rejected suppress, known giữ value đã duyệt) — QT2025 không có
+khái niệm này. `minConfidence` không có tác dụng trong mode `qt` vì QT2025 không chấm
+điểm.
+
+Lưu ý phạm vi: trong QT2025 thật, nút "Lọc Name" còn gọi API metruyencv (MTC) và nút
+"Lọc Gemini" gửi cả chương cho Gemini 1.5 Flash; phần local `LocNameQT` chỉ là một
+nhánh. Hai nhánh online đó tương ứng với ONNX NER + AI fallback của engine này.
 
 ## Mode `hybrid`
 
-Hybrid giữ seed Jieba và thêm overlapping n-gram dài 2–8 trong từng run ký tự Hán. Mỗi
-candidate được chấm từ các tín hiệu:
+Hybrid giữ seed Jieba và thêm overlapping n-gram dài 2–8 trong từng run ký tự Hán.
+Trước khi chấm điểm, các hard filter (rút từ hành vi QT2025 + tín hiệu lexicon) loại
+thẳng những candidate không thể là tên:
+
+- chứa stopword QT2025 (`的`, `了`, `在`, …);
+- chuỗi số Hán hoặc chứa ≥2 chữ số Hán liên tiếp (`新历一百`);
+- exact VietPhrase thông thường, trừ khi có trigger giới thiệu tên hoặc bắt đầu bằng
+  `HoNguoi` kèm bằng chứng mạnh (không nằm trong lexicon Jieba, hoặc xuất hiện ≥5
+  lần — che case nhân vật chính đã có sẵn trong VietPhrase như `李顺`);
+- n-gram thuần (không phải token Jieba) không có trigger/hậu tố phải có họ kép
+  (`公叔`), hoặc họ + phần còn lại là danh từ riêng đã biết (`姜`+`太阿=Thái A`),
+  hoặc xuất hiện ≥3 lần;
+- value gợi ý chỉ có một âm tiết.
+
+Mỗi candidate còn lại được chấm từ các tín hiệu:
 
 - tần suất trong chương;
-- Jieba coi là một token;
+- Jieba coi là một token; token nằm ngoài lexicon Jieba (OOV) được cộng điểm,
+  token thuộc lexicon bị trừ — OOV là tín hiệu danh từ riêng mạnh;
 - đứng sau trigger như `名为`, `叫做`, `姓`, `自称`;
-- bắt đầu bằng `HoNguoi`;
+- bắt đầu bằng `HoNguoi`; họ + danh từ riêng đã biết được cộng thêm;
 - hậu tố người/địa danh/tổ chức hoặc entry `DanhTu`/`HauTu`;
-- exact VietPhrase thông thường là tín hiệu âm;
 - accepted book memory có score `1.0`; rejected memory bị loại ngay.
 
+Tựa sách `《…》` luôn được thêm với score `0.90`. Value gợi ý dùng template `DanhTu`
+khi khớp hậu tố (`冷山县` → `huyện Lãnh Sơn`), nếu không thì như trước.
+
 Sau scoring, candidate dài bị bỏ nếu chỉ là phần mở rộng yếu hơn rõ rệt của một candidate
-ngắn. Default hybrid confidence là `0.60`; QT dùng `0.55`. Đây là điểm vận hành cần tune
-trên corpus truyện thật, không phải xác suất đã calibration tuyệt đối.
+ngắn. Default hybrid confidence là `0.60`. Trên 8 chương `phuong-thon-dao-chu` với
+glossary đã duyệt làm gold: recall 53% với ~46 candidate/chương (trước cải tiến:
+49% với ~167/chương; thuật toán local QT2025 nguyên bản: 14%). Phần entity còn thiếu
+(kỹ năng/pháp bảo xuất hiện một lần, biệt danh như `老冯`) là việc của tầng ONNX NER
+và AI fallback.
 
 Vị trí occurrence được thu ngay lúc tạo token/n-gram, rồi đổi sang UTF-16 qua một prefix
 map của chương. Vì vậy pipeline không scan lại toàn chương cho từng candidate.

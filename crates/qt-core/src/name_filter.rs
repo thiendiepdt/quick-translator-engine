@@ -17,6 +17,10 @@ use crate::{CharRange, DictionaryOverrides, Engine};
 const QT_MIN_LENGTH: usize = 2;
 const QT_MAX_LENGTH: usize = 5;
 const HYBRID_MAX_LENGTH: usize = 8;
+/// Occurrence floor that lets a surname-led exact-VietPhrase entry through
+/// the hybrid hard reject (protagonist names already present in VietPhrase).
+const HIGH_FREQUENCY_OCCURRENCES: usize = 5;
+const BOOK_TITLE_SCORE: f32 = 0.90;
 const PERSON_SUFFIXES: &[&str] = &[
     "先生", "小姐", "姑娘", "公子", "少爷", "夫人", "长老", "师父", "师傅", "师兄", "师姐", "师弟",
     "师妹", "大人", "真人", "道长", "掌门", "宗主", "教主", "老祖", "陛下", "殿下", "王爷", "将军",
@@ -43,6 +47,46 @@ const NAME_TRIGGERS: &[&str] = &[
     "称为",
     "乃是",
 ];
+/// Hardcoded stop list carried over verbatim from QT2025 `LocNameOff.source`.
+const QT_STOPWORDS: &[&str] = &[
+    "她", "着", "的", "你", "我", "了", "他", "什么", "也", "什", "们", "在", "您", "那", "这",
+    "这个", "不过", "尔", "啊", "吧", "一边", "没", "哪个", "就是", "有些", "很", "非常", "还是",
+    "再有", "发现", "数", "十几",
+];
+const CHINESE_NUMBER_CHARS: &[char] = &[
+    '零', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '百', '千', '万', '亿', '两',
+    '〇',
+];
+
+fn contains_stopword(text: &str) -> bool {
+    QT_STOPWORDS.iter().any(|word| text.contains(word))
+}
+
+fn is_chinese_number_char(ch: char) -> bool {
+    CHINESE_NUMBER_CHARS.contains(&ch)
+}
+
+/// QT2025 `IsChineseNumberSequence`: three or more characters, all numerals.
+fn is_chinese_number_sequence(text: &str) -> bool {
+    text.chars().count() >= 3 && text.chars().all(is_chinese_number_char)
+}
+
+/// Two or more consecutive numeral characters mark n-gram fragments cut out
+/// of amounts and dates (`新历一百`), which are never names.
+fn has_chinese_number_run(text: &str) -> bool {
+    let mut run = 0usize;
+    for ch in text.chars() {
+        if is_chinese_number_char(ch) {
+            run += 1;
+            if run >= 2 {
+                return true;
+            }
+        } else {
+            run = 0;
+        }
+    }
+    false
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NameFilterMode {
@@ -67,6 +111,7 @@ pub enum NameCandidateSource {
     SurnameRule,
     SuffixRule,
     BookMemory,
+    BookTitle,
     OnnxNer,
     AiFallback,
 }
@@ -232,13 +277,199 @@ impl Engine {
         memory: &NameFilterMemory,
         overrides: Option<&DictionaryOverrides>,
     ) -> NameFilterResult {
+        match options.mode {
+            NameFilterMode::QtCompatible => {
+                self.filter_names_qt(document, options, memory, overrides)
+            }
+            NameFilterMode::Hybrid => {
+                self.filter_names_hybrid(document, options, memory, overrides)
+            }
+        }
+    }
+
+    /// Faithful port of QT2025 `LocNameOff.LocNameQT`, with book memory kept
+    /// as an engine-level extension on top (rejects suppress, known values win).
+    fn filter_names_qt(
+        &self,
+        document: &NameFilterDocument,
+        options: &NameFilterOptions,
+        memory: &NameFilterMemory,
+        overrides: Option<&DictionaryOverrides>,
+    ) -> NameFilterResult {
         let text = document.text();
-        let max_length = match options.mode {
-            NameFilterMode::QtCompatible => QT_MAX_LENGTH,
-            NameFilterMode::Hybrid => options
-                .max_name_length
-                .clamp(QT_MIN_LENGTH, HYBRID_MAX_LENGTH),
-        };
+        let utf16_offsets = utf16_offsets(text);
+        let jieba = jieba();
+        let names = dictionary_pair(
+            overrides.and_then(|value| value.names.as_ref()),
+            overrides.and_then(|value| value.names2.as_ref()),
+            &self.dicts.primary_names,
+            &self.dicts.secondary_names,
+        );
+        let names2 = names.secondary;
+        let ho_nguoi = overrides
+            .and_then(|value| value.ho_nguoi.as_ref())
+            .unwrap_or(&self.dicts.ho_nguoi);
+        let danh_tu = overrides
+            .and_then(|value| value.danh_tu.as_ref())
+            .unwrap_or(&self.dicts.danh_tu);
+        let hau_tu = overrides
+            .and_then(|value| value.hau_tu.as_ref())
+            .unwrap_or(&self.dicts.hau_tu);
+        let in_vietphrase =
+            |term: &str| names.contains(term) || self.dicts.only_vietphrase.contains_key(term);
+
+        let tokens = jieba.cut(text, true);
+        let segments: Vec<&str> = tokens.iter().map(|token| token.word).collect();
+        let mut counts: HashMap<&str, usize> = HashMap::new();
+        for token in &tokens {
+            let length = token.word.chars().count();
+            if (QT_MIN_LENGTH..=QT_MAX_LENGTH).contains(&length)
+                && token
+                    .word
+                    .chars()
+                    .all(|ch| is_chinese(ch, &self.dicts.han_viet))
+            {
+                *counts.entry(token.word).or_default() += 1;
+            }
+        }
+        let threshold = options.min_occurrences.max(1);
+        let phrases: HashSet<String> = counts
+            .iter()
+            .filter(|(word, count)| **count >= threshold && !contains_stopword(word))
+            .map(|(word, _)| (*word).to_string())
+            .collect();
+        let phrases = keep_shortest_per_prefix(phrases);
+        let mut phrases = filter_names2_chain(phrases, text, names2);
+        if !names2.is_empty() {
+            phrases = filter_names2_chain(phrases, text, names2);
+        }
+        validate_and_merge_terms(
+            &mut phrases,
+            &segments,
+            &self.dicts.only_vietphrase,
+            &in_vietphrase,
+            danh_tu,
+            ho_nguoi,
+        );
+
+        let mut ordered: Vec<(String, bool)> =
+            phrases.into_iter().map(|phrase| (phrase, false)).collect();
+        ordered.sort();
+        for title in book_titles(text) {
+            if ordered.iter().all(|(existing, _)| *existing != title) {
+                ordered.push((title, true));
+            }
+        }
+
+        let mut candidates = Vec::new();
+        for (candidate, is_book_title) in ordered {
+            let known_value = memory.known_names.get(&candidate);
+            if memory.rejected_names.contains(&candidate) {
+                continue;
+            }
+            let is_known = known_value.is_some();
+            if is_known && !options.include_known {
+                continue;
+            }
+            if !is_known
+                && !is_book_title
+                && (in_vietphrase(&candidate)
+                    || is_part_of_names2(&candidate, names2, ho_nguoi)
+                    || is_chinese_number_sequence(&candidate))
+            {
+                continue;
+            }
+            let byte_starts: Vec<usize> = text
+                .match_indices(candidate.as_str())
+                .map(|(index, _)| index)
+                .collect();
+            let facts = candidate_facts(
+                document,
+                &candidate,
+                &byte_starts,
+                &utf16_offsets,
+                ho_nguoi,
+                danh_tu,
+                hau_tu,
+            );
+            let occurrences = facts.ranges.len();
+            if occurrences == 0 {
+                continue;
+            }
+            let suggested = known_value.cloned().unwrap_or_else(|| {
+                qt_formatted_value(
+                    &candidate,
+                    danh_tu,
+                    &self.dicts.vietphrase_one_meaning,
+                    &self.dicts.han_viet,
+                )
+            });
+            if !is_known && !is_book_title && !suggested.contains(' ') {
+                continue;
+            }
+            let mut sources = vec![if is_book_title {
+                NameCandidateSource::BookTitle
+            } else {
+                NameCandidateSource::QtJieba
+            }];
+            let mut reasons = vec![if is_book_title {
+                "tựa sách trong 《》".to_string()
+            } else {
+                "lọc theo thuật toán QT2025".to_string()
+            }];
+            if is_known {
+                sources.push(NameCandidateSource::BookMemory);
+                reasons.push("đã được duyệt trong bộ nhớ truyện".to_string());
+            }
+            if occurrences > 1 {
+                reasons.push(format!("xuất hiện {occurrences} lần"));
+            }
+            candidates.push(NameCandidate {
+                text: candidate,
+                suggested,
+                entity_type: if is_book_title {
+                    NameEntityType::Title
+                } else {
+                    facts.entity_type
+                },
+                score: if is_known {
+                    1.0
+                } else {
+                    qt_score(occurrences, threshold.min(occurrences))
+                },
+                occurrences,
+                ranges: facts.ranges,
+                reasons,
+                sources,
+                known: is_known,
+            });
+        }
+
+        candidates.sort_by_key(|candidate| {
+            candidate
+                .ranges
+                .first()
+                .map(|range| range.start)
+                .unwrap_or(usize::MAX)
+        });
+        candidates.truncate(options.max_candidates.clamp(1, 1_000));
+        NameFilterResult {
+            candidates,
+            scanned_characters: document.scanned_characters,
+        }
+    }
+
+    fn filter_names_hybrid(
+        &self,
+        document: &NameFilterDocument,
+        options: &NameFilterOptions,
+        memory: &NameFilterMemory,
+        overrides: Option<&DictionaryOverrides>,
+    ) -> NameFilterResult {
+        let text = document.text();
+        let max_length = options
+            .max_name_length
+            .clamp(QT_MIN_LENGTH, HYBRID_MAX_LENGTH);
         let mut seeds: HashMap<String, CandidateSeed> = HashMap::new();
         let utf16_offsets = utf16_offsets(text);
         let jieba = jieba();
@@ -257,16 +488,14 @@ impl Engine {
             }
         }
 
-        if options.mode == NameFilterMode::Hybrid {
-            add_hybrid_ngrams(text, max_length, &self.dicts.han_viet, &mut seeds);
-            for known in memory.known_names.keys() {
-                for (byte_start, _) in text.match_indices(known) {
-                    seeds
-                        .entry(known.clone())
-                        .or_default()
-                        .byte_starts
-                        .push(byte_start);
-                }
+        add_hybrid_ngrams(text, max_length, &self.dicts.han_viet, &mut seeds);
+        for known in memory.known_names.keys() {
+            for (byte_start, _) in text.match_indices(known) {
+                seeds
+                    .entry(known.clone())
+                    .or_default()
+                    .byte_starts
+                    .push(byte_start);
             }
         }
 
@@ -309,15 +538,46 @@ impl Engine {
             if occurrences == 0 {
                 continue;
             }
-            if options.mode == NameFilterMode::QtCompatible
-                && self.dicts.only_vietphrase.contains_key(&candidate)
-                && !facts.has_surname
-            {
-                continue;
-            }
             let is_known = known_value.is_some();
             if is_known && !options.include_known {
                 continue;
+            }
+            let exact_vietphrase = self.dicts.only_vietphrase.contains_key(&candidate);
+            let jieba_common = jieba.has_word(&candidate);
+            let proper_remainder = facts.has_surname
+                && surname_proper_remainder(&candidate, ho_nguoi, &self.dicts.only_vietphrase);
+            if !is_known {
+                // QT2025-style hard rejects: function words, amounts/dates and
+                // exact common VietPhrase entries are never names. An exact
+                // VietPhrase entry survives only with a naming context or a
+                // surname backed by OOV/high frequency (protagonists already
+                // present in VietPhrase, e.g. 李顺).
+                if contains_stopword(&candidate)
+                    || is_chinese_number_sequence(&candidate)
+                    || has_chinese_number_run(&candidate)
+                {
+                    continue;
+                }
+                if exact_vietphrase
+                    && !facts.has_trigger
+                    && !(facts.has_surname
+                        && (!jieba_common || occurrences >= HIGH_FREQUENCY_OCCURRENCES))
+                {
+                    continue;
+                }
+                // A raw n-gram without naming trigger or entity suffix needs
+                // real evidence: a compound surname, a surname followed by a
+                // known proper noun (姜 + 太阿), or repeated occurrences.
+                // Single-char surnames prove nothing at n-gram density given
+                // how permissive HoNguoi is.
+                if !facts.has_trigger && !facts.has_suffix && !seed.from_jieba {
+                    let prefix2: String = candidate.chars().take(2).collect();
+                    let compound_surname =
+                        candidate.chars().count() > 2 && ho_nguoi.contains_key(&prefix2);
+                    if !compound_surname && !proper_remainder && occurrences < 3 {
+                        continue;
+                    }
+                }
             }
 
             let mut sources = Vec::new();
@@ -349,16 +609,14 @@ impl Engine {
                 reasons.push(format!("xuất hiện {occurrences} lần"));
             }
 
-            let score = match options.mode {
-                NameFilterMode::QtCompatible => qt_score(occurrences, options.min_occurrences),
-                NameFilterMode::Hybrid => hybrid_score(
-                    occurrences,
-                    seed.from_jieba,
-                    &facts,
-                    is_known,
-                    self.dicts.only_vietphrase.contains_key(&candidate),
-                ),
-            };
+            let score = hybrid_score(
+                occurrences,
+                seed.from_jieba,
+                &facts,
+                is_known,
+                jieba_common,
+                proper_remainder,
+            );
             let passes = if is_known {
                 true
             } else {
@@ -378,8 +636,13 @@ impl Engine {
                     &self.dicts.only_vietphrase,
                     &self.dicts.han_viet,
                     facts.has_surname || facts.has_trigger,
+                    danh_tu,
+                    &self.dicts.vietphrase_one_meaning,
                 )
             });
+            if !is_known && !suggested.contains(' ') {
+                continue;
+            }
             candidates.push(NameCandidate {
                 text: candidate,
                 suggested,
@@ -393,10 +656,53 @@ impl Engine {
             });
         }
 
-        if options.mode == NameFilterMode::QtCompatible {
-            candidates = prune_qt_prefixes(candidates);
-        } else {
-            candidates = prune_weaker_nested_candidates(candidates);
+        candidates = prune_weaker_nested_candidates(candidates);
+        for title in book_titles(text) {
+            if candidates.iter().any(|candidate| candidate.text == title)
+                || memory.rejected_names.contains(&title)
+            {
+                continue;
+            }
+            let byte_starts: Vec<usize> = text
+                .match_indices(title.as_str())
+                .map(|(index, _)| index)
+                .collect();
+            let facts = candidate_facts(
+                document,
+                &title,
+                &byte_starts,
+                &utf16_offsets,
+                ho_nguoi,
+                danh_tu,
+                hau_tu,
+            );
+            if facts.ranges.is_empty() {
+                continue;
+            }
+            let known_value = memory.known_names.get(&title);
+            let is_known = known_value.is_some();
+            if is_known && !options.include_known {
+                continue;
+            }
+            let occurrences = facts.ranges.len();
+            candidates.push(NameCandidate {
+                suggested: known_value.cloned().unwrap_or_else(|| {
+                    qt_formatted_value(
+                        &title,
+                        danh_tu,
+                        &self.dicts.vietphrase_one_meaning,
+                        &self.dicts.han_viet,
+                    )
+                }),
+                text: title,
+                entity_type: NameEntityType::Title,
+                score: if is_known { 1.0 } else { BOOK_TITLE_SCORE },
+                occurrences,
+                ranges: facts.ranges,
+                reasons: vec!["tựa sách trong 《》".to_string()],
+                sources: vec![NameCandidateSource::BookTitle],
+                known: is_known,
+            });
         }
         candidates.sort_by(|left, right| {
             right
@@ -426,6 +732,8 @@ impl Engine {
             &self.dicts.only_vietphrase,
             &self.dicts.han_viet,
             true,
+            &self.dicts.danh_tu,
+            &self.dicts.vietphrase_one_meaning,
         )
     }
 
@@ -626,7 +934,8 @@ fn hybrid_score(
     from_jieba: bool,
     facts: &CandidateFacts,
     known: bool,
-    exact_vietphrase: bool,
+    jieba_common: bool,
+    proper_remainder: bool,
 ) -> f32 {
     if known {
         return 1.0;
@@ -644,8 +953,16 @@ fn hybrid_score(
     if facts.has_suffix {
         score += 0.20;
     }
-    if exact_vietphrase && !facts.has_surname && !facts.has_trigger {
-        score -= 0.32;
+    if proper_remainder {
+        score += 0.25;
+    }
+    // For real segmenter tokens, absence from the lexicon is a strong
+    // proper-noun signal; presence marks common vocabulary. Raw n-grams are
+    // almost always OOV, so absence proves nothing for them.
+    if jieba_common {
+        score -= 0.12;
+    } else if from_jieba {
+        score += 0.10;
     }
     score.clamp(0.0, 0.99)
 }
@@ -655,7 +972,12 @@ fn suggested_name(
     vietphrase: &HashMap<String, String>,
     han_viet: &HashMap<char, String>,
     prefer_han_viet: bool,
+    danh_tu: &HashMap<String, String>,
+    vietphrase_one_meaning: &HashMap<String, String>,
 ) -> String {
+    if text.chars().count() > 2 && ends_with_any_key(text, danh_tu) {
+        return title_case_with_danh_tu(text, danh_tu, vietphrase_one_meaning, han_viet);
+    }
     if !prefer_han_viet {
         if let Some(value) = vietphrase.get(text) {
             if let Some(first) = value.split(['/', '|']).next() {
@@ -663,6 +985,10 @@ fn suggested_name(
             }
         }
     }
+    title_case_han_viet(text, han_viet)
+}
+
+fn title_case_han_viet(text: &str, han_viet: &HashMap<char, String>) -> String {
     text.chars()
         .map(|ch| {
             han_viet
@@ -672,6 +998,289 @@ fn suggested_name(
         })
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+/// Port of QT2025 `LocNameOff.BuildFormattedHanViet` (checkVietPhrase=true).
+fn qt_formatted_value(
+    candidate: &str,
+    danh_tu: &HashMap<String, String>,
+    vietphrase_one_meaning: &HashMap<String, String>,
+    han_viet: &HashMap<char, String>,
+) -> String {
+    if candidate.trim().is_empty() {
+        return String::new();
+    }
+    if candidate.chars().count() > 2 && ends_with_any_key(candidate, danh_tu) {
+        return title_case_with_danh_tu(candidate, danh_tu, vietphrase_one_meaning, han_viet);
+    }
+    if let Some(value) = vietphrase_one_meaning.get(candidate) {
+        let value = value.trim();
+        if !value.is_empty() {
+            return value.to_string();
+        }
+    }
+    title_case_han_viet(candidate, han_viet)
+}
+
+/// Port of QT2025 `LocNameOff.TitleCaseWithDictionary`: DanhTu entries are
+/// `suffix={0} template` patterns applied to the translated prefix.
+fn title_case_with_danh_tu(
+    candidate: &str,
+    danh_tu: &HashMap<String, String>,
+    vietphrase_one_meaning: &HashMap<String, String>,
+    han_viet: &HashMap<char, String>,
+) -> String {
+    if let Some(value) = danh_tu.get(candidate) {
+        return value.replace("{0}", "").trim().to_string();
+    }
+    let mut keys: Vec<&String> = danh_tu.keys().collect();
+    keys.sort_by(|left, right| {
+        right
+            .chars()
+            .count()
+            .cmp(&left.chars().count())
+            .then_with(|| left.cmp(right))
+    });
+    for key in keys {
+        if key.is_empty() || !candidate.ends_with(key.as_str()) {
+            continue;
+        }
+        let template = &danh_tu[key.as_str()];
+        let prefix = candidate[..candidate.len() - key.len()].trim();
+        let translated = if prefix.chars().count() <= 2 {
+            title_case_han_viet(prefix, han_viet)
+        } else if let Some(value) = vietphrase_one_meaning.get(prefix) {
+            if is_title_case(value) {
+                value.clone()
+            } else {
+                title_words(value)
+            }
+        } else {
+            title_case_han_viet(prefix, han_viet)
+        };
+        if template.contains("{0}") {
+            return template.replace("{0}", &translated).trim().to_string();
+        }
+        return format!("{translated} {template}").trim().to_string();
+    }
+    title_words(candidate)
+}
+
+fn is_title_case(value: &str) -> bool {
+    if value.trim().is_empty() {
+        return false;
+    }
+    value.split_whitespace().all(|word| {
+        word.chars()
+            .find(|ch| ch.is_alphabetic())
+            .is_none_or(|first| first.is_uppercase())
+    })
+}
+
+/// Surname followed by a remainder whose first VietPhrase meaning is written
+/// in Title Case — the pattern of a full name built on a known proper noun
+/// (姜 + 太阿=Thái A).
+fn surname_proper_remainder(
+    candidate: &str,
+    ho_nguoi: &HashMap<String, String>,
+    vietphrase: &HashMap<String, String>,
+) -> bool {
+    prefixes(candidate).any(|prefix| {
+        if !ho_nguoi.contains_key(prefix) {
+            return false;
+        }
+        let remainder = &candidate[prefix.len()..];
+        if remainder.is_empty() {
+            return false;
+        }
+        vietphrase
+            .get(remainder)
+            .and_then(|value| value.split(['/', '|']).next())
+            .is_some_and(is_title_case)
+    })
+}
+
+/// `MatchAnyStartEnd(text, keys, isPrefix: false)` from QT2025.
+fn ends_with_any_key(text: &str, keys: &HashMap<String, String>) -> bool {
+    keys.keys()
+        .any(|key| text != key && text.ends_with(key.as_str()))
+}
+
+/// `MatchAnyStartEnd(text, keys, isPrefix: true)` from QT2025.
+fn starts_with_any_key(text: &str, keys: &HashMap<String, String>) -> bool {
+    keys.keys()
+        .any(|key| text != key && text.starts_with(key.as_str()))
+}
+
+/// QT2025 `FilterUnnecessaryPhrasesOptimized`: within each two-character
+/// prefix group only the shortest phrase survives.
+fn keep_shortest_per_prefix(phrases: HashSet<String>) -> HashSet<String> {
+    let mut groups: HashMap<String, (usize, String)> = HashMap::new();
+    for phrase in phrases {
+        let length = phrase.chars().count();
+        if length < 2 {
+            continue;
+        }
+        let prefix: String = phrase.chars().take(2).collect();
+        match groups.entry(prefix) {
+            std::collections::hash_map::Entry::Occupied(mut entry) => {
+                let (best_length, best) = entry.get();
+                if length < *best_length || (length == *best_length && phrase < *best) {
+                    entry.insert((length, phrase));
+                }
+            }
+            std::collections::hash_map::Entry::Vacant(entry) => {
+                entry.insert((length, phrase));
+            }
+        }
+    }
+    groups.into_values().map(|(_, phrase)| phrase).collect()
+}
+
+/// QT2025 `FilterUnnecessaryItems`: drop a phrase when a Names2 key chains
+/// into it (key ends with the phrase's first character and the combined
+/// string occurs in the chapter).
+fn filter_names2_chain(
+    phrases: HashSet<String>,
+    text: &str,
+    names2: &HashMap<String, String>,
+) -> HashSet<String> {
+    let mut removed: HashSet<String> = HashSet::new();
+    for phrase in &phrases {
+        let Some(first) = phrase.chars().next() else {
+            continue;
+        };
+        for key in names2.keys() {
+            if key == phrase || !phrase.starts_with(key.as_str()) {
+                continue;
+            }
+            if key.ends_with(first) {
+                let mut value = key.clone();
+                value.push_str(&phrase[first.len_utf8()..]);
+                if text.contains(&value) {
+                    removed.insert(phrase.clone());
+                    break;
+                }
+            }
+        }
+    }
+    phrases
+        .into_iter()
+        .filter(|phrase| !removed.contains(phrase))
+        .collect()
+}
+
+/// QT2025 `IsPartOfAnyPhraseInDictionary` against Names2.
+fn is_part_of_names2(
+    candidate: &str,
+    names2: &HashMap<String, String>,
+    ho_nguoi: &HashMap<String, String>,
+) -> bool {
+    if candidate.chars().count() <= 1 {
+        return false;
+    }
+    for key in names2.keys() {
+        if key.chars().count() <= 1 {
+            continue;
+        }
+        if key.starts_with(candidate) || candidate.starts_with(key.as_str()) {
+            return true;
+        }
+        if brackets_match(candidate, key) || brackets_match(key, candidate) {
+            return true;
+        }
+        if candidate.contains(key.as_str()) && !starts_with_any_key(candidate, ho_nguoi) {
+            return true;
+        }
+    }
+    false
+}
+
+fn brackets_match(with_brackets: &str, to_check: &str) -> bool {
+    let Some(open) = with_brackets.find('《') else {
+        return false;
+    };
+    let Some(close) = with_brackets.find('》') else {
+        return false;
+    };
+    if close <= open {
+        return false;
+    }
+    let inner = with_brackets[open + '《'.len_utf8()..close].trim();
+    to_check.contains(inner)
+}
+
+/// QT2025 `ValidateAndMergeTerms`: two-character terms must merge with a
+/// following DanhTu segment or start with a surname; four-character terms
+/// must be `<prefix><DanhTu>` pairs that are not two common VietPhrase words.
+fn validate_and_merge_terms(
+    terms: &mut HashSet<String>,
+    segments: &[&str],
+    only_vietphrase: &HashMap<String, String>,
+    in_vietphrase: &dyn Fn(&str) -> bool,
+    danh_tu: &HashMap<String, String>,
+    ho_nguoi: &HashMap<String, String>,
+) {
+    let mut to_remove: HashSet<String> = HashSet::new();
+    let mut to_add: HashSet<String> = HashSet::new();
+    terms.retain(|term| !term.trim().is_empty());
+    for term in terms.iter() {
+        let length = term.chars().count();
+        if length == 2 && !only_vietphrase.contains_key(term) {
+            let has_surname = starts_with_any_key(term, ho_nguoi);
+            let mut merged = false;
+            for window in segments.windows(2) {
+                if window[0] == term && danh_tu.contains_key(window[1]) {
+                    to_add.insert(format!("{term}{}", window[1]));
+                    merged = true;
+                }
+            }
+            if !merged && !has_surname {
+                to_remove.insert(term.clone());
+            } else {
+                to_add.insert(term.clone());
+            }
+        } else if length == 4 {
+            let boundary = term
+                .char_indices()
+                .nth(2)
+                .map(|(index, _)| index)
+                .unwrap_or(term.len());
+            let left = &term[..boundary];
+            let right = &term[boundary..];
+            if !danh_tu.contains_key(right) || (in_vietphrase(left) && in_vietphrase(right)) {
+                to_remove.insert(term.clone());
+            } else {
+                to_add.insert(term.clone());
+            }
+        }
+    }
+    for term in to_remove {
+        terms.remove(&term);
+    }
+    terms.extend(to_add);
+}
+
+/// QT2025 book-title extraction (`《.*?》`, no newline inside).
+fn book_titles(text: &str) -> Vec<String> {
+    let mut titles = Vec::new();
+    let mut rest = text;
+    while let Some(open) = rest.find('《') {
+        let after_open = &rest[open + '《'.len_utf8()..];
+        let Some(close) = after_open.find('》') else {
+            break;
+        };
+        let inner = &after_open[..close];
+        rest = &after_open[close + '》'.len_utf8()..];
+        if inner.contains('\n') || inner.contains('\r') {
+            continue;
+        }
+        let title = format!("《{inner}》");
+        if !titles.contains(&title) {
+            titles.push(title);
+        }
+    }
+    titles
 }
 
 fn title_words(value: &str) -> String {
@@ -685,18 +1294,6 @@ fn title_words(value: &str) -> String {
         })
         .collect::<Vec<_>>()
         .join(" ")
-}
-
-fn prune_qt_prefixes(mut candidates: Vec<NameCandidate>) -> Vec<NameCandidate> {
-    candidates.sort_by_key(|candidate| candidate.text.chars().count());
-    let mut kept_prefixes = HashSet::new();
-    candidates
-        .into_iter()
-        .filter(|candidate| {
-            let prefix: String = candidate.text.chars().take(2).collect();
-            kept_prefixes.insert(prefix)
-        })
-        .collect()
 }
 
 fn prune_weaker_nested_candidates(candidates: Vec<NameCandidate>) -> Vec<NameCandidate> {
@@ -859,6 +1456,150 @@ mod tests {
             .candidates
             .iter()
             .all(|candidate| candidate.text != "走来"));
+    }
+
+    fn qt2025_engine() -> Engine {
+        Engine::from_dicts(Dictionaries::build_full(
+            "冷=lãnh\n涯=nhai\n郡=quận\n姜=khương\n太=thái\n阿=a\n幽=u\n暗=ám\n山=sơn\n释=thích\n帝=đế\n书=thư\n洞=động\n里=lý\n转=chuyển\n身=thân\n他=tha\n看=khán\n着=trứ\n无=vô\n比=bỉ\n士=sĩ\n兵=binh\n穴=huyệt",
+            "",
+            "",
+            "幽暗=u ám\n太阿=Thái A",
+            "",
+            "郡={0} quận",
+            "冷=Lãnh\n姜=Khương\n幽=U",
+            "",
+            "",
+            "",
+        ))
+    }
+
+    #[test]
+    fn qt_mode_rejects_exact_vietphrase_even_with_surname_prefix() {
+        let options = NameFilterOptions {
+            mode: NameFilterMode::QtCompatible,
+            min_occurrences: 1,
+            ..Default::default()
+        };
+        let result = qt2025_engine().filter_names(
+            "幽暗洞穴，幽暗无比。",
+            &options,
+            &NameFilterMemory::default(),
+            None,
+        );
+        assert!(result
+            .candidates
+            .iter()
+            .all(|candidate| candidate.text != "幽暗"));
+    }
+
+    #[test]
+    fn qt_mode_merges_two_char_surname_term_with_danh_tu_segment() {
+        let options = NameFilterOptions {
+            mode: NameFilterMode::QtCompatible,
+            min_occurrences: 1,
+            ..Default::default()
+        };
+        let result = qt2025_engine().filter_names(
+            "冷涯郡士兵。",
+            &options,
+            &NameFilterMemory::default(),
+            None,
+        );
+        let candidate = result
+            .candidates
+            .iter()
+            .find(|candidate| candidate.text == "冷涯郡")
+            .expect("merged DanhTu candidate");
+        assert_eq!(candidate.suggested, "Lãnh Nhai quận");
+    }
+
+    #[test]
+    fn qt_mode_extracts_book_titles_in_brackets() {
+        let options = NameFilterOptions {
+            mode: NameFilterMode::QtCompatible,
+            min_occurrences: 1,
+            ..Default::default()
+        };
+        let result = qt2025_engine().filter_names(
+            "他看着《释帝书》。",
+            &options,
+            &NameFilterMemory::default(),
+            None,
+        );
+        let candidate = result
+            .candidates
+            .iter()
+            .find(|candidate| candidate.text == "《释帝书》")
+            .expect("book title candidate");
+        assert_eq!(candidate.entity_type, NameEntityType::Title);
+        assert!(candidate.sources.contains(&NameCandidateSource::BookTitle));
+    }
+
+    #[test]
+    fn qt_mode_orders_candidates_by_first_occurrence() {
+        let options = NameFilterOptions {
+            mode: NameFilterMode::QtCompatible,
+            min_occurrences: 1,
+            ..Default::default()
+        };
+        let result = qt2025_engine().filter_names(
+            "姜太阿走向冷涯郡。",
+            &options,
+            &NameFilterMemory::default(),
+            None,
+        );
+        let positions: Vec<usize> = result
+            .candidates
+            .iter()
+            .filter_map(|candidate| candidate.ranges.first().map(|range| range.start))
+            .collect();
+        let mut sorted = positions.clone();
+        sorted.sort_unstable();
+        assert_eq!(positions, sorted);
+    }
+
+    #[test]
+    fn hybrid_rejects_common_vietphrase_word_despite_surname_prefix() {
+        let result = qt2025_engine().filter_names(
+            "幽暗洞穴里，幽暗无比。",
+            &NameFilterOptions::default(),
+            &NameFilterMemory::default(),
+            None,
+        );
+        assert!(result
+            .candidates
+            .iter()
+            .all(|candidate| candidate.text != "幽暗"));
+    }
+
+    #[test]
+    fn hybrid_keeps_surname_followed_by_known_proper_noun() {
+        let result = qt2025_engine().filter_names(
+            "姜太阿转身。",
+            &NameFilterOptions::default(),
+            &NameFilterMemory::default(),
+            None,
+        );
+        let candidate = result
+            .candidates
+            .iter()
+            .find(|candidate| candidate.text == "姜太阿")
+            .expect("surname + proper noun candidate");
+        assert_eq!(candidate.suggested, "Khương Thái A");
+    }
+
+    #[test]
+    fn hybrid_rejects_candidates_containing_stopwords() {
+        let result = qt2025_engine().filter_names(
+            "幽暗的洞穴。幽暗的洞穴。",
+            &NameFilterOptions::default(),
+            &NameFilterMemory::default(),
+            None,
+        );
+        assert!(result
+            .candidates
+            .iter()
+            .all(|candidate| !candidate.text.contains('的')));
     }
 
     #[test]

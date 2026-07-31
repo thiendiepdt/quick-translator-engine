@@ -887,6 +887,7 @@ fn source_name(source: NameCandidateSource) -> &'static str {
         NameCandidateSource::SurnameRule => "surname-rule",
         NameCandidateSource::SuffixRule => "suffix-rule",
         NameCandidateSource::BookMemory => "book-memory",
+        NameCandidateSource::BookTitle => "book-title",
         NameCandidateSource::OnnxNer => "onnx-ner",
         NameCandidateSource::AiFallback => "ai-fallback",
     }

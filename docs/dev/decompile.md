@@ -65,3 +65,24 @@ _tools\ilspy\ilspycmd.exe QT2025\TranslatorEngine.dll `
 Phần charset detector Mozilla ở cuối file không thuộc pipeline dịch chính. Các phần được
 đối chiếu thường xuyên là dictionary loader, `StandardizeInput`, `TranslateAll`,
 `ChineseToHanViet` và `TransLuatNhan`.
+
+## QuickTranslator.exe (GUI)
+
+Logic lọc name của QT2025 không nằm trong `TranslatorEngine.dll` mà trong GUI
+(`LocNameOff.LocNameQT` + flow gọi API MTC/Gemini). Decompile bằng cùng bộ tool:
+
+```bash
+./_tools/ilspy/ilspycmd QT2025/QuickTranslator.exe -o <thư mục tạm>
+```
+
+KHÔNG commit bản decompile đầy đủ của GUI: file này nhúng email/password đăng nhập
+metruyencv và token cache path. Chỉ trích class cần đối chiếu vào
+`reference/decompiled/LocNameOff.decompiled.cs` (đã kèm
+`GetThresholdBasedOnWordCount`).
+
+`reference/locname_qt2025_replica.py` là replica Python chạy được của `LocNameQT`
+(cần `pip install jieba`), dùng để kiểm chứng byte-for-byte mode `qt` của engine:
+
+```bash
+python3 reference/locname_qt2025_replica.py chapter.txt [threshold]
+```
