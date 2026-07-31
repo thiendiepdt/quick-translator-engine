@@ -38,6 +38,11 @@ Mode này là port trung thực của `LocNameOff.LocNameQT` trong QuickTranslat
    (`郡={0} quận` → `Lãnh Nhai quận`), VietPhrase một nghĩa, hoặc âm Hán Việt
    title-case.
 8. Tách thêm tựa sách `《…》` và sắp toàn bộ kết quả theo vị trí xuất hiện đầu tiên.
+   Key tựa sách được xuất ở dạng đã chuẩn hóa dịch (`《 X 》` có dấu cách) — đây là
+   dạng duy nhất match được khi dịch, vì `StandardizeInput` chèn dấu cách quanh
+   `《》`; QT2025 cũng vậy do panel Trung đã được chuẩn hóa trước khi lọc. Thêm
+   entry Names/Names2 cho tựa sách mà viết `《X》=…` (không dấu cách) sẽ không bao
+   giờ khớp.
 
 Trên corpus thật (8 chương `phuong-thon-dao-chu`), output mode này trùng byte-for-byte
 với replica Python của thuật toán QT2025 chạy cùng bộ từ điển. Khác biệt duy nhất còn

@@ -363,8 +363,16 @@ impl Engine {
 
         let mut candidates = Vec::new();
         for (candidate, is_book_title) in ordered {
-            let known_value = memory.known_names.get(&candidate);
-            if memory.rejected_names.contains(&candidate) {
+            // Book-title keys are emitted the way the translation pipeline
+            // standardizes them (`《 X 》` with spaces, as QT2025 does via
+            // StandardizeInput) — otherwise the Names2 entry never matches.
+            let display = if is_book_title {
+                self.standardized_translation_key(&candidate)
+            } else {
+                candidate.clone()
+            };
+            let known_value = memory.known_names.get(&display);
+            if memory.rejected_names.contains(&display) {
                 continue;
             }
             let is_known = known_value.is_some();
@@ -398,7 +406,7 @@ impl Engine {
             }
             let suggested = known_value.cloned().unwrap_or_else(|| {
                 qt_formatted_value(
-                    &candidate,
+                    &display,
                     danh_tu,
                     &self.dicts.vietphrase_one_meaning,
                     &self.dicts.han_viet,
@@ -425,7 +433,7 @@ impl Engine {
                 reasons.push(format!("xuất hiện {occurrences} lần"));
             }
             candidates.push(NameCandidate {
-                text: candidate,
+                text: display,
                 suggested,
                 entity_type: if is_book_title {
                     NameEntityType::Title
@@ -658,8 +666,9 @@ impl Engine {
 
         candidates = prune_weaker_nested_candidates(candidates);
         for title in book_titles(text) {
-            if candidates.iter().any(|candidate| candidate.text == title)
-                || memory.rejected_names.contains(&title)
+            let display = self.standardized_translation_key(&title);
+            if candidates.iter().any(|candidate| candidate.text == display)
+                || memory.rejected_names.contains(&display)
             {
                 continue;
             }
@@ -679,7 +688,7 @@ impl Engine {
             if facts.ranges.is_empty() {
                 continue;
             }
-            let known_value = memory.known_names.get(&title);
+            let known_value = memory.known_names.get(&display);
             let is_known = known_value.is_some();
             if is_known && !options.include_known {
                 continue;
@@ -688,13 +697,13 @@ impl Engine {
             candidates.push(NameCandidate {
                 suggested: known_value.cloned().unwrap_or_else(|| {
                     qt_formatted_value(
-                        &title,
+                        &display,
                         danh_tu,
                         &self.dicts.vietphrase_one_meaning,
                         &self.dicts.han_viet,
                     )
                 }),
-                text: title,
+                text: display,
                 entity_type: NameEntityType::Title,
                 score: if is_known { 1.0 } else { BOOK_TITLE_SCORE },
                 occurrences,
@@ -723,6 +732,19 @@ impl Engine {
             candidates,
             scanned_characters: document.scanned_characters,
         }
+    }
+
+    /// Render `raw` exactly the way the translation pipeline standardizes
+    /// input (QT2025 `StandardizeInput`), so a dictionary key built from it
+    /// will match during translation (`《X》` becomes `《 X 》`).
+    fn standardized_translation_key(&self, raw: &str) -> String {
+        let standardized = self.standardizer.standardize(raw);
+        standardized
+            .chars
+            .iter()
+            .collect::<String>()
+            .trim()
+            .to_string()
     }
 
     /// Suggest a Vietnamese value for a model-provided entity span.
@@ -996,6 +1018,9 @@ fn title_case_han_viet(text: &str, han_viet: &HashMap<char, String>) -> String {
                 .map(|value| title_words(value))
                 .unwrap_or_else(|| ch.to_string())
         })
+        .collect::<Vec<_>>()
+        .join(" ")
+        .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ")
 }
@@ -1529,8 +1554,8 @@ mod tests {
         let candidate = result
             .candidates
             .iter()
-            .find(|candidate| candidate.text == "《释帝书》")
-            .expect("book title candidate");
+            .find(|candidate| candidate.text == "《 释帝书 》")
+            .expect("book title candidate in standardized translation form");
         assert_eq!(candidate.entity_type, NameEntityType::Title);
         assert!(candidate.sources.contains(&NameCandidateSource::BookTitle));
     }
