@@ -4,6 +4,11 @@
 Decompiled source: reference/decompiled/LocNameOff.decompiled.cs
 Dictionaries are loaded from the QT2025 data directory the same way
 TranslatorEngine loads them (Names + Names2 merged into vietPhrase, etc).
+
+Caveat: this script runs on RAW chapter text, while the QT2025 GUI runs
+LocNameQT on StandardizeInput-ed panel text. The only visible difference is
+bracketed book titles: the GUI (and qt-core) emit the standardized form
+`《 X 》` with spaces, this replica emits `《X》`.
 """
 import re
 import sys
