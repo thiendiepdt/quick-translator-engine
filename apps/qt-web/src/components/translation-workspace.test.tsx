@@ -13,9 +13,17 @@ import {
   dictionaryUpdateKeys,
   type LocalDictionaryEntries,
 } from "@/lib/types";
-import { useWorkspaceStore } from "@/store/workspace";
+import {
+  useWorkspaceStore,
+  workspaceStateStorage,
+  workspaceStorageKey,
+} from "@/store/workspace";
 
 const scrollToMock = vi.fn();
+
+async function persistedWorkspace(): Promise<string> {
+  return (await workspaceStateStorage.getItem(workspaceStorageKey)) ?? "";
+}
 
 beforeEach(() => {
   scrollToMock.mockClear();
@@ -75,7 +83,7 @@ describe("translation range pin", () => {
     ).toHaveAttribute("data-active", "true");
     expect(scrollToMock).not.toHaveBeenCalled();
     expect(useWorkspaceStore.getState().rangePinEnabled).toBe(false);
-    expect(localStorage.getItem("qt-web-name-memory-v1")).toContain(
+    expect(await persistedWorkspace()).toContain(
       '"rangePinEnabled":false',
     );
   });
@@ -121,7 +129,7 @@ describe("translation range pin", () => {
     expect(
       useWorkspaceStore.getState().localDictionaryEntries.vietPhrase,
     ).toEqual({ 看着: "quan sát" });
-    expect(localStorage.getItem("qt-web-name-memory-v1")).toContain(
+    expect(await persistedWorkspace()).toContain(
       '"vietPhrase":{"看着":"quan sát"}',
     );
   });

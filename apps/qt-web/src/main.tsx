@@ -32,7 +32,12 @@ createRoot(root).render(
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <App />
-          <Toaster position="top-right" richColors />
+          <Toaster
+            position="bottom-right"
+            richColors
+            closeButton
+            toastOptions={{ closeButtonAriaLabel: "Đóng thông báo" }}
+          />
         </TooltipProvider>
       </QueryClientProvider>
     </ThemeProvider>

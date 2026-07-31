@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { dictionaryKeys, type DictionaryDefaults } from "@/lib/types";
 
-export const endpointSchema = z.string().trim().min(1, "Nhập URL Cloudflare Worker").refine(
+export const endpointSchema = z.string().trim().min(1, "Nhập đường dẫn API").refine(
   (value) => {
     if (value.startsWith("/")) return true;
     try {

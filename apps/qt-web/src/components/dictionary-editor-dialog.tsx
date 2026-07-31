@@ -179,9 +179,9 @@ function RecordRow({
       </span>
       {valueOnly || raw ? (
         <div className="flex min-w-0 items-center gap-2">
-          {raw ? <Badge variant="outline" className="shrink-0 text-[9px]">RAW</Badge> : null}
+          {raw ? <Badge variant="outline" className="shrink-0 text-[9px]">THÔ</Badge> : null}
           <HighlightedInput
-            ariaLabel={`${raw ? "Dòng raw" : "Cụm"} ${record.lineNumber ?? "mới"}`}
+            ariaLabel={`${raw ? "Dòng thô" : "Cụm"} ${record.lineNumber ?? "mới"}`}
             value={value}
             highlightQuery={highlightQuery}
             onChange={updateValue}
@@ -192,14 +192,14 @@ function RecordRow({
         <>
           <HighlightedInput
             lang="zh-Hans"
-            ariaLabel={`Key dòng ${record.lineNumber ?? "mới"}`}
+            ariaLabel={`Khóa dòng ${record.lineNumber ?? "mới"}`}
             value={key}
             highlightQuery={highlightQuery}
             onChange={updateKey}
             onCommit={() => onCommit(record.id)}
           />
           <HighlightedInput
-            ariaLabel={`Value dòng ${record.lineNumber ?? "mới"}`}
+            ariaLabel={`Giá trị dòng ${record.lineNumber ?? "mới"}`}
             value={value}
             highlightQuery={highlightQuery}
             onChange={updateValue}
@@ -296,7 +296,7 @@ function DictionaryEditorSession({
 
   function addRecord() {
     if (document.valueOnly ? !newValue.trim() : !newKey.trim()) {
-      toast.error(document.valueOnly ? "Nhập nội dung cụm" : "Key không được để trống");
+      toast.error(document.valueOnly ? "Nhập nội dung cụm" : "Khóa không được để trống");
       return;
     }
     const record: DictionaryRecord = {
@@ -364,8 +364,8 @@ function DictionaryEditorSession({
           />
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <span>{recordCount.toLocaleString("vi")} records</span>
-          {rawCount > 0 ? <span>· {rawCount.toLocaleString("vi")} raw</span> : null}
+          <span>{recordCount.toLocaleString("vi")} bản ghi</span>
+          {rawCount > 0 ? <span>· {rawCount.toLocaleString("vi")} dòng thô</span> : null}
           <Button
             type="button"
             size="sm"
@@ -376,7 +376,7 @@ function DictionaryEditorSession({
             )}
             onClick={() => setAdding((current) => !current)}
           >
-            <Plus /> Thêm record
+            <Plus /> Thêm bản ghi
           </Button>
         </div>
       </div>
@@ -388,7 +388,7 @@ function DictionaryEditorSession({
               <Input
                 value={newKey}
                 onChange={(event) => setNewKey(event.target.value)}
-                placeholder="Key tiếng Trung"
+                placeholder="Khóa tiếng Trung"
                 className="bg-card font-mono text-xs"
               />
             ) : null}
@@ -420,8 +420,8 @@ function DictionaryEditorSession({
             <span>Nội dung</span>
           ) : (
             <>
-              <span>Key</span>
-              <span>Value</span>
+              <span>Khóa</span>
+              <span>Giá trị</span>
             </>
           )}
           <span />
@@ -441,7 +441,7 @@ function DictionaryEditorSession({
           ))
         ) : (
           <div className="grid h-48 place-items-center text-sm text-muted-foreground">
-            Không tìm thấy record phù hợp.
+            Không tìm thấy bản ghi phù hợp.
           </div>
         )}
       </div>

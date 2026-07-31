@@ -1,3 +1,4 @@
+import "fake-indexeddb/auto";
 import "@testing-library/jest-dom/vitest";
 
 class ResizeObserverMock implements ResizeObserver {
@@ -23,6 +24,11 @@ Object.defineProperty(Element.prototype, "setPointerCapture", {
 });
 
 Object.defineProperty(Element.prototype, "releasePointerCapture", {
+  configurable: true,
+  value: () => undefined,
+});
+
+Object.defineProperty(Element.prototype, "scrollIntoView", {
   configurable: true,
   value: () => undefined,
 });

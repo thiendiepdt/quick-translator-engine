@@ -13,6 +13,7 @@ import { FormProvider, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
 import { SettingsDialog } from "@/components/settings-dialog";
+import { WorkspaceSwitcher } from "@/components/workspace-switcher";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -28,10 +29,15 @@ import {
 } from "@/components/ui/tooltip";
 import { ApiError } from "@/lib/api";
 import {
+  readStoredEngineSettings,
+  storeEngineSettings,
+} from "@/lib/engine-settings";
+import {
   type ParsedTranslationOptions,
   type TranslationOptionsValues,
   translationOptionsSchema,
 } from "@/lib/schema";
+import { readStoredEndpoint, storeEndpoint } from "@/lib/endpoint-setting";
 import type { TranslationRequest } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import {
@@ -44,8 +50,11 @@ import {
   dictionaryPayload,
   useWorkspaceStore,
 } from "@/store/workspace";
+import { useWorkspaceCatalogStore } from "@/store/workspace-catalog";
 
-const defaultEndpoint = import.meta.env.VITE_QT_API_URL?.trim() || "/api";
+const configuredEndpoint = import.meta.env.VITE_QT_API_URL?.trim() || "/api";
+const defaultEndpoint = readStoredEndpoint(configuredEndpoint);
+const defaultEngineSettings = readStoredEngineSettings();
 const DictionaryInspector = lazy(() =>
   import("@/components/dictionary-inspector").then((module) => ({
     default: module.DictionaryInspector,
@@ -156,25 +165,46 @@ export default function App() {
   const setWorkspaceView = useWorkspaceStore((state) => state.setWorkspaceView);
   const mobileInspectorOpen = useWorkspaceStore((state) => state.mobileInspectorOpen);
   const setMobileInspectorOpen = useWorkspaceStore((state) => state.setMobileInspectorOpen);
+  const activeWorkspaceId = useWorkspaceCatalogStore(
+    (state) => state.activeWorkspaceId,
+  );
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const form = useForm<TranslationOptionsValues, unknown, ParsedTranslationOptions>({
     resolver: zodResolver(translationOptionsSchema),
     defaultValues: {
       endpoint: defaultEndpoint,
-      pretty: true,
-      wrap: false,
-      prioritizedName: true,
-      scanRange: 30,
-      translationAlgorithm: 1,
+      ...defaultEngineSettings,
     },
   });
   const endpoint = useWatch({ control: form.control, name: "endpoint" }) ?? defaultEndpoint;
+  const pretty = useWatch({ control: form.control, name: "pretty" });
+  const wrap = useWatch({ control: form.control, name: "wrap" });
+  const prioritizedName = useWatch({ control: form.control, name: "prioritizedName" });
+  const scanRange = useWatch({ control: form.control, name: "scanRange" });
+  const translationAlgorithm = useWatch({
+    control: form.control,
+    name: "translationAlgorithm",
+  });
   const normalizedEndpoint = endpoint.trim();
   const dictionaryEndpoint = useDebouncedValue(normalizedEndpoint, 400);
   const translation = useTranslationMutation();
   const health = useHealthQuery(endpoint);
   const dictionaryDefaults = useDictionaryDefaultsQuery(dictionaryEndpoint);
+
+  useEffect(() => {
+    storeEndpoint(endpoint);
+  }, [endpoint]);
+
+  useEffect(() => {
+    storeEngineSettings({
+      pretty,
+      wrap,
+      prioritizedName,
+      scanRange,
+      translationAlgorithm,
+    });
+  }, [pretty, prioritizedName, scanRange, translationAlgorithm, wrap]);
 
   useEffect(() => {
     if (dictionaryDefaults.data) {
@@ -200,7 +230,7 @@ export default function App() {
       return;
     }
     if (dictionaryDefaultsEndpoint !== values.endpoint || !dictionaryDefaults.isSuccess) {
-      toast.error("Chưa tải xong từ điển mặc định từ engine");
+      toast.error("Chưa tải xong từ điển mặc định từ bộ máy dịch");
       return;
     }
 
@@ -216,13 +246,22 @@ export default function App() {
       dictionaries: dictionaryPayload(dictionaries),
       dictionaryPatches: dictionaryPatchPayload(localDictionaryEntries),
     };
+    const requestWorkspaceId = activeWorkspaceId;
 
     try {
       const result = await translation.mutateAsync({ endpoint: values.endpoint, request });
+      if (
+        useWorkspaceCatalogStore.getState().activeWorkspaceId !==
+        requestWorkspaceId
+      ) return;
       setResponse(result);
       const rangeCount = result.sourceRanges?.length ?? 0;
       toast.success(`Dịch xong${rangeCount > 0 ? ` · ${rangeCount} cặp` : ""}`);
     } catch (error) {
+      if (
+        useWorkspaceCatalogStore.getState().activeWorkspaceId !==
+        requestWorkspaceId
+      ) return;
       const requestId = error instanceof ApiError ? error.requestId : undefined;
       toast.error(error instanceof Error ? error.message : "Không thể dịch chương", {
         description: requestId ? `Request ID: ${requestId}` : undefined,
@@ -253,8 +292,8 @@ export default function App() {
     const valid = await form.trigger("endpoint");
     if (!valid) return;
     const result = await health.refetch();
-    if (result.data?.status === "ok") toast.success("Cloudflare gateway đang hoạt động");
-    else toast.error(result.error instanceof Error ? result.error.message : "Không kết nối được gateway");
+    if (result.data?.status === "ok") toast.success("API đang hoạt động");
+    else toast.error(result.error instanceof Error ? result.error.message : "Không kết nối được API");
   }
 
   const requestStatus = !dictionaryDefaultsReady
@@ -300,6 +339,8 @@ export default function App() {
 
           <div className="flex-1" />
 
+          <WorkspaceSwitcher />
+
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -335,7 +376,7 @@ export default function App() {
                   variant="ghost"
                   size="icon"
                   className="xl:hidden"
-                  aria-label="Mở từ điển và engine"
+                  aria-label="Mở từ điển và bộ máy"
                   onClick={() => setMobileInspectorOpen(true)}
                 >
                   <span className="relative">
@@ -347,7 +388,7 @@ export default function App() {
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                Từ điển &amp; engine{touchedCount > 0 ? ` · ${touchedCount} đã sửa` : ""}
+                Từ điển &amp; bộ máy{touchedCount > 0 ? ` · ${touchedCount} đã sửa` : ""}
               </TooltipContent>
             </Tooltip>
           ) : null}
@@ -371,9 +412,17 @@ export default function App() {
           />
           <Suspense fallback={<div className="m-3 animate-pulse rounded-lg border bg-card" />}>
             {workspaceView === "translate" ? (
-              <TranslationWorkspace isPending={translation.isPending} requestStatus={requestStatus} />
+              <TranslationWorkspace
+                key={activeWorkspaceId}
+                isPending={translation.isPending}
+                requestStatus={requestStatus}
+              />
             ) : (
-              <NameFilterWorkspace endpoint={normalizedEndpoint} defaultsReady={dictionaryDefaultsReady} />
+              <NameFilterWorkspace
+                key={activeWorkspaceId}
+                endpoint={normalizedEndpoint}
+                defaultsReady={dictionaryDefaultsReady}
+              />
             )}
           </Suspense>
           {workspaceView === "translate" ? <aside className="hidden min-h-0 border-l xl:block" aria-label="Cấu hình request">
@@ -391,7 +440,7 @@ export default function App() {
           <SheetContent side="right" className={cn("w-[min(92vw,390px)] gap-0 overflow-hidden p-0 sm:max-w-[390px]", workspaceView === "translate" && "xl:hidden")}>
             <SheetHeader className="sr-only">
               <SheetTitle>Cấu hình request</SheetTitle>
-              <SheetDescription>Tùy chỉnh từ điển và engine.</SheetDescription>
+              <SheetDescription>Tùy chỉnh từ điển và bộ máy dịch.</SheetDescription>
             </SheetHeader>
             <Suspense fallback={<InspectorFallback />}>
               <DictionaryInspector
