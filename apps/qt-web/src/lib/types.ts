@@ -154,12 +154,12 @@ export interface NameFilterResponse {
   stats: {
     scannedCharacters: number;
     ruleCandidates: number;
-    nerCandidates: number;
+    aiExtractedCandidates: number;
     aiReviewed: number;
   };
   capabilities: {
-    nerConfigured: boolean;
     aiConfigured: boolean;
+    aiProvider?: string;
   };
   warnings?: string[];
 }
@@ -174,7 +174,7 @@ export interface NameFilterRequest {
   maxCandidates: number;
   knownNames: Record<string, string>;
   rejectedNames: string[];
-  ner: { enabled: boolean; minConfidence: number };
+  aiExtract: { enabled: boolean; minConfidence: number };
   aiFallback: {
     enabled: boolean;
     minConfidence: number;

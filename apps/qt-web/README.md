@@ -114,7 +114,7 @@ npm run check
 - VietPhrase và ChinesePhienAmWords không xuất hiện dưới dạng raw file trong form vì
   Lambda giữ base cố định; chỉ entry patch local được gửi lên.
 - Request timeout ở browser là 45 giây; Worker/Lambda vẫn giữ giới hạn riêng của hạ tầng.
-- Tab **Tên** gọi `POST /names/filter`, hỗ trợ QT/hybrid, bật ONNX/AI tùy chọn, search,
+- Tab **Tên** gọi `POST /names/filter`, hỗ trợ QT/hybrid, bật AI trích/duyệt tùy chọn, search,
   sửa tên Việt inline, duyệt/loại từng record và duyệt nhanh candidate ≥85%.
 - Name được duyệt tự append/update vào draft `Names2`, nên request dịch tiếp theo sử dụng
   ngay mà không phải copy thủ công.

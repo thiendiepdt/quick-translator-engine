@@ -24,9 +24,6 @@ quick-translator-engine/
 │   ├── qt-cli/    # binary qt, stdin -> stdout
 │   ├── qt-api/    # binary qt-server, Axum HTTP API
 │   ├── qt-lambda/ # native AWS Lambda entrypoint đầy đủ
-│   ├── qt-ner-cli/    # CLI name filter chuyên dụng
-│   ├── qt-ner-api/    # Axum API name filter chuyên dụng
-│   └── qt-ner-lambda/ # Lambda name filter chuyên dụng
 ├── deploy/
 │   ├── aws-lambda/       # SAM template, event và hướng dẫn deploy
 │   └── cloudflare-worker/ # edge gateway ký SigV4
@@ -70,9 +67,9 @@ let names = engine.filter_names(
 - cache Luật Nhân và regex;
 - bảng chuẩn hóa input, HTML entities và ignored phrases.
 
-Bộ lọc name deterministic nằm trong core. `qt-api` mới orchestration provider bên ngoài:
-ONNX token classification chạy ở blocking pool, còn Gemini fallback chạy async và chỉ
-nhận candidate mơ hồ.
+Bộ lọc name deterministic nằm trong core. `qt-api` mới orchestration AI provider bên
+ngoài (DeepSeek hoặc Gemini): AI extract đọc cả chương để trích entity, còn AI fallback
+chỉ nhận candidate mơ hồ. Cả hai chạy async.
 
 `DictionaryOverrides` là state đã parse chỉ sống trong caller/request. Lookup custom dùng
 view ưu tiên trên dictionary cố định, không clone VietPhrase và không sửa `Engine`.
@@ -84,8 +81,8 @@ UTF-8 từ `stdin`, gọi engine và ghi nguyên output vào `stdout`. Lỗi c�
 ghi vào `stderr` và trả exit code khác 0. CLI không chứa thuật toán dịch.
 
 `qt names filter` gọi cùng core rules, nhận file accepted/rejected làm book memory và có
-thể xuất Names2-compatible hoặc JSON. Provider ONNX/Gemini thuộc HTTP server để CLI mặc
-định không kéo runtime/model/network dependency.
+thể xuất Names2-compatible hoặc JSON. AI provider thuộc HTTP server để CLI mặc định
+không phát sinh network call.
 
 ### `qt-gui`
 
@@ -99,20 +96,6 @@ Compact quick-update entries và book memory được persist trong WebView loca
 raw dictionary draft chỉ sống trong session. Override được parse riêng cho từng lần dịch
 nên không mutate engine hoặc ghi đè dữ liệu QT2025. File open/save dùng native dialog,
 còn đọc/ghi UTF-8 đi qua commands có giới hạn 16 MiB.
-
-### Các runtime `qt-ner-*`
-
-Ba package chuyên dụng không sao chép thuật toán:
-
-- `qt-ner-cli` dựng request `/names/filter` rồi chạy name-only router trong process; nhờ
-  đó validation, ONNX merge, Gemini fallback và JSON output giống HTTP API;
-- `qt-ner-api` nạp dictionaries từ filesystem và chỉ expose health, capabilities cùng
-  name filter;
-- `qt-ner-lambda` nhúng defaults QT2025 như Lambda đầy đủ nhưng chỉ chạy name-only router.
-
-Feature `onnx` được bật mặc định cho các package này. ONNX Runtime chỉ được load khi
-`QT_NER_MODEL` có giá trị, nên vẫn có thể chạy rules/hybrid mà không ship model bằng cách
-không cấu hình provider hoặc dùng `qt-ner-cli filter --no-ner`.
 
 ### `qt-api`
 
@@ -130,8 +113,8 @@ dictionary custom được parse thành state riêng cho request. Mỗi lần d�
 Batch giữ thứ tự và xử lý lần lượt từng item để không làm đầy blocking pool trong một
 request. Xem schema tại [api.md](api.md).
 
-`build_name_filter_router` là surface thu gọn dùng chung cho ba runtime `qt-ner-*`; route
-`GET /capabilities` cho biết ONNX/Gemini đã khởi tạo thành công hay chưa.
+`build_name_filter_router` là surface thu gọn chỉ expose health/capabilities/name filter;
+route `GET /capabilities` cho biết AI provider (DeepSeek/Gemini) đã khởi tạo hay chưa.
 
 ### `qt-lambda`
 

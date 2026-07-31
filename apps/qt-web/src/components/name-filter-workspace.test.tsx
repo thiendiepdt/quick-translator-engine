@@ -119,8 +119,8 @@ describe("name filter mode preference", () => {
           known: false,
         },
       ],
-      stats: { scannedCharacters: 20, ruleCandidates: 1, nerCandidates: 0, aiReviewed: 0 },
-      capabilities: { nerConfigured: false, aiConfigured: false },
+      stats: { scannedCharacters: 20, ruleCandidates: 1, aiExtractedCandidates: 0, aiReviewed: 0 },
+      capabilities: { aiConfigured: false },
     });
     useWorkspaceStore.getState().acceptNameCandidate("萧炎", "Tiêu Viêm");
     const user = userEvent.setup();

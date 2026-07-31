@@ -70,7 +70,7 @@ export function NameFilterWorkspace({ endpoint, defaultsReady }: NameFilterWorks
   const [approvalThresholdDraft, setApprovalThresholdDraft] = useState(() =>
     String(readStoredNameApprovalThreshold()),
   );
-  const [nerEnabled, setNerEnabled] = useState(false);
+  const [aiExtractEnabled, setAiExtractEnabled] = useState(false);
   const [aiEnabled, setAiEnabled] = useState(false);
   const [search, setSearch] = useState("");
   const [activeText, setActiveText] = useState<string>();
@@ -132,7 +132,7 @@ export function NameFilterWorkspace({ endpoint, defaultsReady }: NameFilterWorks
       maxCandidates: 300,
       knownNames,
       rejectedNames,
-      ner: { enabled: nerEnabled, minConfidence: 0.65 },
+      aiExtract: { enabled: aiExtractEnabled, minConfidence: 0.65 },
       aiFallback: {
         enabled: aiEnabled,
         minConfidence: 0.65,
@@ -231,7 +231,7 @@ export function NameFilterWorkspace({ endpoint, defaultsReady }: NameFilterWorks
             <TabsTrigger value="hybrid" className="text-[10px]">Kết hợp</TabsTrigger>
           </TabsList>
         </Tabs>
-        <ProviderToggle label="ONNX" icon={<BrainCircuit />} checked={nerEnabled} onCheckedChange={setNerEnabled} />
+        <ProviderToggle label="Trích AI" icon={<BrainCircuit />} checked={aiExtractEnabled} onCheckedChange={setAiExtractEnabled} />
         <ProviderToggle label="AI" icon={<Sparkles />} checked={aiEnabled} onCheckedChange={setAiEnabled} />
         <Button type="button" disabled={mutation.isPending || !defaultsReady} onClick={() => void runFilter()}>
           {mutation.isPending ? <LoaderCircle className="animate-spin" /> : <Filter />}
@@ -424,9 +424,8 @@ export function NameFilterWorkspace({ endpoint, defaultsReady }: NameFilterWorks
         <div className="truncate">
           {response ? (
             <>
-              Quy tắc {response.stats.ruleCandidates} · NER {response.stats.nerCandidates} · AI đã duyệt {response.stats.aiReviewed}
-              {response.capabilities.nerConfigured ? " · ONNX sẵn sàng" : ""}
-              {response.capabilities.aiConfigured ? " · Gemini sẵn sàng" : ""}
+              Quy tắc {response.stats.ruleCandidates} · AI trích {response.stats.aiExtractedCandidates} · AI đã duyệt {response.stats.aiReviewed}
+              {response.capabilities.aiConfigured ? ` · AI sẵn sàng (${response.capabilities.aiProvider ?? "?"})` : ""}
             </>
           ) : <>Bộ nhớ tên được lưu theo không gian làm việc và dùng lại ở chương kế tiếp.</>}
         </div>

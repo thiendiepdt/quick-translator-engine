@@ -18,8 +18,7 @@ use qt_core::{
     TranslationResult,
 };
 
-use crate::name_ai::{entity_type_name, parse_entity_type, GeminiNameReviewer};
-use crate::name_ner::{self, NameEntityRecognizer, NerNameSpan};
+use crate::name_ai::{entity_type_name, parse_entity_type, AiExtractedEntity, AiNameProvider};
 
 const MAX_REQUEST_SCAN_RANGE: usize = 100;
 const MAX_REQUEST_BODY_BYTES: usize = 5 * 1024 * 1024;
@@ -34,44 +33,34 @@ pub struct AppState {
 
 #[derive(Clone, Default)]
 pub struct NameFilterServices {
-    recognizer: Option<Arc<dyn NameEntityRecognizer>>,
-    reviewer: Option<GeminiNameReviewer>,
+    ai: Option<AiNameProvider>,
     startup_warnings: Arc<Vec<String>>,
 }
 
 impl NameFilterServices {
     pub fn from_env() -> Self {
         let mut startup_warnings = Vec::new();
-        let recognizer = match name_ner::from_env() {
-            Ok(recognizer) => recognizer,
+        let ai = match AiNameProvider::from_env() {
+            Ok(provider) => provider,
             Err(error) => {
-                eprintln!("warning: name NER provider was not initialized: {error}");
-                startup_warnings.push("ONNX NER is unavailable; check server logs".to_string());
-                None
-            }
-        };
-        let reviewer = match GeminiNameReviewer::from_env() {
-            Ok(reviewer) => reviewer,
-            Err(error) => {
-                eprintln!("warning: Gemini name reviewer was not initialized: {error}");
+                eprintln!("warning: AI name provider was not initialized: {error}");
                 startup_warnings
-                    .push("Gemini fallback is unavailable; check server logs".to_string());
+                    .push("AI name provider is unavailable; check server logs".to_string());
                 None
             }
         };
         Self {
-            recognizer,
-            reviewer,
+            ai,
             startup_warnings: Arc::new(startup_warnings),
         }
     }
 
-    fn ner_configured(&self) -> bool {
-        self.recognizer.is_some()
+    fn ai_configured(&self) -> bool {
+        self.ai.is_some()
     }
 
-    fn ai_configured(&self) -> bool {
-        self.reviewer.is_some()
+    fn ai_provider(&self) -> Option<&'static str> {
+        self.ai.as_ref().map(AiNameProvider::provider_name)
     }
 }
 
@@ -190,8 +179,12 @@ struct NameFilterReq {
     known_names: HashMap<String, String>,
     #[serde(default)]
     rejected_names: Vec<String>,
+    /// Deprecated: the ONNX NER provider was removed. Accepted so older
+    /// clients still parse; enabling it only produces a warning.
     #[serde(default)]
     ner: ProviderReq,
+    #[serde(default)]
+    ai_extract: ProviderReq,
     #[serde(default)]
     ai_fallback: AiFallbackReq,
     dictionaries: Option<DictionarySourcesReq>,
@@ -246,22 +239,24 @@ struct NameCandidateResp {
 struct NameFilterStats {
     scanned_characters: usize,
     rule_candidates: usize,
-    ner_candidates: usize,
+    ai_extracted_candidates: usize,
     ai_reviewed: usize,
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct NameFilterCapabilities {
-    ner_configured: bool,
     ai_configured: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ai_provider: Option<&'static str>,
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct NameFilterCapabilitiesResp {
-    ner_configured: bool,
     ai_configured: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ai_provider: Option<&'static str>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     warnings: Vec<String>,
 }
@@ -270,8 +265,8 @@ async fn name_filter_capabilities(
     State(state): State<Arc<AppState>>,
 ) -> Json<NameFilterCapabilitiesResp> {
     Json(NameFilterCapabilitiesResp {
-        ner_configured: state.name_filter_services.ner_configured(),
         ai_configured: state.name_filter_services.ai_configured(),
+        ai_provider: state.name_filter_services.ai_provider(),
         warnings: state.name_filter_services.startup_warnings.as_ref().clone(),
     })
 }
@@ -603,39 +598,42 @@ async fn filter_names(
     let rule_candidates = result.candidates.len();
     let mut warnings = state.name_filter_services.startup_warnings.as_ref().clone();
 
-    let mut ner_candidates = 0;
     if req.ner.enabled {
-        if let Some(recognizer) = state.name_filter_services.recognizer.clone() {
-            let ner_document = document.clone();
-            match tokio::task::spawn_blocking(move || {
-                recognizer
-                    .recognize(ner_document.text())
-                    .map(|spans| remap_ner_spans(spans, &ner_document))
-            })
-            .await
-            {
-                Ok(Ok(spans)) => {
-                    let threshold = confidence(req.ner.min_confidence, 0.65, "ner.minConfidence")?;
-                    ner_candidates = merge_ner_candidates(
+        warnings.push(
+            "ner is deprecated: the ONNX NER provider was removed, use aiExtract".to_string(),
+        );
+    }
+
+    let mut ai_extracted_candidates = 0;
+    if req.ai_extract.enabled {
+        if let Some(provider) = state.name_filter_services.ai.as_ref() {
+            match provider.extract(document.text()).await {
+                Ok(entities) => {
+                    let threshold = confidence(
+                        req.ai_extract.min_confidence,
+                        0.65,
+                        "aiExtract.minConfidence",
+                    )?;
+                    ai_extracted_candidates = merge_extracted_candidates(
                         &state.engine,
                         &mut result.candidates,
-                        spans,
+                        entities,
                         threshold,
                         &memory,
                         dictionaries.as_deref(),
+                        &document,
                     );
                 }
-                Ok(Err(error)) => warnings.push(error),
-                Err(_) => warnings.push("NER task failed".to_string()),
+                Err(error) => warnings.push(error),
             }
         } else {
-            warnings.push("NER was requested but no ONNX model is configured".to_string());
+            warnings.push("AI extract was requested but no AI provider is configured".to_string());
         }
     }
 
     let mut ai_reviewed = 0;
     if req.ai_fallback.enabled {
-        if let Some(reviewer) = state.name_filter_services.reviewer.as_ref() {
+        if let Some(reviewer) = state.name_filter_services.ai.as_ref() {
             let min_rule = confidence(
                 req.ai_fallback.min_rule_confidence,
                 0.40,
@@ -682,7 +680,7 @@ async fn filter_names(
                 Err(error) => warnings.push(error),
             }
         } else {
-            warnings.push("AI fallback was requested but Gemini is not configured".to_string());
+            warnings.push("AI fallback was requested but no AI provider is configured".to_string());
         }
     }
 
@@ -706,12 +704,12 @@ async fn filter_names(
         stats: NameFilterStats {
             scanned_characters: result.scanned_characters,
             rule_candidates,
-            ner_candidates,
+            ai_extracted_candidates,
             ai_reviewed,
         },
         capabilities: NameFilterCapabilities {
-            ner_configured: state.name_filter_services.ner_configured(),
             ai_configured: state.name_filter_services.ai_configured(),
+            ai_provider: state.name_filter_services.ai_provider(),
         },
         warnings,
     }))
@@ -745,80 +743,110 @@ fn bounded_usize(
     }
 }
 
-fn merge_ner_candidates(
+/// Merge AI-extracted entities into the rule candidates. Entities carry only
+/// text (no spans), so occurrences are located in the scan document and
+/// mapped back to the caller's original UTF-16 input.
+fn merge_extracted_candidates(
     engine: &Engine,
     candidates: &mut Vec<NameCandidate>,
-    spans: Vec<NerNameSpan>,
+    entities: Vec<AiExtractedEntity>,
     threshold: f32,
     memory: &NameFilterMemory,
     dictionaries: Option<&DictionaryOverrides>,
+    document: &NameFilterDocument,
 ) -> usize {
-    let mut grouped: HashMap<String, Vec<NerNameSpan>> = HashMap::new();
-    for span in spans.into_iter().filter(|span| span.score >= threshold) {
-        if memory.rejected_names.contains(&span.text)
-            || engine.contains_name(&span.text, dictionaries)
+    let text = document.text();
+    let mut utf16_starts: HashMap<usize, usize> = HashMap::new();
+    let mut utf16_offset = 0usize;
+    for (byte_start, character) in text.char_indices() {
+        utf16_starts.insert(byte_start, utf16_offset);
+        utf16_offset += character.len_utf16();
+    }
+
+    let mut merged = 0usize;
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for entity in entities {
+        if entity.confidence < threshold {
+            continue;
+        }
+        let entity_text = entity.text.trim();
+        if entity_text.is_empty()
+            || !seen.insert(entity_text.to_string())
+            || memory.rejected_names.contains(entity_text)
+            || engine.contains_name(entity_text, dictionaries)
         {
             continue;
         }
-        grouped.entry(span.text.clone()).or_default().push(span);
-    }
-    let count = grouped.len();
-    for (text, spans) in grouped {
-        let best = spans
-            .iter()
-            .max_by(|left, right| left.score.total_cmp(&right.score))
-            .expect("group is not empty");
+        let entity_utf16_length = entity_text.encode_utf16().count();
+        let ranges: Vec<CharRange> = text
+            .match_indices(entity_text)
+            .filter_map(|(byte_start, _)| {
+                utf16_starts.get(&byte_start).and_then(|start| {
+                    document.map_range(CharRange {
+                        start: *start,
+                        length: entity_utf16_length,
+                    })
+                })
+            })
+            .collect();
+        if ranges.is_empty() {
+            continue;
+        }
+        merged += 1;
+        let entity_type = entity
+            .entity_type
+            .as_deref()
+            .map(parse_entity_type)
+            .unwrap_or(NameEntityType::Unknown);
+        let suggested = entity
+            .suggested
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty());
         if let Some(candidate) = candidates
             .iter_mut()
-            .find(|candidate| candidate.text == text)
+            .find(|candidate| candidate.text == entity_text)
         {
-            candidate.score = combined_confidence(candidate.score, best.score);
+            candidate.score = combined_confidence(candidate.score, entity.confidence);
             if candidate.entity_type == NameEntityType::Unknown {
-                candidate.entity_type = best.entity_type;
+                candidate.entity_type = entity_type;
             }
-            for span in spans {
-                if !candidate.ranges.contains(&span.range) {
-                    candidate.ranges.push(span.range);
+            if let Some(suggested) = suggested {
+                if !candidate.known {
+                    candidate.suggested = suggested.to_string();
+                }
+            }
+            for range in ranges {
+                if !candidate.ranges.contains(&range) {
+                    candidate.ranges.push(range);
                 }
             }
             candidate.ranges.sort_by_key(|range| range.start);
             candidate.occurrences = candidate.ranges.len();
-            if !candidate.sources.contains(&NameCandidateSource::OnnxNer) {
-                candidate.sources.push(NameCandidateSource::OnnxNer);
-                candidate
-                    .reasons
-                    .push("được mô hình ONNX NER xác nhận".to_string());
+            if !candidate.sources.contains(&NameCandidateSource::AiFallback) {
+                candidate.sources.push(NameCandidateSource::AiFallback);
+                candidate.reasons.push("được AI xác nhận".to_string());
             }
         } else {
-            let ranges = spans.iter().map(|span| span.range).collect::<Vec<_>>();
             candidates.push(NameCandidate {
-                text: text.clone(),
+                text: entity_text.to_string(),
                 suggested: memory
                     .known_names
-                    .get(&text)
+                    .get(entity_text)
                     .cloned()
-                    .unwrap_or_else(|| engine.suggest_name(&text)),
-                entity_type: best.entity_type,
-                score: best.score,
+                    .or_else(|| suggested.map(str::to_string))
+                    .unwrap_or_else(|| engine.suggest_name(entity_text)),
+                entity_type,
+                score: entity.confidence.clamp(0.0, 1.0),
                 occurrences: ranges.len(),
                 ranges,
-                reasons: vec!["được mô hình ONNX NER nhận diện".to_string()],
-                sources: vec![NameCandidateSource::OnnxNer],
-                known: memory.known_names.contains_key(&text),
+                reasons: vec!["được AI trích xuất từ chương".to_string()],
+                sources: vec![NameCandidateSource::AiFallback],
+                known: memory.known_names.contains_key(entity_text),
             });
         }
     }
-    count
-}
-
-fn remap_ner_spans(spans: Vec<NerNameSpan>, document: &NameFilterDocument) -> Vec<NerNameSpan> {
-    spans
-        .into_iter()
-        .filter_map(|mut span| {
-            span.range = document.map_range(span.range)?;
-            Some(span)
-        })
-        .collect()
+    merged
 }
 
 fn combined_confidence(left: f32, right: f32) -> f32 {
@@ -888,7 +916,6 @@ fn source_name(source: NameCandidateSource) -> &'static str {
         NameCandidateSource::SuffixRule => "suffix-rule",
         NameCandidateSource::BookMemory => "book-memory",
         NameCandidateSource::BookTitle => "book-title",
-        NameCandidateSource::OnnxNer => "onnx-ner",
         NameCandidateSource::AiFallback => "ai-fallback",
     }
 }
@@ -1080,7 +1107,7 @@ mod tests {
     }
 
     #[test]
-    fn ner_ranges_map_to_raw_text_and_cannot_cross_ignored_phrases() {
+    fn extracted_entities_map_to_raw_text_and_skip_ignored_phrases() {
         let dictionaries = DictionaryDefaults {
             ignored_chinese_phrases: "本章完".to_string(),
             ..Default::default()
@@ -1090,37 +1117,41 @@ mod tests {
         let document = engine.prepare_name_filter_document("本章完萧炎", None);
         assert_eq!(document.text(), "\n\n\n萧炎");
 
-        let spans = remap_ner_spans(
+        let mut candidates = Vec::new();
+        let merged = merge_extracted_candidates(
+            &engine,
+            &mut candidates,
             vec![
-                NerNameSpan {
+                AiExtractedEntity {
                     text: "萧炎".to_string(),
-                    entity_type: NameEntityType::Person,
-                    score: 0.9,
-                    range: CharRange {
-                        start: 3,
-                        length: 2,
-                    },
+                    entity_type: Some("person".to_string()),
+                    suggested: Some("Tiêu Viêm".to_string()),
+                    confidence: 0.9,
                 },
-                NerNameSpan {
-                    text: "ignored boundary".to_string(),
-                    entity_type: NameEntityType::Unknown,
-                    score: 0.9,
-                    range: CharRange {
-                        start: 0,
-                        length: 5,
-                    },
+                AiExtractedEntity {
+                    text: "本章完".to_string(),
+                    entity_type: None,
+                    suggested: None,
+                    confidence: 0.9,
                 },
             ],
+            0.65,
+            &NameFilterMemory::default(),
+            None,
             &document,
         );
 
-        assert_eq!(spans.len(), 1);
+        assert_eq!(merged, 1);
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].text, "萧炎");
+        assert_eq!(candidates[0].suggested, "Tiêu Viêm");
+        assert_eq!(candidates[0].entity_type, NameEntityType::Person);
         assert_eq!(
-            spans[0].range,
-            CharRange {
+            candidates[0].ranges,
+            vec![CharRange {
                 start: 3,
                 length: 2,
-            }
+            }]
         );
     }
 }

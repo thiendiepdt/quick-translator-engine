@@ -11,11 +11,10 @@ chung. Request và response dùng JSON UTF-8.
 |---|---:|---|
 | `QT_DATA_DIR` | `data` | Thư mục chứa bộ từ điển |
 | `QT_PORT` | `3000` | Cổng HTTP |
-| `QT_NER_MODEL` | không có | Path model token-classification ONNX; cần build feature `onnx` |
-| `QT_NER_TOKENIZER` | không có | Path `tokenizer.json` tương ứng model |
-| `QT_NER_CONFIG` | không có | Path `config.json` có `id2label` BIO |
-| `ORT_DYLIB_PATH` | theo ONNX Runtime | Path dynamic library ONNX Runtime khi bật feature |
-| `QT_GEMINI_API_KEY` | không có | API key cho AI fallback; chỉ dùng ở server |
+| `QT_DEEPSEEK_API_KEY` | không có | Bật AI provider DeepSeek (ưu tiên); chỉ dùng ở server |
+| `QT_DEEPSEEK_MODEL` | `deepseek-chat` | Model chat completions của DeepSeek |
+| `QT_DEEPSEEK_BASE_URL` | `https://api.deepseek.com` | Endpoint OpenAI-compatible tùy chọn |
+| `QT_GEMINI_API_KEY` | không có | Bật AI provider Gemini khi không có DeepSeek |
 | `QT_GEMINI_MODEL` | không có | Model Gemini dùng cho structured output |
 | `QT_GEMINI_BASE_URL` | Google API | Base URL tùy chọn cho test/proxy |
 
@@ -26,29 +25,14 @@ QT_DATA_DIR=QT2025 QT_PORT=3000 cargo run -q -p qt-api --bin qt-server
 Server bind trên `0.0.0.0`. JSON body được giới hạn 5 MiB. Bản hiện tại không có TLS,
 authentication hay rate limit; không nên expose trực tiếp ra Internet.
 
-### Name-filter API chuyên dụng
+### Capabilities
 
-`qt-ner-api` dùng cùng request/response `POST /names/filter` nhưng không expose endpoint
-dịch hoặc raw dictionary:
-
-```bash
-QT_NER_DATA_DIR=QT2025 QT_NER_PORT=3001 \
-  cargo run -q -p qt-ner-api --bin qt-ner-api
-```
-
-`QT_NER_DATA_DIR` fallback sang `QT_DATA_DIR`; `QT_NER_PORT` fallback sang `QT_PORT` rồi
-mặc định `3001`. Router chuyên dụng gồm:
-
-- `GET /health`
-- `GET /capabilities`
-- `POST /names/filter`
-
-`GET /capabilities` trả trạng thái provider đã khởi tạo:
+`GET /capabilities` (router name-filter) trả trạng thái AI provider đã khởi tạo:
 
 ```json
 {
-  "nerConfigured": true,
-  "aiConfigured": false
+  "aiConfigured": true,
+  "aiProvider": "deepseek"
 }
 ```
 
@@ -240,8 +224,9 @@ trong `texts`.
 
 ## `POST /names/filter`
 
-Lọc candidate name cho một chương. Request mặc định chạy deterministic rules; ONNX và AI
-fallback chỉ chạy khi vừa được cấu hình ở server vừa có `enabled=true` trong request.
+Lọc candidate name cho một chương. Request mặc định chạy deterministic rules; AI extract
+và AI fallback chỉ chạy khi server có AI provider (DeepSeek/Gemini) và request bật
+`enabled=true`.
 
 ```json
 {
@@ -252,7 +237,7 @@ fallback chỉ chạy khi vừa được cấu hình ở server vừa có `enabl
   "maxCandidates": 200,
   "knownNames": { "云韵": "Vân Vận" },
   "rejectedNames": ["看向"],
-  "ner": { "enabled": true, "minConfidence": 0.65 },
+  "aiExtract": { "enabled": true, "minConfidence": 0.65 },
   "aiFallback": {
     "enabled": true,
     "minConfidence": 0.65,
@@ -277,11 +262,12 @@ fallback chỉ chạy khi vừa được cấu hình ở server vừa có `enabl
 | `includeKnown` | `true` | Trả lại name đã duyệt trong memory với score `1.0` |
 | `knownNames` | `{}` | Map name đã duyệt → bản dịch, do client lưu theo truyện |
 | `rejectedNames` | `[]` | Candidate đã loại, không đề xuất lại ở chương sau |
-| `ner` | disabled | Xác nhận/tạo candidate từ token-classification ONNX |
-| `aiFallback` | disabled | Chỉ gửi nhóm candidate mơ hồ sang Gemini để duyệt |
+| `aiExtract` | disabled | AI đọc cả chương và trích mọi entity (thay ONNX NER cũ) |
+| `aiFallback` | disabled | Chỉ gửi nhóm candidate mơ hồ sang AI để duyệt |
+| `ner` | deprecated | Bị bỏ qua; bật chỉ sinh warning (ONNX NER đã gỡ) |
 | `dictionaries` | mặc định | Cùng schema override như `/translate` |
 
-Rules, ONNX NER và AI fallback dùng chung scan document đã áp dụng
+Rules, AI extract và AI fallback dùng chung scan document đã áp dụng
 `ignoredChinesePhrases`. Phrase bị ignore không sinh occurrence/candidate; range của phần
 còn lại vẫn dùng offset UTF-16 trên raw `text`. Nếu request gửi
 `dictionaries.ignoredChinesePhrases`, nội dung đó thay toàn bộ default của engine.
@@ -305,18 +291,19 @@ Response:
   "stats": {
     "scannedCharacters": 14,
     "ruleCandidates": 1,
-    "nerCandidates": 0,
+    "aiExtractedCandidates": 0,
     "aiReviewed": 0
   },
-  "capabilities": { "nerConfigured": false, "aiConfigured": false },
-  "warnings": ["NER was requested but no ONNX model is configured"]
+  "capabilities": { "aiConfigured": false },
+  "warnings": ["AI extract was requested but no AI provider is configured"]
 }
 ```
 
 `ranges` dùng UTF-16 như endpoint dịch. Lỗi provider tùy chọn không làm hỏng kết quả
-rules: response vẫn là `200`, kèm `warnings`. API key Gemini không bao giờ nhận từ client.
-Server chỉ gửi tối đa 50 candidate cùng context ngắn và xác thực output AI phải thuộc tập
-candidate đầu vào.
+rules: response vẫn là `200`, kèm `warnings`. API key AI không bao giờ nhận từ client.
+Với `aiFallback`, server chỉ gửi tối đa 50 candidate cùng context ngắn và xác thực output
+AI phải thuộc tập candidate đầu vào. Với `aiExtract`, server chỉ nhận entity xuất hiện
+nguyên văn trong chương và tự định vị occurrence.
 
 ## Range contract
 

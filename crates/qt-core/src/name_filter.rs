@@ -112,7 +112,6 @@ pub enum NameCandidateSource {
     SuffixRule,
     BookMemory,
     BookTitle,
-    OnnxNer,
     AiFallback,
 }
 

@@ -603,7 +603,7 @@ async fn filters_names_with_book_memory_and_utf16_ranges() {
     assert_eq!(candidate["ranges"][0]["start"], 2);
     assert_eq!(candidate["ranges"][0]["length"], 3);
     assert_eq!(body["stats"]["scannedCharacters"], 7);
-    assert_eq!(body["capabilities"]["nerConfigured"], false);
+    assert_eq!(body["capabilities"]["aiConfigured"], false);
 }
 
 #[tokio::test]
@@ -668,13 +668,14 @@ async fn name_filter_reports_unconfigured_optional_providers_without_failing() {
         serde_json::json!({
             "text": "张先生走来。",
             "ner": { "enabled": true },
+            "aiExtract": { "enabled": true },
             "aiFallback": { "enabled": true }
         }),
     )
     .await;
     assert_eq!(resp.status(), StatusCode::OK);
     let body: serde_json::Value = serde_json::from_str(&body_string(resp).await).unwrap();
-    assert_eq!(body["warnings"].as_array().unwrap().len(), 2);
+    assert_eq!(body["warnings"].as_array().unwrap().len(), 3);
 }
 
 #[tokio::test]
