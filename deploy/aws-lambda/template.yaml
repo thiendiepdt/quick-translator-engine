@@ -25,7 +25,7 @@ Parameters:
     MaxValue: 10240
   ReservedConcurrency:
     Type: Number
-    Default: 20
+    Default: 50
     MinValue: 1
 
 Resources:
