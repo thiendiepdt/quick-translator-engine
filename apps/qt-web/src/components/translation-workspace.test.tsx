@@ -207,4 +207,115 @@ describe("translation range pin", () => {
     expect(screen.getByLabelText("Tiếng Trung")).toHaveValue("萧炎");
     expect(screen.getByLabelText("Tiếng Việt")).toHaveValue("Tiêu");
   });
+
+  it("uses all mapped ranges crossed by a text selection", async () => {
+    const user = userEvent.setup();
+    renderWorkspace();
+
+    const outputPane = screen.getByRole("region", { name: "Bản dịch" });
+    const firstSegment = within(outputPane).getByRole("button", {
+      name: "Range 1: Tiêu Viêm",
+    });
+    const secondSegment = within(outputPane).getByRole("button", {
+      name: "Range 2: nhìn",
+    });
+    const firstText = firstSegment.firstChild;
+    const secondText = secondSegment.firstChild;
+    if (!firstText || !secondText) throw new Error("missing mapped text nodes");
+    const range = document.createRange();
+    range.setStart(firstText, 0);
+    range.setEnd(secondText, secondText.textContent?.length ?? 0);
+    window.getSelection()?.removeAllRanges();
+    window.getSelection()?.addRange(range);
+
+    fireEvent.contextMenu(secondSegment);
+    await user.click(await screen.findByText("Update Name (phụ)"));
+
+    expect(screen.getByLabelText("Tiếng Trung")).toHaveValue("萧炎看着");
+    expect(screen.getByLabelText("Tiếng Việt")).toHaveValue("Tiêu Viêm nhìn");
+  });
+
+  it("extends the clicked range with Shift and an arrow key", async () => {
+    const user = userEvent.setup();
+    renderWorkspace();
+
+    const outputPane = screen.getByRole("region", { name: "Bản dịch" });
+    const firstSegment = within(outputPane).getByRole("button", {
+      name: "Range 1: Tiêu Viêm",
+    });
+    const secondSegment = within(outputPane).getByRole("button", {
+      name: "Range 2: nhìn",
+    });
+    await user.click(firstSegment);
+    await user.keyboard("{Shift>}{ArrowRight}{/Shift}");
+
+    expect(firstSegment).toHaveAttribute("data-active", "true");
+    expect(secondSegment).toHaveAttribute("data-active", "true");
+
+    fireEvent.contextMenu(secondSegment);
+    await user.click(await screen.findByText("Update Name (phụ)"));
+    expect(screen.getByLabelText("Tiếng Trung")).toHaveValue("萧炎看着");
+    expect(screen.getByLabelText("Tiếng Việt")).toHaveValue("Tiêu Viêm nhìn");
+  });
+
+  it("removes the last selected range when Shift and the opposite arrow are pressed", async () => {
+    const user = userEvent.setup();
+    renderWorkspace();
+
+    const outputPane = screen.getByRole("region", { name: "Bản dịch" });
+    const firstSegment = within(outputPane).getByRole("button", {
+      name: "Range 1: Tiêu Viêm",
+    });
+    const secondSegment = within(outputPane).getByRole("button", {
+      name: "Range 2: nhìn",
+    });
+    await user.click(secondSegment);
+    await user.keyboard("{Shift>}{ArrowLeft}{/Shift}");
+    expect(firstSegment).toHaveAttribute("data-active", "true");
+    expect(secondSegment).toHaveAttribute("data-active", "true");
+
+    await user.keyboard("{Shift>}{ArrowRight}{/Shift}");
+    expect(firstSegment).toHaveAttribute("data-active", "false");
+    expect(secondSegment).toHaveAttribute("data-active", "true");
+  });
+
+  it("skips zero-length ranges when extending the keyboard selection", async () => {
+    const user = userEvent.setup();
+    useWorkspaceStore.setState({
+      sourceText: "是如此的完整",
+      response: {
+        translated: "Là như vậy hoàn chỉnh",
+        sourceRanges: [
+          { start: 0, length: 1 },
+          { start: 1, length: 2 },
+          { start: 3, length: 1 },
+          { start: 4, length: 2 },
+        ],
+        targetRanges: [
+          { start: 0, length: 2 },
+          { start: 3, length: 7 },
+          { start: 10, length: 0 },
+          { start: 11, length: 10 },
+        ],
+      },
+    });
+    renderWorkspace();
+
+    const outputPane = screen.getByRole("region", { name: "Bản dịch" });
+    const firstSegment = within(outputPane).getByRole("button", {
+      name: "Range 1: Là",
+    });
+    const secondSegment = within(outputPane).getByRole("button", {
+      name: "Range 2: như vậy",
+    });
+    const thirdVisibleSegment = within(outputPane).getByRole("button", {
+      name: "Range 4: hoàn chỉnh",
+    });
+    await user.click(firstSegment);
+    await user.keyboard("{Shift>}{ArrowRight}{ArrowRight}{/Shift}");
+
+    expect(firstSegment).toHaveAttribute("data-active", "true");
+    expect(secondSegment).toHaveAttribute("data-active", "true");
+    expect(thirdVisibleSegment).toHaveAttribute("data-active", "true");
+  });
 });

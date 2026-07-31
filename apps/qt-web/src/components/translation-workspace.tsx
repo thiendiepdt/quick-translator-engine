@@ -10,8 +10,10 @@ import {
   Sparkles,
 } from "lucide-react";
 import {
+  type KeyboardEvent,
   type MouseEvent,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -32,7 +34,7 @@ import {
 } from "@/components/ui/context-menu";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { rangeText } from "@/lib/ranges";
+import { buildTextSegments, rangeText } from "@/lib/ranges";
 import type { DictionaryUpdateKey } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useWorkspaceStore } from "@/store/workspace";
@@ -101,6 +103,7 @@ export function TranslationWorkspace({
     (state) => state.removeLocalDictionaryEntries,
   );
   const [mobilePane, setMobilePane] = useState<"source" | "output">("source");
+  const [selectedOutputRangeIndices, setSelectedOutputRangeIndices] = useState<number[]>([]);
   const [scrollRequest, setScrollRequest] = useState<ScrollRequest>();
   const [contextSelection, setContextSelection] =
     useState<DictionaryUpdateSelection>();
@@ -108,9 +111,18 @@ export function TranslationWorkspace({
     useState<DictionaryUpdateKey>();
   const sourceScrollRef = useRef<HTMLDivElement>(null);
   const outputScrollRef = useRef<HTMLDivElement>(null);
+  const outputSelectionAnchorRef = useRef<number | undefined>(undefined);
+  const outputSelectionFocusRef = useRef<number | undefined>(undefined);
 
   const sourceRanges = response?.sourceRanges ?? [];
-  const targetRanges = response?.targetRanges ?? [];
+  const targetRanges = useMemo(() => response?.targetRanges ?? [], [response?.targetRanges]);
+  const selectableTargetRangeIndices = useMemo(
+    () =>
+      buildTextSegments(response?.translated ?? "", targetRanges).flatMap((segment) =>
+        segment.kind === "mapped" ? [segment.rangeIndex] : [],
+      ),
+    [response?.translated, targetRanges],
+  );
   const activeSource = rangeText(sourceText, activeRange === undefined ? undefined : sourceRanges[activeRange]);
   const activeTarget = rangeText(response?.translated ?? "", activeRange === undefined ? undefined : targetRanges[activeRange]);
   const hasMapping = Boolean(response && sourceRanges.length > 0 && targetRanges.length > 0);
@@ -124,6 +136,15 @@ export function TranslationWorkspace({
 
   function selectRange(rangeIndex: number, pane: MappedPane) {
     setActiveRange(rangeIndex);
+    if (pane === "output") {
+      setSelectedOutputRangeIndices([rangeIndex]);
+      outputSelectionAnchorRef.current = rangeIndex;
+      outputSelectionFocusRef.current = rangeIndex;
+    } else {
+      setSelectedOutputRangeIndices([]);
+      outputSelectionAnchorRef.current = undefined;
+      outputSelectionFocusRef.current = undefined;
+    }
     if (!rangePinEnabled) return;
 
     if (pane === "source") {
@@ -135,6 +156,39 @@ export function TranslationWorkspace({
       setMobilePane("source");
       setScrollRequest({ pane: "source", rangeIndex });
     }
+  }
+
+  function extendOutputRangeSelection(
+    event: KeyboardEvent<HTMLSpanElement>,
+    rangeIndex: number,
+  ) {
+    if (!event.shiftKey || (event.key !== "ArrowLeft" && event.key !== "ArrowRight")) return;
+
+    const anchor = selectableTargetRangeIndices.includes(outputSelectionAnchorRef.current ?? -1)
+      ? outputSelectionAnchorRef.current ?? rangeIndex
+      : rangeIndex;
+    const focus = selectableTargetRangeIndices.includes(outputSelectionFocusRef.current ?? -1)
+      ? outputSelectionFocusRef.current ?? rangeIndex
+      : rangeIndex;
+    const anchorPosition = selectableTargetRangeIndices.indexOf(anchor);
+    const focusPosition = selectableTargetRangeIndices.indexOf(focus);
+    const nextFocusPosition = focusPosition + (event.key === "ArrowLeft" ? -1 : 1);
+    if (
+      anchorPosition < 0 ||
+      focusPosition < 0 ||
+      nextFocusPosition < 0 ||
+      nextFocusPosition >= selectableTargetRangeIndices.length
+    ) return;
+
+    event.preventDefault();
+    const nextFocus = selectableTargetRangeIndices[nextFocusPosition];
+    outputSelectionAnchorRef.current = anchor;
+    outputSelectionFocusRef.current = nextFocus;
+    const start = Math.min(anchorPosition, nextFocusPosition);
+    const end = Math.max(anchorPosition, nextFocusPosition);
+    const next = selectableTargetRangeIndices.slice(start, end + 1);
+    setSelectedOutputRangeIndices(next);
+    setActiveRange(anchor);
   }
 
   function toggleRangePin() {
@@ -163,26 +217,61 @@ export function TranslationWorkspace({
       setContextSelection(undefined);
       return;
     }
-    const rangeIndex = Number(rangeElement.dataset.rangeIndex);
-    const source = rangeText(sourceText, sourceRanges[rangeIndex]);
-    const fullTarget = rangeText(response?.translated ?? "", targetRanges[rangeIndex]);
-    if (!source || !fullTarget) {
+    const clickedRangeIndex = Number(rangeElement.dataset.rangeIndex);
+    const selection = window.getSelection();
+    const browserRange =
+      selection &&
+      !selection.isCollapsed &&
+      selection.rangeCount > 0 &&
+      event.currentTarget.contains(selection.getRangeAt(0).commonAncestorContainer)
+        ? selection.getRangeAt(0)
+        : undefined;
+    const hasKeyboardSelection =
+      selectedOutputRangeIndices.length > 1 &&
+      selectedOutputRangeIndices.includes(clickedRangeIndex);
+    const selectedRangeIndices = hasKeyboardSelection
+      ? selectedOutputRangeIndices
+      : browserRange
+      ? Array.from(event.currentTarget.querySelectorAll<HTMLElement>("[data-range-index]"))
+          .filter((element) => browserRange.intersectsNode(element))
+          .map((element) => Number(element.dataset.rangeIndex))
+          .filter((rangeIndex) => Number.isInteger(rangeIndex))
+          .filter((rangeIndex, index, values) => values.indexOf(rangeIndex) === index)
+          .sort((left, right) => (targetRanges[left]?.start ?? 0) - (targetRanges[right]?.start ?? 0))
+      : selectedOutputRangeIndices.includes(clickedRangeIndex)
+        ? selectedOutputRangeIndices
+        : [clickedRangeIndex];
+    const selectedRanges = selectedRangeIndices
+      .map((rangeIndex) => ({
+        source: sourceRanges[rangeIndex],
+        target: targetRanges[rangeIndex],
+      }))
+      .filter(({ source, target }) => source && target);
+    if (selectedRanges.length === 0) {
       setContextSelection(undefined);
       return;
     }
 
-    const selection = window.getSelection();
-    const selectedTarget =
-      selection &&
-      !selection.isCollapsed &&
-      selection.rangeCount > 0 &&
-      rangeElement.contains(selection.getRangeAt(0).commonAncestorContainer)
-        ? selection.toString().trim()
+    const sourceStart = Math.min(...selectedRanges.map(({ source }) => source.start));
+    const sourceEnd = Math.max(...selectedRanges.map(({ source }) => source.start + source.length));
+    const targetStart = Math.min(...selectedRanges.map(({ target }) => target.start));
+    const targetEnd = Math.max(...selectedRanges.map(({ target }) => target.start + target.length));
+    const selectedSource = sourceText.slice(sourceStart, sourceEnd).trim();
+    const partialTarget =
+      selectedRangeIndices.length === 1 && browserRange
+        ? selection?.toString().trim() ?? ""
         : "";
-    setActiveRange(rangeIndex);
+    const selectedTarget =
+      partialTarget || response?.translated.slice(targetStart, targetEnd).trim() || "";
+    if (!selectedSource || !selectedTarget) {
+      setContextSelection(undefined);
+      return;
+    }
+
+    setActiveRange(selectedRangeIndices[0] ?? clickedRangeIndex);
     setContextSelection({
-      source,
-      target: selectedTarget || fullTarget,
+      source: selectedSource,
+      target: selectedTarget,
     });
   }
 
@@ -311,12 +400,14 @@ export function TranslationWorkspace({
                     className="min-h-full"
                     onContextMenuCapture={captureOutputSelection}
                   >
-                    <MappedText
-                      text={response?.translated ?? ""}
-                      ranges={targetRanges}
-                      activeRange={activeRange}
-                      onRangeSelect={(rangeIndex) => selectRange(rangeIndex, "output")}
-                      emptyMessage={isPending ? "Đang dịch chương…" : "Bản dịch sẽ xuất hiện ở đây. Chọn “Dùng văn bản mẫu” để thử range mapping mà không gọi API."}
+              <MappedText
+                text={response?.translated ?? ""}
+                ranges={targetRanges}
+                activeRange={activeRange}
+                activeRanges={selectedOutputRangeIndices.length > 0 ? selectedOutputRangeIndices : undefined}
+                onRangeSelect={(rangeIndex) => selectRange(rangeIndex, "output")}
+                onRangeKeyDown={extendOutputRangeSelection}
+                emptyMessage={isPending ? "Đang dịch chương…" : "Bản dịch sẽ xuất hiện ở đây. Chọn “Dùng văn bản mẫu” để thử range mapping mà không gọi API."}
                       className="min-h-full px-8 py-8 font-serif text-[21px] leading-[2.05] text-reader-ink md:px-10"
                     />
                   </div>
@@ -407,8 +498,17 @@ export function TranslationWorkspace({
               <div className="pointer-events-none sticky bottom-4 mx-5 mt-auto flex w-fit max-w-[calc(100%-2.5rem)] items-center gap-2 rounded-md border bg-reader-paper/95 px-3 py-1.5 text-[11px] text-muted-foreground shadow-sm backdrop-blur">
                 <span className="font-semibold text-pair">↔</span>
                 {activeRange === undefined
-                  ? "Click một cụm để đối chiếu · click phải để cập nhật từ điển"
-                  : <><span lang="zh-Hans" className="truncate">{activeSource || "∅"}</span><span>↔</span><strong className="truncate text-foreground">{activeTarget || "∅"}</strong></>}
+                  ? "Click một cụm để đối chiếu · kéo chọn nhiều cụm rồi click phải để cập nhật từ điển"
+                  : <>
+                    <span lang="zh-Hans" className="truncate">{activeSource || "∅"}</span>
+                    <span>↔</span>
+                    <strong className="truncate text-foreground">{activeTarget || "∅"}</strong>
+                    {selectedOutputRangeIndices.length > 1 ? (
+                      <span className="shrink-0">· Đã chọn {selectedOutputRangeIndices.length} cụm</span>
+                    ) : selectedOutputRangeIndices.length === 1 ? (
+                      <span className="hidden shrink-0 sm:inline">· Shift + ←/→ để chọn thêm</span>
+                    ) : null}
+                  </>}
               </div>
             ) : null}
           </div>
