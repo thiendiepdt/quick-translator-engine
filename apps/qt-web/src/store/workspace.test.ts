@@ -195,19 +195,35 @@ describe("workspace dictionary semantics", () => {
     expect(dictionaryPayload(state.dictionaries)).toBeUndefined();
   });
 
-  it("isolates accepted and rejected names by book memory id", () => {
+  it("undoes an accepted name without rejecting it", () => {
     useWorkspaceStore.getState().acceptNameCandidate("萧炎", "Tiêu Viêm");
-    useWorkspaceStore.getState().switchNameMemory("book-b");
-    let state = useWorkspaceStore.getState();
+    useWorkspaceStore.getState().undoAcceptedNameCandidate("萧炎");
+
+    const state = useWorkspaceStore.getState();
+    expect(state.knownNames).toEqual({});
+    expect(state.rejectedNames).not.toContain("萧炎");
+    expect(state.dictionaries.names2.value).toBe("");
+  });
+
+  it("restores a rejected name to the review queue", () => {
+    useWorkspaceStore.getState().rejectNameCandidate("萧炎");
+    expect(useWorkspaceStore.getState().rejectedNames).toContain("萧炎");
+
+    useWorkspaceStore.getState().restoreRejectedNameCandidate("萧炎");
+    const state = useWorkspaceStore.getState();
+    expect(state.rejectedNames).not.toContain("萧炎");
     expect(state.knownNames).toEqual({});
     expect(state.dictionaries.names2.value).toBe("");
+  });
 
-    useWorkspaceStore.getState().acceptNameCandidate("林动", "Lâm Động");
-    useWorkspaceStore.getState().switchNameMemory("default");
-    state = useWorkspaceStore.getState();
-    expect(state.knownNames).toEqual({ 萧炎: "Tiêu Viêm" });
-    expect(state.dictionaries.names2.value).toBe("萧炎=Tiêu Viêm");
-    expect(state.dictionaries.names2.value).not.toContain("林动");
+  it("restores all rejected names in one update", () => {
+    useWorkspaceStore.getState().rejectNameCandidate("萧炎");
+    useWorkspaceStore.getState().rejectNameCandidate("药老");
+    expect(useWorkspaceStore.getState().rejectedNames).toEqual(["萧炎", "药老"]);
+
+    useWorkspaceStore.getState().restoreAllRejectedNameCandidates();
+    const state = useWorkspaceStore.getState();
+    expect(state.rejectedNames).toEqual([]);
   });
 
   it("persists compact VietPhrase and Phiên Âm patches", async () => {

@@ -75,7 +75,7 @@ export function DictionaryInspector({
           đã nói đủ, còn ý nghĩa chấm xanh nằm trong tooltip của chính chấm đó. */}
       <div className="shrink-0 border-b px-4 py-3">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-base font-semibold tracking-tight">Từ điển &amp; engine</h2>
+          <h2 className="text-base font-semibold tracking-tight">Từ điển &amp; bộ máy</h2>
           <Badge
             variant={touchedCount > 0 ? "default" : "secondary"}
             title="Số bộ từ điển đã sửa, lưu cục bộ và sẽ được gửi kèm request"
@@ -137,7 +137,7 @@ export function DictionaryInspector({
                 <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
                   {dictionaryStats.recordCount.toLocaleString("vi-VN")}
                   {dictionaryStats.rawCount > 0
-                    ? ` · ${dictionaryStats.rawCount.toLocaleString("vi-VN")} raw`
+                    ? ` · ${dictionaryStats.rawCount.toLocaleString("vi-VN")} dòng thô`
                     : ""}
                 </span>
               </div>
@@ -149,22 +149,22 @@ export function DictionaryInspector({
             <button
               type="button"
               disabled={!defaultsReady}
-              title="Tìm kiếm, phân trang, sửa inline, thêm và xóa record"
+              title="Tìm kiếm, phân trang, sửa trực tiếp, thêm và xóa bản ghi"
               className="group flex w-full items-center gap-2.5 rounded-lg border bg-background p-2.5 text-left transition-colors hover:border-primary/35 hover:bg-primary/5 disabled:pointer-events-none disabled:opacity-55"
               onClick={() => setEditorOpen(true)}
             >
               <span className="grid size-8 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
                 <PencilLine className="size-4" />
               </span>
-              <span className="min-w-0 flex-1 text-xs font-semibold">Sửa records</span>
+              <span className="min-w-0 flex-1 text-xs font-semibold">Sửa bản ghi</span>
               <Maximize2 className="size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
             </button>
             <div className="mt-2 flex flex-wrap items-center gap-1">
               <Button type="button" variant="ghost" size="xs" disabled={!defaultsReady} onClick={() => fileInput.current?.click()}>
-                <FileUp /> Nạp .txt
+                <FileUp /> Nạp tệp .txt
               </Button>
               <Button type="button" variant="ghost" size="xs" title="Gửi một bộ rỗng thay cho bản mặc định" disabled={!defaultsReady} onClick={() => setDictionaryValue(activeDictionary, "")}>
-                <Trash2 /> Tập rỗng
+                <Trash2 /> Đặt rỗng
               </Button>
               <Button type="button" variant="ghost" size="xs" title="Xóa bản sửa cục bộ và quay lại mặc định từ server" disabled={!defaultsReady || !activeDraft.touched} onClick={() => resetDictionary(activeDictionary)}>
                 <RotateCcw /> Khôi phục
@@ -193,7 +193,7 @@ export function DictionaryInspector({
         title="VietPhrase.txt và ChinesePhienAmWords.txt được nhúng trong Lambda, không thể ghi đè từ web. Chỉ gửi được các bản vá entry lẻ."
       >
         <Info className="size-3.5 shrink-0" />
-        VietPhrase &amp; Phiên Âm cố định trong engine
+        VietPhrase &amp; Phiên Âm cố định trong bộ máy
       </div>
 
       <DictionaryEditorDialog

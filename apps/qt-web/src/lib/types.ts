@@ -50,17 +50,17 @@ export interface DictionaryDefinition {
 export const dictionaryDefinitions: DictionaryDefinition[] = [
   {
     key: "names",
-    label: "Names",
-    shortLabel: "Names",
+    label: "Tên",
+    shortLabel: "Tên",
     filename: "Names.txt",
-    description: "Tên chính, ưu tiên trước VietPhrase khi trùng key.",
+    description: "Tên chính, ưu tiên trước VietPhrase khi trùng khóa.",
   },
   {
     key: "names2",
-    label: "Names 2",
-    shortLabel: "Names2",
+    label: "Tên 2",
+    shortLabel: "Tên 2",
     filename: "Names2/*.txt",
-    description: "Tên phụ, có độ ưu tiên cao hơn Names.",
+    description: "Tên phụ, có độ ưu tiên cao hơn Tên.",
   },
   {
     key: "luatNhan",
@@ -99,8 +99,8 @@ export const dictionaryDefinitions: DictionaryDefinition[] = [
   },
   {
     key: "ignoredChinesePhrases",
-    label: "Ignored Chinese Phrases",
-    shortLabel: "Ignored",
+    label: "Cụm tiếng Trung bỏ qua",
+    shortLabel: "Bỏ qua",
     filename: "IgnoredChinesePhrases.txt",
     description: "Cụm bị loại trong bước chuẩn hóa input.",
   },

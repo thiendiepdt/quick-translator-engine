@@ -4,6 +4,7 @@ import {
   Loader2Icon,
   OctagonXIcon,
   TriangleAlertIcon,
+  XIcon,
 } from "lucide-react"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 
@@ -22,6 +23,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
         warning: <TriangleAlertIcon className="size-4" />,
         error: <OctagonXIcon className="size-4" />,
         loading: <Loader2Icon className="size-4 animate-spin" />,
+        close: <XIcon className="size-5" />,
       }}
       style={
         {

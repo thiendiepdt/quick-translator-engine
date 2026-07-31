@@ -366,4 +366,30 @@
     scrollbar-color: var(--scrollbar-thumb) transparent;
     scrollbar-width: thin;
   }
+
+}
+
+/* Sonner dùng CSS không thuộc layer nên quy tắc trong @layer components không
+   thể ghi đè. Đặt phần này ngoài layer và khóa các thuộc tính bố cục để nút
+   đóng luôn nằm gọn bên phải toast thay vì lơ lửng ở góc trái. */
+[data-sonner-toaster] [data-sonner-toast][data-styled="true"] {
+  padding-inline-end: 4.25rem !important;
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-close-button] {
+  top: 50% !important;
+  right: 0.75rem !important;
+  left: auto !important;
+  width: 2.5rem !important;
+  height: 2.5rem !important;
+  transform: translateY(-50%) !important;
+  border-color: color-mix(in oklab, currentColor 30%, transparent) !important;
+  border-radius: var(--radius-md) !important;
+  background: color-mix(in oklab, currentColor 10%, transparent) !important;
+  box-shadow: 0 1px 3px color-mix(in oklab, currentColor 18%, transparent) !important;
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-close-button]:hover {
+  border-color: color-mix(in oklab, currentColor 48%, transparent) !important;
+  background: color-mix(in oklab, currentColor 20%, transparent) !important;
 }

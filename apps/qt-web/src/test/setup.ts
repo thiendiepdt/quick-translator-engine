@@ -27,3 +27,8 @@ Object.defineProperty(Element.prototype, "releasePointerCapture", {
   configurable: true,
   value: () => undefined,
 });
+
+Object.defineProperty(Element.prototype, "scrollIntoView", {
+  configurable: true,
+  value: () => undefined,
+});
