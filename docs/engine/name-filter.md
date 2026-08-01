@@ -106,27 +106,31 @@ hoặc xóa profile. CLI nhận `--known-names-file`/`--rejected-names-file`.
 
 ## AI provider (DeepSeek / Gemini)
 
-ONNX NER đã bị gỡ. Vai trò phát hiện entity ngoài rules giờ do một AI provider đảm nhận,
-cấu hình qua biến môi trường; DeepSeek được ưu tiên khi cả hai cùng được cấu hình:
+ONNX NER đã bị gỡ. Vai trò phát hiện entity ngoài rules giờ do một AI provider đảm
+nhận. Server không giữ API key: mỗi request bật AI mang credentials của chính caller
+trong field `ai` (`provider` `deepseek`/`gemini`, `apiKey`, `model` — bắt buộc với
+Gemini, mặc định `deepseek-chat` với DeepSeek). Key chỉ sống trong request, không được
+lưu hay log, và chi phí tính vào tài khoản provider của caller. Environment chỉ còn cấu
+hình hạ tầng:
 
 | Biến | Mặc định | Ý nghĩa |
 | --- | --- | --- |
-| `QT_DEEPSEEK_API_KEY` | không có | Bật provider DeepSeek |
-| `QT_DEEPSEEK_MODEL` | `deepseek-chat` | Model chat completions |
-| `QT_DEEPSEEK_BASE_URL` | `https://api.deepseek.com` | Endpoint OpenAI-compatible |
-| `QT_GEMINI_API_KEY` | không có | Bật provider Gemini (giữ tương thích) |
-| `QT_GEMINI_MODEL` | bắt buộc khi có key | Model Gemini |
-| `QT_GEMINI_BASE_URL` | `https://generativelanguage.googleapis.com` | Endpoint Gemini |
+| `QT_DEEPSEEK_BASE_URL` | `https://api.deepseek.com` | Endpoint OpenAI-compatible (test/proxy) |
+| `QT_GEMINI_BASE_URL` | `https://generativelanguage.googleapis.com` | Endpoint Gemini (test/proxy) |
+| `QT_AI_DEADLINE_SECONDS` | `100` | Deadline tổng cho AI extract + fallback trong một request |
 
-`GET /capabilities` trả `aiConfigured` và `aiProvider` (`deepseek`/`gemini`).
+Base URL không bao giờ nhận từ request để client không thể trỏ server tới host tùy ý.
 
 Provider phục vụ hai vai trò độc lập trong `POST /names/filter`:
 
 ### `aiExtract` — trích xuất toàn chương
 
-Gửi cả chương (chia chunk ≤15k ký tự theo dòng, giống flow Gemini của QT2025) và yêu cầu
-trích mọi entity danh từ riêng: nhân vật kể cả biệt danh, địa danh, tổ chức, công pháp/
-pháp bảo, tên sách. Đây là thay thế cho ONNX NER và là nguồn duy nhất bắt được:
+Gửi cả chương (chia chunk ≤15k ký tự theo dòng, giống flow Gemini của QT2025; dòng dài
+hơn giới hạn bị cắt tiếp theo ký tự nên không chunk nào vượt 15k) và yêu cầu trích mọi
+entity danh từ riêng: nhân vật kể cả biệt danh, địa danh, tổ chức, công pháp/pháp bảo,
+tên sách. Các chunk được gọi song song (tối đa 4 request cùng lúc) trong deadline AI
+chung của request; chạm deadline thì entity của các chunk đã xong vẫn được merge, kèm
+warning. Đây là thay thế cho ONNX NER và là nguồn duy nhất bắt được:
 
 - tên phiên âm phương Tây (`艾德里安`, `贝尔纳` — rules bó tay vì stopword `尔`, không họ
   Trung, dấu `·` cắt run ký tự Hán) với suggested là dạng Latin gốc (`Adrian`,

@@ -20,6 +20,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useNameFilterMutation } from "@/hooks/use-translation";
+import { activeAiProviderConfig, type AiSettings } from "@/lib/ai-settings";
 import { ApiError } from "@/lib/api";
 import {
   isNameFilterMode,
@@ -36,6 +37,7 @@ import { useWorkspaceCatalogStore } from "@/store/workspace-catalog";
 interface NameFilterWorkspaceProps {
   endpoint: string;
   defaultsReady: boolean;
+  aiSettings?: AiSettings;
 }
 
 const entityLabels: Record<NameCandidate["entityType"], string> = {
@@ -46,7 +48,11 @@ const entityLabels: Record<NameCandidate["entityType"], string> = {
   unknown: "Chưa rõ",
 };
 
-export function NameFilterWorkspace({ endpoint, defaultsReady }: NameFilterWorkspaceProps) {
+export function NameFilterWorkspace({
+  endpoint,
+  defaultsReady,
+  aiSettings,
+}: NameFilterWorkspaceProps) {
   const sourceText = useWorkspaceStore((state) => state.sourceText);
   const setSourceText = useWorkspaceStore((state) => state.setSourceText);
   const dictionaries = useWorkspaceStore((state) => state.dictionaries);
@@ -124,6 +130,23 @@ export function NameFilterWorkspace({ endpoint, defaultsReady }: NameFilterWorks
       toast.error("Chưa tải xong từ điển mặc định từ bộ máy");
       return;
     }
+    const wantsAi = aiExtractEnabled || aiEnabled;
+    // Key/model của đúng provider đang chọn — không dùng chéo giữa hai bên.
+    const providerConfig = aiSettings ? activeAiProviderConfig(aiSettings) : undefined;
+    const apiKey = providerConfig?.apiKey.trim() ?? "";
+    if (wantsAi && !apiKey) {
+      toast.error("Tính năng AI cần API key của bạn", {
+        description: "Nhập key DeepSeek/Gemini trong Cài đặt (biểu tượng bánh răng).",
+      });
+      return;
+    }
+    const model = providerConfig?.model.trim() ?? "";
+    if (wantsAi && aiSettings?.provider === "gemini" && !model) {
+      toast.error("Gemini cần chỉ định model", {
+        description: "Nhập model (ví dụ gemini-2.5-flash) trong Cài đặt.",
+      });
+      return;
+    }
     const request: NameFilterRequest = {
       text: sourceText,
       mode,
@@ -132,6 +155,15 @@ export function NameFilterWorkspace({ endpoint, defaultsReady }: NameFilterWorks
       maxCandidates: 300,
       knownNames,
       rejectedNames,
+      ...(wantsAi && aiSettings
+        ? {
+            ai: {
+              provider: aiSettings.provider,
+              apiKey,
+              ...(model ? { model } : {}),
+            },
+          }
+        : {}),
       aiExtract: { enabled: aiExtractEnabled, minConfidence: 0.65 },
       aiFallback: {
         enabled: aiEnabled,
@@ -216,7 +248,7 @@ export function NameFilterWorkspace({ endpoint, defaultsReady }: NameFilterWorks
             <Badge variant="outline" className="font-mono text-[9px]">BỘ NHỚ TÊN</Badge>
           </div>
           <p className="truncate text-[10px] text-muted-foreground">
-            Quy tắc QT + ngữ cảnh + bộ nhớ; ONNX và AI chỉ chạy khi bật.
+            Quy tắc QT + ngữ cảnh + bộ nhớ; AI chỉ chạy khi bật.
           </p>
         </div>
         <Tabs
@@ -425,7 +457,7 @@ export function NameFilterWorkspace({ endpoint, defaultsReady }: NameFilterWorks
           {response ? (
             <>
               Quy tắc {response.stats.ruleCandidates} · AI trích {response.stats.aiExtractedCandidates} · AI đã duyệt {response.stats.aiReviewed}
-              {response.capabilities.aiConfigured ? ` · AI sẵn sàng (${response.capabilities.aiProvider ?? "?"})` : ""}
+              {response.capabilities.aiConfigured ? ` · AI: ${response.capabilities.aiProvider ?? "?"}` : ""}
             </>
           ) : <>Bộ nhớ tên được lưu theo không gian làm việc và dùng lại ở chương kế tiếp.</>}
         </div>

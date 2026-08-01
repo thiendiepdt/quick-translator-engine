@@ -11,33 +11,22 @@ chung. Request và response dùng JSON UTF-8.
 |---|---:|---|
 | `QT_DATA_DIR` | `data` | Thư mục chứa bộ từ điển |
 | `QT_PORT` | `3000` | Cổng HTTP |
-| `QT_DEEPSEEK_API_KEY` | không có | Bật AI provider DeepSeek (ưu tiên); chỉ dùng ở server |
-| `QT_DEEPSEEK_MODEL` | `deepseek-chat` | Model chat completions của DeepSeek |
-| `QT_DEEPSEEK_BASE_URL` | `https://api.deepseek.com` | Endpoint OpenAI-compatible tùy chọn |
-| `QT_GEMINI_API_KEY` | không có | Bật AI provider Gemini khi không có DeepSeek |
-| `QT_GEMINI_MODEL` | không có | Model Gemini dùng cho structured output |
-| `QT_GEMINI_BASE_URL` | Google API | Base URL tùy chọn cho test/proxy |
+| `QT_DEEPSEEK_BASE_URL` | `https://api.deepseek.com` | Endpoint OpenAI-compatible tùy chọn (test/proxy) |
+| `QT_GEMINI_BASE_URL` | Google API | Base URL Gemini tùy chọn (test/proxy) |
+| `QT_AI_DEADLINE_SECONDS` | `100` | Tổng thời gian cho mọi lượt gọi AI trong một request (5–600) |
+
+Server không giữ API key AI nào: mỗi request lọc tên bật AI phải tự mang key của caller
+trong field `ai` (xem `POST /names/filter`). Base URL provider chỉ đọc từ environment —
+không bao giờ nhận từ request — để client không thể trỏ server tới host tùy ý.
 
 ```bash
 QT_DATA_DIR=QT2025 QT_PORT=3000 cargo run -q -p qt-api --bin qt-server
 ```
 
 Server bind trên `0.0.0.0`. JSON body được giới hạn 5 MiB. Bản hiện tại không có TLS,
-authentication hay rate limit; không nên expose trực tiếp ra Internet.
-
-### Capabilities
-
-`GET /capabilities` (router name-filter) trả trạng thái AI provider đã khởi tạo:
-
-```json
-{
-  "aiConfigured": true,
-  "aiProvider": "deepseek"
-}
-```
-
-Nếu provider cấu hình lỗi, response có thêm `warnings`; chi tiết lỗi vẫn được ghi vào
-stderr/CloudWatch lúc process khởi động.
+authentication hay rate limit; không nên expose trực tiếp ra Internet. Chi phí AI không
+phải là rủi ro của server: key do caller cung cấp nên provider tính phí vào tài khoản
+của caller.
 
 ## Mode và option dùng chung
 
@@ -225,8 +214,16 @@ trong `texts`.
 ## `POST /names/filter`
 
 Lọc candidate name cho một chương. Request mặc định chạy deterministic rules; AI extract
-và AI fallback chỉ chạy khi server có AI provider (DeepSeek/Gemini) và request bật
-`enabled=true`.
+và AI fallback chỉ chạy khi request bật `enabled=true` **và** mang theo credentials của
+chính caller trong field `ai` (DeepSeek hoặc Gemini). Server không giữ key nào — key
+trong request chỉ sống trong request đó, không được lưu và không được log; chi phí AI
+tính vào tài khoản provider của caller.
+
+Bật AI mà thiếu `ai` thì rules vẫn chạy và response kèm warning. `ai` sai định dạng
+(provider lạ, key rỗng/quá dài, model chứa ký tự ngoài `[A-Za-z0-9._-]`, Gemini thiếu
+model) trả `400` trước khi rules chạy hay key bị tiêu. Toàn bộ option (kể cả của tính
+năng đang tắt) cũng được validate trước tiên. `ai.baseUrl` không tồn tại — endpoint
+provider chỉ cấu hình được từ environment của server để chống SSRF.
 
 ```json
 {
@@ -237,6 +234,7 @@ và AI fallback chỉ chạy khi server có AI provider (DeepSeek/Gemini) và re
   "maxCandidates": 200,
   "knownNames": { "云韵": "Vân Vận" },
   "rejectedNames": ["看向"],
+  "ai": { "provider": "deepseek", "apiKey": "sk-...", "model": "deepseek-chat" },
   "aiExtract": { "enabled": true, "minConfidence": 0.65 },
   "aiFallback": {
     "enabled": true,
@@ -262,6 +260,7 @@ và AI fallback chỉ chạy khi server có AI provider (DeepSeek/Gemini) và re
 | `includeKnown` | `true` | Trả lại name đã duyệt trong memory với score `1.0` |
 | `knownNames` | `{}` | Map name đã duyệt → bản dịch, do client lưu theo truyện |
 | `rejectedNames` | `[]` | Candidate đã loại, không đề xuất lại ở chương sau |
+| `ai` | không có | Credentials của caller: `provider` (`deepseek`/`gemini`), `apiKey`, `model` (bắt buộc với Gemini, mặc định `deepseek-chat` với DeepSeek) |
 | `aiExtract` | disabled | AI đọc cả chương và trích mọi entity (thay ONNX NER cũ) |
 | `aiFallback` | disabled | Chỉ gửi nhóm candidate mơ hồ sang AI để duyệt |
 | `ner` | deprecated | Bị bỏ qua; bật chỉ sinh warning (ONNX NER đã gỡ) |
@@ -295,15 +294,24 @@ Response:
     "aiReviewed": 0
   },
   "capabilities": { "aiConfigured": false },
-  "warnings": ["AI extract was requested but no AI provider is configured"]
+  "warnings": ["AI extract was requested but the request has no AI credentials (ai.apiKey)"]
 }
 ```
 
+`capabilities` phản ánh request hiện tại: `aiConfigured=true` cùng `aiProvider` khi
+request mang credentials hợp lệ trong `ai`.
+
 `ranges` dùng UTF-16 như endpoint dịch. Lỗi provider tùy chọn không làm hỏng kết quả
-rules: response vẫn là `200`, kèm `warnings`. API key AI không bao giờ nhận từ client.
-Với `aiFallback`, server chỉ gửi tối đa 50 candidate cùng context ngắn và xác thực output
-AI phải thuộc tập candidate đầu vào. Với `aiExtract`, server chỉ nhận entity xuất hiện
-nguyên văn trong chương và tự định vị occurrence.
+rules: response vẫn là `200`, kèm `warnings`. Với `aiFallback`, server chỉ gửi tối đa 50
+candidate cùng context ngắn và xác thực output AI phải thuộc tập candidate đầu vào. Với
+`aiExtract`, server chỉ nhận entity xuất hiện nguyên văn trong chương và tự định vị
+occurrence.
+
+Mọi lượt gọi AI trong một request chia sẻ một deadline tổng (`QT_AI_DEADLINE_SECONDS`,
+mặc định 100 giây). `aiExtract` gọi các chunk song song (tối đa 4 cùng lúc); chạm
+deadline thì các chunk đã xong vẫn được merge và response ghi warning
+`AI extraction hit the request time limit`. Chuỗi timeout dự kiến: một lượt gọi provider
+60s < deadline AI 100s < Lambda 120s < client qt-web 130s (request có AI).
 
 ## Range contract
 

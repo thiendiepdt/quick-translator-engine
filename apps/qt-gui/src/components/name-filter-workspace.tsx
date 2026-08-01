@@ -85,14 +85,6 @@ export function NameFilterWorkspace({ defaultsReady }: NameFilterWorkspaceProps)
       maxCandidates: 300,
       knownNames,
       rejectedNames,
-      ner: { enabled: false, minConfidence: 0.65 },
-      aiFallback: {
-        enabled: false,
-        minConfidence: 0.65,
-        minRuleConfidence: 0.4,
-        maxRuleConfidence: 0.82,
-        maxCandidates: 25,
-      },
       dictionaries: dictionaryPayload(dictionaries),
     };
     try {
@@ -241,11 +233,7 @@ export function NameFilterWorkspace({ defaultsReady }: NameFilterWorkspaceProps)
       <footer className="flex min-w-0 items-center justify-between gap-3 px-1 text-[10px] text-muted-foreground">
         <div className="truncate">
           {response ? (
-            <>
-              Rules {response.stats.ruleCandidates} · NER {response.stats.nerCandidates} · AI reviewed {response.stats.aiReviewed}
-              {response.capabilities.nerConfigured ? " · ONNX ready" : ""}
-              {response.capabilities.aiConfigured ? " · Gemini ready" : ""}
-            </>
+            <>Rules {response.stats.ruleCandidates} · chạy hoàn toàn trên máy</>
           ) : <>Memory <strong>{nameMemoryId}</strong> được lưu cục bộ và dùng lại ở chương kế tiếp.</>}
         </div>
         <Button

@@ -17,7 +17,8 @@ mới.
 - Region đề xuất cho người dùng Việt Nam: `ap-southeast-1` (Singapore).
 - Kiến trúc: ARM64.
 - Memory: 1.769 MB, tương đương khoảng một vCPU Lambda.
-- Timeout: 30 giây cho một chương/request.
+- Timeout: 120 giây (parameter `FunctionTimeout`) — đủ cho lọc tên bật AI với deadline
+  AI phía server 100 giây; request dịch thường xong trong dưới một giây.
 - Reserved concurrency: 50 để giới hạn burst và chi phí.
 - Function URL auth: `AWS_IAM`.
 - CloudWatch log retention: 14 ngày.
@@ -102,26 +103,24 @@ Chỉ dùng `FunctionUrlAuthType=NONE` để test nhanh hoặc khi đã có mộ
 đúng cách. `NONE` biến URL thành public endpoint; engine chưa tự cung cấp authentication
 hay rate limiting.
 
-## AI provider lọc name tùy chọn
+## AI lọc name tùy chọn
 
 `POST /names/filter` luôn có QT/hybrid rules chạy local. AI extract và AI fallback là
-opt-in, dùng DeepSeek (ưu tiên) hoặc Gemini:
+opt-in và dùng API key do chính request mang theo (field `ai`: DeepSeek hoặc Gemini) —
+Lambda **không** cần và không nhận bất kỳ API key AI nào trong environment. Chi phí AI
+tính vào tài khoản provider của caller, nên endpoint public không có credit phía server
+để bị lạm dụng; qt-web có ô nhập key trong dialog Cài đặt (lưu ở localStorage của
+người dùng).
 
-```text
-QT_DEEPSEEK_API_KEY=<secret>
-QT_DEEPSEEK_MODEL=deepseek-chat
-```
+Environment chỉ còn hai nhóm cấu hình AI:
 
-hoặc:
+- `QT_DEEPSEEK_BASE_URL` / `QT_GEMINI_BASE_URL`: override endpoint provider cho
+  test/proxy. Request không bao giờ được phép đổi base URL (chống SSRF).
+- `QT_AI_DEADLINE_SECONDS` (mặc định 100): tổng thời gian AI mỗi request, phải nhỏ hơn
+  `FunctionTimeout`.
 
-```text
-QT_GEMINI_API_KEY=<secret>
-QT_GEMINI_MODEL=<model hỗ trợ structured output>
-```
-
-Không đưa key vào request từ web. Lưu key bằng cơ chế secret/KMS phù hợp của AWS và inject
-vào environment lúc deploy. Request provider lỗi vẫn trả kết quả rules kèm `warnings`, do
-đó một lỗi mạng ngoài không làm mất toàn bộ kết quả lọc name.
+Request provider lỗi vẫn trả kết quả rules kèm `warnings`, do đó một lỗi mạng ngoài
+không làm mất toàn bộ kết quả lọc name.
 
 ## Request
 

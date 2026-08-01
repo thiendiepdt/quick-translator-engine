@@ -14,6 +14,9 @@ import type {
 } from "@/lib/types";
 
 const REQUEST_TIMEOUT_MS = 45_000;
+// Lọc tên có AI chạy nhiều lượt gọi model: server tự dừng AI ở ~100 giây và
+// Lambda cho phép 120 giây, nên client phải chờ lâu hơn cả hai mốc đó.
+const AI_REQUEST_TIMEOUT_MS = 130_000;
 
 export class ApiError extends Error {
   constructor(
@@ -52,9 +55,10 @@ async function requestJson<T>(
   url: string,
   init: RequestInit,
   parse: (value: unknown) => T,
+  timeoutMs = REQUEST_TIMEOUT_MS,
 ): Promise<T> {
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetch(url, {
       ...init,
@@ -68,7 +72,7 @@ async function requestJson<T>(
     return parse(await response.json());
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
-      throw new ApiError("Request quá 45 giây và đã bị hủy");
+      throw new ApiError(`Request quá ${Math.round(timeoutMs / 1000)} giây và đã bị hủy`);
     }
     if (error instanceof ApiError) throw error;
     throw new ApiError(error instanceof Error ? error.message : "Không thể gọi API");
@@ -112,6 +116,7 @@ export function filterChapterNames(
   endpoint: string,
   request: NameFilterRequest,
 ): Promise<NameFilterResponse> {
+  const aiEnabled = request.aiExtract.enabled || request.aiFallback.enabled;
   return requestJson(
     endpointUrl(endpoint, "/names/filter"),
     {
@@ -120,5 +125,6 @@ export function filterChapterNames(
       body: JSON.stringify(request),
     },
     (value) => nameFilterResponseSchema.parse(value),
+    aiEnabled ? AI_REQUEST_TIMEOUT_MS : REQUEST_TIMEOUT_MS,
   );
 }

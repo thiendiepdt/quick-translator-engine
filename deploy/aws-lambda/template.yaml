@@ -27,6 +27,14 @@ Parameters:
     Type: Number
     Default: 50
     MinValue: 1
+  # Must exceed the server-side AI deadline (QT_AI_DEADLINE_SECONDS, default
+  # 100s) so AI-enabled name-filter requests can finish; clients time out later
+  # still (qt-web waits 130s for AI requests).
+  FunctionTimeout:
+    Type: Number
+    Default: 120
+    MinValue: 3
+    MaxValue: 900
 
 Resources:
   QuickTranslatorFunction:
@@ -44,7 +52,7 @@ Resources:
       Architectures:
         - !Ref FunctionArchitecture
       MemorySize: !Ref FunctionMemorySize
-      Timeout: 30
+      Timeout: !Ref FunctionTimeout
       ReservedConcurrentExecutions: !Ref ReservedConcurrency
       Tracing: PassThrough
       Environment:

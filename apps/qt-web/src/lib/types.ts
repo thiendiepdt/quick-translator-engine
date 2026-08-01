@@ -174,6 +174,8 @@ export interface NameFilterRequest {
   maxCandidates: number;
   knownNames: Record<string, string>;
   rejectedNames: string[];
+  /** API key của chính người dùng; bắt buộc để aiExtract/aiFallback chạy. */
+  ai?: { provider: "deepseek" | "gemini"; apiKey: string; model?: string };
   aiExtract: { enabled: boolean; minConfidence: number };
   aiFallback: {
     enabled: boolean;

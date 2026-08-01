@@ -164,11 +164,10 @@ export interface NameFilterResponse {
   stats: {
     scannedCharacters: number;
     ruleCandidates: number;
-    nerCandidates: number;
+    aiExtractedCandidates: number;
     aiReviewed: number;
   };
   capabilities: {
-    nerConfigured: boolean;
     aiConfigured: boolean;
   };
   warnings?: string[];
@@ -182,13 +181,5 @@ export interface NameFilterRequest {
   maxCandidates: number;
   knownNames: Record<string, string>;
   rejectedNames: string[];
-  ner: { enabled: boolean; minConfidence: number };
-  aiFallback: {
-    enabled: boolean;
-    minConfidence: number;
-    minRuleConfidence: number;
-    maxRuleConfidence: number;
-    maxCandidates: number;
-  };
   dictionaries?: Partial<Record<DictionaryKey, string>>;
 }

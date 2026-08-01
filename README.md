@@ -131,9 +131,9 @@ phù hợp; xem [SECURITY.md](SECURITY.md).
 
 API contract đầy đủ nằm tại [docs/api.md](docs/api.md).
 
-Để bật AI provider tùy chọn cho `/names/filter`, cấu hình `QT_DEEPSEEK_API_KEY`
-(model mặc định `deepseek-chat`) hoặc `QT_GEMINI_API_KEY` + `QT_GEMINI_MODEL`. Không
-cấu hình provider thì rules vẫn chạy độc lập, không phát sinh network call. Chi tiết tại
+Tính năng AI tùy chọn của `/names/filter` dùng API key do chính request mang theo
+(field `ai`, DeepSeek hoặc Gemini) — server không giữ key AI nào. Request không bật AI
+thì rules vẫn chạy độc lập, không phát sinh network call. Chi tiết tại
 [docs/engine/name-filter.md](docs/engine/name-filter.md#ai-provider-deepseek--gemini).
 
 ## Chạy web app

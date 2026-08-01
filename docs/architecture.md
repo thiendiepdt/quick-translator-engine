@@ -113,8 +113,10 @@ dictionary custom được parse thành state riêng cho request. Mỗi lần d�
 Batch giữ thứ tự và xử lý lần lượt từng item để không làm đầy blocking pool trong một
 request. Xem schema tại [api.md](api.md).
 
-`build_name_filter_router` là surface thu gọn chỉ expose health/capabilities/name filter;
-route `GET /capabilities` cho biết AI provider (DeepSeek/Gemini) đã khởi tạo hay chưa.
+Tính năng AI của `/names/filter` (DeepSeek/Gemini) dùng credentials do chính request
+mang theo trong field `ai` — server không giữ API key provider nào, nên không có credit
+phía server để bị lạm dụng. Base URL provider chỉ đọc từ environment để client không thể
+trỏ server tới host tùy ý.
 
 ### `qt-lambda`
 

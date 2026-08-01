@@ -113,9 +113,16 @@ npm run check
 - Khôi phục đúng bản QT2025 sẽ bỏ dictionary đó khỏi payload.
 - VietPhrase và ChinesePhienAmWords không xuất hiện dưới dạng raw file trong form vì
   Lambda giữ base cố định; chỉ entry patch local được gửi lên.
-- Request timeout ở browser là 45 giây; Worker/Lambda vẫn giữ giới hạn riêng của hạ tầng.
+- Request timeout ở browser là 45 giây (130 giây cho lọc tên có bật AI); Worker/Lambda
+  vẫn giữ giới hạn riêng của hạ tầng.
 - Tab **Tên** gọi `POST /names/filter`, hỗ trợ QT/hybrid, bật AI trích/duyệt tùy chọn, search,
   sửa tên Việt inline, duyệt/loại từng record và duyệt nhanh candidate ≥85%.
+- Tính năng AI dùng API key của chính người dùng: chọn provider (DeepSeek/Gemini), nhập
+  key và model trong dialog Cài đặt. Key/model lưu ở localStorage tách riêng theo từng
+  provider — đổi provider là đổi sang bộ key của provider đó, không bao giờ gửi key của
+  công ty này sang endpoint công ty kia. Key chỉ gửi trong field `ai` của request lọc
+  tên có bật AI, chi phí tính vào tài khoản provider của người dùng — server không giữ
+  key nào.
 - Name được duyệt tự append/update vào draft `Names2`, nên request dịch tiếp theo sử dụng
   ngay mà không phải copy thủ công.
 

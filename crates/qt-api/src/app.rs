@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 
 use axum::extract::{DefaultBodyLimit, State};
 use axum::http::{header, StatusCode};
@@ -18,7 +19,10 @@ use qt_core::{
     TranslationResult,
 };
 
-use crate::name_ai::{entity_type_name, parse_entity_type, AiExtractedEntity, AiNameProvider};
+use crate::name_ai::{
+    build_ai_http_client, entity_type_name, parse_entity_type, AiBaseUrls, AiExtractedEntity,
+    AiNameProvider,
+};
 
 const MAX_REQUEST_SCAN_RANGE: usize = 100;
 const MAX_REQUEST_BODY_BYTES: usize = 5 * 1024 * 1024;
@@ -31,36 +35,71 @@ pub struct AppState {
     pub name_filter_services: NameFilterServices,
 }
 
-#[derive(Clone, Default)]
+/// Total wall-clock budget shared by all AI calls in one request. Must stay
+/// under the Lambda timeout (120s) with headroom for rules and merging.
+const DEFAULT_AI_DEADLINE_SECONDS: u64 = 100;
+
+/// Request-independent pieces of the AI integration. The server holds no
+/// provider API key — every request brings its own credentials — so this is
+/// just the shared HTTP client, the operator-controlled provider endpoints
+/// and the AI time budget.
+#[derive(Clone)]
 pub struct NameFilterServices {
-    ai: Option<AiNameProvider>,
+    http: reqwest::Client,
+    ai_base_urls: AiBaseUrls,
+    ai_deadline: Duration,
     startup_warnings: Arc<Vec<String>>,
+}
+
+impl Default for NameFilterServices {
+    fn default() -> Self {
+        Self {
+            http: build_ai_http_client(),
+            ai_base_urls: AiBaseUrls::default(),
+            ai_deadline: Duration::from_secs(DEFAULT_AI_DEADLINE_SECONDS),
+            startup_warnings: Arc::default(),
+        }
+    }
 }
 
 impl NameFilterServices {
     pub fn from_env() -> Self {
         let mut startup_warnings = Vec::new();
-        let ai = match AiNameProvider::from_env() {
-            Ok(provider) => provider,
-            Err(error) => {
-                eprintln!("warning: AI name provider was not initialized: {error}");
-                startup_warnings
-                    .push("AI name provider is unavailable; check server logs".to_string());
-                None
-            }
+        let ai_deadline = match crate::name_ai::non_empty_env("QT_AI_DEADLINE_SECONDS") {
+            Some(value) => match value.parse::<u64>() {
+                Ok(seconds) => Duration::from_secs(seconds.clamp(5, 600)),
+                Err(_) => {
+                    eprintln!("warning: QT_AI_DEADLINE_SECONDS is not a number, using default");
+                    startup_warnings.push(
+                        "QT_AI_DEADLINE_SECONDS is invalid; the default AI deadline is used"
+                            .to_string(),
+                    );
+                    Duration::from_secs(DEFAULT_AI_DEADLINE_SECONDS)
+                }
+            },
+            None => Duration::from_secs(DEFAULT_AI_DEADLINE_SECONDS),
         };
         Self {
-            ai,
+            http: build_ai_http_client(),
+            ai_base_urls: AiBaseUrls::from_env(),
+            ai_deadline,
             startup_warnings: Arc::new(startup_warnings),
         }
     }
 
-    fn ai_configured(&self) -> bool {
-        self.ai.is_some()
+    fn ai_deadline(&self) -> Duration {
+        self.ai_deadline
     }
 
-    fn ai_provider(&self) -> Option<&'static str> {
-        self.ai.as_ref().map(AiNameProvider::provider_name)
+    /// Build the per-request provider from client-supplied credentials.
+    fn ai_provider_from(&self, creds: &AiCredentialsReq) -> Result<AiNameProvider, String> {
+        AiNameProvider::from_credentials(
+            self.http.clone(),
+            &self.ai_base_urls,
+            &creds.provider,
+            &creds.api_key,
+            creds.model.as_deref(),
+        )
     }
 }
 
@@ -73,16 +112,6 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/dictionaries/defaults", get(dictionary_defaults))
         .route("/translate", post(translate))
         .route("/translate/batch", post(translate_batch))
-        .route("/names/filter", post(filter_names))
-        .with_state(state)
-        .layer(DefaultBodyLimit::max(MAX_REQUEST_BODY_BYTES))
-}
-
-/// Build the dedicated name-filter surface without exposing translation routes.
-pub fn build_name_filter_router(state: Arc<AppState>) -> Router {
-    Router::new()
-        .route("/health", get(health))
-        .route("/capabilities", get(name_filter_capabilities))
         .route("/names/filter", post(filter_names))
         .with_state(state)
         .layer(DefaultBodyLimit::max(MAX_REQUEST_BODY_BYTES))
@@ -183,11 +212,22 @@ struct NameFilterReq {
     /// clients still parse; enabling it only produces a warning.
     #[serde(default)]
     ner: ProviderReq,
+    /// Caller-supplied AI credentials; required for aiExtract/aiFallback.
+    /// Used only for this request — never stored or logged.
+    ai: Option<AiCredentialsReq>,
     #[serde(default)]
     ai_extract: ProviderReq,
     #[serde(default)]
     ai_fallback: AiFallbackReq,
     dictionaries: Option<DictionarySourcesReq>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct AiCredentialsReq {
+    provider: String,
+    api_key: String,
+    model: Option<String>,
 }
 
 #[derive(Default, Deserialize)]
@@ -249,26 +289,6 @@ struct NameFilterCapabilities {
     ai_configured: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     ai_provider: Option<&'static str>,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct NameFilterCapabilitiesResp {
-    ai_configured: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    ai_provider: Option<&'static str>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    warnings: Vec<String>,
-}
-
-async fn name_filter_capabilities(
-    State(state): State<Arc<AppState>>,
-) -> Json<NameFilterCapabilitiesResp> {
-    Json(NameFilterCapabilitiesResp {
-        ai_configured: state.name_filter_services.ai_configured(),
-        ai_provider: state.name_filter_services.ai_provider(),
-        warnings: state.name_filter_services.startup_warnings.as_ref().clone(),
-    })
 }
 
 fn default_name_filter_mode() -> String {
@@ -563,6 +583,52 @@ async fn filter_names(
         0.60
     };
     let min_confidence = confidence(req.min_confidence, default_min_confidence, "minConfidence")?;
+    // Every option is validated before rules run or a paid provider call is
+    // made, including options for features the request leaves disabled.
+    let ai_extract_threshold = confidence(
+        req.ai_extract.min_confidence,
+        0.65,
+        "aiExtract.minConfidence",
+    )?;
+    let ai_review_threshold = confidence(
+        req.ai_fallback.min_confidence,
+        0.65,
+        "aiFallback.minConfidence",
+    )?;
+    let ai_min_rule_confidence = confidence(
+        req.ai_fallback.min_rule_confidence,
+        0.40,
+        "aiFallback.minRuleConfidence",
+    )?;
+    let ai_max_rule_confidence = confidence(
+        req.ai_fallback.max_rule_confidence,
+        0.82,
+        "aiFallback.maxRuleConfidence",
+    )?;
+    if ai_min_rule_confidence > ai_max_rule_confidence {
+        return Err(ApiError::bad_request(
+            "aiFallback.minRuleConfidence must not exceed maxRuleConfidence",
+        ));
+    }
+    let ai_max_review_candidates = bounded_usize(
+        req.ai_fallback.max_candidates,
+        25,
+        1,
+        50,
+        "aiFallback.maxCandidates",
+    )?;
+    // Client-supplied credentials build the per-request provider; the server
+    // itself holds no AI key. Malformed credentials fail here, before rules
+    // run or the caller's key is spent.
+    let ai_provider = match req.ai.as_ref() {
+        Some(creds) => Some(
+            state
+                .name_filter_services
+                .ai_provider_from(creds)
+                .map_err(ApiError::bad_request)?,
+        ),
+        None => None,
+    };
     let options = NameFilterOptions {
         mode,
         min_occurrences: bounded_usize(req.min_occurrences, 2, 1, 100, "minOccurrences")?,
@@ -572,6 +638,10 @@ async fn filter_names(
         include_known: req.include_known.unwrap_or(true),
     };
     let output_max_candidates = options.max_candidates;
+    let include_known = options.include_known;
+    // One shared deadline for all AI work in this request keeps the handler
+    // inside the Lambda/client timeout even when extract and review both run.
+    let ai_deadline = tokio::time::Instant::now() + state.name_filter_services.ai_deadline();
     let memory = NameFilterMemory {
         known_names: req.known_names,
         rejected_names: req.rejected_names.into_iter().collect(),
@@ -606,81 +676,62 @@ async fn filter_names(
 
     let mut ai_extracted_candidates = 0;
     if req.ai_extract.enabled {
-        if let Some(provider) = state.name_filter_services.ai.as_ref() {
-            match provider.extract(document.text()).await {
-                Ok(entities) => {
-                    let threshold = confidence(
-                        req.ai_extract.min_confidence,
-                        0.65,
-                        "aiExtract.minConfidence",
-                    )?;
-                    ai_extracted_candidates = merge_extracted_candidates(
-                        &state.engine,
-                        &mut result.candidates,
-                        entities,
-                        threshold,
-                        &memory,
-                        dictionaries.as_deref(),
-                        &document,
-                    );
-                }
-                Err(error) => warnings.push(error),
-            }
+        if let Some(provider) = ai_provider.as_ref() {
+            let extraction = provider.extract(document.text(), ai_deadline).await;
+            warnings.extend(extraction.warnings);
+            ai_extracted_candidates = merge_extracted_candidates(
+                &state.engine,
+                &mut result.candidates,
+                extraction.entities,
+                ExtractionMerge {
+                    threshold: ai_extract_threshold,
+                    include_known,
+                },
+                &memory,
+                dictionaries.as_deref(),
+                &document,
+            );
         } else {
-            warnings.push("AI extract was requested but no AI provider is configured".to_string());
+            warnings.push(
+                "AI extract was requested but the request has no AI credentials (ai.apiKey)"
+                    .to_string(),
+            );
         }
     }
 
     let mut ai_reviewed = 0;
     if req.ai_fallback.enabled {
-        if let Some(reviewer) = state.name_filter_services.ai.as_ref() {
-            let min_rule = confidence(
-                req.ai_fallback.min_rule_confidence,
-                0.40,
-                "aiFallback.minRuleConfidence",
-            )?;
-            let max_rule = confidence(
-                req.ai_fallback.max_rule_confidence,
-                0.82,
-                "aiFallback.maxRuleConfidence",
-            )?;
-            if min_rule > max_rule {
-                return Err(ApiError::bad_request(
-                    "aiFallback.minRuleConfidence must not exceed maxRuleConfidence",
-                ));
-            }
+        if let Some(reviewer) = ai_provider.as_ref() {
             let ambiguous: Vec<NameCandidate> = result
                 .candidates
                 .iter()
                 .filter(|candidate| {
-                    !candidate.known && (min_rule..=max_rule).contains(&candidate.score)
+                    !candidate.known
+                        && (ai_min_rule_confidence..=ai_max_rule_confidence)
+                            .contains(&candidate.score)
                 })
                 .cloned()
                 .collect();
-            let max_ai_candidates = bounded_usize(
-                req.ai_fallback.max_candidates,
-                25,
-                1,
-                50,
-                "aiFallback.maxCandidates",
-            )?;
             match reviewer
-                .review(document.text(), &ambiguous, max_ai_candidates)
+                .review(
+                    document.text(),
+                    &ambiguous,
+                    ai_max_review_candidates,
+                    ai_deadline,
+                )
                 .await
             {
                 Ok(decisions) => {
                     ai_reviewed = decisions.len();
-                    let decision_threshold = confidence(
-                        req.ai_fallback.min_confidence,
-                        0.65,
-                        "aiFallback.minConfidence",
-                    )?;
-                    apply_ai_decisions(&mut result.candidates, decisions, decision_threshold);
+                    apply_ai_decisions(&mut result.candidates, decisions, ai_review_threshold);
                 }
                 Err(error) => warnings.push(error),
             }
         } else {
-            warnings.push("AI fallback was requested but no AI provider is configured".to_string());
+            warnings.push(
+                "AI fallback was requested but the request has no AI credentials (ai.apiKey)"
+                    .to_string(),
+            );
         }
     }
 
@@ -707,9 +758,10 @@ async fn filter_names(
             ai_extracted_candidates,
             ai_reviewed,
         },
+        // Per-request: whether this request carried valid AI credentials.
         capabilities: NameFilterCapabilities {
-            ai_configured: state.name_filter_services.ai_configured(),
-            ai_provider: state.name_filter_services.ai_provider(),
+            ai_configured: ai_provider.is_some(),
+            ai_provider: ai_provider.as_ref().map(AiNameProvider::provider_name),
         },
         warnings,
     }))
@@ -743,6 +795,12 @@ fn bounded_usize(
     }
 }
 
+/// Request-scoped knobs for merging AI-extracted entities.
+struct ExtractionMerge {
+    threshold: f32,
+    include_known: bool,
+}
+
 /// Merge AI-extracted entities into the rule candidates. Entities carry only
 /// text (no spans), so occurrences are located in the scan document and
 /// mapped back to the caller's original UTF-16 input.
@@ -750,7 +808,7 @@ fn merge_extracted_candidates(
     engine: &Engine,
     candidates: &mut Vec<NameCandidate>,
     entities: Vec<AiExtractedEntity>,
-    threshold: f32,
+    merge: ExtractionMerge,
     memory: &NameFilterMemory,
     dictionaries: Option<&DictionaryOverrides>,
     document: &NameFilterDocument,
@@ -766,7 +824,7 @@ fn merge_extracted_candidates(
     let mut merged = 0usize;
     let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
     for entity in entities {
-        if entity.confidence < threshold {
+        if entity.confidence < merge.threshold {
             continue;
         }
         let entity_text = entity.text.trim();
@@ -775,6 +833,12 @@ fn merge_extracted_candidates(
             || memory.rejected_names.contains(entity_text)
             || engine.contains_name(entity_text, dictionaries)
         {
+            continue;
+        }
+        let known_value = memory.known_names.get(entity_text);
+        // Rules already honored includeKnown; AI must not re-surface the
+        // candidates the caller asked to hide.
+        if known_value.is_some() && !merge.include_known {
             continue;
         }
         let entity_utf16_length = entity_text.encode_utf16().count();
@@ -828,21 +892,31 @@ fn merge_extracted_candidates(
                 candidate.reasons.push("được AI xác nhận".to_string());
             }
         } else {
+            let is_known = known_value.is_some();
+            let mut sources = vec![NameCandidateSource::AiFallback];
+            let mut reasons = vec!["được AI trích xuất từ chương".to_string()];
+            if is_known {
+                sources.push(NameCandidateSource::BookMemory);
+                reasons.push("đã được duyệt trong bộ nhớ truyện".to_string());
+            }
             candidates.push(NameCandidate {
                 text: entity_text.to_string(),
-                suggested: memory
-                    .known_names
-                    .get(entity_text)
+                suggested: known_value
                     .cloned()
                     .or_else(|| suggested.map(str::to_string))
                     .unwrap_or_else(|| engine.suggest_name(entity_text)),
                 entity_type,
-                score: entity.confidence.clamp(0.0, 1.0),
+                // Known candidates keep the rules invariant of score 1.0.
+                score: if is_known {
+                    1.0
+                } else {
+                    entity.confidence.clamp(0.0, 1.0)
+                },
                 occurrences: ranges.len(),
                 ranges,
-                reasons: vec!["được AI trích xuất từ chương".to_string()],
-                sources: vec![NameCandidateSource::AiFallback],
-                known: memory.known_names.contains_key(entity_text),
+                reasons,
+                sources,
+                known: is_known,
             });
         }
     }
@@ -1135,7 +1209,10 @@ mod tests {
                     confidence: 0.9,
                 },
             ],
-            0.65,
+            ExtractionMerge {
+                threshold: 0.65,
+                include_known: true,
+            },
             &NameFilterMemory::default(),
             None,
             &document,
@@ -1153,5 +1230,75 @@ mod tests {
                 length: 2,
             }]
         );
+    }
+
+    fn extraction_engine_and_document() -> (Engine, NameFilterDocument) {
+        let dictionaries = DictionaryDefaults::default().build_dictionaries("萧=tiêu\n炎=viêm", "");
+        let engine = Engine::from_dicts(dictionaries);
+        let document = engine.prepare_name_filter_document("萧炎来了", None);
+        (engine, document)
+    }
+
+    fn extracted_entity(text: &str) -> AiExtractedEntity {
+        AiExtractedEntity {
+            text: text.to_string(),
+            entity_type: Some("person".to_string()),
+            suggested: None,
+            confidence: 0.9,
+        }
+    }
+
+    #[test]
+    fn extraction_merge_skips_known_names_when_include_known_is_false() {
+        let (engine, document) = extraction_engine_and_document();
+        let memory = NameFilterMemory {
+            known_names: HashMap::from([("萧炎".to_string(), "Tiêu Viêm".to_string())]),
+            rejected_names: Default::default(),
+        };
+        let mut candidates = Vec::new();
+        let merged = merge_extracted_candidates(
+            &engine,
+            &mut candidates,
+            vec![extracted_entity("萧炎")],
+            ExtractionMerge {
+                threshold: 0.65,
+                include_known: false,
+            },
+            &memory,
+            None,
+            &document,
+        );
+        assert_eq!(merged, 0);
+        assert!(candidates.is_empty());
+    }
+
+    #[test]
+    fn extraction_merge_keeps_known_score_invariant() {
+        let (engine, document) = extraction_engine_and_document();
+        let memory = NameFilterMemory {
+            known_names: HashMap::from([("萧炎".to_string(), "Tiêu Viêm".to_string())]),
+            rejected_names: Default::default(),
+        };
+        let mut candidates = Vec::new();
+        let merged = merge_extracted_candidates(
+            &engine,
+            &mut candidates,
+            vec![extracted_entity("萧炎")],
+            ExtractionMerge {
+                threshold: 0.65,
+                include_known: true,
+            },
+            &memory,
+            None,
+            &document,
+        );
+        assert_eq!(merged, 1);
+        assert_eq!(candidates.len(), 1);
+        assert!(candidates[0].known);
+        assert_eq!(candidates[0].score, 1.0);
+        assert_eq!(candidates[0].suggested, "Tiêu Viêm");
+        assert!(candidates[0]
+            .sources
+            .contains(&NameCandidateSource::BookMemory));
     }
 }
