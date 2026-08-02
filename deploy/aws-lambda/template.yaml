@@ -27,12 +27,12 @@ Parameters:
     Type: Number
     Default: 50
     MinValue: 1
-  # Must exceed the server-side AI deadline (QT_AI_DEADLINE_SECONDS, default
-  # 100s) so AI-enabled name-filter requests can finish; clients time out later
-  # still (qt-web waits 130s for AI requests).
+  # The server no longer calls AI providers (clients do), so requests are
+  # CPU-bound and finish in well under a second; 30s leaves margin for the
+  # largest allowed payloads.
   FunctionTimeout:
     Type: Number
-    Default: 120
+    Default: 30
     MinValue: 3
     MaxValue: 900
 

@@ -14,9 +14,6 @@ import type {
 } from "@/lib/types";
 
 const REQUEST_TIMEOUT_MS = 45_000;
-// Lọc tên có AI chạy nhiều lượt gọi model: server tự dừng AI ở ~100 giây và
-// Lambda cho phép 120 giây, nên client phải chờ lâu hơn cả hai mốc đó.
-const AI_REQUEST_TIMEOUT_MS = 130_000;
 
 export class ApiError extends Error {
   constructor(
@@ -116,7 +113,6 @@ export function filterChapterNames(
   endpoint: string,
   request: NameFilterRequest,
 ): Promise<NameFilterResponse> {
-  const aiEnabled = Boolean(request.aiExtract?.enabled || request.aiFallback?.enabled);
   return requestJson(
     endpointUrl(endpoint, "/names/filter"),
     {
@@ -125,6 +121,5 @@ export function filterChapterNames(
       body: JSON.stringify(request),
     },
     (value) => nameFilterResponseSchema.parse(value),
-    aiEnabled ? AI_REQUEST_TIMEOUT_MS : REQUEST_TIMEOUT_MS,
   );
 }

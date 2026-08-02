@@ -164,11 +164,7 @@ export interface NameFilterResponse {
   stats: {
     scannedCharacters: number;
     ruleCandidates: number;
-    aiExtractedCandidates: number;
-    aiReviewed: number;
-  };
-  capabilities: {
-    aiConfigured: boolean;
+    aiMergedCandidates: number;
   };
   warnings?: string[];
 }

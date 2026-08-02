@@ -26,6 +26,16 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useNameFilterMutation } from "@/hooks/use-translation";
+import {
+  applyAiDecisions,
+  baseUrlProblem,
+  extractEntities,
+  EXTRACT_MIN_CONFIDENCE,
+  resolveAiCall,
+  reviewCandidates,
+  sanitizeEntitiesForRequest,
+  selectReviewCandidates,
+} from "@/lib/ai-client";
 import { activeAiProviderConfig, type AiSettings } from "@/lib/ai-settings";
 import { ApiError } from "@/lib/api";
 import {
@@ -86,6 +96,10 @@ export function NameFilterWorkspace({
   );
   const [aiExtractEnabled, setAiExtractEnabled] = useState(false);
   const [aiEnabled, setAiEnabled] = useState(false);
+  // AI chạy ngay trong trình duyệt nên có pha riêng ngoài lượt gọi server.
+  const [aiPhase, setAiPhase] = useState<"extract" | "review" | null>(null);
+  const [aiReviewedCount, setAiReviewedCount] = useState(0);
+  const [extractProgress, setExtractProgress] = useState<[number, number] | null>(null);
   const [search, setSearch] = useState("");
   const [activeText, setActiveText] = useState<string>();
   const [candidateView, setCandidateView] = useState<"pending" | "rejected">("pending");
@@ -167,68 +181,92 @@ export function NameFilterWorkspace({
     const model = providerConfig?.model.trim() ?? "";
     if (wantsAi && aiSettings?.provider === "gemini" && !model) {
       toast.error("Gemini cần chỉ định model", {
-        description: "Nhập model (ví dụ gemini-2.5-flash) trong Cài đặt.",
+        description: "Nhập model (ví dụ gemini-3.1-flash-lite) trong Cài đặt.",
       });
       return;
     }
-    const request: NameFilterRequest = {
-      text: sourceText,
-      mode,
-      minOccurrences: mode === "qt" ? 2 : 2,
-      minConfidence: mode === "qt" ? 0.55 : 0.6,
-      maxCandidates: 300,
-      knownNames,
-      rejectedNames,
-      ...(wantsAi && aiSettings
-        ? {
-            ai: {
-              provider: aiSettings.provider,
-              apiKey,
-              ...(model ? { model } : {}),
-            },
-          }
-        : {}),
-      ...(aiExtractEnabled
-        ? { aiExtract: { enabled: true, minConfidence: 0.65 } }
-        : {}),
-      ...(aiEnabled
-        ? {
-            aiFallback: {
-              enabled: true,
-              minConfidence: 0.65,
-              minRuleConfidence: 0.4,
-              maxRuleConfidence: 0.82,
-              maxCandidates: 25,
-            },
-          }
-        : {}),
-      dictionaries: dictionaryPayload(dictionaries),
-    };
+    const baseUrlIssue = providerConfig ? baseUrlProblem(providerConfig.baseUrl) : null;
+    if (wantsAi && baseUrlIssue) {
+      toast.error("Base URL proxy không hợp lệ", {
+        description: baseUrlIssue,
+        ...openSettingsAction,
+      });
+      return;
+    }
+    const aiCall =
+      wantsAi && aiSettings && providerConfig
+        ? resolveAiCall(aiSettings.provider, providerConfig)
+        : undefined;
     const requestWorkspaceId = useWorkspaceCatalogStore.getState().activeWorkspaceId;
+    const workspaceChanged = () =>
+      useWorkspaceCatalogStore.getState().activeWorkspaceId !== requestWorkspaceId;
+    // Cảnh báo phát sinh ở client (AI chạy trong trình duyệt) gộp chung với
+    // cảnh báo server để hiển thị một chỗ.
+    const clientWarnings: string[] = [];
     try {
-      const next = await mutation.mutateAsync({ endpoint, request });
-      if (
-        useWorkspaceCatalogStore.getState().activeWorkspaceId !==
-        requestWorkspaceId
-      ) return;
+      let aiEntitiesPayload: NameFilterRequest["aiEntities"];
+      if (aiExtractEnabled && aiCall) {
+        setAiPhase("extract");
+        const extraction = await extractEntities(sourceText, aiCall, (done, total) =>
+          setExtractProgress([done, total]),
+        );
+        if (workspaceChanged()) return;
+        clientWarnings.push(...extraction.warnings);
+        const entities = sanitizeEntitiesForRequest(extraction.entities);
+        if (entities.length > 0) {
+          aiEntitiesPayload = { entities, minConfidence: EXTRACT_MIN_CONFIDENCE };
+        } else if (extraction.warnings.length === 0) {
+          clientWarnings.push("AI không trích được thực thể nào từ chương");
+        }
+      }
+      setAiPhase(null);
+      setExtractProgress(null);
+      const request: NameFilterRequest = {
+        text: sourceText,
+        mode,
+        minOccurrences: 2,
+        minConfidence: mode === "qt" ? 0.55 : 0.6,
+        maxCandidates: 300,
+        knownNames,
+        rejectedNames,
+        ...(aiEntitiesPayload ? { aiEntities: aiEntitiesPayload } : {}),
+        dictionaries: dictionaryPayload(dictionaries),
+      };
+      let next = await mutation.mutateAsync({ endpoint, request });
+      if (workspaceChanged()) return;
+      let reviewedCount = 0;
+      if (aiEnabled && aiCall) {
+        const ambiguous = selectReviewCandidates(next.candidates);
+        if (ambiguous.length > 0) {
+          setAiPhase("review");
+          const review = await reviewCandidates(sourceText, ambiguous, aiCall);
+          if (workspaceChanged()) return;
+          clientWarnings.push(...review.warnings);
+          reviewedCount = review.decisions.length;
+          next = { ...next, candidates: applyAiDecisions(next.candidates, review.decisions) };
+        }
+      }
+      const warnings = [...(next.warnings ?? []), ...clientWarnings];
+      next = { ...next, warnings };
       setResponse(next);
+      setAiReviewedCount(reviewedCount);
       setActiveText(next.candidates[0]?.text);
-      if (next.warnings?.length) {
-        toast.warning("Lọc xong nhưng dịch vụ tùy chọn có cảnh báo", {
-          description: next.warnings.join(" · "),
+      if (warnings.length) {
+        toast.warning("Lọc xong nhưng bước AI có cảnh báo", {
+          description: warnings.join(" · "),
         });
       } else {
         toast.success(`Tìm thấy ${next.candidates.length.toLocaleString("vi-VN")} ứng viên`);
       }
     } catch (error) {
-      if (
-        useWorkspaceCatalogStore.getState().activeWorkspaceId !==
-        requestWorkspaceId
-      ) return;
+      if (workspaceChanged()) return;
       const requestId = error instanceof ApiError ? error.requestId : undefined;
       toast.error(error instanceof Error ? error.message : "Không thể lọc tên", {
         description: requestId ? `Request ID: ${requestId}` : undefined,
       });
+    } finally {
+      setAiPhase(null);
+      setExtractProgress(null);
     }
   }
 
@@ -315,9 +353,21 @@ export function NameFilterWorkspace({
             warnIfAiKeyMissing(checked);
           }}
         />
-        <Button type="button" disabled={mutation.isPending || !defaultsReady} onClick={() => void runFilter()}>
-          {mutation.isPending ? <LoaderCircle className="animate-spin" /> : <Filter />}
-          Lọc tên
+        <Button
+          type="button"
+          disabled={mutation.isPending || aiPhase !== null || !defaultsReady}
+          onClick={() => void runFilter()}
+        >
+          {mutation.isPending || aiPhase !== null ? (
+            <LoaderCircle className="animate-spin" />
+          ) : (
+            <Filter />
+          )}
+          {aiPhase === "extract"
+            ? `Trích AI${extractProgress ? ` ${extractProgress[0]}/${extractProgress[1]}` : ""}…`
+            : aiPhase === "review"
+              ? "Duyệt AI…"
+              : "Lọc tên"}
         </Button>
       </div>
 
@@ -506,8 +556,7 @@ export function NameFilterWorkspace({
         <div className="truncate">
           {response ? (
             <>
-              Quy tắc {response.stats.ruleCandidates} · AI trích {response.stats.aiExtractedCandidates} · AI đã duyệt {response.stats.aiReviewed}
-              {response.capabilities.aiConfigured ? ` · AI: ${response.capabilities.aiProvider ?? "?"}` : ""}
+              Quy tắc {response.stats.ruleCandidates} · AI trích {response.stats.aiMergedCandidates} · AI đã duyệt {aiReviewedCount}
             </>
           ) : <>Bộ nhớ tên được lưu theo không gian làm việc và dùng lại ở chương kế tiếp.</>}
         </div>

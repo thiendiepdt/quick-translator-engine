@@ -5,7 +5,7 @@ use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
 use tower::ServiceExt; // for `oneshot`
 
-use qt_api::{build_router, AppState, NameFilterServices};
+use qt_api::{build_router, AppState};
 use qt_core::{Dictionaries, DictionaryDefaults, Engine};
 
 fn test_state() -> Arc<AppState> {
@@ -24,7 +24,6 @@ fn test_state() -> Arc<AppState> {
             pronouns: "他=hắn".to_string(),
             ..DictionaryDefaults::default()
         }),
-        name_filter_services: NameFilterServices::default(),
     })
 }
 
@@ -636,7 +635,6 @@ async fn filters_names_with_book_memory_and_utf16_ranges() {
     assert_eq!(candidate["ranges"][0]["start"], 2);
     assert_eq!(candidate["ranges"][0]["length"], 3);
     assert_eq!(body["stats"]["scannedCharacters"], 7);
-    assert_eq!(body["capabilities"]["aiConfigured"], false);
 }
 
 #[tokio::test]
@@ -700,138 +698,169 @@ async fn name_filter_reports_unconfigured_optional_providers_without_failing() {
         "/names/filter",
         serde_json::json!({
             "text": "张先生走来。",
-            "ner": { "enabled": true },
-            "aiExtract": { "enabled": true },
-            "aiFallback": { "enabled": true }
-        }),
-    )
-    .await;
-    assert_eq!(resp.status(), StatusCode::OK);
-    let body: serde_json::Value = serde_json::from_str(&body_string(resp).await).unwrap();
-    assert_eq!(body["warnings"].as_array().unwrap().len(), 3);
-}
-
-#[tokio::test]
-async fn name_filter_warns_when_ai_enabled_without_credentials() {
-    let resp = post_json(
-        build_router(test_state()),
-        "/names/filter",
-        serde_json::json!({
-            "text": "张先生走来。",
-            "aiExtract": { "enabled": true },
-            "aiFallback": { "enabled": true }
+            "ner": { "enabled": true }
         }),
     )
     .await;
     assert_eq!(resp.status(), StatusCode::OK);
     let body: serde_json::Value = serde_json::from_str(&body_string(resp).await).unwrap();
     let warnings = body["warnings"].as_array().unwrap();
-    assert_eq!(
-        warnings
-            .iter()
-            .filter(|warning| warning.as_str().unwrap().contains("no AI credentials"))
-            .count(),
-        2
-    );
-    assert_eq!(body["capabilities"]["aiConfigured"], false);
+    assert_eq!(warnings.len(), 1);
+    assert!(warnings[0].as_str().unwrap().contains("aiEntities"));
 }
 
 #[tokio::test]
-async fn name_filter_rejects_malformed_ai_credentials_before_any_work() {
-    // Unknown provider.
+async fn name_filter_merges_caller_supplied_ai_entities() {
     let resp = post_json(
         build_router(test_state()),
         "/names/filter",
         serde_json::json!({
-            "text": "张先生走来。",
-            "ai": { "provider": "openai", "apiKey": "sk-test" }
+            "text": "😀张先生走来。",
+            "aiEntities": {
+                "entities": [
+                    // New candidate the rules cannot see (not in any dictionary).
+                    { "text": "张先生", "entityType": "person", "suggested": "Trương Tiên Sinh", "confidence": 0.9 },
+                    // Below the merge threshold: ignored.
+                    { "text": "走来", "confidence": 0.2 }
+                ]
+            }
         }),
     )
     .await;
-    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
-    assert!(body_string(resp).await.contains("ai.provider"));
-
-    // Empty key.
-    let resp = post_json(
-        build_router(test_state()),
-        "/names/filter",
-        serde_json::json!({
-            "text": "张先生走来。",
-            "ai": { "provider": "deepseek", "apiKey": "  " }
-        }),
-    )
-    .await;
-    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
-    assert!(body_string(resp).await.contains("ai.apiKey"));
-
-    // Gemini without a model.
-    let resp = post_json(
-        build_router(test_state()),
-        "/names/filter",
-        serde_json::json!({
-            "text": "张先生走来。",
-            "ai": { "provider": "gemini", "apiKey": "AIza-test" }
-        }),
-    )
-    .await;
-    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
-    assert!(body_string(resp).await.contains("ai.model is required"));
-
-    // Model with a path separator (would inject into the Gemini URL).
-    let resp = post_json(
-        build_router(test_state()),
-        "/names/filter",
-        serde_json::json!({
-            "text": "张先生走来。",
-            "ai": { "provider": "gemini", "apiKey": "AIza-test", "model": "models/../evil" }
-        }),
-    )
-    .await;
-    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
-    assert!(body_string(resp).await.contains("ai.model must contain"));
-
-    // Base URLs are never accepted from the request (SSRF guard).
-    let resp = post_json(
-        build_router(test_state()),
-        "/names/filter",
-        serde_json::json!({
-            "text": "张先生走来。",
-            "ai": { "provider": "deepseek", "apiKey": "sk-test", "baseUrl": "http://169.254.169.254" }
-        }),
-    )
-    .await;
-    assert!(resp.status().is_client_error());
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body: serde_json::Value = serde_json::from_str(&body_string(resp).await).unwrap();
+    assert_eq!(body["stats"]["aiMergedCandidates"], 1);
+    let candidate = body["candidates"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|candidate| candidate["text"] == "张先生")
+        .expect("AI entity merged as candidate");
+    assert_eq!(candidate["suggested"], "Trương Tiên Sinh");
+    assert_eq!(candidate["entityType"], "person");
+    // Entities carry no spans; occurrences are located in the scan document
+    // and mapped back to the caller's UTF-16 input (emoji shifts by 2).
+    assert_eq!(candidate["ranges"][0]["start"], 2);
+    assert_eq!(candidate["ranges"][0]["length"], 3);
+    assert!(candidate["sources"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|source| source == "ai-fallback"));
+    assert!(body["candidates"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|candidate| candidate["text"] != "走来"));
 }
 
 #[tokio::test]
-async fn name_filter_validates_ai_options_even_when_disabled() {
+async fn name_filter_honors_ai_entities_merge_threshold() {
     let resp = post_json(
         build_router(test_state()),
         "/names/filter",
         serde_json::json!({
             "text": "张先生走来。",
-            "aiExtract": { "enabled": false, "minConfidence": 5.0 }
+            "aiEntities": {
+                "minConfidence": 0.1,
+                "entities": [
+                    { "text": "张先生", "confidence": 0.2 }
+                ]
+            }
+        }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body: serde_json::Value = serde_json::from_str(&body_string(resp).await).unwrap();
+    assert_eq!(body["stats"]["aiMergedCandidates"], 1);
+}
+
+#[tokio::test]
+async fn name_filter_rejects_invalid_ai_entities_before_any_work() {
+    // Legacy server-side AI fields are gone: requests carrying them fail.
+    let resp = post_json(
+        build_router(test_state()),
+        "/names/filter",
+        serde_json::json!({
+            "text": "张先生走来。",
+            "ai": { "provider": "deepseek", "apiKey": "sk-test" }
+        }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+
+    // Unknown fields inside aiEntities (e.g. a smuggled baseUrl) fail too.
+    let resp = post_json(
+        build_router(test_state()),
+        "/names/filter",
+        serde_json::json!({
+            "text": "张先生走来。",
+            "aiEntities": { "entities": [], "baseUrl": "http://169.254.169.254" }
+        }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+
+    // Out-of-range merge threshold.
+    let resp = post_json(
+        build_router(test_state()),
+        "/names/filter",
+        serde_json::json!({
+            "text": "张先生走来。",
+            "aiEntities": { "entities": [], "minConfidence": 5.0 }
         }),
     )
     .await;
     assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
     assert!(body_string(resp)
         .await
-        .contains("aiExtract.minConfidence must be between 0 and 1"));
+        .contains("aiEntities.minConfidence must be between 0 and 1"));
 
+    // Empty entity text.
     let resp = post_json(
         build_router(test_state()),
         "/names/filter",
         serde_json::json!({
             "text": "张先生走来。",
-            "aiFallback": { "enabled": false, "maxCandidates": 500 }
+            "aiEntities": { "entities": [{ "text": "  " }] }
+        }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    assert!(body_string(resp).await.contains("aiEntities.entities[].text"));
+
+    // Out-of-range entity confidence.
+    let resp = post_json(
+        build_router(test_state()),
+        "/names/filter",
+        serde_json::json!({
+            "text": "张先生走来。",
+            "aiEntities": { "entities": [{ "text": "张先生", "confidence": 7.5 }] }
         }),
     )
     .await;
     assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
     assert!(body_string(resp)
         .await
-        .contains("aiFallback.maxCandidates must be between 1 and 50"));
+        .contains("aiEntities.entities[].confidence"));
+
+    // Too many entities.
+    let entities: Vec<serde_json::Value> = (0..501)
+        .map(|index| serde_json::json!({ "text": format!("名字{index}") }))
+        .collect();
+    let resp = post_json(
+        build_router(test_state()),
+        "/names/filter",
+        serde_json::json!({
+            "text": "张先生走来。",
+            "aiEntities": { "entities": entities }
+        }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    assert!(body_string(resp)
+        .await
+        .contains("aiEntities.entities must not exceed 500"));
 }
 
 #[tokio::test]

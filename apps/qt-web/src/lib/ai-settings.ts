@@ -5,16 +5,19 @@ export type AiProvider = "deepseek" | "gemini";
 export interface AiProviderConfig {
   apiKey: string;
   model: string;
+  /** Endpoint proxy tùy chọn; trống = endpoint chính thức của provider. */
+  baseUrl: string;
 }
 
 /**
- * Cấu hình AI của chính người dùng cho tính năng lọc tên. Server không giữ
- * API key nào — key ở đây được gửi kèm từng request lọc tên có bật AI và
- * provider tính phí trực tiếp vào tài khoản của người dùng.
+ * Cấu hình AI của chính người dùng cho tính năng lọc tên. Trình duyệt gọi
+ * thẳng provider (hoặc proxy tự cấu hình) bằng key này — key không bao giờ
+ * đi qua server của mình và provider tính phí trực tiếp vào tài khoản của
+ * người dùng.
  *
- * Key/model được lưu tách riêng theo từng provider: đổi provider trong
- * dropdown chỉ đổi cấu hình đang dùng, không bao giờ mang key của công ty
- * này gửi sang endpoint của công ty kia.
+ * Key/model/baseUrl được lưu tách riêng theo từng provider: đổi provider
+ * trong dropdown chỉ đổi cấu hình đang dùng, không bao giờ mang key của công
+ * ty này gửi sang endpoint của công ty kia.
  */
 export interface AiSettings {
   provider: AiProvider;
@@ -22,13 +25,14 @@ export interface AiSettings {
   gemini: AiProviderConfig;
 }
 
-/** Model DeepSeek điền sẵn cho người dùng mới; sửa được trong Cài đặt. */
+/** Model điền sẵn cho người dùng mới theo từng provider; sửa được trong Cài đặt. */
 export const DEFAULT_DEEPSEEK_MODEL = "deepseek-v4-flash";
+export const DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite";
 
 export const defaultAiSettings: AiSettings = {
   provider: "deepseek",
-  deepseek: { apiKey: "", model: DEFAULT_DEEPSEEK_MODEL },
-  gemini: { apiKey: "", model: "" },
+  deepseek: { apiKey: "", model: DEFAULT_DEEPSEEK_MODEL, baseUrl: "" },
+  gemini: { apiKey: "", model: DEFAULT_GEMINI_MODEL, baseUrl: "" },
 };
 
 export function isAiProvider(value: unknown): value is AiProvider {
@@ -47,6 +51,7 @@ function normalizeConfig(value: unknown, defaultModel = ""): AiProviderConfig {
   return {
     apiKey: typeof record.apiKey === "string" ? record.apiKey.trim() : "",
     model: model || defaultModel,
+    baseUrl: typeof record.baseUrl === "string" ? record.baseUrl.trim() : "",
   };
 }
 
@@ -58,7 +63,7 @@ export function readStoredAiSettings(): AiSettings {
     return {
       provider: isAiProvider(parsed?.provider) ? parsed.provider : "deepseek",
       deepseek: normalizeConfig(parsed?.deepseek, DEFAULT_DEEPSEEK_MODEL),
-      gemini: normalizeConfig(parsed?.gemini),
+      gemini: normalizeConfig(parsed?.gemini, DEFAULT_GEMINI_MODEL),
     };
   } catch {
     return defaultAiSettings;

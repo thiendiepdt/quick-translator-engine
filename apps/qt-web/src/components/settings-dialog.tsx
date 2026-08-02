@@ -192,15 +192,24 @@ function AiCredentialsFields({
         onChange={(event) => updateActive({ model: event.target.value })}
         placeholder={
           aiSettings.provider === "gemini"
-            ? "Model (bắt buộc, ví dụ gemini-2.5-flash)"
+            ? "Model (mặc định gemini-3.1-flash-lite)"
             : "Model (mặc định deepseek-v4-flash)"
         }
       />
+      <Input
+        aria-label="Base URL proxy AI"
+        autoComplete="off"
+        spellCheck={false}
+        className="font-mono text-xs"
+        value={active.baseUrl}
+        onChange={(event) => updateActive({ baseUrl: event.target.value })}
+        placeholder="Base URL proxy (tùy chọn — trống là endpoint chính thức)"
+      />
       <p className="text-xs text-muted-foreground">
-        Key chỉ lưu trên trình duyệt này, tách riêng theo từng nhà cung cấp, và gửi kèm
-        request lọc tên có bật AI; chi phí tính vào tài khoản{" "}
-        {aiSettings.provider === "gemini" ? "Google AI" : "DeepSeek"} của bạn. Server không
-        lưu key.
+        Key chỉ lưu trên trình duyệt này, tách riêng theo từng nhà cung cấp. Trình duyệt gọi
+        thẳng {aiSettings.provider === "gemini" ? "Google AI" : "DeepSeek"} (hoặc proxy của
+        bạn — endpoint cần cho phép CORS, hỗ trợ cả http://localhost); key không đi qua
+        server của app. Chi phí tính vào tài khoản của bạn.
       </p>
     </div>
   );

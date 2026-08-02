@@ -18,9 +18,10 @@ tiếp Lambda. Worker chỉ proxy sáu route:
 - `POST /names/filter`
 
 Request body được đọc có giới hạn 5 MiB để tạo payload hash cho SigV4. Cookie và
-`Authorization` của client không được forward tới AWS. API key AI của người dùng (field
-`ai` trong body `/names/filter`) đi nguyên vẹn trong body tới Lambda; Worker không log
-request body. Response defaults được browser cache một giờ; các response khác luôn có
+`Authorization` của client không được forward tới AWS. Body đi nguyên vẹn tới Lambda và
+Worker không log request body. API key AI của người dùng không bao giờ đi qua Worker:
+trình duyệt gọi thẳng provider, request `/names/filter` chỉ chứa entity đã trích
+(`aiEntities`). Response defaults được browser cache một giờ; các response khác luôn có
 `Cache-Control: no-store`. Retry tới Lambda bị tắt để một chương không bị invoke lặp.
 
 ## Yêu cầu
@@ -139,8 +140,8 @@ không gọi AWS thật.
 SigV4 chỉ xác thực Worker với Lambda. Module này chưa xác thực end user; CORS chỉ chặn
 browser, không chặn bot/cURL (request không có `Origin` vẫn được proxy). Vì vậy:
 
-- Chi phí AI không phải rủi ro của operator: `/names/filter` chỉ chạy AI bằng API key
-  do chính request mang theo, server không giữ key nào.
+- Chi phí AI không phải rủi ro của operator: server không gọi AI — client tự gọi
+  provider bằng key của mình và chỉ gửi kết quả dạng dữ liệu trơ.
 - Trước khi public cho nhiều người dùng, cấu hình Cloudflare Access/API token, WAF và
   rate limiting trên custom domain (các route chưa có rate limit trong code, kẻ xấu vẫn
   đốt được compute Lambda).

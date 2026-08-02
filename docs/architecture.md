@@ -113,10 +113,11 @@ dictionary custom được parse thành state riêng cho request. Mỗi lần d�
 Batch giữ thứ tự và xử lý lần lượt từng item để không làm đầy blocking pool trong một
 request. Xem schema tại [api.md](api.md).
 
-Tính năng AI của `/names/filter` (DeepSeek/Gemini) dùng credentials do chính request
-mang theo trong field `ai` — server không giữ API key provider nào, nên không có credit
-phía server để bị lạm dụng. Base URL provider chỉ đọc từ environment để client không thể
-trỏ server tới host tùy ý.
+`/names/filter` thuần rules — server không gọi AI và không nhận API key nào. Tính năng
+AI của lọc tên chạy ở client: qt-web gọi thẳng DeepSeek/Gemini (hoặc proxy người dùng
+cấu hình) từ trình duyệt rồi gửi entity đã trích trong `aiEntities` như dữ liệu trơ.
+Server không bao giờ fetch URL từ request, nên không có bề mặt SSRF lẫn credit phía
+server để bị lạm dụng.
 
 ### `qt-lambda`
 

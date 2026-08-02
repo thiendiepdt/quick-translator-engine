@@ -17,8 +17,8 @@ mới.
 - Region đề xuất cho người dùng Việt Nam: `ap-southeast-1` (Singapore).
 - Kiến trúc: ARM64.
 - Memory: 1.769 MB, tương đương khoảng một vCPU Lambda.
-- Timeout: 120 giây (parameter `FunctionTimeout`) — đủ cho lọc tên bật AI với deadline
-  AI phía server 100 giây; request dịch thường xong trong dưới một giây.
+- Timeout: 30 giây (parameter `FunctionTimeout`) — server không gọi AI (client tự gọi),
+  mọi request đều CPU-bound và thường xong trong dưới một giây.
 - Reserved concurrency: 50 để giới hạn burst và chi phí.
 - Function URL auth: `AWS_IAM`.
 - CloudWatch log retention: 14 ngày.
@@ -105,22 +105,12 @@ hay rate limiting.
 
 ## AI lọc name tùy chọn
 
-`POST /names/filter` luôn có QT/hybrid rules chạy local. AI extract và AI fallback là
-opt-in và dùng API key do chính request mang theo (field `ai`: DeepSeek hoặc Gemini) —
-Lambda **không** cần và không nhận bất kỳ API key AI nào trong environment. Chi phí AI
-tính vào tài khoản provider của caller, nên endpoint public không có credit phía server
-để bị lạm dụng; qt-web có ô nhập key trong dialog Cài đặt (lưu ở localStorage của
-người dùng).
-
-Environment chỉ còn hai nhóm cấu hình AI:
-
-- `QT_DEEPSEEK_BASE_URL` / `QT_GEMINI_BASE_URL`: override endpoint provider cho
-  test/proxy. Request không bao giờ được phép đổi base URL (chống SSRF).
-- `QT_AI_DEADLINE_SECONDS` (mặc định 100): tổng thời gian AI mỗi request, phải nhỏ hơn
-  `FunctionTimeout`.
-
-Request provider lỗi vẫn trả kết quả rules kèm `warnings`, do đó một lỗi mạng ngoài
-không làm mất toàn bộ kết quả lọc name.
+`POST /names/filter` chỉ chạy QT/hybrid rules trên Lambda. Tính năng AI (trích entity,
+duyệt ứng viên) chạy hoàn toàn ở client: qt-web gọi thẳng DeepSeek/Gemini (hoặc proxy
+người dùng tự cấu hình) từ trình duyệt bằng key trong dialog Cài đặt, rồi gửi entity đã
+trích trong field `aiEntities` như dữ liệu trơ. Lambda **không** gọi AI, không nhận API
+key nào trong environment lẫn request, và không fetch URL nào từ request — không còn
+biến môi trường AI nào để cấu hình.
 
 ## Request
 

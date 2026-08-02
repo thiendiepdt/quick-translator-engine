@@ -17,9 +17,9 @@ công cụ xử lý văn bản.
 - Ánh xạ source ↔ target bằng offset UTF-16 để dùng trực tiếp trong JavaScript UI.
 - CLI đọc UTF-8 từ `stdin`, ghi bản dịch ra `stdout`.
 - HTTP API hỗ trợ dịch đơn, dịch batch, tùy chọn engine và ranges.
-- Lọc name theo hai mode: QT-compatible hoặc hybrid rules + memory theo truyện; có thể
-  bật thêm AI extract (đọc cả chương) và AI fallback (duyệt candidate mơ hồ) qua
-  DeepSeek hoặc Gemini.
+- Lọc name theo hai mode: QT-compatible hoặc hybrid rules + memory theo truyện; web app
+  có thể bật thêm AI trích entity và AI duyệt candidate mơ hồ — gọi DeepSeek/Gemini
+  (hoặc proxy tự cấu hình) thẳng từ trình duyệt bằng key của người dùng.
 - Native AWS Lambda entrypoint dùng lại nguyên Axum router, kèm SAM template ARM64.
 - Cloudflare Worker gateway ký SigV4 tới Lambda Function URL dùng `AWS_IAM`.
 - React web app để dịch theo chương, tùy biến dictionary và đối chiếu source/output bằng
@@ -131,10 +131,10 @@ phù hợp; xem [SECURITY.md](SECURITY.md).
 
 API contract đầy đủ nằm tại [docs/api.md](docs/api.md).
 
-Tính năng AI tùy chọn của `/names/filter` dùng API key do chính request mang theo
-(field `ai`, DeepSeek hoặc Gemini) — server không giữ key AI nào. Request không bật AI
-thì rules vẫn chạy độc lập, không phát sinh network call. Chi tiết tại
-[docs/engine/name-filter.md](docs/engine/name-filter.md#ai-provider-deepseek--gemini).
+Server không gọi AI và không nhận API key nào: tính năng AI của lọc tên chạy ở client
+(trình duyệt gọi thẳng DeepSeek/Gemini bằng key của người dùng rồi gửi entity đã trích
+trong `aiEntities`). `/names/filter` thuần rules, không phát sinh network call. Chi tiết
+tại [docs/engine/name-filter.md](docs/engine/name-filter.md#ai-chạy-phía-client-deepseek--gemini).
 
 ## Chạy web app
 

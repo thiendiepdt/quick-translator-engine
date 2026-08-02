@@ -2,7 +2,8 @@
 
 Module `qt-core::name_filter` tách việc **đề xuất candidate** khỏi thao tác ghi Names2.
 Core không gọi network và không giữ state theo người dùng; caller truyền book memory vào
-mỗi lần lọc. API ghép thêm AI extract và AI fallback (DeepSeek/Gemini).
+mỗi lần lọc. Client có thể ghép thêm AI (DeepSeek/Gemini, chạy phía client) — trích
+entity gửi kèm request và duyệt lại ứng viên mơ hồ trên response.
 
 ## Chuẩn hóa input
 
@@ -104,49 +105,40 @@ API stateless: client phải gửi memory đúng truyện trong request. `qt-web
 profile theo mã truyện, tự đưa accepted entry vào draft Names2 và gỡ entry đó khi reject
 hoặc xóa profile. CLI nhận `--known-names-file`/`--rejected-names-file`.
 
-## AI provider (DeepSeek / Gemini)
+## AI chạy phía client (DeepSeek / Gemini)
 
-ONNX NER đã bị gỡ. Vai trò phát hiện entity ngoài rules giờ do một AI provider đảm
-nhận. Server không giữ API key: mỗi request bật AI mang credentials của chính caller
-trong field `ai` (`provider` `deepseek`/`gemini`, `apiKey`, `model` — bắt buộc với
-Gemini, mặc định `deepseek-chat` với DeepSeek). Key chỉ sống trong request, không được
-lưu hay log, và chi phí tính vào tài khoản provider của caller. Environment chỉ còn cấu
-hình hạ tầng:
+ONNX NER đã bị gỡ, và server cũng không gọi AI: toàn bộ lượt gọi model chạy ở client
+(`apps/qt-web/src/lib/ai-client.ts` — trình duyệt gọi thẳng provider bằng key của người
+dùng, hỗ trợ cả base URL proxy tự cấu hình, kể cả `http://localhost`). Server chỉ nhận
+kết quả dưới dạng dữ liệu trơ và không bao giờ thấy API key hay fetch URL từ request.
 
-| Biến | Mặc định | Ý nghĩa |
-| --- | --- | --- |
-| `QT_DEEPSEEK_BASE_URL` | `https://api.deepseek.com` | Endpoint OpenAI-compatible (test/proxy) |
-| `QT_GEMINI_BASE_URL` | `https://generativelanguage.googleapis.com` | Endpoint Gemini (test/proxy) |
-| `QT_AI_DEADLINE_SECONDS` | `100` | Deadline tổng cho AI extract + fallback trong một request |
+AI đóng hai vai trò độc lập:
 
-Base URL không bao giờ nhận từ request để client không thể trỏ server tới host tùy ý.
+### Trích xuất toàn chương → gửi `aiEntities`
 
-Provider phục vụ hai vai trò độc lập trong `POST /names/filter`:
-
-### `aiExtract` — trích xuất toàn chương
-
-Gửi cả chương (chia chunk ≤15k ký tự theo dòng, giống flow Gemini của QT2025; dòng dài
-hơn giới hạn bị cắt tiếp theo ký tự nên không chunk nào vượt 15k) và yêu cầu trích mọi
-entity danh từ riêng: nhân vật kể cả biệt danh, địa danh, tổ chức, công pháp/pháp bảo,
-tên sách. Các chunk được gọi song song (tối đa 4 request cùng lúc) trong deadline AI
-chung của request; chạm deadline thì entity của các chunk đã xong vẫn được merge, kèm
-warning. Đây là thay thế cho ONNX NER và là nguồn duy nhất bắt được:
+Client chia chương thành chunk ≤15k ký tự theo dòng (giống flow Gemini của QT2025; dòng
+dài hơn giới hạn bị cắt tiếp theo ký tự), gọi song song tối đa 4 request, chunk lỗi
+thành warning còn chunk xong vẫn được giữ. Đây là thay thế cho ONNX NER và là nguồn duy
+nhất bắt được:
 
 - tên phiên âm phương Tây (`艾德里安`, `贝尔纳` — rules bó tay vì stopword `尔`, không họ
   Trung, dấu `·` cắt run ký tự Hán) với suggested là dạng Latin gốc (`Adrian`,
   `Dolores Jane Umbridge`);
 - biệt danh/gọi tắt (`老冯`) và entity chỉ xuất hiện một lần.
 
-Server chỉ nhận entity có mặt nguyên văn trong scan text (định vị occurrence và map range
-về input gốc), loại entity đã có trong Names/Names2 hoặc rejected memory, rồi merge với
-candidate rules — trùng thì cộng dồn confidence, mới thì thêm với source `ai-fallback`.
+Entity trích được gửi lên `POST /names/filter` trong `aiEntities` (tối đa 500, ngưỡng
+merge mặc định 0.65). Server chỉ merge entity có mặt nguyên văn trong scan text (định vị
+occurrence và map range về input gốc), loại entity đã có trong Names/Names2 hoặc
+rejected memory, rồi merge với candidate rules — trùng thì cộng dồn confidence, mới thì
+thêm với source `ai-fallback`.
 
-### `aiFallback` — duyệt candidate mơ hồ
+### Duyệt candidate mơ hồ (hoàn toàn phía client)
 
-AI không tự sinh danh sách ở vai trò này. API chỉ gửi tối đa 50 candidate có score trong
-vùng mơ hồ, kèm một context ngắn. Structured output chỉ được phép quyết định keep/drop,
-entity type, confidence và sửa suggested value. Server kiểm tra mọi decision phải thuộc
-candidate đầu vào; lỗi/timeout trả warning và giữ kết quả rules.
+Sau khi có response, client chọn tối đa 25 candidate chưa biết có score trong vùng mơ hồ
+(0.40–0.82), gửi kèm context ngắn cho AI với structured output chỉ được phép quyết định
+keep/drop, entity type, confidence và sửa suggested value. Client kiểm tra mọi decision
+phải thuộc candidate đầu vào rồi áp thẳng lên danh sách hiển thị; lỗi/timeout thành
+warning và giữ nguyên kết quả rules.
 
 ## Benchmark
 
