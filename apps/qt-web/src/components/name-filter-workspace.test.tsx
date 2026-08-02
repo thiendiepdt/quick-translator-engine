@@ -304,6 +304,24 @@ describe("name filter mode preference", () => {
     expect(warning).not.toHaveBeenCalled();
   });
 
+  it("clears the source chapter for a new paste and restores it via undo", async () => {
+    const message = vi.spyOn(toast, "message").mockReturnValue("toast-id");
+    const user = userEvent.setup();
+    useWorkspaceStore.getState().setSourceText("旧章节");
+    renderWorkspace();
+
+    await user.click(
+      screen.getByRole("button", { name: "Xóa chương nguồn để dán chương mới" }),
+    );
+
+    expect(useWorkspaceStore.getState().sourceText).toBe("");
+    const options = message.mock.calls[0]?.[1] as
+      | { action?: { onClick: () => void } }
+      | undefined;
+    options?.action?.onClick();
+    expect(useWorkspaceStore.getState().sourceText).toBe("旧章节");
+  });
+
   it("undoes approval without rejecting the name", async () => {
     useWorkspaceStore.getState().setNameFilterResponse({
       candidates: [
