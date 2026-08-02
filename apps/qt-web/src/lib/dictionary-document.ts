@@ -33,6 +33,18 @@ export function isValueOnlyDictionary(key: DictionaryKey): boolean {
   return key === "ignoredChinesePhrases";
 }
 
+/**
+ * Nối nội dung nhập thêm (file/clipboard) vào cuối từ điển: dictionary là
+ * danh sách cộng dồn nên nhập thêm không được phép đè phần đang có. Tôn trọng
+ * kiểu xuống dòng của file gốc khi phải chèn dấu ngắt.
+ */
+export function appendDictionaryText(existing: string, incoming: string): string {
+  if (!existing.trim()) return incoming;
+  const lineEnding = existing.includes("\r\n") ? "\r\n" : "\n";
+  const separator = existing.endsWith("\n") ? "" : lineEnding;
+  return existing + separator + incoming;
+}
+
 export function getDictionaryDocumentStats(
   content: string,
   dictionaryKey: DictionaryKey,
