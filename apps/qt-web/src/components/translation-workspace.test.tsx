@@ -6,6 +6,7 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TranslationWorkspace } from "@/components/translation-workspace";
@@ -53,7 +54,31 @@ beforeEach(() => {
   useWorkspaceStore.getState().loadSample();
 });
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
+
+describe("quick source clear", () => {
+  it("clears the source for a new paste and restores it via undo", async () => {
+    const message = vi.spyOn(toast, "message").mockReturnValue("toast-id");
+    const user = userEvent.setup();
+    useWorkspaceStore.getState().setSourceText("旧章节");
+    renderWorkspace();
+
+    await user.click(
+      screen.getByRole("button", { name: "Xóa nguyên văn để dán chương mới" }),
+    );
+
+    expect(useWorkspaceStore.getState().sourceText).toBe("");
+    // "Hoàn tác" trong toast trả lại đúng chương vừa xóa.
+    const options = message.mock.calls[0]?.[1] as
+      | { action?: { onClick: () => void } }
+      | undefined;
+    options?.action?.onClick();
+    expect(useWorkspaceStore.getState().sourceText).toBe("旧章节");
+  });
+});
 
 describe("translation range pin", () => {
   it("keeps the translation action next to the source text", async () => {

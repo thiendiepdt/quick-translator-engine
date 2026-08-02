@@ -1,6 +1,7 @@
 import {
   BrainCircuit,
   Check,
+  Eraser,
   Filter,
   LoaderCircle,
   RotateCcw,
@@ -10,7 +11,7 @@ import {
   TriangleAlert,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -103,6 +104,7 @@ export function NameFilterWorkspace({
   const [search, setSearch] = useState("");
   const [activeText, setActiveText] = useState<string>();
   const [candidateView, setCandidateView] = useState<"pending" | "rejected">("pending");
+  const sourceTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     storeNameFilterMode(mode);
@@ -155,6 +157,16 @@ export function NameFilterWorkspace({
     toast.warning("Tính năng AI cần API key của bạn", {
       description: "Nhập key DeepSeek/Gemini trong Cài đặt (biểu tượng bánh răng) trước khi lọc tên.",
       ...openSettingsAction,
+    });
+  }
+
+  // Xóa nhanh để dán chương mới, có hoàn tác qua toast phòng bấm nhầm.
+  function clearSourceForNewPaste() {
+    const previous = sourceText;
+    setSourceText("");
+    requestAnimationFrame(() => sourceTextareaRef.current?.focus());
+    toast.message("Đã xóa chương nguồn", {
+      action: { label: "Hoàn tác", onClick: () => setSourceText(previous) },
     });
   }
 
@@ -373,13 +385,25 @@ export function NameFilterWorkspace({
 
       <div className="grid min-h-0 overflow-hidden rounded-lg border bg-card shadow-[var(--shadow-panel)] lg:grid-cols-[minmax(320px,0.78fr)_minmax(520px,1.22fr)]">
         <section className="grid min-h-0 grid-rows-[46px_minmax(0,1fr)_auto] border-r" aria-label="Chương nguồn">
-          <header className="flex items-center justify-between border-b px-4">
+          <header className="flex items-center justify-between border-b py-0 pr-2 pl-4">
             <strong className="text-xs tracking-wide uppercase">Chương nguồn</strong>
-            <span className="font-mono text-[10px] text-muted-foreground">
+            <span className="flex items-center gap-1 font-mono text-[10px] text-muted-foreground">
               {sourceText.length.toLocaleString("vi-VN")} ký tự
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={!sourceText}
+                aria-label="Xóa chương nguồn để dán chương mới"
+                title="Xóa chương nguồn để dán chương mới"
+                onClick={clearSourceForNewPaste}
+              >
+                <Eraser /> Xóa
+              </Button>
             </span>
           </header>
           <Textarea
+            ref={sourceTextareaRef}
             value={sourceText}
             onChange={(event) => setSourceText(event.target.value)}
             placeholder="Dán một chương tiếng Trung vào đây…"

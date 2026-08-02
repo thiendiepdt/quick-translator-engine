@@ -1,6 +1,7 @@
 import {
   Braces,
   Copy,
+  Eraser,
   FileText,
   LoaderCircle,
   Pin,
@@ -110,6 +111,7 @@ export function TranslationWorkspace({
   const [dictionaryUpdateKey, setDictionaryUpdateKey] =
     useState<DictionaryUpdateKey>();
   const sourceScrollRef = useRef<HTMLDivElement>(null);
+  const sourceTextareaRef = useRef<HTMLTextAreaElement>(null);
   const outputScrollRef = useRef<HTMLDivElement>(null);
   const outputSelectionAnchorRef = useRef<number | undefined>(undefined);
   const outputSelectionFocusRef = useRef<number | undefined>(undefined);
@@ -289,6 +291,19 @@ export function TranslationWorkspace({
     }
   }
 
+  // Xóa nhanh để dán chương mới: chỉ xóa nguyên văn (nút "Xóa" ở thanh dưới
+  // mới reset cả bản dịch), focus lại ô nhập và cho hoàn tác qua toast để
+  // không mất chương dài vì một cú bấm nhầm.
+  function clearSourceForNewPaste() {
+    const previous = sourceText;
+    setSourceText("");
+    setSourceView("raw");
+    requestAnimationFrame(() => sourceTextareaRef.current?.focus());
+    toast.message("Đã xóa nguyên văn", {
+      action: { label: "Hoàn tác", onClick: () => setSourceText(previous) },
+    });
+  }
+
   // Bộ chuyển khung chỉ tồn tại dưới lg, nơi mỗi lần chỉ hiện được một khung.
   const paneTabs = (
     <Tabs value={mobilePane} onValueChange={(value) => setMobilePane(value as "source" | "output")} className="lg:hidden">
@@ -308,16 +323,30 @@ export function TranslationWorkspace({
           <header className="flex items-center justify-between gap-3 border-b pr-2 pl-4">
             <strong className="hidden text-xs lg:block">Nguyên văn</strong>
             {paneTabs}
-            <Tabs value={sourceView} onValueChange={(value) => setSourceView(value as "raw" | "linked")}>
-              <TabsList className="h-7">
-                <TabsTrigger value="raw" className="text-[11px]">Gốc</TabsTrigger>
-                <TabsTrigger value="linked" disabled={!response} className="text-[11px]">Đối chiếu</TabsTrigger>
-              </TabsList>
-            </Tabs>
+            <div className="flex items-center gap-1">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={!sourceText}
+                aria-label="Xóa nguyên văn để dán chương mới"
+                title="Xóa nguyên văn để dán chương mới"
+                onClick={clearSourceForNewPaste}
+              >
+                <Eraser /> Xóa
+              </Button>
+              <Tabs value={sourceView} onValueChange={(value) => setSourceView(value as "raw" | "linked")}>
+                <TabsList className="h-7">
+                  <TabsTrigger value="raw" className="text-[11px]">Gốc</TabsTrigger>
+                  <TabsTrigger value="linked" disabled={!response} className="text-[11px]">Đối chiếu</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
           </header>
           <div ref={sourceScrollRef} lang="zh-Hans" className="fine-scrollbar relative min-h-0 overflow-auto">
             {sourceView === "raw" ? (
               <Textarea
+                ref={sourceTextareaRef}
                 value={sourceText}
                 onChange={(event) => setSourceText(event.target.value)}
                 placeholder="Dán một chương tiếng Trung vào đây…"
