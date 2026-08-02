@@ -106,7 +106,7 @@ async fn translate_faithful_and_pretty() {
     let resp = post_json(
         build_router(test_state()),
         "/translate",
-        serde_json::json!({ "text": "他很好", "mode": "vietphrase" }),
+        serde_json::json!({ "text": "他很好", "mode": "vietphrase", "pretty": false }),
     )
     .await;
     assert_eq!(resp.status(), StatusCode::OK);
@@ -151,6 +151,29 @@ async fn translate_standardizes_chinese_punctuation() {
 }
 
 #[tokio::test]
+async fn translate_defaults_to_the_primary_mode_with_a_minimal_response() {
+    // A bare {"text": ...} request works: mode falls back to vietphrase-one
+    // and the response carries only `translated`.
+    let resp = post_json(
+        build_router(test_state()),
+        "/translate",
+        serde_json::json!({ "text": "很好" }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(body_string(resp).await, r#"{"translated":"Rất tốt"}"#);
+
+    let resp = post_json(
+        build_router(test_state()),
+        "/translate/batch",
+        serde_json::json!({ "texts": ["很好"] }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(body_string(resp).await, r#"{"translated":["Rất tốt"]}"#);
+}
+
+#[tokio::test]
 async fn translate_invalid_mode_is_400() {
     let resp = post_json(
         build_router(test_state()),
@@ -170,7 +193,8 @@ async fn translate_wraps_and_selects_one_meaning() {
         serde_json::json!({
             "text": "很好",
             "mode": "vietphrase-one",
-            "wrap": true
+            "wrap": true,
+            "pretty": false
         }),
     )
     .await;
@@ -185,7 +209,8 @@ async fn translate_uses_qt_scan_range_for_long_phrases() {
         "/translate",
         serde_json::json!({
             "text": "丁格尔斯泰特",
-            "mode": "vietphrase-one"
+            "mode": "vietphrase-one",
+            "pretty": false
         }),
     )
     .await;
@@ -201,7 +226,8 @@ async fn translate_exposes_engine_options() {
         serde_json::json!({
             "text": "丁格尔斯泰特",
             "mode": "vietphrase-one",
-            "scanRange": 5
+            "scanRange": 5,
+            "pretty": false
         }),
     )
     .await;
@@ -283,6 +309,7 @@ async fn translate_applies_request_names_without_leaking_between_requests() {
         serde_json::json!({
             "text": "很好",
             "mode": "vietphrase-one",
+            "pretty": false,
             "dictionaries": {
                 "names": "很好=custom name/alternative"
             }
@@ -295,7 +322,7 @@ async fn translate_applies_request_names_without_leaking_between_requests() {
     let resp = post_json(
         build_router(test_state()),
         "/translate",
-        serde_json::json!({ "text": "很好", "mode": "vietphrase-one" }),
+        serde_json::json!({ "text": "很好", "mode": "vietphrase-one", "pretty": false }),
     )
     .await;
     assert_eq!(resp.status(), StatusCode::OK);
@@ -310,6 +337,7 @@ async fn translate_applies_request_luat_nhan_and_pronouns() {
         serde_json::json!({
             "text": "在他身后",
             "mode": "vietphrase-one",
+            "pretty": false,
             "dictionaries": {
                 "luatNhan": "在{n}身后=sau lưng {n}",
                 "pronouns": "他=hắn"
@@ -329,6 +357,7 @@ async fn translate_applies_request_surname_and_suffix_dictionaries() {
         serde_json::json!({
             "text": "张先生",
             "mode": "vietphrase-one",
+            "pretty": false,
             "dictionaries": {
                 "hoNguoi": "张=Trương",
                 "hauTu": "先生=tiên sinh"
@@ -386,6 +415,7 @@ async fn translate_layers_compact_patches_over_fixed_dictionaries() {
         serde_json::json!({
             "text": "他很好",
             "mode": "vietphrase-one",
+            "pretty": false,
             "dictionaryPatches": {
                 "vietPhrase": {
                     "很好": "ổn lắm/rất ổn"
@@ -403,7 +433,7 @@ async fn translate_layers_compact_patches_over_fixed_dictionaries() {
     let resp = post_json(
         build_router(test_state()),
         "/translate",
-        serde_json::json!({ "text": "他很好", "mode": "vietphrase-one" }),
+        serde_json::json!({ "text": "他很好", "mode": "vietphrase-one", "pretty": false }),
     )
     .await;
     assert_eq!(resp.status(), StatusCode::OK);
@@ -477,7 +507,7 @@ async fn batch_preserves_order() {
     let resp = post_json(
         build_router(test_state()),
         "/translate/batch",
-        serde_json::json!({ "texts": ["他很好", "他"], "mode": "vietphrase" }),
+        serde_json::json!({ "texts": ["他很好", "他"], "mode": "vietphrase", "pretty": false }),
     )
     .await;
     assert_eq!(resp.status(), StatusCode::OK);
@@ -495,7 +525,8 @@ async fn batch_accepts_engine_options() {
         serde_json::json!({
             "texts": ["丁格尔斯泰特"],
             "mode": "vietphrase-one",
-            "scanRange": 5
+            "scanRange": 5,
+            "pretty": false
         }),
     )
     .await;
@@ -514,6 +545,7 @@ async fn batch_applies_dictionary_patches_to_every_text() {
         serde_json::json!({
             "texts": ["很好", "他"],
             "mode": "vietphrase-one",
+            "pretty": false,
             "dictionaryPatches": {
                 "vietPhrase": { "很好": "ổn lắm" },
                 "chinesePhienAmWords": { "他": "hắn" }
@@ -536,7 +568,8 @@ async fn batch_returns_parallel_range_matrices_when_requested() {
         serde_json::json!({
             "texts": ["一二", "三四万"],
             "mode": "vietphrase",
-            "ranges": true
+            "ranges": true,
+            "pretty": false
         }),
     )
     .await;

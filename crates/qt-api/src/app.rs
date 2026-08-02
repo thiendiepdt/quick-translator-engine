@@ -153,14 +153,22 @@ async fn dictionary_defaults(State(state): State<Arc<AppState>>) -> Response {
         .into_response()
 }
 
+/// `pretty` defaults to on: minimal requests get trimmed, capitalized text.
+/// Callers wanting QT-faithful raw output opt out with `"pretty": false`.
+fn default_pretty() -> bool {
+    true
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct TranslateReq {
     text: String,
-    mode: String,
+    /// Optional: a bare `{"text": ...}` request translates in the primary
+    /// mode and the response carries only `translated`.
+    mode: Option<String>,
     #[serde(default)]
     wrap: bool,
-    #[serde(default)]
+    #[serde(default = "default_pretty")]
     pretty: bool,
     #[serde(default)]
     ranges: bool,
@@ -368,10 +376,10 @@ impl From<CharRange> for RangeDto {
 #[serde(rename_all = "camelCase")]
 struct BatchReq {
     texts: Vec<String>,
-    mode: String,
+    mode: Option<String>,
     #[serde(default)]
     wrap: bool,
-    #[serde(default)]
+    #[serde(default = "default_pretty")]
     pretty: bool,
     #[serde(default)]
     ranges: bool,
@@ -427,6 +435,14 @@ fn parse_mode(s: &str) -> Option<Mode> {
         "vietphrase-one" => Some(Mode::VietPhraseOneMeaning),
         _ => None,
     }
+}
+
+const DEFAULT_TRANSLATE_MODE: &str = "vietphrase-one";
+
+/// Missing mode falls back to the primary mode so minimal requests work.
+fn requested_mode(mode: Option<&str>) -> Result<Mode, ApiError> {
+    let mode = mode.unwrap_or(DEFAULT_TRANSLATE_MODE);
+    parse_mode(mode).ok_or_else(|| ApiError::bad_request(format!("invalid mode: {mode}")))
 }
 
 /// Presentation-only normalization: trim leading whitespace, uppercase first char.
@@ -1052,8 +1068,7 @@ async fn translate_batch(
     State(state): State<Arc<AppState>>,
     Json(req): Json<BatchReq>,
 ) -> Result<Json<BatchResp>, ApiError> {
-    let mode = parse_mode(&req.mode)
-        .ok_or_else(|| ApiError::bad_request(format!("invalid mode: {}", req.mode)))?;
+    let mode = requested_mode(req.mode.as_deref())?;
     let options = request_options(
         req.wrap,
         req.scan_range,
@@ -1093,8 +1108,7 @@ async fn translate(
     State(state): State<Arc<AppState>>,
     Json(req): Json<TranslateReq>,
 ) -> Result<Json<TranslateResp>, ApiError> {
-    let mode = parse_mode(&req.mode)
-        .ok_or_else(|| ApiError::bad_request(format!("invalid mode: {}", req.mode)))?;
+    let mode = requested_mode(req.mode.as_deref())?;
     let options = request_options(
         req.wrap,
         req.scan_range,
