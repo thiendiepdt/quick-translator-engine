@@ -2,6 +2,7 @@ import {
   BrainCircuit,
   Check,
   Eraser,
+  FileUp,
   Filter,
   LoaderCircle,
   RotateCcw,
@@ -26,6 +27,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useTextFileImport } from "@/hooks/use-text-file-import";
 import { useNameFilterMutation } from "@/hooks/use-translation";
 import {
   applyAiDecisions,
@@ -105,6 +107,7 @@ export function NameFilterWorkspace({
   const [activeText, setActiveText] = useState<string>();
   const [candidateView, setCandidateView] = useState<"pending" | "rejected">("pending");
   const sourceTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     storeNameFilterMode(mode);
@@ -169,6 +172,19 @@ export function NameFilterWorkspace({
       action: { label: "Hoàn tác", onClick: () => setSourceText(previous) },
     });
   }
+
+  // Nhập chương từ file .txt (nút chọn file hoặc kéo thả vào khung nguồn).
+  const { dropActive, dropHandlers, importFile } = useTextFileImport((text, source) => {
+    const previous = sourceText;
+    setSourceText(text);
+    requestAnimationFrame(() => sourceTextareaRef.current?.focus());
+    toast.success(source.kind === "file" ? `Đã nhập ${source.name}` : "Đã dán từ clipboard", {
+      description: `${text.length.toLocaleString("vi-VN")} ký tự`,
+      ...(previous
+        ? { action: { label: "Hoàn tác", onClick: () => setSourceText(previous) } }
+        : {}),
+    });
+  });
 
   async function runFilter() {
     if (!sourceText.trim()) {
@@ -389,6 +405,29 @@ export function NameFilterWorkspace({
             <strong className="text-xs tracking-wide uppercase">Chương nguồn</strong>
             <span className="flex items-center gap-1 font-mono text-[10px] text-muted-foreground">
               {sourceText.length.toLocaleString("vi-VN")} ký tự
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".txt,.md,text/plain"
+                className="hidden"
+                aria-hidden="true"
+                tabIndex={-1}
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) void importFile(file);
+                  event.target.value = "";
+                }}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                aria-label="Nhập chương từ file văn bản"
+                title="Nhập chương từ file .txt (hoặc kéo thả file vào khung)"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <FileUp /> Nhập
+              </Button>
               <Button
                 type="button"
                 variant="ghost"
@@ -402,13 +441,20 @@ export function NameFilterWorkspace({
               </Button>
             </span>
           </header>
-          <Textarea
-            ref={sourceTextareaRef}
-            value={sourceText}
-            onChange={(event) => setSourceText(event.target.value)}
-            placeholder="Dán một chương tiếng Trung vào đây…"
-            className="h-full min-h-full resize-none rounded-none border-0 bg-transparent px-6 py-5 text-[17px] leading-8 shadow-none focus-visible:ring-0"
-          />
+          <div className="relative min-h-0" {...dropHandlers}>
+            {dropActive ? (
+              <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center border-2 border-dashed border-primary/60 bg-primary/10 text-sm font-medium text-primary backdrop-blur-[1px]">
+                Thả file văn bản để nhập chương
+              </div>
+            ) : null}
+            <Textarea
+              ref={sourceTextareaRef}
+              value={sourceText}
+              onChange={(event) => setSourceText(event.target.value)}
+              placeholder="Dán một chương tiếng Trung vào đây — hoặc kéo thả file .txt, bấm nút Nhập…"
+              className="h-full min-h-full resize-none rounded-none border-0 bg-transparent px-6 py-5 text-[17px] leading-8 shadow-none focus-visible:ring-0"
+            />
+          </div>
           <div className="flex items-center justify-between gap-3 border-t bg-muted/35 px-4 py-2 text-[10px] text-muted-foreground">
             <span>
               <strong className="text-foreground">Bộ nhớ truyện:</strong>{" "}
