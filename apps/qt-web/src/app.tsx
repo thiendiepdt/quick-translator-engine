@@ -35,6 +35,7 @@ import {
   type TranslationOptionsValues,
   translationOptionsSchema,
 } from "@/lib/schema";
+import { readStoredAiSettings, storeAiSettings } from "@/lib/ai-settings";
 import { readStoredEndpoint, storeEndpoint } from "@/lib/endpoint-setting";
 import type { TranslationRequest } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -167,6 +168,7 @@ export default function App() {
     (state) => state.activeWorkspaceId,
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [aiSettings, setAiSettings] = useState(readStoredAiSettings);
 
   const form = useForm<TranslationOptionsValues, unknown, ParsedTranslationOptions>({
     resolver: zodResolver(translationOptionsSchema),
@@ -193,6 +195,10 @@ export default function App() {
   useEffect(() => {
     storeEndpoint(endpoint);
   }, [endpoint]);
+
+  useEffect(() => {
+    storeAiSettings(aiSettings);
+  }, [aiSettings]);
 
   useEffect(() => {
     storeEngineSettings({
@@ -416,6 +422,8 @@ export default function App() {
                 key={activeWorkspaceId}
                 endpoint={normalizedEndpoint}
                 defaultsReady={dictionaryDefaultsReady}
+                aiSettings={aiSettings}
+                onOpenSettings={() => setSettingsOpen(true)}
               />
             )}
           </Suspense>
@@ -453,6 +461,8 @@ export default function App() {
           gatewayStatus={gatewayStatus}
           gatewayChecking={health.isFetching}
           onTestGateway={() => void testConnection()}
+          aiSettings={aiSettings}
+          onAiSettingsChange={setAiSettings}
         />
       </form>
     </FormProvider>

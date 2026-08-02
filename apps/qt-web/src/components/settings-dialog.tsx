@@ -11,6 +11,19 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  activeAiProviderConfig,
+  isAiProvider,
+  type AiProviderConfig,
+  type AiSettings,
+} from "@/lib/ai-settings";
 import { themes, type ThemeName } from "@/lib/theme";
 import { useTheme } from "@/lib/theme-context";
 import type { TranslationOptionsValues } from "@/lib/schema";
@@ -22,6 +35,8 @@ interface SettingsDialogProps {
   gatewayStatus: "unknown" | "ok" | "error";
   gatewayChecking: boolean;
   onTestGateway: () => void;
+  aiSettings: AiSettings;
+  onAiSettingsChange: (settings: AiSettings) => void;
 }
 
 /**
@@ -35,6 +50,8 @@ export function SettingsDialog({
   gatewayStatus,
   gatewayChecking,
   onTestGateway,
+  aiSettings,
+  onAiSettingsChange,
 }: SettingsDialogProps) {
   const {
     register,
@@ -94,6 +111,8 @@ export function SettingsDialog({
           </p>
         </div>
 
+        <AiCredentialsFields aiSettings={aiSettings} onAiSettingsChange={onAiSettingsChange} />
+
         <div className="grid gap-2">
           <Label>Giao diện</Label>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -111,6 +130,79 @@ export function SettingsDialog({
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * Key/model được đọc và ghi theo provider đang chọn — đổi provider chỉ đổi
+ * sang bộ cấu hình của provider đó, nên key DeepSeek không bao giờ bị gửi
+ * sang endpoint Google và ngược lại.
+ */
+function AiCredentialsFields({
+  aiSettings,
+  onAiSettingsChange,
+}: {
+  aiSettings: AiSettings;
+  onAiSettingsChange: (settings: AiSettings) => void;
+}) {
+  const active = activeAiProviderConfig(aiSettings);
+  const updateActive = (patch: Partial<AiProviderConfig>) => {
+    const next = { ...aiSettings };
+    next[aiSettings.provider] = { ...active, ...patch };
+    onAiSettingsChange(next);
+  };
+
+  return (
+    <div className="grid gap-2">
+      <Label htmlFor="ai-api-key">AI lọc tên (API key của bạn)</Label>
+      <div className="flex gap-2">
+        <Select
+          value={aiSettings.provider}
+          onValueChange={(value) => {
+            if (isAiProvider(value)) onAiSettingsChange({ ...aiSettings, provider: value });
+          }}
+        >
+          <SelectTrigger className="w-32 shrink-0" aria-label="Nhà cung cấp AI">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="deepseek">DeepSeek</SelectItem>
+            <SelectItem value="gemini">Gemini</SelectItem>
+          </SelectContent>
+        </Select>
+        <Input
+          id="ai-api-key"
+          type="password"
+          autoComplete="off"
+          spellCheck={false}
+          className="min-w-0 flex-1 font-mono text-xs"
+          value={active.apiKey}
+          onChange={(event) => updateActive({ apiKey: event.target.value })}
+          placeholder={
+            aiSettings.provider === "gemini" ? "API key Google AI" : "API key DeepSeek"
+          }
+        />
+      </div>
+      <Input
+        aria-label="Model AI"
+        autoComplete="off"
+        spellCheck={false}
+        className="font-mono text-xs"
+        value={active.model}
+        onChange={(event) => updateActive({ model: event.target.value })}
+        placeholder={
+          aiSettings.provider === "gemini"
+            ? "Model (bắt buộc, ví dụ gemini-2.5-flash)"
+            : "Model (mặc định deepseek-v4-flash)"
+        }
+      />
+      <p className="text-xs text-muted-foreground">
+        Key chỉ lưu trên trình duyệt này, tách riêng theo từng nhà cung cấp, và gửi kèm
+        request lọc tên có bật AI; chi phí tính vào tài khoản{" "}
+        {aiSettings.provider === "gemini" ? "Google AI" : "DeepSeek"} của bạn. Server không
+        lưu key.
+      </p>
+    </div>
   );
 }
 

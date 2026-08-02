@@ -37,11 +37,10 @@ export const nameFilterResponseSchema = z.object({
   stats: z.object({
     scannedCharacters: z.number().int().nonnegative(),
     ruleCandidates: z.number().int().nonnegative(),
-    nerCandidates: z.number().int().nonnegative(),
+    aiExtractedCandidates: z.number().int().nonnegative(),
     aiReviewed: z.number().int().nonnegative(),
   }),
   capabilities: z.object({
-    nerConfigured: z.boolean(),
     aiConfigured: z.boolean(),
   }),
   warnings: z.array(z.string()).optional(),

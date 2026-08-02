@@ -17,7 +17,8 @@ mới.
 - Region đề xuất cho người dùng Việt Nam: `ap-southeast-1` (Singapore).
 - Kiến trúc: ARM64.
 - Memory: 1.769 MB, tương đương khoảng một vCPU Lambda.
-- Timeout: 30 giây cho một chương/request.
+- Timeout: 120 giây (parameter `FunctionTimeout`) — đủ cho lọc tên bật AI với deadline
+  AI phía server 100 giây; request dịch thường xong trong dưới một giây.
 - Reserved concurrency: 50 để giới hạn burst và chi phí.
 - Function URL auth: `AWS_IAM`.
 - CloudWatch log retention: 14 ngày.
@@ -41,12 +42,6 @@ Build đúng artifact ARM64 của Lambda:
 
 ```bash
 cargo lambda build --release --arm64 --bin qt-lambda
-```
-
-Build có ONNX NER (artifact mặc định không kèm ONNX để tránh tăng cold start):
-
-```bash
-cargo lambda build --release --arm64 --bin qt-lambda --features onnx
 ```
 
 Build qua SAM. Build method Rust của SAM hiện cần bật beta feature và dùng Cargo Lambda:
@@ -108,134 +103,24 @@ Chỉ dùng `FunctionUrlAuthType=NONE` để test nhanh hoặc khi đã có mộ
 đúng cách. `NONE` biến URL thành public endpoint; engine chưa tự cung cấp authentication
 hay rate limiting.
 
-## Lambda lọc name chuyên dụng
+## AI lọc name tùy chọn
 
-`qt-ner-lambda` chỉ expose:
+`POST /names/filter` luôn có QT/hybrid rules chạy local. AI extract và AI fallback là
+opt-in và dùng API key do chính request mang theo (field `ai`: DeepSeek hoặc Gemini) —
+Lambda **không** cần và không nhận bất kỳ API key AI nào trong environment. Chi phí AI
+tính vào tài khoản provider của caller, nên endpoint public không có credit phía server
+để bị lạm dụng; qt-web có ô nhập key trong dialog Cài đặt (lưu ở localStorage của
+người dùng).
 
-- `GET /health`;
-- `GET /capabilities`;
-- `POST /names/filter`.
+Environment chỉ còn hai nhóm cấu hình AI:
 
-Binary bật ONNX mặc định, nhúng dictionaries QT2025 nhưng không nhúng model/runtime. Build
-ARM64:
+- `QT_DEEPSEEK_BASE_URL` / `QT_GEMINI_BASE_URL`: override endpoint provider cho
+  test/proxy. Request không bao giờ được phép đổi base URL (chống SSRF).
+- `QT_AI_DEADLINE_SECONDS` (mặc định 100): tổng thời gian AI mỗi request, phải nhỏ hơn
+  `FunctionTimeout`.
 
-```bash
-cargo lambda build --release --arm64 --bin qt-ner-lambda
-```
-
-Build và test event bằng SAM template riêng:
-
-```bash
-sam build \
-  --template-file deploy/aws-lambda/ner-template.yaml \
-  --beta-features
-
-sam local invoke QuickTranslatorNerFunction \
-  --template-file .aws-sam/build/template.yaml \
-  --event deploy/aws-lambda/events/name-filter.json
-```
-
-Không attach Layer và không truyền path thì Lambda vẫn chạy QT/hybrid rules; request bật
-NER sẽ nhận warning provider chưa được cấu hình.
-
-Sau khi publish Layer có `ner/` và `lib/` ở root, deploy bằng ARN cùng bốn path `/opt`:
-
-```bash
-sam deploy \
-  --template-file .aws-sam/build/template.yaml \
-  --stack-name quick-translator-ner \
-  --region ap-southeast-1 \
-  --resolve-s3 \
-  --capabilities CAPABILITY_IAM \
-  --confirm-changeset \
-  --parameter-overrides \
-    FunctionArchitecture=arm64 \
-    FunctionUrlAuthType=AWS_IAM \
-    FunctionMemorySize=3008 \
-    ReservedConcurrency=10 \
-    NerLayerArn=arn:aws:lambda:REGION:ACCOUNT:layer:qt-ner:VERSION \
-    NerModelPath=/opt/ner/model.onnx \
-    NerTokenizerPath=/opt/ner/tokenizer.json \
-    NerConfigPath=/opt/ner/config.json \
-    OrtDylibPath=/opt/lib/libonnxruntime.so.1.24.2
-```
-
-Cloudflare Worker hiện đã cho phép route `/names/filter`, nên có thể đổi Lambda Function
-URL origin sang function chuyên dụng mà không đổi request contract.
-
-## Provider lọc name tùy chọn
-
-`POST /names/filter` luôn có QT/hybrid rules chạy local. Hai provider sau là opt-in:
-
-### ONNX NER
-
-Chuẩn bị `model.onnx`, `tokenizer.json`, `config.json`, ONNX Runtime và kiểm tra model
-theo hướng dẫn end-to-end tại
-[`docs/engine/name-filter.md`](../../docs/engine/name-filter.md#onnx-ner). Binary Lambda
-phải được build cho đúng kiến trúc và bật feature:
-
-```bash
-cargo lambda build --release --arm64 --bin qt-lambda --features onnx
-```
-
-Với Lambda ARM64, tải gói ONNX Runtime `linux-aarch64` cùng version API mà crate `ort`
-yêu cầu. Không dùng shared library `linux-x64` từ máy development.
-
-Artifact runtime phải xuất hiện trong execution environment theo layout:
-
-```text
-/opt/
-├── lib/
-│   └── libonnxruntime.so.1.24.2
-└── ner/
-    ├── model.onnx
-    ├── tokenizer.json
-    └── config.json
-```
-
-Cấu hình environment bằng path tuyệt đối, trỏ trực tiếp tới file thực:
-
-```text
-QT_NER_MODEL=/opt/ner/model.onnx
-QT_NER_TOKENIZER=/opt/ner/tokenizer.json
-QT_NER_CONFIG=/opt/ner/config.json
-ORT_DYLIB_PATH=/opt/lib/libonnxruntime.so.1.24.2
-```
-
-`config.json` cần `id2label` theo BIO, ví dụ `B-PER`, `I-PER`, `B-LOC`, `B-ORG`. Adapter
-chạy một inference tại một thời điểm trên mỗi Lambda instance và cắt chương thành block
-400 ký tự.
-
-Lambda Layer được giải nén vào `/opt`, nên file zip của layer phải có `lib/` và `ner/` ở
-root. Zip deployment và toàn bộ layer dùng chung giới hạn kích thước giải nén của Lambda;
-checkpoint FP32 BERT thường không vừa khi cộng binary và dictionaries. Xem
-[Lambda quotas](https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html)
-trước khi publish.
-
-- Dùng container image cho FP32 hoặc khi tổng artifact vượt giới hạn zip/layer.
-- Có thể dùng Layer cho INT8 nếu tổng kích thước giải nén của function và mọi layer vẫn
-  nằm dưới giới hạn; upload layer lớn qua S3.
-- Model, tokenizer và config phải lấy từ cùng checkpoint.
-- Đo cold start, peak memory và latency một chương trước khi bật traffic production.
-
-Template `template.yaml` của Lambda đầy đủ không tự đóng gói hoặc attach ONNX artifacts.
-Template `ner-template.yaml` của `qt-ner-lambda` nhận `NerLayerArn` và bốn path qua
-parameters, nhưng bước export model, tạo Layer và publish Layer vẫn là thao tác deploy
-riêng. Khi dùng container cần một template `PackageType: Image` và image ARM64 chứa đúng
-layout ở trên.
-
-### Gemini fallback
-
-Gemini chỉ duyệt nhóm candidate có score mơ hồ, không thay toàn bộ rules/NER:
-
-```text
-QT_GEMINI_API_KEY=<secret>
-QT_GEMINI_MODEL=<model hỗ trợ structured output>
-```
-
-Không đưa key vào request từ web. Lưu key bằng cơ chế secret/KMS phù hợp của AWS và inject
-vào environment lúc deploy. Request provider lỗi vẫn trả kết quả rules kèm `warnings`, do
-đó một lỗi mạng ngoài không làm mất toàn bộ kết quả lọc name.
+Request provider lỗi vẫn trả kết quả rules kèm `warnings`, do đó một lỗi mạng ngoài
+không làm mất toàn bộ kết quả lọc name.
 
 ## Request
 

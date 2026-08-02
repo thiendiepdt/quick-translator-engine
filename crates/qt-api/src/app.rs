@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 
 use axum::extract::{DefaultBodyLimit, State};
 use axum::http::{header, StatusCode};
@@ -18,8 +19,10 @@ use qt_core::{
     TranslationResult,
 };
 
-use crate::name_ai::{entity_type_name, parse_entity_type, GeminiNameReviewer};
-use crate::name_ner::{self, NameEntityRecognizer, NerNameSpan};
+use crate::name_ai::{
+    build_ai_http_client, entity_type_name, parse_entity_type, AiBaseUrls, AiExtractedEntity,
+    AiNameProvider,
+};
 
 const MAX_REQUEST_SCAN_RANGE: usize = 100;
 const MAX_REQUEST_BODY_BYTES: usize = 5 * 1024 * 1024;
@@ -32,46 +35,71 @@ pub struct AppState {
     pub name_filter_services: NameFilterServices,
 }
 
-#[derive(Clone, Default)]
+/// Total wall-clock budget shared by all AI calls in one request. Must stay
+/// under the Lambda timeout (120s) with headroom for rules and merging.
+const DEFAULT_AI_DEADLINE_SECONDS: u64 = 100;
+
+/// Request-independent pieces of the AI integration. The server holds no
+/// provider API key — every request brings its own credentials — so this is
+/// just the shared HTTP client, the operator-controlled provider endpoints
+/// and the AI time budget.
+#[derive(Clone)]
 pub struct NameFilterServices {
-    recognizer: Option<Arc<dyn NameEntityRecognizer>>,
-    reviewer: Option<GeminiNameReviewer>,
+    http: reqwest::Client,
+    ai_base_urls: AiBaseUrls,
+    ai_deadline: Duration,
     startup_warnings: Arc<Vec<String>>,
+}
+
+impl Default for NameFilterServices {
+    fn default() -> Self {
+        Self {
+            http: build_ai_http_client(),
+            ai_base_urls: AiBaseUrls::default(),
+            ai_deadline: Duration::from_secs(DEFAULT_AI_DEADLINE_SECONDS),
+            startup_warnings: Arc::default(),
+        }
+    }
 }
 
 impl NameFilterServices {
     pub fn from_env() -> Self {
         let mut startup_warnings = Vec::new();
-        let recognizer = match name_ner::from_env() {
-            Ok(recognizer) => recognizer,
-            Err(error) => {
-                eprintln!("warning: name NER provider was not initialized: {error}");
-                startup_warnings.push("ONNX NER is unavailable; check server logs".to_string());
-                None
-            }
-        };
-        let reviewer = match GeminiNameReviewer::from_env() {
-            Ok(reviewer) => reviewer,
-            Err(error) => {
-                eprintln!("warning: Gemini name reviewer was not initialized: {error}");
-                startup_warnings
-                    .push("Gemini fallback is unavailable; check server logs".to_string());
-                None
-            }
+        let ai_deadline = match crate::name_ai::non_empty_env("QT_AI_DEADLINE_SECONDS") {
+            Some(value) => match value.parse::<u64>() {
+                Ok(seconds) => Duration::from_secs(seconds.clamp(5, 600)),
+                Err(_) => {
+                    eprintln!("warning: QT_AI_DEADLINE_SECONDS is not a number, using default");
+                    startup_warnings.push(
+                        "QT_AI_DEADLINE_SECONDS is invalid; the default AI deadline is used"
+                            .to_string(),
+                    );
+                    Duration::from_secs(DEFAULT_AI_DEADLINE_SECONDS)
+                }
+            },
+            None => Duration::from_secs(DEFAULT_AI_DEADLINE_SECONDS),
         };
         Self {
-            recognizer,
-            reviewer,
+            http: build_ai_http_client(),
+            ai_base_urls: AiBaseUrls::from_env(),
+            ai_deadline,
             startup_warnings: Arc::new(startup_warnings),
         }
     }
 
-    fn ner_configured(&self) -> bool {
-        self.recognizer.is_some()
+    fn ai_deadline(&self) -> Duration {
+        self.ai_deadline
     }
 
-    fn ai_configured(&self) -> bool {
-        self.reviewer.is_some()
+    /// Build the per-request provider from client-supplied credentials.
+    fn ai_provider_from(&self, creds: &AiCredentialsReq) -> Result<AiNameProvider, String> {
+        AiNameProvider::from_credentials(
+            self.http.clone(),
+            &self.ai_base_urls,
+            &creds.provider,
+            &creds.api_key,
+            creds.model.as_deref(),
+        )
     }
 }
 
@@ -84,16 +112,6 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/dictionaries/defaults", get(dictionary_defaults))
         .route("/translate", post(translate))
         .route("/translate/batch", post(translate_batch))
-        .route("/names/filter", post(filter_names))
-        .with_state(state)
-        .layer(DefaultBodyLimit::max(MAX_REQUEST_BODY_BYTES))
-}
-
-/// Build the dedicated name-filter surface without exposing translation routes.
-pub fn build_name_filter_router(state: Arc<AppState>) -> Router {
-    Router::new()
-        .route("/health", get(health))
-        .route("/capabilities", get(name_filter_capabilities))
         .route("/names/filter", post(filter_names))
         .with_state(state)
         .layer(DefaultBodyLimit::max(MAX_REQUEST_BODY_BYTES))
@@ -190,11 +208,26 @@ struct NameFilterReq {
     known_names: HashMap<String, String>,
     #[serde(default)]
     rejected_names: Vec<String>,
+    /// Deprecated: the ONNX NER provider was removed. Accepted so older
+    /// clients still parse; enabling it only produces a warning.
     #[serde(default)]
     ner: ProviderReq,
+    /// Caller-supplied AI credentials; required for aiExtract/aiFallback.
+    /// Used only for this request — never stored or logged.
+    ai: Option<AiCredentialsReq>,
+    #[serde(default)]
+    ai_extract: ProviderReq,
     #[serde(default)]
     ai_fallback: AiFallbackReq,
     dictionaries: Option<DictionarySourcesReq>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct AiCredentialsReq {
+    provider: String,
+    api_key: String,
+    model: Option<String>,
 }
 
 #[derive(Default, Deserialize)]
@@ -246,34 +279,16 @@ struct NameCandidateResp {
 struct NameFilterStats {
     scanned_characters: usize,
     rule_candidates: usize,
-    ner_candidates: usize,
+    ai_extracted_candidates: usize,
     ai_reviewed: usize,
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct NameFilterCapabilities {
-    ner_configured: bool,
     ai_configured: bool,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct NameFilterCapabilitiesResp {
-    ner_configured: bool,
-    ai_configured: bool,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    warnings: Vec<String>,
-}
-
-async fn name_filter_capabilities(
-    State(state): State<Arc<AppState>>,
-) -> Json<NameFilterCapabilitiesResp> {
-    Json(NameFilterCapabilitiesResp {
-        ner_configured: state.name_filter_services.ner_configured(),
-        ai_configured: state.name_filter_services.ai_configured(),
-        warnings: state.name_filter_services.startup_warnings.as_ref().clone(),
-    })
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ai_provider: Option<&'static str>,
 }
 
 fn default_name_filter_mode() -> String {
@@ -568,6 +583,52 @@ async fn filter_names(
         0.60
     };
     let min_confidence = confidence(req.min_confidence, default_min_confidence, "minConfidence")?;
+    // Every option is validated before rules run or a paid provider call is
+    // made, including options for features the request leaves disabled.
+    let ai_extract_threshold = confidence(
+        req.ai_extract.min_confidence,
+        0.65,
+        "aiExtract.minConfidence",
+    )?;
+    let ai_review_threshold = confidence(
+        req.ai_fallback.min_confidence,
+        0.65,
+        "aiFallback.minConfidence",
+    )?;
+    let ai_min_rule_confidence = confidence(
+        req.ai_fallback.min_rule_confidence,
+        0.40,
+        "aiFallback.minRuleConfidence",
+    )?;
+    let ai_max_rule_confidence = confidence(
+        req.ai_fallback.max_rule_confidence,
+        0.82,
+        "aiFallback.maxRuleConfidence",
+    )?;
+    if ai_min_rule_confidence > ai_max_rule_confidence {
+        return Err(ApiError::bad_request(
+            "aiFallback.minRuleConfidence must not exceed maxRuleConfidence",
+        ));
+    }
+    let ai_max_review_candidates = bounded_usize(
+        req.ai_fallback.max_candidates,
+        25,
+        1,
+        50,
+        "aiFallback.maxCandidates",
+    )?;
+    // Client-supplied credentials build the per-request provider; the server
+    // itself holds no AI key. Malformed credentials fail here, before rules
+    // run or the caller's key is spent.
+    let ai_provider = match req.ai.as_ref() {
+        Some(creds) => Some(
+            state
+                .name_filter_services
+                .ai_provider_from(creds)
+                .map_err(ApiError::bad_request)?,
+        ),
+        None => None,
+    };
     let options = NameFilterOptions {
         mode,
         min_occurrences: bounded_usize(req.min_occurrences, 2, 1, 100, "minOccurrences")?,
@@ -577,6 +638,10 @@ async fn filter_names(
         include_known: req.include_known.unwrap_or(true),
     };
     let output_max_candidates = options.max_candidates;
+    let include_known = options.include_known;
+    // One shared deadline for all AI work in this request keeps the handler
+    // inside the Lambda/client timeout even when extract and review both run.
+    let ai_deadline = tokio::time::Instant::now() + state.name_filter_services.ai_deadline();
     let memory = NameFilterMemory {
         known_names: req.known_names,
         rejected_names: req.rejected_names.into_iter().collect(),
@@ -603,86 +668,70 @@ async fn filter_names(
     let rule_candidates = result.candidates.len();
     let mut warnings = state.name_filter_services.startup_warnings.as_ref().clone();
 
-    let mut ner_candidates = 0;
     if req.ner.enabled {
-        if let Some(recognizer) = state.name_filter_services.recognizer.clone() {
-            let ner_document = document.clone();
-            match tokio::task::spawn_blocking(move || {
-                recognizer
-                    .recognize(ner_document.text())
-                    .map(|spans| remap_ner_spans(spans, &ner_document))
-            })
-            .await
-            {
-                Ok(Ok(spans)) => {
-                    let threshold = confidence(req.ner.min_confidence, 0.65, "ner.minConfidence")?;
-                    ner_candidates = merge_ner_candidates(
-                        &state.engine,
-                        &mut result.candidates,
-                        spans,
-                        threshold,
-                        &memory,
-                        dictionaries.as_deref(),
-                    );
-                }
-                Ok(Err(error)) => warnings.push(error),
-                Err(_) => warnings.push("NER task failed".to_string()),
-            }
+        warnings.push(
+            "ner is deprecated: the ONNX NER provider was removed, use aiExtract".to_string(),
+        );
+    }
+
+    let mut ai_extracted_candidates = 0;
+    if req.ai_extract.enabled {
+        if let Some(provider) = ai_provider.as_ref() {
+            let extraction = provider.extract(document.text(), ai_deadline).await;
+            warnings.extend(extraction.warnings);
+            ai_extracted_candidates = merge_extracted_candidates(
+                &state.engine,
+                &mut result.candidates,
+                extraction.entities,
+                ExtractionMerge {
+                    threshold: ai_extract_threshold,
+                    include_known,
+                },
+                &memory,
+                dictionaries.as_deref(),
+                &document,
+            );
         } else {
-            warnings.push("NER was requested but no ONNX model is configured".to_string());
+            warnings.push(
+                "AI extract was requested but the request has no AI credentials (ai.apiKey)"
+                    .to_string(),
+            );
         }
     }
 
     let mut ai_reviewed = 0;
     if req.ai_fallback.enabled {
-        if let Some(reviewer) = state.name_filter_services.reviewer.as_ref() {
-            let min_rule = confidence(
-                req.ai_fallback.min_rule_confidence,
-                0.40,
-                "aiFallback.minRuleConfidence",
-            )?;
-            let max_rule = confidence(
-                req.ai_fallback.max_rule_confidence,
-                0.82,
-                "aiFallback.maxRuleConfidence",
-            )?;
-            if min_rule > max_rule {
-                return Err(ApiError::bad_request(
-                    "aiFallback.minRuleConfidence must not exceed maxRuleConfidence",
-                ));
-            }
+        if let Some(reviewer) = ai_provider.as_ref() {
             let ambiguous: Vec<NameCandidate> = result
                 .candidates
                 .iter()
                 .filter(|candidate| {
-                    !candidate.known && (min_rule..=max_rule).contains(&candidate.score)
+                    !candidate.known
+                        && (ai_min_rule_confidence..=ai_max_rule_confidence)
+                            .contains(&candidate.score)
                 })
                 .cloned()
                 .collect();
-            let max_ai_candidates = bounded_usize(
-                req.ai_fallback.max_candidates,
-                25,
-                1,
-                50,
-                "aiFallback.maxCandidates",
-            )?;
             match reviewer
-                .review(document.text(), &ambiguous, max_ai_candidates)
+                .review(
+                    document.text(),
+                    &ambiguous,
+                    ai_max_review_candidates,
+                    ai_deadline,
+                )
                 .await
             {
                 Ok(decisions) => {
                     ai_reviewed = decisions.len();
-                    let decision_threshold = confidence(
-                        req.ai_fallback.min_confidence,
-                        0.65,
-                        "aiFallback.minConfidence",
-                    )?;
-                    apply_ai_decisions(&mut result.candidates, decisions, decision_threshold);
+                    apply_ai_decisions(&mut result.candidates, decisions, ai_review_threshold);
                 }
                 Err(error) => warnings.push(error),
             }
         } else {
-            warnings.push("AI fallback was requested but Gemini is not configured".to_string());
+            warnings.push(
+                "AI fallback was requested but the request has no AI credentials (ai.apiKey)"
+                    .to_string(),
+            );
         }
     }
 
@@ -706,12 +755,13 @@ async fn filter_names(
         stats: NameFilterStats {
             scanned_characters: result.scanned_characters,
             rule_candidates,
-            ner_candidates,
+            ai_extracted_candidates,
             ai_reviewed,
         },
+        // Per-request: whether this request carried valid AI credentials.
         capabilities: NameFilterCapabilities {
-            ner_configured: state.name_filter_services.ner_configured(),
-            ai_configured: state.name_filter_services.ai_configured(),
+            ai_configured: ai_provider.is_some(),
+            ai_provider: ai_provider.as_ref().map(AiNameProvider::provider_name),
         },
         warnings,
     }))
@@ -745,80 +795,132 @@ fn bounded_usize(
     }
 }
 
-fn merge_ner_candidates(
+/// Request-scoped knobs for merging AI-extracted entities.
+struct ExtractionMerge {
+    threshold: f32,
+    include_known: bool,
+}
+
+/// Merge AI-extracted entities into the rule candidates. Entities carry only
+/// text (no spans), so occurrences are located in the scan document and
+/// mapped back to the caller's original UTF-16 input.
+fn merge_extracted_candidates(
     engine: &Engine,
     candidates: &mut Vec<NameCandidate>,
-    spans: Vec<NerNameSpan>,
-    threshold: f32,
+    entities: Vec<AiExtractedEntity>,
+    merge: ExtractionMerge,
     memory: &NameFilterMemory,
     dictionaries: Option<&DictionaryOverrides>,
+    document: &NameFilterDocument,
 ) -> usize {
-    let mut grouped: HashMap<String, Vec<NerNameSpan>> = HashMap::new();
-    for span in spans.into_iter().filter(|span| span.score >= threshold) {
-        if memory.rejected_names.contains(&span.text)
-            || engine.contains_name(&span.text, dictionaries)
+    let text = document.text();
+    let mut utf16_starts: HashMap<usize, usize> = HashMap::new();
+    let mut utf16_offset = 0usize;
+    for (byte_start, character) in text.char_indices() {
+        utf16_starts.insert(byte_start, utf16_offset);
+        utf16_offset += character.len_utf16();
+    }
+
+    let mut merged = 0usize;
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for entity in entities {
+        if entity.confidence < merge.threshold {
+            continue;
+        }
+        let entity_text = entity.text.trim();
+        if entity_text.is_empty()
+            || !seen.insert(entity_text.to_string())
+            || memory.rejected_names.contains(entity_text)
+            || engine.contains_name(entity_text, dictionaries)
         {
             continue;
         }
-        grouped.entry(span.text.clone()).or_default().push(span);
-    }
-    let count = grouped.len();
-    for (text, spans) in grouped {
-        let best = spans
-            .iter()
-            .max_by(|left, right| left.score.total_cmp(&right.score))
-            .expect("group is not empty");
+        let known_value = memory.known_names.get(entity_text);
+        // Rules already honored includeKnown; AI must not re-surface the
+        // candidates the caller asked to hide.
+        if known_value.is_some() && !merge.include_known {
+            continue;
+        }
+        let entity_utf16_length = entity_text.encode_utf16().count();
+        let ranges: Vec<CharRange> = text
+            .match_indices(entity_text)
+            .filter_map(|(byte_start, _)| {
+                utf16_starts.get(&byte_start).and_then(|start| {
+                    document.map_range(CharRange {
+                        start: *start,
+                        length: entity_utf16_length,
+                    })
+                })
+            })
+            .collect();
+        if ranges.is_empty() {
+            continue;
+        }
+        merged += 1;
+        let entity_type = entity
+            .entity_type
+            .as_deref()
+            .map(parse_entity_type)
+            .unwrap_or(NameEntityType::Unknown);
+        let suggested = entity
+            .suggested
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty());
         if let Some(candidate) = candidates
             .iter_mut()
-            .find(|candidate| candidate.text == text)
+            .find(|candidate| candidate.text == entity_text)
         {
-            candidate.score = combined_confidence(candidate.score, best.score);
+            candidate.score = combined_confidence(candidate.score, entity.confidence);
             if candidate.entity_type == NameEntityType::Unknown {
-                candidate.entity_type = best.entity_type;
+                candidate.entity_type = entity_type;
             }
-            for span in spans {
-                if !candidate.ranges.contains(&span.range) {
-                    candidate.ranges.push(span.range);
+            if let Some(suggested) = suggested {
+                if !candidate.known {
+                    candidate.suggested = suggested.to_string();
+                }
+            }
+            for range in ranges {
+                if !candidate.ranges.contains(&range) {
+                    candidate.ranges.push(range);
                 }
             }
             candidate.ranges.sort_by_key(|range| range.start);
             candidate.occurrences = candidate.ranges.len();
-            if !candidate.sources.contains(&NameCandidateSource::OnnxNer) {
-                candidate.sources.push(NameCandidateSource::OnnxNer);
-                candidate
-                    .reasons
-                    .push("được mô hình ONNX NER xác nhận".to_string());
+            if !candidate.sources.contains(&NameCandidateSource::AiFallback) {
+                candidate.sources.push(NameCandidateSource::AiFallback);
+                candidate.reasons.push("được AI xác nhận".to_string());
             }
         } else {
-            let ranges = spans.iter().map(|span| span.range).collect::<Vec<_>>();
+            let is_known = known_value.is_some();
+            let mut sources = vec![NameCandidateSource::AiFallback];
+            let mut reasons = vec!["được AI trích xuất từ chương".to_string()];
+            if is_known {
+                sources.push(NameCandidateSource::BookMemory);
+                reasons.push("đã được duyệt trong bộ nhớ truyện".to_string());
+            }
             candidates.push(NameCandidate {
-                text: text.clone(),
-                suggested: memory
-                    .known_names
-                    .get(&text)
+                text: entity_text.to_string(),
+                suggested: known_value
                     .cloned()
-                    .unwrap_or_else(|| engine.suggest_name(&text)),
-                entity_type: best.entity_type,
-                score: best.score,
+                    .or_else(|| suggested.map(str::to_string))
+                    .unwrap_or_else(|| engine.suggest_name(entity_text)),
+                entity_type,
+                // Known candidates keep the rules invariant of score 1.0.
+                score: if is_known {
+                    1.0
+                } else {
+                    entity.confidence.clamp(0.0, 1.0)
+                },
                 occurrences: ranges.len(),
                 ranges,
-                reasons: vec!["được mô hình ONNX NER nhận diện".to_string()],
-                sources: vec![NameCandidateSource::OnnxNer],
-                known: memory.known_names.contains_key(&text),
+                reasons,
+                sources,
+                known: is_known,
             });
         }
     }
-    count
-}
-
-fn remap_ner_spans(spans: Vec<NerNameSpan>, document: &NameFilterDocument) -> Vec<NerNameSpan> {
-    spans
-        .into_iter()
-        .filter_map(|mut span| {
-            span.range = document.map_range(span.range)?;
-            Some(span)
-        })
-        .collect()
+    merged
 }
 
 fn combined_confidence(left: f32, right: f32) -> f32 {
@@ -888,7 +990,6 @@ fn source_name(source: NameCandidateSource) -> &'static str {
         NameCandidateSource::SuffixRule => "suffix-rule",
         NameCandidateSource::BookMemory => "book-memory",
         NameCandidateSource::BookTitle => "book-title",
-        NameCandidateSource::OnnxNer => "onnx-ner",
         NameCandidateSource::AiFallback => "ai-fallback",
     }
 }
@@ -1080,7 +1181,7 @@ mod tests {
     }
 
     #[test]
-    fn ner_ranges_map_to_raw_text_and_cannot_cross_ignored_phrases() {
+    fn extracted_entities_map_to_raw_text_and_skip_ignored_phrases() {
         let dictionaries = DictionaryDefaults {
             ignored_chinese_phrases: "本章完".to_string(),
             ..Default::default()
@@ -1090,37 +1191,114 @@ mod tests {
         let document = engine.prepare_name_filter_document("本章完萧炎", None);
         assert_eq!(document.text(), "\n\n\n萧炎");
 
-        let spans = remap_ner_spans(
+        let mut candidates = Vec::new();
+        let merged = merge_extracted_candidates(
+            &engine,
+            &mut candidates,
             vec![
-                NerNameSpan {
+                AiExtractedEntity {
                     text: "萧炎".to_string(),
-                    entity_type: NameEntityType::Person,
-                    score: 0.9,
-                    range: CharRange {
-                        start: 3,
-                        length: 2,
-                    },
+                    entity_type: Some("person".to_string()),
+                    suggested: Some("Tiêu Viêm".to_string()),
+                    confidence: 0.9,
                 },
-                NerNameSpan {
-                    text: "ignored boundary".to_string(),
-                    entity_type: NameEntityType::Unknown,
-                    score: 0.9,
-                    range: CharRange {
-                        start: 0,
-                        length: 5,
-                    },
+                AiExtractedEntity {
+                    text: "本章完".to_string(),
+                    entity_type: None,
+                    suggested: None,
+                    confidence: 0.9,
                 },
             ],
+            ExtractionMerge {
+                threshold: 0.65,
+                include_known: true,
+            },
+            &NameFilterMemory::default(),
+            None,
             &document,
         );
 
-        assert_eq!(spans.len(), 1);
+        assert_eq!(merged, 1);
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].text, "萧炎");
+        assert_eq!(candidates[0].suggested, "Tiêu Viêm");
+        assert_eq!(candidates[0].entity_type, NameEntityType::Person);
         assert_eq!(
-            spans[0].range,
-            CharRange {
+            candidates[0].ranges,
+            vec![CharRange {
                 start: 3,
                 length: 2,
-            }
+            }]
         );
+    }
+
+    fn extraction_engine_and_document() -> (Engine, NameFilterDocument) {
+        let dictionaries = DictionaryDefaults::default().build_dictionaries("萧=tiêu\n炎=viêm", "");
+        let engine = Engine::from_dicts(dictionaries);
+        let document = engine.prepare_name_filter_document("萧炎来了", None);
+        (engine, document)
+    }
+
+    fn extracted_entity(text: &str) -> AiExtractedEntity {
+        AiExtractedEntity {
+            text: text.to_string(),
+            entity_type: Some("person".to_string()),
+            suggested: None,
+            confidence: 0.9,
+        }
+    }
+
+    #[test]
+    fn extraction_merge_skips_known_names_when_include_known_is_false() {
+        let (engine, document) = extraction_engine_and_document();
+        let memory = NameFilterMemory {
+            known_names: HashMap::from([("萧炎".to_string(), "Tiêu Viêm".to_string())]),
+            rejected_names: Default::default(),
+        };
+        let mut candidates = Vec::new();
+        let merged = merge_extracted_candidates(
+            &engine,
+            &mut candidates,
+            vec![extracted_entity("萧炎")],
+            ExtractionMerge {
+                threshold: 0.65,
+                include_known: false,
+            },
+            &memory,
+            None,
+            &document,
+        );
+        assert_eq!(merged, 0);
+        assert!(candidates.is_empty());
+    }
+
+    #[test]
+    fn extraction_merge_keeps_known_score_invariant() {
+        let (engine, document) = extraction_engine_and_document();
+        let memory = NameFilterMemory {
+            known_names: HashMap::from([("萧炎".to_string(), "Tiêu Viêm".to_string())]),
+            rejected_names: Default::default(),
+        };
+        let mut candidates = Vec::new();
+        let merged = merge_extracted_candidates(
+            &engine,
+            &mut candidates,
+            vec![extracted_entity("萧炎")],
+            ExtractionMerge {
+                threshold: 0.65,
+                include_known: true,
+            },
+            &memory,
+            None,
+            &document,
+        );
+        assert_eq!(merged, 1);
+        assert_eq!(candidates.len(), 1);
+        assert!(candidates[0].known);
+        assert_eq!(candidates[0].score, 1.0);
+        assert_eq!(candidates[0].suggested, "Tiêu Viêm");
+        assert!(candidates[0]
+            .sources
+            .contains(&NameCandidateSource::BookMemory));
     }
 }

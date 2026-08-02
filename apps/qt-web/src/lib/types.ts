@@ -154,12 +154,12 @@ export interface NameFilterResponse {
   stats: {
     scannedCharacters: number;
     ruleCandidates: number;
-    nerCandidates: number;
+    aiExtractedCandidates: number;
     aiReviewed: number;
   };
   capabilities: {
-    nerConfigured: boolean;
     aiConfigured: boolean;
+    aiProvider?: string;
   };
   warnings?: string[];
 }
@@ -174,8 +174,12 @@ export interface NameFilterRequest {
   maxCandidates: number;
   knownNames: Record<string, string>;
   rejectedNames: string[];
-  ner: { enabled: boolean; minConfidence: number };
-  aiFallback: {
+  /** API key của chính người dùng; bắt buộc để aiExtract/aiFallback chạy. */
+  ai?: { provider: "deepseek" | "gemini"; apiKey: string; model?: string };
+  /** Chỉ gửi khi bật — server hiểu field vắng mặt là tắt, còn server cũ
+   * (deny_unknown_fields) sẽ từ chối field nó chưa biết. */
+  aiExtract?: { enabled: boolean; minConfidence: number };
+  aiFallback?: {
     enabled: boolean;
     minConfidence: number;
     minRuleConfidence: number;

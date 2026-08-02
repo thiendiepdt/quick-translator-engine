@@ -603,7 +603,7 @@ async fn filters_names_with_book_memory_and_utf16_ranges() {
     assert_eq!(candidate["ranges"][0]["start"], 2);
     assert_eq!(candidate["ranges"][0]["length"], 3);
     assert_eq!(body["stats"]["scannedCharacters"], 7);
-    assert_eq!(body["capabilities"]["nerConfigured"], false);
+    assert_eq!(body["capabilities"]["aiConfigured"], false);
 }
 
 #[tokio::test]
@@ -668,13 +668,137 @@ async fn name_filter_reports_unconfigured_optional_providers_without_failing() {
         serde_json::json!({
             "text": "张先生走来。",
             "ner": { "enabled": true },
+            "aiExtract": { "enabled": true },
             "aiFallback": { "enabled": true }
         }),
     )
     .await;
     assert_eq!(resp.status(), StatusCode::OK);
     let body: serde_json::Value = serde_json::from_str(&body_string(resp).await).unwrap();
-    assert_eq!(body["warnings"].as_array().unwrap().len(), 2);
+    assert_eq!(body["warnings"].as_array().unwrap().len(), 3);
+}
+
+#[tokio::test]
+async fn name_filter_warns_when_ai_enabled_without_credentials() {
+    let resp = post_json(
+        build_router(test_state()),
+        "/names/filter",
+        serde_json::json!({
+            "text": "张先生走来。",
+            "aiExtract": { "enabled": true },
+            "aiFallback": { "enabled": true }
+        }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body: serde_json::Value = serde_json::from_str(&body_string(resp).await).unwrap();
+    let warnings = body["warnings"].as_array().unwrap();
+    assert_eq!(
+        warnings
+            .iter()
+            .filter(|warning| warning.as_str().unwrap().contains("no AI credentials"))
+            .count(),
+        2
+    );
+    assert_eq!(body["capabilities"]["aiConfigured"], false);
+}
+
+#[tokio::test]
+async fn name_filter_rejects_malformed_ai_credentials_before_any_work() {
+    // Unknown provider.
+    let resp = post_json(
+        build_router(test_state()),
+        "/names/filter",
+        serde_json::json!({
+            "text": "张先生走来。",
+            "ai": { "provider": "openai", "apiKey": "sk-test" }
+        }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    assert!(body_string(resp).await.contains("ai.provider"));
+
+    // Empty key.
+    let resp = post_json(
+        build_router(test_state()),
+        "/names/filter",
+        serde_json::json!({
+            "text": "张先生走来。",
+            "ai": { "provider": "deepseek", "apiKey": "  " }
+        }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    assert!(body_string(resp).await.contains("ai.apiKey"));
+
+    // Gemini without a model.
+    let resp = post_json(
+        build_router(test_state()),
+        "/names/filter",
+        serde_json::json!({
+            "text": "张先生走来。",
+            "ai": { "provider": "gemini", "apiKey": "AIza-test" }
+        }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    assert!(body_string(resp).await.contains("ai.model is required"));
+
+    // Model with a path separator (would inject into the Gemini URL).
+    let resp = post_json(
+        build_router(test_state()),
+        "/names/filter",
+        serde_json::json!({
+            "text": "张先生走来。",
+            "ai": { "provider": "gemini", "apiKey": "AIza-test", "model": "models/../evil" }
+        }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    assert!(body_string(resp).await.contains("ai.model must contain"));
+
+    // Base URLs are never accepted from the request (SSRF guard).
+    let resp = post_json(
+        build_router(test_state()),
+        "/names/filter",
+        serde_json::json!({
+            "text": "张先生走来。",
+            "ai": { "provider": "deepseek", "apiKey": "sk-test", "baseUrl": "http://169.254.169.254" }
+        }),
+    )
+    .await;
+    assert!(resp.status().is_client_error());
+}
+
+#[tokio::test]
+async fn name_filter_validates_ai_options_even_when_disabled() {
+    let resp = post_json(
+        build_router(test_state()),
+        "/names/filter",
+        serde_json::json!({
+            "text": "张先生走来。",
+            "aiExtract": { "enabled": false, "minConfidence": 5.0 }
+        }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    assert!(body_string(resp)
+        .await
+        .contains("aiExtract.minConfidence must be between 0 and 1"));
+
+    let resp = post_json(
+        build_router(test_state()),
+        "/names/filter",
+        serde_json::json!({
+            "text": "张先生走来。",
+            "aiFallback": { "enabled": false, "maxCandidates": 500 }
+        }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    assert!(body_string(resp)
+        .await
+        .contains("aiFallback.maxCandidates must be between 1 and 50"));
 }
 
 #[tokio::test]

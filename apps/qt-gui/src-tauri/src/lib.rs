@@ -231,14 +231,15 @@ struct NameCandidateResponse {
 struct NameFilterStats {
     scanned_characters: usize,
     rule_candidates: usize,
-    ner_candidates: usize,
+    ai_extracted_candidates: usize,
     ai_reviewed: usize,
 }
 
+// GUI chạy hoàn toàn local nên không có AI provider; giữ cùng shape với
+// qt-api để component không phân nhánh theo nguồn response.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct NameFilterCapabilities {
-    ner_configured: bool,
     ai_configured: bool,
 }
 
@@ -598,11 +599,10 @@ fn filter_names_local(
         stats: NameFilterStats {
             scanned_characters: result.scanned_characters,
             rule_candidates,
-            ner_candidates: 0,
+            ai_extracted_candidates: 0,
             ai_reviewed: 0,
         },
         capabilities: NameFilterCapabilities {
-            ner_configured: false,
             ai_configured: false,
         },
         warnings: Vec::new(),
@@ -643,7 +643,6 @@ fn source_name(value: NameCandidateSource) -> &'static str {
         NameCandidateSource::SuffixRule => "suffix-rule",
         NameCandidateSource::BookMemory => "book-memory",
         NameCandidateSource::BookTitle => "book-title",
-        NameCandidateSource::OnnxNer => "onnx-ner",
         NameCandidateSource::AiFallback => "ai-fallback",
     }
 }

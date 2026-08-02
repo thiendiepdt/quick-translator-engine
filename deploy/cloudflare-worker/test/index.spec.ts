@@ -104,11 +104,12 @@ describe("Cloudflare Lambda gateway", () => {
     expect(actual.headers.get("access-control-expose-headers")).toBe("x-request-id");
   });
 
-  it("signs and proxies name filtering requests", async () => {
+  it("signs and proxies name filtering requests with the caller's AI credentials intact", async () => {
     const body = JSON.stringify({
       text: "来人名为萧炎。",
       mode: "hybrid",
-      ner: { enabled: true },
+      ai: { provider: "deepseek", apiKey: "sk-user-own-key" },
+      aiExtract: { enabled: true },
       aiFallback: { enabled: true },
     });
     let upstreamRequest: Request | undefined;
