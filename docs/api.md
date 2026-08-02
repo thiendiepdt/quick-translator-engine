@@ -32,9 +32,9 @@ của caller.
 
 | Field | Kiểu | Mặc định | Giá trị |
 |---|---|---:|---|
-| `mode` | string | bắt buộc | `hanviet`, `vietphrase`, `vietphrase-one` |
+| `mode` | string | `vietphrase-one` | `hanviet`, `vietphrase`, `vietphrase-one` |
 | `wrap` | boolean | `false` | Bọc từng cụm dịch trong `[...]` |
-| `pretty` | boolean | `false` | Bỏ whitespace đầu output và viết hoa ký tự đầu |
+| `pretty` | boolean | `true` | Bỏ whitespace đầu output và viết hoa ký tự đầu; gửi `false` để giữ output QT nguyên bản |
 | `ranges` | boolean | `false` | Trả thêm `sourceRanges` và `targetRanges` |
 | `scanRange` | integer | `30` | Độ dài quét tối đa, từ `1` đến `100` |
 | `translationAlgorithm` | integer | `1` | Thuật toán `0`, `1` hoặc `2` |
@@ -85,12 +85,13 @@ bản gốc để sửa; nếu một file không thay đổi thì không cần g
 
 ## `POST /translate`
 
-Request tối thiểu:
+Request tối thiểu chỉ cần `text` — `mode` mặc định `vietphrase-one` và response chỉ có
+`translated`; các field khác (ranges, option engine, dictionary) là opt-in khi client
+cần bản đầy đủ:
 
 ```json
 {
-  "text": "他的眼球很好。",
-  "mode": "vietphrase-one"
+  "text": "他的眼球很好。"
 }
 ```
 
@@ -205,7 +206,8 @@ Response giữ nguyên thứ tự input:
 }
 ```
 
-Khi `ranges=true`, `sourceRanges` và `targetRanges` là hai ma trận song song với `texts`.
+`mode` cũng mặc định `vietphrase-one` như `/translate`. Khi `ranges=true`,
+`sourceRanges` và `targetRanges` là hai ma trận song song với `texts`.
 Nội dung dịch phụ thuộc bộ từ điển đang nạp. Batch được xử lý tuần tự trong một request;
 các request độc lập vẫn có thể được runtime phục vụ đồng thời. `dictionaries` và
 `dictionaryPatches` có cùng schema như `/translate` và được áp dụng cho toàn bộ phần tử
