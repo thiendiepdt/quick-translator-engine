@@ -193,7 +193,7 @@ function AiCredentialsFields({
         placeholder={
           aiSettings.provider === "gemini"
             ? "Model (bắt buộc, ví dụ gemini-2.5-flash)"
-            : "Model (mặc định deepseek-chat)"
+            : "Model (mặc định deepseek-v4-flash)"
         }
       />
       <p className="text-xs text-muted-foreground">

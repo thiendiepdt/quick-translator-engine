@@ -423,6 +423,7 @@ export default function App() {
                 endpoint={normalizedEndpoint}
                 defaultsReady={dictionaryDefaultsReady}
                 aiSettings={aiSettings}
+                onOpenSettings={() => setSettingsOpen(true)}
               />
             )}
           </Suspense>

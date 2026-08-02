@@ -7,6 +7,7 @@ import {
   Search,
   ShieldCheck,
   Sparkles,
+  TriangleAlert,
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -19,6 +20,11 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useNameFilterMutation } from "@/hooks/use-translation";
 import { activeAiProviderConfig, type AiSettings } from "@/lib/ai-settings";
 import { ApiError } from "@/lib/api";
@@ -38,6 +44,7 @@ interface NameFilterWorkspaceProps {
   endpoint: string;
   defaultsReady: boolean;
   aiSettings?: AiSettings;
+  onOpenSettings?: () => void;
 }
 
 const entityLabels: Record<NameCandidate["entityType"], string> = {
@@ -52,6 +59,7 @@ export function NameFilterWorkspace({
   endpoint,
   defaultsReady,
   aiSettings,
+  onOpenSettings,
 }: NameFilterWorkspaceProps) {
   const sourceText = useWorkspaceStore((state) => state.sourceText);
   const setSourceText = useWorkspaceStore((state) => state.setSourceText);
@@ -121,6 +129,21 @@ export function NameFilterWorkspace({
     ? activeText
     : undefined;
 
+  // Cảnh báo hai tầng khi bật AI mà chưa có key: toast lúc gạt toggle (kèm
+  // nút mở Cài đặt) và trạng thái đỏ bám trên toggle cho tới khi có key.
+  const aiKeyMissing = !(aiSettings && activeAiProviderConfig(aiSettings).apiKey.trim());
+  const openSettingsAction = onOpenSettings
+    ? { action: { label: "Mở Cài đặt", onClick: onOpenSettings } }
+    : {};
+
+  function warnIfAiKeyMissing(enabled: boolean) {
+    if (!enabled || !aiKeyMissing) return;
+    toast.warning("Tính năng AI cần API key của bạn", {
+      description: "Nhập key DeepSeek/Gemini trong Cài đặt (biểu tượng bánh răng) trước khi lọc tên.",
+      ...openSettingsAction,
+    });
+  }
+
   async function runFilter() {
     if (!sourceText.trim()) {
       toast.error("Dán chương tiếng Trung trước khi lọc tên");
@@ -137,6 +160,7 @@ export function NameFilterWorkspace({
     if (wantsAi && !apiKey) {
       toast.error("Tính năng AI cần API key của bạn", {
         description: "Nhập key DeepSeek/Gemini trong Cài đặt (biểu tượng bánh răng).",
+        ...openSettingsAction,
       });
       return;
     }
@@ -263,8 +287,28 @@ export function NameFilterWorkspace({
             <TabsTrigger value="hybrid" className="text-[10px]">Kết hợp</TabsTrigger>
           </TabsList>
         </Tabs>
-        <ProviderToggle label="Trích AI" icon={<BrainCircuit />} checked={aiExtractEnabled} onCheckedChange={setAiExtractEnabled} />
-        <ProviderToggle label="AI" icon={<Sparkles />} checked={aiEnabled} onCheckedChange={setAiEnabled} />
+        <ProviderToggle
+          label="Trích AI"
+          description="AI đọc cả chương và trích mọi tên riêng — kể cả biệt danh, tên phiên âm mà quy tắc bỏ sót. Tốn token nhất. Cần API key trong Cài đặt."
+          icon={<BrainCircuit />}
+          checked={aiExtractEnabled}
+          warning={aiExtractEnabled && aiKeyMissing}
+          onCheckedChange={(checked) => {
+            setAiExtractEnabled(checked);
+            warnIfAiKeyMissing(checked);
+          }}
+        />
+        <ProviderToggle
+          label="Duyệt AI"
+          description="AI chỉ duyệt lại các ứng viên mơ hồ do quy tắc tìm được: giữ/loại và sửa tên gợi ý, không tự thêm tên mới. Ít tốn token hơn Trích AI. Cần API key trong Cài đặt."
+          icon={<Sparkles />}
+          checked={aiEnabled}
+          warning={aiEnabled && aiKeyMissing}
+          onCheckedChange={(checked) => {
+            setAiEnabled(checked);
+            warnIfAiKeyMissing(checked);
+          }}
+        />
         <Button type="button" disabled={mutation.isPending || !defaultsReady} onClick={() => void runFilter()}>
           {mutation.isPending ? <LoaderCircle className="animate-spin" /> : <Filter />}
           Lọc tên
@@ -480,21 +524,55 @@ export function NameFilterWorkspace({
 
 function ProviderToggle({
   label,
+  description,
   icon,
   checked,
+  warning = false,
   onCheckedChange,
 }: {
   label: string;
+  description: string;
   icon: React.ReactNode;
   checked: boolean;
+  warning?: boolean;
   onCheckedChange: (checked: boolean) => void;
 }) {
   return (
-    <Label className="flex h-9 items-center gap-2 rounded-md border px-2.5 text-[10px] font-semibold">
-      <span className="[&_svg]:size-3.5">{icon}</span>
-      {label}
-      <Switch size="sm" checked={checked} onCheckedChange={onCheckedChange} />
-    </Label>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Label
+          className={cn(
+            "flex h-9 items-center gap-2 rounded-md border px-2.5 text-[10px] font-semibold transition-colors",
+            warning && "border-destructive/50 bg-destructive/5 text-destructive",
+          )}
+        >
+          <span className="[&_svg]:size-3.5">{icon}</span>
+          {label}
+          {warning ? (
+            <TriangleAlert
+              role="img"
+              aria-label={`${label}: chưa có API key`}
+              className="size-3.5"
+            />
+          ) : null}
+          <Switch
+            size="sm"
+            aria-label={label}
+            checked={checked}
+            onCheckedChange={onCheckedChange}
+          />
+        </Label>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" className="max-w-72 text-pretty">
+        {warning ? (
+          <p className="mb-1 font-semibold">
+            Đang bật nhưng chưa có API key — tính năng sẽ không chạy khi lọc tên. Nhập key
+            trong Cài đặt (biểu tượng bánh răng).
+          </p>
+        ) : null}
+        {description}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 

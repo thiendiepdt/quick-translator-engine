@@ -22,9 +22,12 @@ export interface AiSettings {
   gemini: AiProviderConfig;
 }
 
+/** Model DeepSeek điền sẵn cho người dùng mới; sửa được trong Cài đặt. */
+export const DEFAULT_DEEPSEEK_MODEL = "deepseek-v4-flash";
+
 export const defaultAiSettings: AiSettings = {
   provider: "deepseek",
-  deepseek: { apiKey: "", model: "" },
+  deepseek: { apiKey: "", model: DEFAULT_DEEPSEEK_MODEL },
   gemini: { apiKey: "", model: "" },
 };
 
@@ -37,12 +40,13 @@ export function activeAiProviderConfig(settings: AiSettings): AiProviderConfig {
   return settings[settings.provider];
 }
 
-function normalizeConfig(value: unknown): AiProviderConfig {
+function normalizeConfig(value: unknown, defaultModel = ""): AiProviderConfig {
   const record =
     typeof value === "object" && value !== null ? (value as Partial<AiProviderConfig>) : {};
+  const model = typeof record.model === "string" ? record.model.trim() : "";
   return {
     apiKey: typeof record.apiKey === "string" ? record.apiKey.trim() : "",
-    model: typeof record.model === "string" ? record.model.trim() : "",
+    model: model || defaultModel,
   };
 }
 
@@ -53,7 +57,7 @@ export function readStoredAiSettings(): AiSettings {
     const parsed = JSON.parse(raw) as Partial<Record<keyof AiSettings, unknown>> | null;
     return {
       provider: isAiProvider(parsed?.provider) ? parsed.provider : "deepseek",
-      deepseek: normalizeConfig(parsed?.deepseek),
+      deepseek: normalizeConfig(parsed?.deepseek, DEFAULT_DEEPSEEK_MODEL),
       gemini: normalizeConfig(parsed?.gemini),
     };
   } catch {
