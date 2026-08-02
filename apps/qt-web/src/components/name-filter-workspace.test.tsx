@@ -13,6 +13,15 @@ import {
 } from "@/lib/name-filter-mode";
 import { useWorkspaceStore } from "@/store/workspace";
 
+function requestUrlOf(input: RequestInfo | URL): string {
+  if (typeof input === "string") return input;
+  return input instanceof URL ? input.href : input.url;
+}
+
+function requestBodyOf(init?: RequestInit): Record<string, unknown> {
+  return JSON.parse(init?.body as string) as Record<string, unknown>;
+}
+
 function renderWorkspace(aiSettings?: AiSettings) {
   const queryClient = new QueryClient({
     defaultOptions: { mutations: { retry: false } },
@@ -112,18 +121,12 @@ describe("name filter mode preference", () => {
   });
 
   it("omits every AI field from rules-only requests", async () => {
-    // Server cũ dùng deny_unknown_fields: field AI lạ (dù disabled) làm hỏng
-    // cả request, nên payload lọc thường không được chứa chúng.
+    // Server dùng deny_unknown_fields: field AI lạ làm hỏng cả request, nên
+    // payload lọc thường không được chứa chúng.
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       Response.json({
         candidates: [],
-        stats: {
-          scannedCharacters: 6,
-          ruleCandidates: 0,
-          aiExtractedCandidates: 0,
-          aiReviewed: 0,
-        },
-        capabilities: { aiConfigured: false },
+        stats: { scannedCharacters: 6, ruleCandidates: 0, aiMergedCandidates: 0 },
       }),
     );
     useWorkspaceStore.getState().setSourceText("张先生走来。");
@@ -133,11 +136,135 @@ describe("name filter mode preference", () => {
     await user.click(screen.getByRole("button", { name: "Lọc tên" }));
 
     await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
-    const body = JSON.parse(String(fetchSpy.mock.calls[0]?.[1]?.body));
+    const body = requestBodyOf(fetchSpy.mock.calls[0][1]);
     expect(body.ai).toBeUndefined();
-    expect(body.aiExtract).toBeUndefined();
-    expect(body.aiFallback).toBeUndefined();
+    expect(body.aiEntities).toBeUndefined();
     expect(body.ner).toBeUndefined();
+  });
+
+  it("extracts entities in the browser and sends them as aiEntities", async () => {
+    // Lượt 1: trình duyệt gọi thẳng DeepSeek bằng key của user; lượt 2: gửi
+    // entities đã trích cho server merge — không còn key trong request server.
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation((input: RequestInfo | URL) => {
+        if (requestUrlOf(input).endsWith("/chat/completions")) {
+          return Promise.resolve(
+            Response.json({
+              choices: [
+                {
+                  message: {
+                    content: JSON.stringify({
+                      entities: [
+                        {
+                          text: "萧炎",
+                          entityType: "person",
+                          suggested: "Tiêu Viêm",
+                          confidence: 0.9,
+                        },
+                      ],
+                    }),
+                  },
+                },
+              ],
+            }),
+          );
+        }
+        return Promise.resolve(
+          Response.json({
+            candidates: [],
+            stats: { scannedCharacters: 6, ruleCandidates: 0, aiMergedCandidates: 1 },
+          }),
+        );
+      });
+    useWorkspaceStore.getState().setSourceText("萧炎走来。");
+    const user = userEvent.setup();
+    renderWorkspace({
+      provider: "deepseek",
+      deepseek: { apiKey: "sk-test", model: "deepseek-v4-flash", baseUrl: "" },
+      gemini: { apiKey: "", model: "", baseUrl: "" },
+    });
+
+    await user.click(screen.getByRole("switch", { name: "Trích AI" }));
+    await user.click(screen.getByRole("button", { name: "Lọc tên" }));
+
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(2));
+    const [aiUrl, aiInit] = fetchSpy.mock.calls[0];
+    expect(requestUrlOf(aiUrl)).toBe("https://api.deepseek.com/chat/completions");
+    const aiHeaders = aiInit?.headers as Record<string, string>;
+    expect(aiHeaders.authorization).toBe("Bearer sk-test");
+
+    const [filterUrl, filterInit] = fetchSpy.mock.calls[1];
+    expect(requestUrlOf(filterUrl)).toContain("/names/filter");
+    const body = requestBodyOf(filterInit);
+    expect(body.ai).toBeUndefined();
+    expect(body.aiEntities).toEqual({
+      minConfidence: 0.65,
+      entities: [
+        { text: "萧炎", entityType: "person", suggested: "Tiêu Viêm", confidence: 0.9 },
+      ],
+    });
+  });
+
+  it("reviews ambiguous candidates client-side and applies the decisions", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation((input: RequestInfo | URL) => {
+        if (requestUrlOf(input).endsWith("/chat/completions")) {
+          return Promise.resolve(
+            Response.json({
+              choices: [
+                {
+                  message: {
+                    content: JSON.stringify({
+                      decisions: [
+                        { text: "看向", keep: false, confidence: 0.95, entityType: "unknown" },
+                      ],
+                    }),
+                  },
+                },
+              ],
+            }),
+          );
+        }
+        return Promise.resolve(
+          Response.json({
+            candidates: [
+              {
+                text: "看向",
+                suggested: "khán hướng",
+                entityType: "unknown",
+                score: 0.5,
+                occurrences: 2,
+                ranges: [],
+                contexts: ["…【看向】…"],
+                reasons: [],
+                sources: ["ngram"],
+                known: false,
+              },
+            ],
+            stats: { scannedCharacters: 6, ruleCandidates: 1, aiMergedCandidates: 0 },
+          }),
+        );
+      });
+    useWorkspaceStore.getState().setSourceText("看向远方。看向远方。");
+    const user = userEvent.setup();
+    renderWorkspace({
+      provider: "deepseek",
+      deepseek: { apiKey: "sk-test", model: "deepseek-v4-flash", baseUrl: "" },
+      gemini: { apiKey: "", model: "", baseUrl: "" },
+    });
+
+    await user.click(screen.getByRole("switch", { name: "Duyệt AI" }));
+    await user.click(screen.getByRole("button", { name: "Lọc tên" }));
+
+    // AI loại ứng viên mơ hồ → danh sách chờ duyệt trống.
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(2));
+    await waitFor(() => {
+      expect(
+        useWorkspaceStore.getState().nameFilterResponse?.candidates,
+      ).toEqual([]);
+    });
   });
 
   it("warns when enabling an AI toggle without an API key", async () => {
@@ -168,8 +295,8 @@ describe("name filter mode preference", () => {
     const user = userEvent.setup();
     renderWorkspace({
       provider: "deepseek",
-      deepseek: { apiKey: "sk-test", model: "deepseek-v4-flash" },
-      gemini: { apiKey: "", model: "" },
+      deepseek: { apiKey: "sk-test", model: "deepseek-v4-flash", baseUrl: "" },
+      gemini: { apiKey: "", model: "", baseUrl: "" },
     });
 
     await user.click(screen.getByRole("switch", { name: "Duyệt AI" }));
@@ -193,8 +320,7 @@ describe("name filter mode preference", () => {
           known: false,
         },
       ],
-      stats: { scannedCharacters: 20, ruleCandidates: 1, aiExtractedCandidates: 0, aiReviewed: 0 },
-      capabilities: { aiConfigured: false },
+      stats: { scannedCharacters: 20, ruleCandidates: 1, aiMergedCandidates: 0 },
     });
     useWorkspaceStore.getState().acceptNameCandidate("萧炎", "Tiêu Viêm");
     const user = userEvent.setup();

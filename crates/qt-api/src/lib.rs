@@ -1,4 +1,4 @@
 mod app;
-mod name_ai;
+mod name_entities;
 
-pub use app::{build_router, AppState, NameFilterServices};
+pub use app::{build_router, AppState};

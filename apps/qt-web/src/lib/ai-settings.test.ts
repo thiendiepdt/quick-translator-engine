@@ -4,6 +4,7 @@ import {
   activeAiProviderConfig,
   aiSettingsStorageKey,
   DEFAULT_DEEPSEEK_MODEL,
+  DEFAULT_GEMINI_MODEL,
   defaultAiSettings,
   readStoredAiSettings,
   storeAiSettings,
@@ -24,16 +25,24 @@ describe("AI credentials preference", () => {
     expect(readStoredAiSettings().provider).toBe("deepseek");
   });
 
-  it("keeps each provider's key and model isolated across switches", () => {
+  it("keeps each provider's key, model and base URL isolated across switches", () => {
     storeAiSettings({
       provider: "deepseek",
-      deepseek: { apiKey: " sk-deepseek ", model: "" },
-      gemini: { apiKey: "AIza-google", model: "gemini-2.5-flash" },
+      deepseek: { apiKey: " sk-deepseek ", model: "", baseUrl: " https://proxy.example.com/v1 " },
+      gemini: { apiKey: "AIza-google", model: "gemini-2.5-flash", baseUrl: "" },
     });
 
     const restored = readStoredAiSettings();
-    expect(restored.deepseek).toEqual({ apiKey: "sk-deepseek", model: DEFAULT_DEEPSEEK_MODEL });
-    expect(restored.gemini).toEqual({ apiKey: "AIza-google", model: "gemini-2.5-flash" });
+    expect(restored.deepseek).toEqual({
+      apiKey: "sk-deepseek",
+      model: DEFAULT_DEEPSEEK_MODEL,
+      baseUrl: "https://proxy.example.com/v1",
+    });
+    expect(restored.gemini).toEqual({
+      apiKey: "AIza-google",
+      model: "gemini-2.5-flash",
+      baseUrl: "",
+    });
 
     // Đổi provider chỉ đổi con trỏ cấu hình; key DeepSeek không được trả về
     // khi provider đang là Gemini.
@@ -43,23 +52,24 @@ describe("AI credentials preference", () => {
     );
   });
 
-  it("fills the DeepSeek model with the default when empty, keeps Gemini explicit", () => {
+  it("fills each provider's model with its default when empty", () => {
     expect(defaultAiSettings.deepseek.model).toBe(DEFAULT_DEEPSEEK_MODEL);
+    expect(defaultAiSettings.gemini.model).toBe(DEFAULT_GEMINI_MODEL);
 
     storeAiSettings({
       provider: "deepseek",
-      deepseek: { apiKey: "sk-deepseek", model: "  " },
-      gemini: { apiKey: "AIza-google", model: "" },
+      deepseek: { apiKey: "sk-deepseek", model: "  ", baseUrl: "" },
+      gemini: { apiKey: "AIza-google", model: "", baseUrl: "" },
     });
     const restored = readStoredAiSettings();
     expect(restored.deepseek.model).toBe(DEFAULT_DEEPSEEK_MODEL);
-    expect(restored.gemini.model).toBe("");
+    expect(restored.gemini.model).toBe(DEFAULT_GEMINI_MODEL);
 
     // Model do người dùng tự chọn không bị ghi đè.
     storeAiSettings({
       provider: "deepseek",
-      deepseek: { apiKey: "sk-deepseek", model: "deepseek-chat" },
-      gemini: { apiKey: "", model: "" },
+      deepseek: { apiKey: "sk-deepseek", model: "deepseek-chat", baseUrl: "" },
+      gemini: { apiKey: "", model: "", baseUrl: "" },
     });
     expect(readStoredAiSettings().deepseek.model).toBe("deepseek-chat");
   });

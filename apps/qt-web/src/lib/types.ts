@@ -154,17 +154,20 @@ export interface NameFilterResponse {
   stats: {
     scannedCharacters: number;
     ruleCandidates: number;
-    aiExtractedCandidates: number;
-    aiReviewed: number;
-  };
-  capabilities: {
-    aiConfigured: boolean;
-    aiProvider?: string;
+    aiMergedCandidates: number;
   };
   warnings?: string[];
 }
 
 export type NameFilterMode = "qt" | "hybrid";
+
+/** Entity do AI trích ở trình duyệt, gửi lên server như dữ liệu trơ. */
+export interface AiEntityPayload {
+  text: string;
+  entityType?: string;
+  suggested?: string;
+  confidence: number;
+}
 
 export interface NameFilterRequest {
   text: string;
@@ -174,17 +177,8 @@ export interface NameFilterRequest {
   maxCandidates: number;
   knownNames: Record<string, string>;
   rejectedNames: string[];
-  /** API key của chính người dùng; bắt buộc để aiExtract/aiFallback chạy. */
-  ai?: { provider: "deepseek" | "gemini"; apiKey: string; model?: string };
-  /** Chỉ gửi khi bật — server hiểu field vắng mặt là tắt, còn server cũ
-   * (deny_unknown_fields) sẽ từ chối field nó chưa biết. */
-  aiExtract?: { enabled: boolean; minConfidence: number };
-  aiFallback?: {
-    enabled: boolean;
-    minConfidence: number;
-    minRuleConfidence: number;
-    maxRuleConfidence: number;
-    maxCandidates: number;
-  };
+  /** Chỉ gửi khi có entity — server merge chúng với ứng viên từ quy tắc.
+   * Trình duyệt tự gọi AI trước đó; server không bao giờ thấy API key. */
+  aiEntities?: { entities: AiEntityPayload[]; minConfidence?: number };
   dictionaries?: Partial<Record<DictionaryKey, string>>;
 }

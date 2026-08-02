@@ -113,16 +113,18 @@ npm run check
 - Khôi phục đúng bản QT2025 sẽ bỏ dictionary đó khỏi payload.
 - VietPhrase và ChinesePhienAmWords không xuất hiện dưới dạng raw file trong form vì
   Lambda giữ base cố định; chỉ entry patch local được gửi lên.
-- Request timeout ở browser là 45 giây (130 giây cho lọc tên có bật AI); Worker/Lambda
-  vẫn giữ giới hạn riêng của hạ tầng.
+- Request timeout ở browser là 45 giây cho API dịch/lọc; mỗi lượt gọi AI provider có
+  timeout riêng 60 giây. Worker/Lambda vẫn giữ giới hạn riêng của hạ tầng.
 - Tab **Tên** gọi `POST /names/filter`, hỗ trợ QT/hybrid, bật AI trích/duyệt tùy chọn, search,
   sửa tên Việt inline, duyệt/loại từng record và duyệt nhanh candidate ≥85%.
-- Tính năng AI dùng API key của chính người dùng: chọn provider (DeepSeek/Gemini), nhập
-  key và model trong dialog Cài đặt. Key/model lưu ở localStorage tách riêng theo từng
-  provider — đổi provider là đổi sang bộ key của provider đó, không bao giờ gửi key của
-  công ty này sang endpoint công ty kia. Key chỉ gửi trong field `ai` của request lọc
-  tên có bật AI, chi phí tính vào tài khoản provider của người dùng — server không giữ
-  key nào.
+- Tính năng AI chạy ngay trong trình duyệt (`src/lib/ai-client.ts`): trình duyệt gọi
+  thẳng DeepSeek/Gemini bằng key của chính người dùng — key không bao giờ đi qua server
+  của app; server chỉ nhận entity đã trích qua field `aiEntities`. Chọn provider, nhập
+  key/model và Base URL proxy (tùy chọn) trong dialog Cài đặt. Base URL cho phép dùng
+  endpoint trung gian OpenAI-compatible/relay Gemini, kể cả proxy chạy local
+  (`http://localhost` được miễn trừ mixed-content); endpoint phải cho phép CORS. Cấu
+  hình lưu ở localStorage tách riêng theo từng provider — đổi provider là đổi sang bộ
+  key của provider đó, không bao giờ gửi key của công ty này sang endpoint công ty kia.
 - Name được duyệt tự append/update vào draft `Names2`, nên request dịch tiếp theo sử dụng
   ngay mà không phải copy thủ công.
 
