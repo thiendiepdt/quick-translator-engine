@@ -16,7 +16,11 @@ const Toaster = ({ ...props }: ToasterProps) => {
   return (
     <Sonner
       theme={scheme}
-      className="toaster group"
+      // pointer-events-auto: dialog Radix (modal) đặt body về pointer-events
+      // none; sonner không tự bật lại nên click sẽ XUYÊN QUA toast, rơi trúng
+      // overlay và bị tính là "bấm ra ngoài" làm đóng dialog. Bật lại ở đây,
+      // phần chặn đóng-dialog nằm trong DialogContent (isToastInteraction).
+      className="toaster group pointer-events-auto"
       icons={{
         success: <CircleCheckIcon className="size-4" />,
         info: <InfoIcon className="size-4" />,
