@@ -176,8 +176,10 @@ export interface NameFilterRequest {
   rejectedNames: string[];
   /** API key của chính người dùng; bắt buộc để aiExtract/aiFallback chạy. */
   ai?: { provider: "deepseek" | "gemini"; apiKey: string; model?: string };
-  aiExtract: { enabled: boolean; minConfidence: number };
-  aiFallback: {
+  /** Chỉ gửi khi bật — server hiểu field vắng mặt là tắt, còn server cũ
+   * (deny_unknown_fields) sẽ từ chối field nó chưa biết. */
+  aiExtract?: { enabled: boolean; minConfidence: number };
+  aiFallback?: {
     enabled: boolean;
     minConfidence: number;
     minRuleConfidence: number;

@@ -188,14 +188,20 @@ export function NameFilterWorkspace({
             },
           }
         : {}),
-      aiExtract: { enabled: aiExtractEnabled, minConfidence: 0.65 },
-      aiFallback: {
-        enabled: aiEnabled,
-        minConfidence: 0.65,
-        minRuleConfidence: 0.4,
-        maxRuleConfidence: 0.82,
-        maxCandidates: 25,
-      },
+      ...(aiExtractEnabled
+        ? { aiExtract: { enabled: true, minConfidence: 0.65 } }
+        : {}),
+      ...(aiEnabled
+        ? {
+            aiFallback: {
+              enabled: true,
+              minConfidence: 0.65,
+              minRuleConfidence: 0.4,
+              maxRuleConfidence: 0.82,
+              maxCandidates: 25,
+            },
+          }
+        : {}),
       dictionaries: dictionaryPayload(dictionaries),
     };
     const requestWorkspaceId = useWorkspaceCatalogStore.getState().activeWorkspaceId;

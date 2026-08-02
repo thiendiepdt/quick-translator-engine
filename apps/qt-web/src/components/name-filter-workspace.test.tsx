@@ -29,7 +29,7 @@ function renderWorkspace(aiSettings?: AiSettings) {
 beforeEach(() => {
   localStorage.clear();
   useWorkspaceStore.getState().clearNameMemory();
-  useWorkspaceStore.setState({ nameFilterResponse: undefined });
+  useWorkspaceStore.setState({ nameFilterResponse: undefined, sourceText: "" });
 });
 
 afterEach(() => {
@@ -109,6 +109,35 @@ describe("name filter mode preference", () => {
       "aria-selected",
       "true",
     );
+  });
+
+  it("omits every AI field from rules-only requests", async () => {
+    // Server cũ dùng deny_unknown_fields: field AI lạ (dù disabled) làm hỏng
+    // cả request, nên payload lọc thường không được chứa chúng.
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json({
+        candidates: [],
+        stats: {
+          scannedCharacters: 6,
+          ruleCandidates: 0,
+          aiExtractedCandidates: 0,
+          aiReviewed: 0,
+        },
+        capabilities: { aiConfigured: false },
+      }),
+    );
+    useWorkspaceStore.getState().setSourceText("张先生走来。");
+    const user = userEvent.setup();
+    renderWorkspace();
+
+    await user.click(screen.getByRole("button", { name: "Lọc tên" }));
+
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
+    const body = JSON.parse(String(fetchSpy.mock.calls[0]?.[1]?.body));
+    expect(body.ai).toBeUndefined();
+    expect(body.aiExtract).toBeUndefined();
+    expect(body.aiFallback).toBeUndefined();
+    expect(body.ner).toBeUndefined();
   });
 
   it("warns when enabling an AI toggle without an API key", async () => {

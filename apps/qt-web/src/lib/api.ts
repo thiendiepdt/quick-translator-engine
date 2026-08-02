@@ -116,7 +116,7 @@ export function filterChapterNames(
   endpoint: string,
   request: NameFilterRequest,
 ): Promise<NameFilterResponse> {
-  const aiEnabled = request.aiExtract.enabled || request.aiFallback.enabled;
+  const aiEnabled = Boolean(request.aiExtract?.enabled || request.aiFallback?.enabled);
   return requestJson(
     endpointUrl(endpoint, "/names/filter"),
     {
