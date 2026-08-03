@@ -156,6 +156,9 @@ impl DictionaryLookup for HashMap<String, String> {
 #[derive(Default)]
 pub struct Dictionaries {
     pub han_viet: HanVietMap,
+    /// Lạc Việt definitions used by the interactive meaning lookup. This
+    /// dictionary is read-only and is never exposed as a request override.
+    pub lac_viet: HashMap<String, String>,
     /// Parsed Names.txt before Names2 is applied.
     pub primary_names: HashMap<String, String>,
     /// Parsed Names2 before it is merged over Names.txt.
@@ -276,6 +279,13 @@ impl Dictionaries {
         }
     }
 
+    /// Attach the optional Lạc Việt lookup dictionary without changing the
+    /// translation dictionary contract.
+    pub fn with_lac_viet(mut self, lac_viet_src: &str) -> Self {
+        self.lac_viet = first_wins_map(lac_viet_src);
+        self
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn build_full(
         han_viet_src: &str,
@@ -309,8 +319,12 @@ impl Dictionaries {
             |rel: &str| -> std::io::Result<String> { std::fs::read_to_string(data_dir.join(rel)) };
         let han_viet = read("Resources/ChinesePhienAmWords.txt")?;
         let vietphrase = read("VietPhrase/VietPhrase.txt")?;
+        let lac_viet =
+            std::fs::read_to_string(data_dir.join("Resources/LacViet.txt")).unwrap_or_default();
         let defaults = DictionaryDefaults::load(data_dir);
-        let dictionaries = defaults.build_dictionaries(&han_viet, &vietphrase);
+        let dictionaries = defaults
+            .build_dictionaries(&han_viet, &vietphrase)
+            .with_lac_viet(&lac_viet);
         Ok((dictionaries, defaults))
     }
 

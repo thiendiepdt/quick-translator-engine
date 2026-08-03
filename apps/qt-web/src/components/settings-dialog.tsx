@@ -154,7 +154,7 @@ function AiCredentialsFields({
 
   return (
     <div className="grid gap-2">
-      <Label htmlFor="ai-api-key">AI lọc tên (API key của bạn)</Label>
+      <Label htmlFor="ai-api-key">AI (API key của bạn)</Label>
       <div className="flex gap-2">
         <Select
           value={aiSettings.provider}
@@ -206,7 +206,8 @@ function AiCredentialsFields({
         placeholder="Base URL proxy (tùy chọn — trống là endpoint chính thức)"
       />
       <p className="text-xs text-muted-foreground">
-        Key chỉ lưu trên trình duyệt này, tách riêng theo từng nhà cung cấp. Trình duyệt gọi
+        Dùng cho lọc tên, dịch và tra nghĩa trong từ điển. Key chỉ lưu trên trình duyệt này,
+        tách riêng theo từng nhà cung cấp. Trình duyệt gọi
         thẳng {aiSettings.provider === "gemini" ? "Google AI" : "DeepSeek"} (hoặc proxy của
         bạn — endpoint cần cho phép CORS, hỗ trợ cả http://localhost); key không đi qua
         server của app. Chi phí tính vào tài khoản của bạn.

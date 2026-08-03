@@ -119,7 +119,7 @@ export interface TranslationResponse {
 
 export interface TranslationRequest {
   text: string;
-  mode: "vietphrase-one";
+  mode: "hanviet" | "vietphrase" | "vietphrase-one";
   wrap: boolean;
   pretty: boolean;
   ranges: true;
@@ -128,6 +128,15 @@ export interface TranslationRequest {
   prioritizedName: boolean;
   dictionaries?: Partial<Record<DictionaryKey, string>>;
   dictionaryPatches?: DictionaryPatchPayload;
+}
+
+export interface LacVietMeaning {
+  source: string;
+  definition: string;
+}
+
+export interface MeaningsResponse {
+  entries: LacVietMeaning[];
 }
 
 export interface HealthResponse {

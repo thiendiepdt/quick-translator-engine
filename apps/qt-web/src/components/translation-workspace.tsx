@@ -36,14 +36,19 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { buildTextSegments, rangeText } from "@/lib/ranges";
+import { candidateContext } from "@/lib/ai-client";
+import type { AiSettings } from "@/lib/ai-settings";
 import type { DictionaryUpdateKey } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useWorkspaceStore } from "@/store/workspace";
 
 interface TranslationWorkspaceProps {
+  endpoint: string;
   canTranslate: boolean;
   isPending: boolean;
   onTranslate: () => void;
+  aiSettings?: AiSettings;
+  onOpenSettings?: () => void;
   requestStatus: string;
 }
 
@@ -76,9 +81,12 @@ function scrollRangeIntoView(container: HTMLDivElement | null, rangeIndex: numbe
 }
 
 export function TranslationWorkspace({
+  endpoint,
   canTranslate,
   isPending,
   onTranslate,
+  aiSettings,
+  onOpenSettings,
   requestStatus,
 }: TranslationWorkspaceProps) {
   const sourceText = useWorkspaceStore((state) => state.sourceText);
@@ -446,50 +454,50 @@ export function TranslationWorkspace({
                     disabled={!contextSelection}
                     onSelect={() => beginDictionaryUpdate("vietPhrase")}
                   >
-                    Update VietPhrase
+                    Cập nhật VietPhrase
                   </ContextMenuItem>
                   <ContextMenuItem
                     disabled={!contextSelection}
                     onSelect={() => beginDictionaryUpdate("names")}
                   >
-                    Update Name (chính)
+                    Cập nhật Tên
                   </ContextMenuItem>
                   <ContextMenuItem
                     disabled={!contextSelection}
                     onSelect={() => beginDictionaryUpdate("names2")}
                   >
-                    Update Name (phụ)
+                    Cập nhật Tên 2
                   </ContextMenuItem>
                   <ContextMenuSeparator />
                   <ContextMenuItem
                     disabled={!contextSelection}
                     onSelect={() => beginDictionaryUpdate("chinesePhienAmWords")}
                   >
-                    Update Phiên Âm
+                    Cập nhật Phiên Âm
                   </ContextMenuItem>
                   <ContextMenuItem
                     disabled={!contextSelection}
                     onSelect={() => beginDictionaryUpdate("danhTu")}
                   >
-                    Update Danh Từ
+                    Cập nhật Danh Từ
                   </ContextMenuItem>
                   <ContextMenuItem
                     disabled={!contextSelection}
                     onSelect={() => beginDictionaryUpdate("hauTu")}
                   >
-                    Update Hậu Từ
+                    Cập nhật Hậu Từ
                   </ContextMenuItem>
                   <ContextMenuItem
                     disabled={!contextSelection}
                     onSelect={() => beginDictionaryUpdate("hoNguoi")}
                   >
-                    Update Họ Người
+                    Cập nhật Họ Người
                   </ContextMenuItem>
                   <ContextMenuItem
                     disabled={!contextSelection}
                     onSelect={() => beginDictionaryUpdate("luatNhan")}
                   >
-                    Update Luật Nhân
+                    Cập nhật Luật Nhân
                   </ContextMenuItem>
                   <ContextMenuSeparator />
                   <ContextMenuItem
@@ -503,7 +511,7 @@ export function TranslationWorkspace({
                       }
                     }}
                   >
-                    Copy To Việt
+                    Sao chép tiếng Việt
                   </ContextMenuItem>
                   <ContextMenuItem
                     disabled={!contextSelection}
@@ -516,7 +524,7 @@ export function TranslationWorkspace({
                       }
                     }}
                   >
-                    Copy To Clipboard
+                    Sao chép cặp từ
                   </ContextMenuItem>
                 </ContextMenuContent>
               </ContextMenu>
@@ -566,11 +574,18 @@ export function TranslationWorkspace({
       <DictionaryUpdateDialog
         key={`${dictionaryUpdateKey ?? "closed"}-${contextSelection?.source ?? ""}-${contextSelection?.target ?? ""}`}
         open={dictionaryUpdateKey !== undefined}
+        endpoint={endpoint}
         dictionaryKey={dictionaryUpdateKey}
         selection={contextSelection}
+        context={contextSelection ? candidateContext(sourceText, contextSelection.source, 120) : ""}
+        aiSettings={aiSettings}
         localEntries={localDictionaryEntries}
         onOpenChange={(open) => {
           if (!open) setDictionaryUpdateKey(undefined);
+        }}
+        onOpenAiSettings={() => {
+          setDictionaryUpdateKey(undefined);
+          onOpenSettings?.();
         }}
         onSave={saveLocalDictionaryEntries}
         onRemove={removeLocalDictionaryEntries}

@@ -5,11 +5,13 @@ import {
   baseUrlProblem,
   candidateContext,
   chunkByLines,
+  explainDictionaryEntryWithAi,
   extractEntities,
   resolveAiCall,
   reviewCandidates,
   sanitizeEntitiesForRequest,
   selectReviewCandidates,
+  translateDictionaryEntryWithAi,
 } from "@/lib/ai-client";
 import type { NameCandidate } from "@/lib/types";
 
@@ -279,6 +281,47 @@ describe("extractEntities", () => {
     expect(result.entities).toEqual([{ text: "药老", entityType: undefined, suggested: undefined, confidence: 0.8 }]);
     expect(result.warnings).toHaveLength(1);
     expect(result.warnings[0]).toContain("DeepSeek returned 500");
+  });
+});
+
+describe("dictionary AI helpers", () => {
+  const config = {
+    provider: "deepseek" as const,
+    apiKey: "sk-test",
+    model: "deepseek-v4-flash",
+    baseUrl: "https://api.deepseek.com",
+  };
+  const input = {
+    source: "金美婷",
+    currentTranslation: "Kim đẹp đình",
+    context: "她叫【金美婷】，是金家的女儿。",
+    dictionaryLabel: "Tên 2",
+  };
+
+  it("returns a contextual dictionary translation", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json({
+        choices: [{ message: { content: JSON.stringify({ translation: "Kim Mỹ Đình" }) } }],
+      }),
+    );
+
+    await expect(translateDictionaryEntryWithAi(input, config)).resolves.toBe("Kim Mỹ Đình");
+    const body = requestBodyOf(fetchSpy.mock.calls[0][1]) as {
+      messages: Array<{ content: string }>;
+    };
+    expect(body.messages[1].content).toContain("她叫【金美婷】");
+  });
+
+  it("returns an AI meaning without changing the translation", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json({
+        choices: [{ message: { content: JSON.stringify({ meaning: "Tên người; 金 là vàng." }) } }],
+      }),
+    );
+
+    await expect(explainDictionaryEntryWithAi(input, config)).resolves.toBe(
+      "Tên người; 金 là vàng.",
+    );
   });
 });
 

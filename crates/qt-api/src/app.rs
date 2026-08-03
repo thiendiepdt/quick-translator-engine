@@ -23,6 +23,7 @@ use crate::name_entities::{entity_type_name, parse_entity_type, AiExtractedEntit
 const MAX_REQUEST_SCAN_RANGE: usize = 100;
 const MAX_REQUEST_BODY_BYTES: usize = 5 * 1024 * 1024;
 const MAX_NAME_FILTER_CHARACTERS: usize = 200_000;
+const MAX_MEANING_LOOKUP_CHARACTERS: usize = 100;
 /// Hard caps for caller-supplied AI entities: enough for the largest chapter,
 /// small enough that a hostile payload cannot turn merging into a DoS.
 const MAX_AI_ENTITIES: usize = 500;
@@ -42,6 +43,7 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/health", get(health))
         .route("/modes", get(modes))
         .route("/dictionaries/defaults", get(dictionary_defaults))
+        .route("/meanings", post(meanings))
         .route("/translate", post(translate))
         .route("/translate/batch", post(translate_batch))
         .route("/names/filter", post(filter_names))
@@ -83,6 +85,53 @@ async fn dictionary_defaults(State(state): State<Arc<AppState>>) -> Response {
         Json(body),
     )
         .into_response()
+}
+
+#[derive(Deserialize)]
+struct MeaningsReq {
+    text: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LacVietMeaningResp {
+    source: String,
+    definition: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct MeaningsResp {
+    entries: Vec<LacVietMeaningResp>,
+}
+
+async fn meanings(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<MeaningsReq>,
+) -> Result<Json<MeaningsResp>, ApiError> {
+    let text = req.text.trim();
+    if text.is_empty() {
+        return Err(ApiError::bad_request("text must not be empty"));
+    }
+    if text.chars().count() > MAX_MEANING_LOOKUP_CHARACTERS {
+        return Err(ApiError::bad_request(format!(
+            "text must not exceed {MAX_MEANING_LOOKUP_CHARACTERS} characters"
+        )));
+    }
+
+    let engine = state.engine.clone();
+    let text = text.to_string();
+    let entries = tokio::task::spawn_blocking(move || engine.lookup_lac_viet(&text))
+        .await
+        .map_err(|_| ApiError::internal("meaning lookup task failed"))?
+        .into_iter()
+        .map(|entry| LacVietMeaningResp {
+            source: entry.source,
+            definition: entry.definition,
+        })
+        .collect();
+
+    Ok(Json(MeaningsResp { entries }))
 }
 
 /// `pretty` defaults to on: minimal requests get trimmed, capitalized text.

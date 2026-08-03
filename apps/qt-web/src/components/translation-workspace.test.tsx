@@ -26,6 +26,7 @@ const onTranslateMock = vi.fn();
 function renderWorkspace() {
   return render(
     <TranslationWorkspace
+      endpoint="/api"
       canTranslate
       isPending={false}
       onTranslate={onTranslateMock}
@@ -174,7 +175,7 @@ describe("translation range pin", () => {
       name: "Range 2: nhìn",
     });
     fireEvent.contextMenu(segment);
-    await user.click(await screen.findByText("Update VietPhrase"));
+    await user.click(await screen.findByText("Cập nhật VietPhrase"));
 
     expect(screen.getByLabelText("Tiếng Trung")).toHaveValue("看着");
     const target = screen.getByLabelText("Tiếng Việt");
@@ -201,7 +202,7 @@ describe("translation range pin", () => {
         name: "Range 1: Tiêu Viêm",
       }),
     );
-    await user.click(await screen.findByText("Update Phiên Âm"));
+    await user.click(await screen.findByText("Cập nhật Phiên Âm"));
     await user.click(screen.getByRole("button", { name: "Lưu local" }));
 
     expect(
@@ -227,7 +228,7 @@ describe("translation range pin", () => {
     window.getSelection()?.addRange(range);
 
     fireEvent.contextMenu(segment);
-    await user.click(await screen.findByText("Update Name (chính)"));
+    await user.click(await screen.findByText("Cập nhật Tên"));
 
     expect(screen.getByLabelText("Tiếng Trung")).toHaveValue("萧炎");
     expect(screen.getByLabelText("Tiếng Việt")).toHaveValue("Tiêu");
@@ -254,7 +255,7 @@ describe("translation range pin", () => {
     window.getSelection()?.addRange(range);
 
     fireEvent.contextMenu(secondSegment);
-    await user.click(await screen.findByText("Update Name (phụ)"));
+    await user.click(await screen.findByText("Cập nhật Tên 2"));
 
     expect(screen.getByLabelText("Tiếng Trung")).toHaveValue("萧炎看着");
     expect(screen.getByLabelText("Tiếng Việt")).toHaveValue("Tiêu Viêm nhìn");
@@ -278,7 +279,7 @@ describe("translation range pin", () => {
     expect(secondSegment).toHaveAttribute("data-active", "true");
 
     fireEvent.contextMenu(secondSegment);
-    await user.click(await screen.findByText("Update Name (phụ)"));
+    await user.click(await screen.findByText("Cập nhật Tên 2"));
     expect(screen.getByLabelText("Tiếng Trung")).toHaveValue("萧炎看着");
     expect(screen.getByLabelText("Tiếng Việt")).toHaveValue("Tiêu Viêm nhìn");
   });

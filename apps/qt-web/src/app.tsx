@@ -412,9 +412,12 @@ export default function App() {
             {workspaceView === "translate" ? (
               <TranslationWorkspace
                 key={activeWorkspaceId}
+                endpoint={normalizedEndpoint}
                 canTranslate={canTranslate}
                 isPending={translation.isPending}
                 onTranslate={runTranslate}
+                aiSettings={aiSettings}
+                onOpenSettings={() => setSettingsOpen(true)}
                 requestStatus={requestStatus}
               />
             ) : (

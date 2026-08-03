@@ -3,6 +3,7 @@
 mod dict;
 mod han_viet;
 mod luat_nhan;
+mod meanings;
 mod name_filter;
 mod number;
 mod standardize;
@@ -13,6 +14,7 @@ pub use dict::{
     parse_dict, Dictionaries, DictionaryDefaults, DictionaryOverrides, DictionaryPatches,
     DictionarySourceOverrides,
 };
+pub use meanings::LacVietMeaning;
 pub use name_filter::{
     NameCandidate, NameCandidateSource, NameEntityType, NameFilterDocument, NameFilterMemory,
     NameFilterMode, NameFilterOptions, NameFilterResult,
@@ -130,6 +132,10 @@ impl Engine {
 
     pub fn translate(&self, text: &str, mode: Mode, opts: &Options) -> String {
         self.translate_with_ranges(text, mode, opts).translated_text
+    }
+
+    pub fn lookup_lac_viet(&self, text: &str) -> Vec<LacVietMeaning> {
+        meanings::lookup_lac_viet(text, &self.dicts.lac_viet)
     }
 
     pub fn translate_with_ranges(

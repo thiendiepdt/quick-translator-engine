@@ -15,6 +15,9 @@ fn test_state() -> Arc<AppState> {
         "丁格尔斯泰特=Dingelstedt\n中人=trung nhân",
         "",
         "很好=rất tốt/rất ổn\n红中人=cả cụm\n甲乙=A\n乙丙丁=B",
+    )
+    .with_lac_viet(
+        "金=✚[jīn] Hán Việt: KIM\\n\\t1. vàng\n美=✚[měi] Hán Việt: MĨ\\n\\t1. đẹp",
     );
     Arc::new(AppState {
         engine: Arc::new(Engine::from_dicts(d)),
@@ -97,6 +100,32 @@ async fn dictionary_defaults_returns_raw_customizable_files_only() {
     );
     assert!(body.get("vietphrase").is_none());
     assert!(body.get("chinesePhienAmWords").is_none());
+}
+
+#[tokio::test]
+async fn meanings_returns_lac_viet_definitions_for_each_selected_character() {
+    let resp = post_json(
+        build_router(test_state()),
+        "/meanings",
+        serde_json::json!({ "text": "金美" }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&body_string(resp).await).unwrap(),
+        serde_json::json!({
+            "entries": [
+                {
+                    "source": "金",
+                    "definition": "✚[jīn] Hán Việt: KIM\n\t1. vàng"
+                },
+                {
+                    "source": "美",
+                    "definition": "✚[měi] Hán Việt: MĨ\n\t1. đẹp"
+                }
+            ]
+        })
+    );
 }
 
 #[tokio::test]
@@ -827,7 +856,9 @@ async fn name_filter_rejects_invalid_ai_entities_before_any_work() {
     )
     .await;
     assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
-    assert!(body_string(resp).await.contains("aiEntities.entities[].text"));
+    assert!(body_string(resp)
+        .await
+        .contains("aiEntities.entities[].text"));
 
     // Out-of-range entity confidence.
     let resp = post_json(
