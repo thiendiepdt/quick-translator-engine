@@ -1,12 +1,14 @@
 import {
   dictionaryDefaultsSchema,
   healthResponseSchema,
+  meaningsResponseSchema,
   nameFilterResponseSchema,
   translationResponseSchema,
 } from "@/lib/schema";
 import type {
   DictionaryDefaults,
   HealthResponse,
+  MeaningsResponse,
   NameFilterRequest,
   NameFilterResponse,
   TranslationRequest,
@@ -90,6 +92,21 @@ export function translateChapter(
       body: JSON.stringify(request),
     },
     (value) => translationResponseSchema.parse(value),
+  );
+}
+
+export function fetchMeanings(
+  endpoint: string,
+  text: string,
+): Promise<MeaningsResponse> {
+  return requestJson(
+    endpointUrl(endpoint, "/meanings"),
+    {
+      method: "POST",
+      headers: { "content-type": "application/json; charset=utf-8" },
+      body: JSON.stringify({ text }),
+    },
+    (value) => meaningsResponseSchema.parse(value),
   );
 }
 

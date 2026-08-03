@@ -94,7 +94,7 @@ npm run check
 
 ## Request behavior
 
-- `mode` luôn là `vietphrase-one`.
+- Dịch chương dùng `vietphrase-one`; tiện ích Hán Việt trong dialog dùng `hanviet`.
 - `ranges` luôn là `true` để click đối chiếu hai chiều.
 - Click phải một range output (long-press trên touch) mở menu cập nhật nhanh VietPhrase,
   Name chính/phụ, Phiên Âm, Danh Từ, Hậu Từ, Họ Người và Luật Nhân.
@@ -102,6 +102,8 @@ npm run check
   được dùng làm value tiếng Việt ban đầu.
 - Entry cập nhật nhanh được persist local. Các dictionary tùy biến được ghép vào draft;
   VietPhrase/Phiên Âm được gửi dưới dạng `dictionaryPatches` nhỏ ở mỗi request.
+- Dialog cập nhật có thể điền âm Hán Việt, nhờ AI dịch theo cửa sổ ngữ cảnh raw, tra
+  Lạc Việt qua `POST /meanings`, tra nghĩa bằng AI và đổi nhanh bốn kiểu chữ tiếng Việt.
 - Web tải tám raw dictionary mặc định từ `GET /dictionaries/defaults`.
 - Sidebar chỉ chọn và hiển thị tóm tắt dictionary để không render file lớn khi đổi tab.
 - Dialog editor hiển thị records theo trang 100 dòng, hỗ trợ search key/value, sửa inline,
@@ -119,7 +121,8 @@ npm run check
   sửa tên Việt inline, duyệt/loại từng record và duyệt nhanh candidate ≥85%.
 - Tính năng AI chạy ngay trong trình duyệt (`src/lib/ai-client.ts`): trình duyệt gọi
   thẳng DeepSeek/Gemini bằng key của chính người dùng — key không bao giờ đi qua server
-  của app; server chỉ nhận entity đã trích qua field `aiEntities`. Chọn provider, nhập
+  của app. Lọc tên chỉ gửi entity đã trích qua field `aiEntities`; dịch/tra nghĩa từ điển
+  chỉ cập nhật UI local. Chọn provider, nhập
   key/model và Base URL proxy (tùy chọn) trong dialog Cài đặt. Base URL cho phép dùng
   endpoint trung gian OpenAI-compatible/relay Gemini, kể cả proxy chạy local
   (`http://localhost` được miễn trừ mixed-content); endpoint phải cho phép CORS. Cấu

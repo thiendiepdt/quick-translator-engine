@@ -1,6 +1,6 @@
 # HTTP API
 
-`qt-server` nạp VietPhrase, ChinesePhienAmWords và các dictionary mặc định một lần khi
+`qt-server` nạp VietPhrase, ChinesePhienAmWords, Lạc Việt và các dictionary mặc định một lần khi
 khởi động, sau đó dùng chung một `Engine` cho mọi request. Request có thể thay thế các
 dictionary phụ hoặc gửi patch nhỏ cho hai dictionary cố định mà không sửa state dùng
 chung. Request và response dùng JSON UTF-8.
@@ -77,6 +77,28 @@ Trả nguyên nội dung tám file mặc định được phép tùy biến. `vi
 
 Response thành công có `Cache-Control: public, max-age=3600`. Web dùng nội dung này làm
 bản gốc để sửa; nếu một file không thay đổi thì không cần gửi lại trong request dịch.
+
+## `POST /meanings`
+
+Tra nghĩa Lạc Việt cho cụm đang chọn. API xét tối đa 20 ký tự đầu: ưu tiên cụm/prefix dài,
+sau đó bổ sung nghĩa từng chữ để một tên nhiều chữ có thể xem trong một lần. `LacViet.txt`
+là dữ liệu chỉ đọc, không xuất hiện trong endpoint dictionary mặc định hay request override.
+
+```json
+{"text":"金美婷"}
+```
+
+```json
+{
+  "entries": [
+    {"source":"金","definition":"✚[jīn] Hán Việt: KIM\n\t1. vàng"},
+    {"source":"美","definition":"✚[měi] Hán Việt: MĨ\n\t1. đẹp"}
+  ]
+}
+```
+
+`text` rỗng hoặc dài hơn 100 ký tự trả `400 Bad Request`. Các chuỗi `\\n`/`\\t` trong
+file gốc được chuyển thành xuống dòng/tab thật trong response.
 
 ## `POST /translate`
 

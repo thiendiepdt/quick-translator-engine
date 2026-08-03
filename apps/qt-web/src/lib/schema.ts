@@ -68,6 +68,15 @@ export const translationResponseSchema = z
 
 export const healthResponseSchema = z.object({ status: z.literal("ok") });
 
+export const meaningsResponseSchema = z.object({
+  entries: z.array(
+    z.object({
+      source: z.string(),
+      definition: z.string(),
+    }),
+  ),
+});
+
 export const dictionaryDefaultsSchema: z.ZodType<DictionaryDefaults> = z.object({
   names: z.string(),
   names2: z.string(),

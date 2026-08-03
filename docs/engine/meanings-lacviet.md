@@ -45,8 +45,11 @@ Value là định nghĩa nhiều dòng, dùng ký tự đặc biệt:
 
 ## 4. Trạng thái và lưu ý triển khai
 
-- Chức năng này **chưa được triển khai** trong `qt-core`, CLI hoặc HTTP API.
+- `qt-core` và HTTP API đã có tra cứu Lạc Việt qua `POST /meanings`. Endpoint ưu tiên
+  prefix dài rồi bổ sung nghĩa từng chữ trong cụm đã chọn để phù hợp dialog web.
+- Các nhánh Luật Nhân, số, Names và VietPhrase của `ChineseToMeanings` gốc chưa được port;
+  CLI cũng chưa expose lệnh tra nghĩa.
 - Value VietPhrase/Names: thay `/` → `; ` khi hiển thị (bước 3), nhưng LacViet giữ nguyên.
 - Giữ đúng thứ tự mục và separator `\n-----------------\n` để "y hệt".
-- API dự kiến có thể expose `POST /meanings`; schema response cần được chốt khi triển khai,
-  không nên suy ra từ endpoint dịch hiện tại.
+- API response dùng `{ "entries": [{ "source": string, "definition": string }] }`; definition
+  đã được unescape `\\n`/`\\t` trước khi trả về web.

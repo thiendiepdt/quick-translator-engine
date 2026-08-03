@@ -230,7 +230,8 @@ chép mảng mapping target-only có trường hợp lệch entry cuối của Q
   chuẩn hóa, ranges, CLI và HTTP API.
 - Chưa có golden corpus đầy đủ lấy trực tiếp từ ứng dụng QT2025; các trường hợp hiếm vẫn có
   thể khác engine gốc.
-- `POST /meanings`/Lạc Việt chưa được triển khai.
+- `POST /meanings` nạp Lạc Việt dưới dạng dictionary chỉ đọc và trả nghĩa cụm/từng chữ;
+  chưa port các nhánh Luật Nhân, số, Names và VietPhrase của `ChineseToMeanings` gốc.
 - Input/output của CLI và API là UTF-8; charset detector cũ không được port.
 - Server chưa có cơ chế bảo vệ để expose trực tiếp ra Internet.
 

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { fetchDictionaryDefaults, translateChapter } from "@/lib/api";
+import { fetchDictionaryDefaults, fetchMeanings, translateChapter } from "@/lib/api";
 import type { TranslationRequest } from "@/lib/types";
 
 const request: TranslationRequest = {
@@ -84,6 +84,28 @@ describe("translation API client", () => {
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/dictionaries/defaults",
       expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it("loads and validates Lạc Việt meanings", async () => {
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(
+        Response.json({
+          entries: [{ source: "金", definition: "Hán Việt: KIM\n1. vàng" }],
+        }),
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(fetchMeanings("/api", "金美婷")).resolves.toEqual({
+      entries: [{ source: "金", definition: "Hán Việt: KIM\n1. vàng" }],
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/meanings",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ text: "金美婷" }),
+      }),
     );
   });
 });

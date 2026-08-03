@@ -18,6 +18,7 @@ const PRONOUNS: &str = include_str!("../../../QT2025/Resources/Pronouns.txt");
 const DANH_TU: &str = include_str!("../../../QT2025/Resources/DanhTu.txt");
 const HO_NGUOI: &str = include_str!("../../../QT2025/Resources/HoNguoi.txt");
 const HAU_TU: &str = include_str!("../../../QT2025/Resources/HauTu.txt");
+const LAC_VIET: &str = include_str!("../../../QT2025/Resources/LacViet.txt");
 const IGNORED_CHINESE_PHRASES: &str = include_str!("../../../QT2025/IgnoredChinesePhrases.txt");
 
 fn dictionary_defaults() -> DictionaryDefaults {
@@ -35,7 +36,9 @@ fn dictionary_defaults() -> DictionaryDefaults {
 
 fn build_state() -> Arc<AppState> {
     let dictionary_defaults = dictionary_defaults();
-    let dictionaries = dictionary_defaults.build_dictionaries(CHINESE_PHIEN_AM_WORDS, VIETPHRASE);
+    let dictionaries = dictionary_defaults
+        .build_dictionaries(CHINESE_PHIEN_AM_WORDS, VIETPHRASE)
+        .with_lac_viet(LAC_VIET);
     Arc::new(AppState {
         engine: Arc::new(Engine::from_dicts(dictionaries)),
         dictionary_defaults: Arc::new(dictionary_defaults),
@@ -76,5 +79,6 @@ mod tests {
         );
         assert!(state.dictionary_defaults.names.len() > 2_000_000);
         assert!(state.dictionary_defaults.pronouns.contains("他=hắn"));
+        assert!(!state.engine.lookup_lac_viet("金").is_empty());
     }
 }

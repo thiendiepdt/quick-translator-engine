@@ -50,8 +50,8 @@ Pronouns=Resources\Pronouns.txt
 | HauTu.txt | `hauTuDictionary` | hậu tố | Dựng `hoHauTuCache` |
 | IgnoredChinesePhrases.txt | `ignoredChinesePhraseList` | (danh sách) | Cụm bị xoá trong `StandardizeInput` trước khi dịch |
 
-`Dictionaries::load` hiện nạp các dictionary phục vụ ba mode dịch và Luật Nhân; LacViet
-chưa được nạp vì chức năng `ChineseToMeanings` chưa triển khai.
+`Dictionaries::load` nạp các dictionary phục vụ ba mode dịch, Luật Nhân và lookup Lạc Việt;
+LacViet chỉ đọc, không tham gia đường dịch thông thường.
 
 ## 4. <a name="merge"></a>Thứ tự nạp & dựng từ điển tổng hợp
 
@@ -140,5 +140,5 @@ custom được compile riêng; Pronouns và Name một nghĩa được ghép th
 request. HoNguoi/HauTu custom được dùng cho `{h}{t}`. DanhTu được nhận và parse để giữ
 contract file, nhưng các đường dịch hiện đã port chưa đọc dictionary này.
 
-Lạc Việt không thuộc contract này vì endpoint/thuật toán `ChineseToMeanings` chưa được
-triển khai.
+Lạc Việt không thuộc contract override này; endpoint `POST /meanings` chỉ dùng bản nạp sẵn
+để tra cứu và không ghi ngược vào engine.
