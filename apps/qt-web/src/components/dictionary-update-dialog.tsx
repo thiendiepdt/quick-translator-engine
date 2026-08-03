@@ -8,7 +8,14 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { FormEvent, useMemo, useState } from "react";
+import {
+  FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -129,6 +136,7 @@ export function DictionaryUpdateDialog({
   );
   const [pendingAction, setPendingAction] = useState<PendingAction>();
   const [lookupResult, setLookupResult] = useState<LookupResult>();
+  const autoHanVietKeyRef = useRef<string | undefined>(undefined);
 
   const previousKeys = useMemo(
     () =>
@@ -142,8 +150,7 @@ export function DictionaryUpdateDialog({
       previousKeys.some((key) => localEntries[dictionaryKey][key] !== undefined),
   );
 
-  if (!dictionaryKey || !selection) return null;
-  const activeDictionaryKey = dictionaryKey;
+  const activeDictionaryKey = dictionaryKey ?? "names";
   const dictionaryLabel = labels[activeDictionaryKey];
 
   function normalizedSource(): string | undefined {
@@ -176,9 +183,12 @@ export function DictionaryUpdateDialog({
     return resolveAiCall(aiSettings.provider, providerConfig);
   }
 
-  async function translateFromHanViet() {
-    const text = normalizedSource();
-    if (!text) return;
+  const translateFromHanViet = useCallback(async () => {
+    const text = source.trim();
+    if (!text) {
+      toast.error("Nhập tiếng Trung trước khi dùng tiện ích");
+      return;
+    }
     setPendingAction("han-viet");
     try {
       const result = await translateChapter(endpoint, {
@@ -202,7 +212,26 @@ export function DictionaryUpdateDialog({
     } finally {
       setPendingAction(undefined);
     }
-  }
+  }, [endpoint, localEntries.chinesePhienAmWords, source]);
+
+  useEffect(() => {
+    if (
+      !open ||
+      !selection ||
+      (dictionaryKey !== "names" && dictionaryKey !== "names2") ||
+      hasSavedEntry
+    ) {
+      return;
+    }
+    const sourceKey = selection.source.trim();
+    if (!sourceKey) return;
+    const autoHanVietKey = `${dictionaryKey}:${sourceKey}`;
+    if (autoHanVietKeyRef.current === autoHanVietKey) return;
+    autoHanVietKeyRef.current = autoHanVietKey;
+    void translateFromHanViet();
+  }, [dictionaryKey, hasSavedEntry, open, selection, translateFromHanViet]);
+
+  if (!dictionaryKey || !selection) return null;
 
   async function translateWithAi() {
     const text = normalizedSource();

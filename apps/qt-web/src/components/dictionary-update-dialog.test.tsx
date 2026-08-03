@@ -49,8 +49,11 @@ afterEach(() => {
 describe("dictionary update utilities", () => {
   it("applies all four Vietnamese casing actions", async () => {
     const user = userEvent.setup();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json({ translated: " kim đẹp đình", sourceRanges: [], targetRanges: [] }),
+    );
     renderDialog();
-    const target = screen.getByLabelText("Tiếng Việt");
+    const target = await screen.findByDisplayValue("Kim Đẹp Đình");
 
     await user.click(screen.getByRole("button", { name: "Hoa Từng Từ" }));
     expect(target).toHaveValue("Kim Đẹp Đình");
@@ -73,6 +76,7 @@ describe("dictionary update utilities", () => {
     );
     renderDialog();
 
+    await screen.findByDisplayValue("Kim Mỹ Đình");
     await user.click(screen.getByRole("button", { name: "Dùng âm Hán Việt" }));
 
     expect(await screen.findByLabelText("Tiếng Việt")).toHaveValue("Kim Mỹ Đình");
@@ -86,16 +90,21 @@ describe("dictionary update utilities", () => {
 
   it("shows Lạc Việt meanings inside the dialog", async () => {
     const user = userEvent.setup();
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      Response.json({
-        entries: [
-          { source: "金", definition: "Hán Việt: KIM\n1. vàng" },
-          { source: "美", definition: "Hán Việt: MĨ\n1. đẹp" },
-        ],
-      }),
-    );
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        Response.json({ translated: " kim đẹp đình", sourceRanges: [], targetRanges: [] }),
+      )
+      .mockResolvedValueOnce(
+        Response.json({
+          entries: [
+            { source: "金", definition: "Hán Việt: KIM\n1. vàng" },
+            { source: "美", definition: "Hán Việt: MĨ\n1. đẹp" },
+          ],
+        }),
+      );
     renderDialog();
 
+    await screen.findByDisplayValue("Kim Đẹp Đình");
     await user.click(screen.getByRole("button", { name: "Lạc Việt" }));
 
     expect(await screen.findByText("Nghĩa Lạc Việt")).toBeInTheDocument();
@@ -107,6 +116,13 @@ describe("dictionary update utilities", () => {
     const user = userEvent.setup();
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        Response.json({
+          translated: " kim đẹp đình",
+          sourceRanges: [],
+          targetRanges: [],
+        }),
+      )
       .mockResolvedValueOnce(
         Response.json({
           choices: [
@@ -123,12 +139,13 @@ describe("dictionary update utilities", () => {
       );
     renderDialog({ ai: true });
 
+    await screen.findByDisplayValue("Kim Đẹp Đình");
     await user.click(screen.getByRole("button", { name: "Dịch bằng AI" }));
     expect(await screen.findByLabelText("Tiếng Việt")).toHaveValue("Kim Mỹ Đình");
     await user.click(screen.getByRole("button", { name: "Tra bằng AI" }));
     expect(await screen.findByText("Tên một cô gái họ Kim.")).toBeInTheDocument();
 
-    for (const call of fetchSpy.mock.calls) {
+    for (const call of fetchSpy.mock.calls.slice(1)) {
       const body = JSON.parse(call[1]?.body as string) as {
         messages: Array<{ content: string }>;
       };
