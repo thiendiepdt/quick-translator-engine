@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -302,6 +302,22 @@ describe("name filter mode preference", () => {
     await user.click(screen.getByRole("switch", { name: "Duyệt AI" }));
 
     expect(warning).not.toHaveBeenCalled();
+  });
+
+  it("imports a dropped text file into the source chapter", async () => {
+    useWorkspaceStore.getState().setSourceText("");
+    renderWorkspace();
+
+    fireEvent.drop(screen.getByPlaceholderText(/Dán một chương tiếng Trung/), {
+      dataTransfer: {
+        files: [new File(["萧炎来了"], "chuong.txt", { type: "text/plain" })],
+        types: ["Files"],
+      },
+    });
+
+    await waitFor(() => {
+      expect(useWorkspaceStore.getState().sourceText).toBe("萧炎来了");
+    });
   });
 
   it("clears the source chapter for a new paste and restores it via undo", async () => {

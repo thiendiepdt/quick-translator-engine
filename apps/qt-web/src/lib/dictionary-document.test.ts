@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  appendDictionaryText,
   getDictionaryDocumentStats,
   parseDictionaryDocument,
   serializeDictionaryDocument,
@@ -88,5 +89,24 @@ describe("dictionary document editor", () => {
       .toEqual({ recordCount: 2, rawCount: 0 });
     expect(getDictionaryDocumentStats("", "names"))
       .toEqual({ recordCount: 0, rawCount: 0 });
+  });
+});
+
+describe("appendDictionaryText", () => {
+  it("appends after a separator and keeps existing content intact", () => {
+    expect(appendDictionaryText("萧炎=Tiêu Viêm", "药老=Dược Lão"))
+      .toBe("萧炎=Tiêu Viêm\n药老=Dược Lão");
+    expect(appendDictionaryText("萧炎=Tiêu Viêm\n", "药老=Dược Lão"))
+      .toBe("萧炎=Tiêu Viêm\n药老=Dược Lão");
+  });
+
+  it("uses the file's CRLF ending for the separator", () => {
+    expect(appendDictionaryText("萧炎=Tiêu Viêm\r\n药老=Dược Lão", "云韵=Vân Vận"))
+      .toBe("萧炎=Tiêu Viêm\r\n药老=Dược Lão\r\n云韵=Vân Vận");
+  });
+
+  it("returns the incoming text as-is when the dictionary is empty", () => {
+    expect(appendDictionaryText("", "药老=Dược Lão")).toBe("药老=Dược Lão");
+    expect(appendDictionaryText("  \n", "药老=Dược Lão")).toBe("药老=Dược Lão");
   });
 });

@@ -1,5 +1,6 @@
 import {
   AlertCircle,
+  ClipboardPaste,
   FileUp,
   Info,
   LoaderCircle,
@@ -17,12 +18,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { getDictionaryDocumentStats } from "@/lib/dictionary-document";
+import { useTextFileImport, type TextImportSource } from "@/hooks/use-text-file-import";
+import {
+  appendDictionaryText,
+  getDictionaryDocumentStats,
+} from "@/lib/dictionary-document";
 import { dictionaryDefinitions } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useWorkspaceStore } from "@/store/workspace";
-
-const MAX_DICTIONARY_FILE_BYTES = 4 * 1024 * 1024;
 
 interface DictionaryInspectorProps {
   mobile?: boolean;
@@ -51,20 +54,28 @@ export function DictionaryInspector({
     () => getDictionaryDocumentStats(activeDraft.value, activeDictionary),
     [activeDictionary, activeDraft.value],
   );
+  // Nạp file / kéo thả / dán clipboard đều THÊM vào cuối bộ từ điển đang
+  // chọn (dictionary là danh sách cộng dồn, không đè) — vẫn có hoàn tác.
+  const { dropActive, dropHandlers, importFile, importClipboard } = useTextFileImport(
+    (text, source: TextImportSource) => {
+      const previous = activeDraft.value;
+      setDictionaryValue(activeDictionary, appendDictionaryText(previous, text));
+      toast.success(
+        source.kind === "file"
+          ? `Đã thêm ${source.name} vào cuối ${definition?.label ?? "từ điển"}`
+          : `Đã thêm nội dung dán vào cuối ${definition?.label ?? "từ điển"}`,
+        {
+          action: {
+            label: "Hoàn tác",
+            onClick: () => setDictionaryValue(activeDictionary, previous),
+          },
+        },
+      );
+    },
+  );
   if (!definition) return null;
   const touchedCount = Object.values(dictionaries).filter(({ touched }) => touched).length;
   const defaultsReady = defaultsStatus === "ready";
-
-  async function importFile(file: File | undefined) {
-    if (!file) return;
-    if (file.size > MAX_DICTIONARY_FILE_BYTES) {
-      toast.error("File từ điển vượt quá 4 MiB");
-      return;
-    }
-    const content = await file.text();
-    setDictionaryValue(activeDictionary, content);
-    toast.success(`Đã nạp ${file.name}`);
-  }
 
   return (
     // Trong sheet, chiều cao phải do flex quyết định. Trước đây dùng
@@ -129,7 +140,15 @@ export function DictionaryInspector({
             })}
           </div>
 
-          <div className="mt-4">
+          <div
+            className="relative mt-4"
+            {...(defaultsReady ? dropHandlers : {})}
+          >
+            {dropActive ? (
+              <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center rounded-lg border-2 border-dashed border-primary/60 bg-primary/10 px-3 text-center text-xs font-medium text-primary backdrop-blur-[1px]">
+                Thả file .txt để thêm vào {definition.label}
+              </div>
+            ) : null}
             <div className="mb-2">
               <div className="flex items-baseline justify-between gap-3">
                 <h3 className="min-w-0 truncate text-sm font-semibold">{definition.label}</h3>
@@ -160,8 +179,11 @@ export function DictionaryInspector({
               <Maximize2 className="size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
             </button>
             <div className="mt-2 flex flex-wrap items-center gap-1">
-              <Button type="button" variant="ghost" size="xs" disabled={!defaultsReady} onClick={() => fileInput.current?.click()}>
+              <Button type="button" variant="ghost" size="xs" title="Thêm nội dung file .txt vào cuối — hoặc kéo thả file vào khối này" disabled={!defaultsReady} onClick={() => fileInput.current?.click()}>
                 <FileUp /> Nạp tệp .txt
+              </Button>
+              <Button type="button" variant="ghost" size="xs" title="Thêm văn bản đang có trong clipboard vào cuối" disabled={!defaultsReady} onClick={() => void importClipboard()}>
+                <ClipboardPaste /> Dán
               </Button>
               <Button type="button" variant="ghost" size="xs" title="Gửi một bộ rỗng thay cho bản mặc định" disabled={!defaultsReady} onClick={() => setDictionaryValue(activeDictionary, "")}>
                 <Trash2 /> Đặt rỗng
@@ -172,10 +194,11 @@ export function DictionaryInspector({
               <input
                 ref={fileInput}
                 type="file"
-                accept=".txt,text/plain"
+                accept=".txt,.md,text/plain"
                 hidden
                 onChange={(event) => {
-                  void importFile(event.target.files?.[0]);
+                  const file = event.target.files?.[0];
+                  if (file) void importFile(file);
                   event.target.value = "";
                 }}
               />

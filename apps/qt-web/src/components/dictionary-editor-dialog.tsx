@@ -1,7 +1,11 @@
 import {
   ChevronLeft,
   ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  ClipboardPaste,
   Database,
+  FileUp,
   Plus,
   Save,
   Search,
@@ -27,11 +31,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useTextFileImport, type TextImportSource } from "@/hooks/use-text-file-import";
 import {
+  appendDictionaryText,
   parseDictionaryDocument,
   serializeDictionaryDocument,
   type DictionaryRecord,
 } from "@/lib/dictionary-document";
+import { paginationItems } from "@/lib/pagination";
 import type { DictionaryDefinition } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -227,8 +234,12 @@ function DictionaryEditorSession({
   onSave,
   onOpenChange,
   onDirtyChange,
+  onImport,
+  onEmpty,
 }: Omit<DictionaryEditorDialogProps, "open"> & {
   onDirtyChange: (dirty: boolean) => void;
+  onImport: (content: string, source: TextImportSource, previous: string) => void;
+  onEmpty: (previous: string) => void;
 }) {
   const [document] = useState(() => parseDictionaryDocument(value, definition.key));
   const pendingEditsRef = useRef(new Map<string, DictionaryRecord>());
@@ -243,6 +254,18 @@ function DictionaryEditorSession({
   const [adding, setAdding] = useState(false);
   const [newKey, setNewKey] = useState("");
   const [newValue, setNewValue] = useState("");
+  const importInputRef = useRef<HTMLInputElement>(null);
+
+  // Nhập file / kéo thả / dán clipboard THÊM vào cuối nội dung đang mở.
+  // Serialize phiên hiện tại trước khi nối nên chỉnh sửa đang dở không mất —
+  // toàn bộ được lưu cùng phần vừa nhập, và hoàn tác quay về đúng bản trước
+  // khi nhập (vẫn giữ chỉnh sửa).
+  const { dropActive, dropHandlers, importFile, importClipboard } = useTextFileImport(
+    (text, source) => {
+      const base = serializeSession();
+      onImport(appendDictionaryText(base, text), source, base);
+    },
+  );
 
   const draftRecord = useCallback((record: DictionaryRecord) => {
     pendingEditsRef.current.set(record.id, record);
@@ -316,17 +339,21 @@ function DictionaryEditorSession({
     setPage(0);
   }
 
-  function saveChanges() {
+  /** Nội dung hiện tại của phiên, gộp cả các chỉnh sửa chưa lưu. */
+  function serializeSession(): string {
     const finalEdits = new Map(edits);
     for (const [id, record] of pendingEditsRef.current) {
       finalEdits.set(id, record);
     }
-    const content = serializeDictionaryDocument(document, {
+    return serializeDictionaryDocument(document, {
       edits: finalEdits,
       deleted,
       added,
     });
-    onSave(content);
+  }
+
+  function saveChanges() {
+    onSave(serializeSession());
     onDirtyChange(false);
     toast.success(`Đã cập nhật ${definition.filename}`);
     onOpenChange(false);
@@ -366,6 +393,46 @@ function DictionaryEditorSession({
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <span>{recordCount.toLocaleString("vi")} bản ghi</span>
           {rawCount > 0 ? <span>· {rawCount.toLocaleString("vi")} dòng thô</span> : null}
+          <input
+            ref={importInputRef}
+            type="file"
+            accept=".txt,.md,text/plain"
+            hidden
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) void importFile(file);
+              event.target.value = "";
+            }}
+          />
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            title="Thêm nội dung file .txt vào cuối — hoặc kéo thả file vào danh sách"
+            onClick={() => importInputRef.current?.click()}
+          >
+            <FileUp /> Nhập file
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            title="Thêm văn bản đang có trong clipboard vào cuối"
+            onClick={() => void importClipboard()}
+          >
+            <ClipboardPaste /> Dán
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="text-destructive hover:text-destructive"
+            title="Xóa toàn bộ bản ghi — gửi một bộ rỗng thay cho bản mặc định"
+            disabled={effectiveRecords.length === 0}
+            onClick={() => onEmpty(serializeSession())}
+          >
+            <Trash2 /> Đặt rỗng
+          </Button>
           <Button
             type="button"
             size="sm"
@@ -406,7 +473,13 @@ function DictionaryEditorSession({
         </div>
       ) : null}
 
-      <div className="min-h-0 flex-1 overflow-auto bg-card">
+      <div className="relative min-h-0 flex-1" {...dropHandlers}>
+        {dropActive ? (
+          <div className="pointer-events-none absolute inset-0 z-20 grid place-items-center border-2 border-dashed border-primary/60 bg-primary/10 text-sm font-medium text-primary backdrop-blur-[1px]">
+            Thả file .txt để thêm vào cuối {definition.filename}
+          </div>
+        ) : null}
+        <div className="h-full overflow-auto bg-card">
         <div
           className={cn(
             "sticky top-0 z-10 grid min-w-[720px] gap-2 border-b bg-secondary px-3 py-2 font-mono text-[10px] font-semibold tracking-wide text-secondary-foreground uppercase",
@@ -444,34 +517,80 @@ function DictionaryEditorSession({
             Không tìm thấy bản ghi phù hợp.
           </div>
         )}
+        </div>
       </div>
 
-      <div className="flex shrink-0 flex-col gap-3 border-t bg-card px-6 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex shrink-0 flex-col gap-3 border-t bg-card px-6 py-3 xl:flex-row xl:items-center xl:justify-between">
         <div className="text-xs text-muted-foreground">
-          {filteredRecords.length.toLocaleString("vi")} kết quả · trang{" "}
-          {(safePage + 1).toLocaleString("vi")}/{pageCount.toLocaleString("vi")} · tối đa{" "}
-          {PAGE_SIZE} dòng/trang
+          {filteredRecords.length.toLocaleString("vi")} kết quả · tối đa {PAGE_SIZE} dòng/trang
         </div>
-        <div className="flex items-center gap-2">
+        {/* Nhảy thẳng theo số trang; màn hẹp chỉ còn icon «‹›» cho gọn. */}
+        <nav className="flex flex-wrap items-center gap-1" aria-label="Phân trang bản ghi">
           <Button
             type="button"
             variant="outline"
             size="sm"
             disabled={safePage === 0}
+            aria-label="Trang đầu"
+            onClick={() => setPage(0)}
+          >
+            <ChevronsLeft /> <span className="hidden lg:inline">Đầu</span>
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={safePage === 0}
+            aria-label="Trang trước"
             onClick={() => setPage(Math.max(0, safePage - 1))}
           >
-            <ChevronLeft /> Trước
+            <ChevronLeft /> <span className="hidden lg:inline">Trước</span>
+          </Button>
+          {paginationItems(safePage, pageCount).map((item, index) =>
+            item === "ellipsis" ? (
+              <span
+                key={`ellipsis-${index}`}
+                aria-hidden="true"
+                className="px-1 font-mono text-xs text-muted-foreground"
+              >
+                …
+              </span>
+            ) : (
+              <Button
+                key={item}
+                type="button"
+                variant={item === safePage ? "default" : "ghost"}
+                size="sm"
+                className="min-w-8 px-2 font-mono"
+                aria-label={`Trang ${item + 1}`}
+                aria-current={item === safePage ? "page" : undefined}
+                onClick={() => setPage(item)}
+              >
+                {(item + 1).toLocaleString("vi")}
+              </Button>
+            ),
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={safePage >= pageCount - 1}
+            aria-label="Trang sau"
+            onClick={() => setPage(Math.min(pageCount - 1, safePage + 1))}
+          >
+            <span className="hidden lg:inline">Sau</span> <ChevronRight />
           </Button>
           <Button
             type="button"
             variant="outline"
             size="sm"
             disabled={safePage >= pageCount - 1}
-            onClick={() => setPage(Math.min(pageCount - 1, safePage + 1))}
+            aria-label="Trang cuối"
+            onClick={() => setPage(pageCount - 1)}
           >
-            Sau <ChevronRight />
+            <span className="hidden lg:inline">Cuối</span> <ChevronsRight />
           </Button>
-        </div>
+        </nav>
       </div>
 
       <DialogFooter className="shrink-0 border-t px-6 py-4">
@@ -494,6 +613,9 @@ export function DictionaryEditorDialog({
   onSave,
 }: DictionaryEditorDialogProps) {
   const dirtyRef = useRef(false);
+  // Session parse nội dung một lần lúc mount; nhập file/dán thay cả nội dung
+  // nên bump key để dựng lại phiên mới trên văn bản vừa nhập.
+  const [sessionKey, setSessionKey] = useState(0);
 
   function handleOpenChange(nextOpen: boolean) {
     if (
@@ -507,10 +629,49 @@ export function DictionaryEditorDialog({
     onOpenChange(nextOpen);
   }
 
+  // `previous` do session đưa lên = nội dung phiên NGAY TRƯỚC khi nối (đã gộp
+  // chỉnh sửa đang dở), nên hoàn tác chỉ gỡ phần vừa nhập, không mất chỉnh sửa.
+  function handleImport(content: string, source: TextImportSource, previous: string) {
+    onSave(content);
+    dirtyRef.current = false;
+    setSessionKey((key) => key + 1);
+    toast.success(
+      source.kind === "file"
+        ? `Đã thêm ${source.name} vào cuối ${definition.filename}`
+        : `Đã thêm nội dung dán vào cuối ${definition.filename}`,
+      {
+        action: {
+          label: "Hoàn tác",
+          onClick: () => {
+            onSave(previous);
+            setSessionKey((key) => key + 1);
+          },
+        },
+      },
+    );
+  }
+
+  function handleEmpty(previous: string) {
+    onSave("");
+    dirtyRef.current = false;
+    setSessionKey((key) => key + 1);
+    toast.success(`Đã đặt rỗng ${definition.filename}`, {
+      description: "Request sẽ gửi một bộ rỗng thay cho bản mặc định.",
+      action: {
+        label: "Hoàn tác",
+        onClick: () => {
+          onSave(previous);
+          setSessionKey((key) => key + 1);
+        },
+      },
+    });
+  }
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       {open ? (
         <DictionaryEditorSession
+          key={sessionKey}
           definition={definition}
           value={value}
           onSave={onSave}
@@ -518,6 +679,8 @@ export function DictionaryEditorDialog({
           onDirtyChange={(dirty) => {
             dirtyRef.current = dirty;
           }}
+          onImport={handleImport}
+          onEmpty={handleEmpty}
         />
       ) : null}
     </Dialog>

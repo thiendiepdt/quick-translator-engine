@@ -3,6 +3,7 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor,
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -58,6 +59,39 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+});
+
+describe("chapter file import", () => {
+  it("imports a picked .txt file into the source pane", async () => {
+    const user = userEvent.setup();
+    useWorkspaceStore.getState().setSourceText("");
+    const { container } = renderWorkspace();
+
+    const input = container.querySelector<HTMLInputElement>('input[type="file"]');
+    expect(input).not.toBeNull();
+    await user.upload(input!, new File(["萧炎来了"], "chuong-1.txt", { type: "text/plain" }));
+
+    await waitFor(() => {
+      expect(useWorkspaceStore.getState().sourceText).toBe("萧炎来了");
+    });
+  });
+
+  it("imports a dropped GBK file with the right encoding", async () => {
+    useWorkspaceStore.getState().setSourceText("");
+    renderWorkspace();
+
+    // "你好" mã hóa GBK — đọc mù UTF-8 sẽ ra mojibake.
+    const file = new File([new Uint8Array([0xc4, 0xe3, 0xba, 0xc3])], "chuong.txt", {
+      type: "text/plain",
+    });
+    fireEvent.drop(screen.getByRole("textbox", { name: "Nguyên văn tiếng Trung" }), {
+      dataTransfer: { files: [file], types: ["Files"] },
+    });
+
+    await waitFor(() => {
+      expect(useWorkspaceStore.getState().sourceText).toBe("你好");
+    });
+  });
 });
 
 describe("quick source clear", () => {

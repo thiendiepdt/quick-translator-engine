@@ -3,6 +3,7 @@ import {
   Copy,
   Eraser,
   FileText,
+  FileUp,
   LoaderCircle,
   Pin,
   PinOff,
@@ -35,6 +36,7 @@ import {
 } from "@/components/ui/context-menu";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { useTextFileImport } from "@/hooks/use-text-file-import";
 import { buildTextSegments, rangeText } from "@/lib/ranges";
 import { candidateContext } from "@/lib/ai-client";
 import type { AiSettings } from "@/lib/ai-settings";
@@ -120,6 +122,7 @@ export function TranslationWorkspace({
     useState<DictionaryUpdateKey>();
   const sourceScrollRef = useRef<HTMLDivElement>(null);
   const sourceTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const outputScrollRef = useRef<HTMLDivElement>(null);
   const outputSelectionAnchorRef = useRef<number | undefined>(undefined);
   const outputSelectionFocusRef = useRef<number | undefined>(undefined);
@@ -312,6 +315,21 @@ export function TranslationWorkspace({
     });
   }
 
+  // Nhập chương từ file .txt (nút chọn file hoặc kéo thả vào khung nguyên
+  // văn). Ghi đè có hoàn tác, như nút xóa nhanh.
+  const { dropActive, dropHandlers, importFile } = useTextFileImport((text, source) => {
+    const previous = sourceText;
+    setSourceText(text);
+    setSourceView("raw");
+    requestAnimationFrame(() => sourceTextareaRef.current?.focus());
+    toast.success(source.kind === "file" ? `Đã nhập ${source.name}` : "Đã dán từ clipboard", {
+      description: `${text.length.toLocaleString("vi-VN")} ký tự`,
+      ...(previous
+        ? { action: { label: "Hoàn tác", onClick: () => setSourceText(previous) } }
+        : {}),
+    });
+  });
+
   // Bộ chuyển khung chỉ tồn tại dưới lg, nơi mỗi lần chỉ hiện được một khung.
   const paneTabs = (
     <Tabs value={mobilePane} onValueChange={(value) => setMobilePane(value as "source" | "output")} className="lg:hidden">
@@ -332,6 +350,29 @@ export function TranslationWorkspace({
             <strong className="hidden text-xs lg:block">Nguyên văn</strong>
             {paneTabs}
             <div className="flex items-center gap-1">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".txt,.md,text/plain"
+                className="hidden"
+                aria-hidden="true"
+                tabIndex={-1}
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) void importFile(file);
+                  event.target.value = "";
+                }}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                aria-label="Nhập chương từ file văn bản"
+                title="Nhập chương từ file .txt (hoặc kéo thả file vào khung)"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <FileUp /> Nhập
+              </Button>
               <Button
                 type="button"
                 variant="ghost"
@@ -351,13 +392,23 @@ export function TranslationWorkspace({
               </Tabs>
             </div>
           </header>
-          <div ref={sourceScrollRef} lang="zh-Hans" className="fine-scrollbar relative min-h-0 overflow-auto">
+          <div
+            ref={sourceScrollRef}
+            lang="zh-Hans"
+            className="fine-scrollbar relative min-h-0 overflow-auto"
+            {...dropHandlers}
+          >
+            {dropActive ? (
+              <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center border-2 border-dashed border-primary/60 bg-primary/10 text-sm font-medium text-primary backdrop-blur-[1px]">
+                Thả file văn bản để nhập chương
+              </div>
+            ) : null}
             {sourceView === "raw" ? (
               <Textarea
                 ref={sourceTextareaRef}
                 value={sourceText}
                 onChange={(event) => setSourceText(event.target.value)}
-                placeholder="Dán một chương tiếng Trung vào đây…"
+                placeholder="Dán một chương tiếng Trung vào đây — hoặc kéo thả file .txt, bấm nút Nhập…"
                 aria-label="Nguyên văn tiếng Trung"
                 className="h-full min-h-full resize-none rounded-none border-0 bg-transparent px-7 py-6 text-[18px] leading-9 shadow-none focus-visible:ring-0"
               />

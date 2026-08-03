@@ -30,10 +30,19 @@ function DialogOverlay({
   );
 }
 
+/**
+ * Toast sonner portal ra ngoài dialog — bấm vào toast (vd nút Hoàn tác)
+ * không được tính là bấm ra ngoài rồi đóng dialog.
+ */
+export function isToastInteraction(target: EventTarget | null): boolean {
+  return target instanceof Element && Boolean(target.closest("[data-sonner-toaster]"));
+}
+
 function DialogContent({
   className,
   children,
   showCloseButton = true,
+  onInteractOutside,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean;
@@ -43,6 +52,13 @@ function DialogContent({
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"
+        onInteractOutside={(event) => {
+          if (isToastInteraction(event.target)) {
+            event.preventDefault();
+            return;
+          }
+          onInteractOutside?.(event);
+        }}
         className={cn(
           "fixed top-1/2 left-1/2 z-[71] flex max-h-[92dvh] w-[min(96vw,1280px)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl border bg-background shadow-2xl outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
           className,
