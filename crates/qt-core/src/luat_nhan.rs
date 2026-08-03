@@ -1,18 +1,68 @@
 //! QT2025's pattern-based “Luật Nhân” translation rules.
 
-use crate::dict::{Dictionaries, DictionaryLookup};
+use crate::dict::{Dictionaries, DictionaryLookup, IndexedLookup, KeyLenIndex};
 use crate::number::{
     chinese_digit, convert_chinese_number_to_i64, is_number_start, number_to_vietnamese_text,
     translate_range_number,
 };
 use fancy_regex::Regex as FancyRegex;
 use regex::Regex;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 struct CompiledRule {
     key: String,
     value: String,
     regex: FancyRegex,
+    /// Ký tự literal mở đầu key (nếu có): mọi match đều phải chứa nó, nên
+    /// cửa sổ không có ký tự này thì khỏi chạy regex.
+    trigger: Option<char>,
+}
+
+/// Literal BẮT BUỘC đầu tiên trong key: mọi match của rule đều phải chứa ký
+/// tự này, nên cửa sổ không có nó thì khỏi chạy regex. Bỏ qua placeholder
+/// `{n}`/`{s}`, nhóm `(a|b)` (không đơn nhất), phần tùy chọn `[x]`/`x?` và
+/// whitespace (được compile thành `\s*`). Không tìm được thì trả None —
+/// rule luôn được chạy, an toàn tuyệt đối.
+fn rule_trigger(key: &str) -> Option<char> {
+    let chars: Vec<char> = key.chars().collect();
+    let mut index = 0;
+    while index < chars.len() {
+        match chars[index] {
+            '{' => {
+                while index < chars.len() && chars[index] != '}' {
+                    index += 1;
+                }
+                index += 1;
+            }
+            '[' => {
+                while index < chars.len() && chars[index] != ']' {
+                    index += 1;
+                }
+                index += 1;
+                // dấu '?' theo sau lớp tùy chọn
+                if chars.get(index) == Some(&'?') {
+                    index += 1;
+                }
+            }
+            '(' => {
+                while index < chars.len() && chars[index] != ')' {
+                    index += 1;
+                }
+                index += 1;
+            }
+            c if c.is_whitespace() => index += 1,
+            '?' | '|' | ')' | ']' | '}' => index += 1,
+            c => {
+                // literal theo sau bởi '?' là tùy chọn — không bắt buộc
+                if chars.get(index + 1) == Some(&'?') {
+                    index += 2;
+                    continue;
+                }
+                return Some(c);
+            }
+        }
+    }
+    None
 }
 
 #[derive(Debug)]
@@ -30,6 +80,8 @@ pub(crate) struct LuatNhan {
     dictionary_n: HashMap<String, String>,
     ho_nguoi: HashMap<String, String>,
     hau_tu: HashMap<String, String>,
+    ho_nguoi_index: KeyLenIndex,
+    hau_tu_index: KeyLenIndex,
 }
 
 impl LuatNhan {
@@ -46,6 +98,8 @@ impl LuatNhan {
         rules.dictionary_n = dictionary_n;
         rules.ho_nguoi = dicts.ho_nguoi.clone();
         rules.hau_tu = dicts.hau_tu.clone();
+        rules.ho_nguoi_index = KeyLenIndex::from_keys(rules.ho_nguoi.keys());
+        rules.hau_tu_index = KeyLenIndex::from_keys(rules.hau_tu.keys());
         rules
     }
 
@@ -76,7 +130,13 @@ impl LuatNhan {
                 let pattern = compile_n_pattern(&key);
                 let regex = FancyRegex::new(&pattern)
                     .map_err(|error| format!("invalid LuatNhan rule {key:?}: {error}"))?;
-                Ok(CompiledRule { key, value, regex })
+                let trigger = rule_trigger(&key);
+                Ok(CompiledRule {
+                    key,
+                    value,
+                    regex,
+                    trigger,
+                })
             })
             .collect::<Result<Vec<_>, String>>()?;
 
@@ -88,7 +148,13 @@ impl LuatNhan {
                 let pattern = compile_s_pattern(&key);
                 let regex = FancyRegex::new(&pattern)
                     .map_err(|error| format!("invalid LuatNhan rule {key:?}: {error}"))?;
-                Ok(CompiledRule { key, value, regex })
+                let trigger = rule_trigger(&key);
+                Ok(CompiledRule {
+                    key,
+                    value,
+                    regex,
+                    trigger,
+                })
             })
             .collect::<Result<Vec<_>, String>>()?;
 
@@ -110,9 +176,21 @@ impl LuatNhan {
     ) -> Option<RuleMatch> {
         let text: String = chinese.iter().collect();
         let dictionary_n = dictionary_n.unwrap_or(&self.dictionary_n);
-        let ho_nguoi = ho_nguoi.unwrap_or(&self.ho_nguoi);
-        let hau_tu = hau_tu.unwrap_or(&self.hau_tu);
-        let mut best = self.match_n(&text, dictionary_n);
+        // Map nội bộ đi kèm index chặn-trên của chính nó; map do caller đưa
+        // vào tự mang index qua trait (hoặc mặc định "không biết").
+        let internal_ho_nguoi = IndexedLookup {
+            inner: &self.ho_nguoi,
+            index: &self.ho_nguoi_index,
+        };
+        let internal_hau_tu = IndexedLookup {
+            inner: &self.hau_tu,
+            index: &self.hau_tu_index,
+        };
+        let ho_nguoi = ho_nguoi.unwrap_or(&internal_ho_nguoi);
+        let hau_tu = hau_tu.unwrap_or(&internal_hau_tu);
+        // Ký tự có mặt trong cửa sổ — mồi lọc để khỏi chạy regex vô ích.
+        let present: HashSet<char> = chinese.iter().copied().collect();
+        let mut best = self.match_n(&text, &present, dictionary_n);
         let mut best_index = best.as_ref().map_or(usize::MAX, |matched| matched.index);
 
         for index in 0..chinese.len().min(best_index) {
@@ -131,7 +209,7 @@ impl LuatNhan {
         }
 
         if best_index > 0 && chinese.iter().any(|ch| is_number_start(*ch)) {
-            if let Some(matched) = self.match_s(&text, only_vietphrase) {
+            if let Some(matched) = self.match_s(&text, &present, only_vietphrase) {
                 if matched.index < best_index {
                     best = Some(matched);
                 }
@@ -211,8 +289,19 @@ impl LuatNhan {
         None
     }
 
-    fn match_n(&self, chinese: &str, dictionary_n: &dyn DictionaryLookup) -> Option<RuleMatch> {
+    fn match_n(
+        &self,
+        chinese: &str,
+        present: &HashSet<char>,
+        dictionary_n: &dyn DictionaryLookup,
+    ) -> Option<RuleMatch> {
         for rule in &self.n_rules {
+            if rule
+                .trigger
+                .is_some_and(|trigger| !present.contains(&trigger))
+            {
+                continue;
+            }
             let captures = rule.regex.captures_iter(chinese);
             for captures in captures.flatten() {
                 let Some(whole) = captures.get(0) else {
@@ -263,8 +352,19 @@ impl LuatNhan {
         None
     }
 
-    fn match_s(&self, chinese: &str, only_vietphrase: &dyn DictionaryLookup) -> Option<RuleMatch> {
+    fn match_s(
+        &self,
+        chinese: &str,
+        present: &HashSet<char>,
+        only_vietphrase: &dyn DictionaryLookup,
+    ) -> Option<RuleMatch> {
         for rule in &self.s_rules {
+            if rule
+                .trigger
+                .is_some_and(|trigger| !present.contains(&trigger))
+            {
+                continue;
+            }
             let Some(captures) = rule.regex.captures(chinese).ok().flatten() else {
                 continue;
             };
@@ -292,37 +392,62 @@ impl LuatNhan {
         ho_nguoi: &dyn DictionaryLookup,
         hau_tu: &dyn DictionaryLookup,
     ) -> Option<usize> {
+        // Không có họ nào bắt đầu bằng ký tự này thì mọi cách tách {h}{t}
+        // đều fail — thoát ngay; đây là trường hợp của đa số vị trí.
+        let ho_max = ho_nguoi.max_key_len(chinese[start]);
+        if ho_max == 0 {
+            return None;
+        }
+        let window_len = 20usize.min(chinese.len() - start);
+        if window_len < 2 {
+            return None;
+        }
+        // Chỉ đổ đúng phần buffer sẽ dùng: phrase tối đa 6 ký tự, còn vòng
+        // "covered by longer" bị chặn bởi key vietphrase dài nhất có thể.
+        let longer_cap = window_len.min(vietphrase.max_key_len(chinese[start]));
+        let fill_len = window_len.min(6usize.max(longer_cap));
+        let mut buffer = String::new();
+        let mut offsets: Vec<usize> = Vec::new();
+        crate::translate::fill_window(chinese, start, fill_len, &mut buffer, &mut offsets);
         for length in (2..=6).rev() {
-            if start + length > chinese.len() {
+            if length > window_len {
                 continue;
             }
-            let phrase: String = chinese[start..start + length].iter().collect();
-            if !Self::is_ho_hau(&phrase, ho_nguoi, hau_tu) || vietphrase.contains_key(&phrase) {
+            let phrase = &buffer[..offsets[length]];
+            if !is_ho_hau_window(chinese, start, &buffer, &offsets, length, ho_max, ho_nguoi, hau_tu)
+                || vietphrase.contains_key(phrase)
+            {
                 continue;
             }
-            let covered_by_longer_phrase = (length + 1..=20).any(|longer| {
-                start + longer <= chinese.len()
-                    && vietphrase
-                        .contains_key(&chinese[start..start + longer].iter().collect::<String>())
-            });
+            let covered_by_longer_phrase = (length + 1..=longer_cap)
+                .any(|longer| vietphrase.contains_key(&buffer[..offsets[longer]]));
             if !covered_by_longer_phrase {
                 return Some(length);
             }
         }
         None
     }
+}
 
-    fn is_ho_hau(
-        phrase: &str,
-        ho_nguoi: &dyn DictionaryLookup,
-        hau_tu: &dyn DictionaryLookup,
-    ) -> bool {
-        let chars: Vec<char> = phrase.chars().collect();
-        (1..chars.len()).any(|split| {
-            ho_nguoi.contains_key(&chars[..split].iter().collect::<String>())
-                && hau_tu.contains_key(&chars[split..].iter().collect::<String>())
-        })
-    }
+/// Tách `{h}{t}` trên cửa sổ đã đổ sẵn: họ ở [..split], hậu tố ở [split..len].
+/// Cả hai vế đều bị chặn sớm bằng index độ dài trước khi phải hash chuỗi.
+#[allow(clippy::too_many_arguments)]
+fn is_ho_hau_window(
+    chinese: &[char],
+    start: usize,
+    buffer: &str,
+    offsets: &[usize],
+    length: usize,
+    ho_max: usize,
+    ho_nguoi: &dyn DictionaryLookup,
+    hau_tu: &dyn DictionaryLookup,
+) -> bool {
+    (1..length).any(|split| {
+        split <= ho_max
+            && length - split <= hau_tu.max_key_len(chinese[start + split])
+            && ho_nguoi.contains_key(&buffer[..offsets[split]])
+            && hau_tu.contains_key(&buffer[offsets[split]..offsets[length]])
+    })
 }
 
 fn compile_s_pattern(key: &str) -> String {

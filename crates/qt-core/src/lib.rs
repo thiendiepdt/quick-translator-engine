@@ -20,7 +20,7 @@ pub use name_filter::{
     NameFilterMode, NameFilterOptions, NameFilterResult,
 };
 
-use dict::DictionaryLookup;
+use dict::{DictionaryLookup, IndexedLookup, KeyLenIndex};
 
 struct PriorityDictionary<'a> {
     primary: &'a dyn DictionaryLookup,
@@ -31,6 +31,12 @@ impl DictionaryLookup for PriorityDictionary<'_> {
     fn get(&self, key: &str) -> Option<&str> {
         self.primary.get(key).or_else(|| self.fallback.get(key))
     }
+
+    fn max_key_len(&self, first: char) -> usize {
+        self.primary
+            .max_key_len(first)
+            .max(self.fallback.max_key_len(first))
+    }
 }
 
 struct OneMeaningDictionary<'a> {
@@ -40,6 +46,10 @@ struct OneMeaningDictionary<'a> {
 impl DictionaryLookup for OneMeaningDictionary<'_> {
     fn get(&self, key: &str) -> Option<&str> {
         self.inner.get(key).map(first_meaning)
+    }
+
+    fn max_key_len(&self, first: char) -> usize {
+        self.inner.max_key_len(first)
     }
 }
 
@@ -116,6 +126,13 @@ pub struct Engine {
     dicts: Dictionaries,
     luat_nhan: luat_nhan::LuatNhan,
     standardizer: standardize::Standardizer,
+    // Chặn trên độ dài key theo ký tự đầu, tính một lần — vietphrase và
+    // vietphrase_one_meaning chung tập key nên chung một index.
+    vietphrase_index: KeyLenIndex,
+    only_name_index: KeyLenIndex,
+    only_vietphrase_index: KeyLenIndex,
+    ho_nguoi_index: KeyLenIndex,
+    hau_tu_index: KeyLenIndex,
 }
 
 impl Engine {
@@ -123,10 +140,20 @@ impl Engine {
         let luat_nhan = luat_nhan::LuatNhan::new(&dicts);
         let standardizer =
             standardize::Standardizer::new(&dicts.han_viet, &dicts.ignored_chinese_phrases);
+        let vietphrase_index = KeyLenIndex::from_keys(dicts.vietphrase.keys());
+        let only_name_index = KeyLenIndex::from_keys(dicts.only_name.keys());
+        let only_vietphrase_index = KeyLenIndex::from_keys(dicts.only_vietphrase.keys());
+        let ho_nguoi_index = KeyLenIndex::from_keys(dicts.ho_nguoi.keys());
+        let hau_tu_index = KeyLenIndex::from_keys(dicts.hau_tu.keys());
         Engine {
             dicts,
             luat_nhan,
             standardizer,
+            vietphrase_index,
+            only_name_index,
+            only_vietphrase_index,
+            ho_nguoi_index,
+            hau_tu_index,
         }
     }
 
@@ -147,6 +174,22 @@ impl Engine {
         let standardized = self.standardizer.standardize(text);
         let chars = standardized.chars;
         let source_ranges = standardized.source_ranges;
+        let vietphrase = IndexedLookup {
+            inner: &self.dicts.vietphrase,
+            index: &self.vietphrase_index,
+        };
+        let vietphrase_one_meaning = IndexedLookup {
+            inner: &self.dicts.vietphrase_one_meaning,
+            index: &self.vietphrase_index,
+        };
+        let only_name = IndexedLookup {
+            inner: &self.dicts.only_name,
+            index: &self.only_name_index,
+        };
+        let only_vietphrase = IndexedLookup {
+            inner: &self.dicts.only_vietphrase,
+            index: &self.only_vietphrase_index,
+        };
         match mode {
             Mode::HanViet => {
                 han_viet::chinese_to_han_viet_mapped(&chars, &self.dicts.han_viet, &source_ranges)
@@ -155,10 +198,10 @@ impl Engine {
                 &chars,
                 &source_ranges,
                 opts,
-                &self.dicts.vietphrase,
-                &self.dicts.only_name,
-                &self.dicts.only_vietphrase,
-                &self.dicts.vietphrase,
+                &vietphrase,
+                &only_name,
+                &only_vietphrase,
+                &vietphrase,
                 &self.dicts.han_viet,
                 &self.luat_nhan,
                 None,
@@ -169,10 +212,10 @@ impl Engine {
                 &chars,
                 &source_ranges,
                 opts,
-                &self.dicts.vietphrase_one_meaning,
-                &self.dicts.only_name,
-                &self.dicts.only_vietphrase,
-                &self.dicts.vietphrase,
+                &vietphrase_one_meaning,
+                &only_name,
+                &only_vietphrase,
+                &vietphrase,
                 &self.dicts.han_viet,
                 &self.luat_nhan,
                 None,
@@ -234,30 +277,63 @@ impl Engine {
             ));
         }
 
-        let primary_names = overrides
+        // Index chặn-trên cho vòng quét: map custom được index theo request
+        // (một lượt qua key, rẻ so với chính bước parse); map gốc dùng index
+        // only_name có sẵn — primary/secondary đều là tập con của only_name
+        // nên đó là chặn trên hợp lệ.
+        let primary_names_index = overrides
             .names
             .as_ref()
-            .unwrap_or(&self.dicts.primary_names);
-        let secondary_names = overrides
+            .map(|names| KeyLenIndex::from_keys(names.keys()));
+        let secondary_names_index = overrides
             .names2
             .as_ref()
-            .unwrap_or(&self.dicts.secondary_names);
+            .map(|names| KeyLenIndex::from_keys(names.keys()));
+        let primary_names = IndexedLookup {
+            inner: overrides
+                .names
+                .as_ref()
+                .unwrap_or(&self.dicts.primary_names),
+            index: primary_names_index.as_ref().unwrap_or(&self.only_name_index),
+        };
+        let secondary_names = IndexedLookup {
+            inner: overrides
+                .names2
+                .as_ref()
+                .unwrap_or(&self.dicts.secondary_names),
+            index: secondary_names_index
+                .as_ref()
+                .unwrap_or(&self.only_name_index),
+        };
         let custom_names = PriorityDictionary {
-            primary: secondary_names,
-            fallback: primary_names,
+            primary: &secondary_names,
+            fallback: &primary_names,
+        };
+        let base_only_name = IndexedLookup {
+            inner: &self.dicts.only_name,
+            index: &self.only_name_index,
         };
         let names: &dyn DictionaryLookup =
             if overrides.names.is_none() && overrides.names2.is_none() {
-                &self.dicts.only_name
+                &base_only_name
             } else {
                 &custom_names
             };
+        let patches_index = KeyLenIndex::from_keys(overrides.vietphrase_patches.keys());
+        let patches = IndexedLookup {
+            inner: &overrides.vietphrase_patches,
+            index: &patches_index,
+        };
+        let base_only_vietphrase = IndexedLookup {
+            inner: &self.dicts.only_vietphrase,
+            index: &self.only_vietphrase_index,
+        };
         let patched_only_vietphrase = PriorityDictionary {
-            primary: &overrides.vietphrase_patches,
-            fallback: &self.dicts.only_vietphrase,
+            primary: &patches,
+            fallback: &base_only_vietphrase,
         };
         let only_vietphrase: &dyn DictionaryLookup = if overrides.vietphrase_patches.is_empty() {
-            &self.dicts.only_vietphrase
+            &base_only_vietphrase
         } else {
             &patched_only_vietphrase
         };
@@ -272,8 +348,22 @@ impl Engine {
             primary: pronouns,
             fallback: &one_meaning_names,
         };
-        let ho_nguoi = overrides.ho_nguoi.as_ref().unwrap_or(&self.dicts.ho_nguoi);
-        let hau_tu = overrides.hau_tu.as_ref().unwrap_or(&self.dicts.hau_tu);
+        let ho_nguoi_custom_index = overrides
+            .ho_nguoi
+            .as_ref()
+            .map(|map| KeyLenIndex::from_keys(map.keys()));
+        let ho_nguoi = IndexedLookup {
+            inner: overrides.ho_nguoi.as_ref().unwrap_or(&self.dicts.ho_nguoi),
+            index: ho_nguoi_custom_index.as_ref().unwrap_or(&self.ho_nguoi_index),
+        };
+        let hau_tu_custom_index = overrides
+            .hau_tu
+            .as_ref()
+            .map(|map| KeyLenIndex::from_keys(map.keys()));
+        let hau_tu = IndexedLookup {
+            inner: overrides.hau_tu.as_ref().unwrap_or(&self.dicts.hau_tu),
+            index: hau_tu_custom_index.as_ref().unwrap_or(&self.hau_tu_index),
+        };
 
         // DanhTu is loaded by QT2025 and remains part of the public override
         // contract, although the ported translation paths do not consume it.
@@ -303,8 +393,8 @@ impl Engine {
             han_viet,
             luat_nhan,
             Some(&dictionary_n),
-            Some(ho_nguoi),
-            Some(hau_tu),
+            Some(&ho_nguoi),
+            Some(&hau_tu),
         ))
     }
 }
