@@ -144,11 +144,62 @@ pub(crate) trait DictionaryLookup {
     fn contains_key(&self, key: &str) -> bool {
         self.get(key).is_some()
     }
+
+    /// Chặn trên độ dài (ký tự) của mọi key bắt đầu bằng `first`. Vòng quét
+    /// longest-match dùng nó để bỏ qua những độ dài chắc chắn miss. Chỉ cần
+    /// là chặn trên: ước lượng thừa vẫn đúng, ước lượng thiếu là sai ngữ
+    /// nghĩa. Mặc định "không biết" — không cắt gì.
+    fn max_key_len(&self, _first: char) -> usize {
+        usize::MAX
+    }
 }
 
 impl DictionaryLookup for HashMap<String, String> {
     fn get(&self, key: &str) -> Option<&str> {
         HashMap::get(self, key).map(String::as_str)
+    }
+}
+
+/// Độ dài key dài nhất theo ký tự đầu, tính một lần lúc nạp từ điển.
+/// VietPhrase có max thực tế ~3 ký tự cho phần lớn ký tự đầu, trong khi vòng
+/// quét mặc định thử từ 30 xuống — index này cắt ~90% số lần tra hash.
+#[derive(Default)]
+pub(crate) struct KeyLenIndex(HashMap<char, u8>);
+
+impl KeyLenIndex {
+    pub(crate) fn from_keys<'a>(keys: impl IntoIterator<Item = &'a String>) -> Self {
+        let mut index: HashMap<char, u8> = HashMap::new();
+        for key in keys {
+            let mut chars = key.chars();
+            let Some(first) = chars.next() else { continue };
+            let length = (1 + chars.count()).min(u8::MAX as usize) as u8;
+            let entry = index.entry(first).or_insert(0);
+            if *entry < length {
+                *entry = length;
+            }
+        }
+        Self(index)
+    }
+
+    /// 0 khi không có key nào bắt đầu bằng `first` — bỏ qua được mọi probe.
+    pub(crate) fn max_len(&self, first: char) -> usize {
+        self.0.get(&first).map_or(0, |&length| length as usize)
+    }
+}
+
+/// Ghép một lookup với [`KeyLenIndex`] của nó để vòng quét biết chặn trên.
+pub(crate) struct IndexedLookup<'a> {
+    pub(crate) inner: &'a dyn DictionaryLookup,
+    pub(crate) index: &'a KeyLenIndex,
+}
+
+impl DictionaryLookup for IndexedLookup<'_> {
+    fn get(&self, key: &str) -> Option<&str> {
+        self.inner.get(key)
+    }
+
+    fn max_key_len(&self, first: char) -> usize {
+        self.index.max_len(first)
     }
 }
 

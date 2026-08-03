@@ -9,7 +9,27 @@ fn substr(chars: &[char], start: usize, len: usize) -> String {
     chars[start..start + len].iter().collect()
 }
 
+/// Đổ `chars[start..start+cap]` vào buffer tái dùng, ghi lại offset byte sau
+/// mỗi ký tự để cắt `&buffer[..offsets[n]]` cho từng độ dài mà không cấp phát.
+pub(crate) fn fill_window(
+    chars: &[char],
+    start: usize,
+    cap: usize,
+    buffer: &mut String,
+    offsets: &mut Vec<usize>,
+) {
+    buffer.clear();
+    offsets.clear();
+    offsets.push(0);
+    for &c in &chars[start..start + cap] {
+        buffer.push(c);
+        offsets.push(buffer.len());
+    }
+}
+
 /// Mirrors isLongestPhraseInSentence (docs/engine/translation-algorithm.md §4).
+/// Ngữ nghĩa quét n=20→threshold giữ nguyên; chỉ bỏ những n mà từ điển chắc
+/// chắn không có key (theo chặn trên `max_key_len` — miss kiểu gì cũng miss).
 pub fn is_longest_phrase_in_sentence(
     chars: &[char],
     start: usize,
@@ -26,10 +46,19 @@ pub fn is_longest_phrase_in_sentence(
         phrase_len.max(3)
     };
     let end = start + phrase_len - 1; // inclusive
+    let mut buffer = String::new();
+    let mut offsets: Vec<usize> = Vec::new();
     for i in (start + 1)..=end {
-        let mut n = 20usize;
+        let cap = 20usize
+            .min(chars.len().saturating_sub(i))
+            .min(dict.max_key_len(chars[i]));
+        if cap <= threshold {
+            continue;
+        }
+        fill_window(chars, i, cap, &mut buffer, &mut offsets);
+        let mut n = cap;
         while n > threshold {
-            if chars.len() >= i + n && dict.contains_key(&substr(chars, i, n)) {
+            if dict.contains_key(&buffer[..offsets[n]]) {
                 return false;
             }
             n -= 1;
@@ -49,10 +78,19 @@ pub fn contains_name(
         return false;
     }
     let end = start + phrase_len - 1; // inclusive
+    let mut buffer = String::new();
+    let mut offsets: Vec<usize> = Vec::new();
     for i in (start + 1)..=end {
-        let mut n = 20usize;
+        let cap = 20usize
+            .min(chars.len().saturating_sub(i))
+            .min(only_name.max_key_len(chars[i]));
+        if cap < 2 {
+            continue;
+        }
+        fill_window(chars, i, cap, &mut buffer, &mut offsets);
+        let mut n = cap;
         while n >= 2 {
-            if chars.len() >= i + n && only_name.contains_key(&substr(chars, i, n)) {
+            if only_name.contains_key(&buffer[..offsets[n]]) {
                 return true;
             }
             n -= 1;
@@ -259,15 +297,36 @@ pub(crate) fn translate_all_mapped(
     let mut num3 = -1isize;
     let mut num4 = -1isize;
     let mut num5 = -1isize;
+    // Buffer cửa sổ tái dùng giữa các vị trí: đổ một lần mỗi vị trí rồi cắt
+    // theo offset byte cho từng độ dài, thay vì cấp phát String mỗi probe.
+    let mut window = String::new();
+    let mut window_offsets: Vec<usize> = Vec::new();
     while num2 < len {
         let mut flag = false;
         let mut flag2 = true;
         let mut num6 = opts.scan_range;
         let number = numbers.get(&num2);
+        // Chặn trên độ dài key theo ký tự đầu: num6 lớn hơn mức này thì
+        // dict.get kiểu gì cũng miss nên khỏi tra; nhánh Luật Nhân bên dưới
+        // vẫn chạy đủ mọi num6 như cũ.
+        let window_cap = opts.scan_range.min(len - num2);
+        let dict_max = dict.max_key_len(chars[num2]).min(window_cap);
+        fill_window(chars, num2, dict_max, &mut window, &mut window_offsets);
+        // Vị trí \n/\t đầu tiên trong cửa sổ — điều kiện vào nhánh Luật Nhân
+        // (trước đây là text.contains, quét lại chuỗi ở mỗi độ dài).
+        let first_break = chars[num2..num2 + window_cap]
+            .iter()
+            .position(|&c| c == '\n' || c == '\t')
+            .unwrap_or(window_cap);
         while num6 > 0 && number.is_none_or(|value| num6 >= value.length) {
             if num2 + num6 <= len {
-                let text = substr(chars, num2, num6);
-                if let Some(value2) = dict.get(&text) {
+                let hit = if num6 <= dict_max {
+                    dict.get(&window[..window_offsets[num6]])
+                } else {
+                    None
+                };
+                if let Some(value2) = hit {
+                    let text = &window[..window_offsets[num6]];
                     let is_longest = is_longest_phrase_in_sentence(
                         chars,
                         num2,
@@ -280,7 +339,7 @@ pub(crate) fn translate_all_mapped(
                     let algo_ok = (opts.translation_algorithm != 0
                         && opts.translation_algorithm != 2)
                         || is_longest
-                        || (opts.prioritized_name && only_name.contains_key(&text));
+                        || (opts.prioritized_name && only_name.contains_key(text));
                     if name_ok && algo_ok {
                         process_translation(
                             chars,
@@ -295,8 +354,7 @@ pub(crate) fn translate_all_mapped(
                         num2 += num6;
                         break;
                     }
-                } else if !text.contains('\n')
-                    && !text.contains('\t')
+                } else if first_break >= num6
                     && flag2
                     && num6 > 2
                     && num3 < (num2 + num6 - 1) as isize
