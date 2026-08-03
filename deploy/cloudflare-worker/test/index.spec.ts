@@ -166,6 +166,39 @@ describe("Cloudflare Lambda gateway", () => {
     expect(upstreamRequest?.method).toBe("GET");
   });
 
+  it("signs and proxies Lạc Việt meaning lookups", async () => {
+    const body = JSON.stringify({ text: "金美婷" });
+    let upstreamRequest: Request | undefined;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: RequestInfo | URL) => {
+        upstreamRequest = input instanceof Request ? input : new Request(input);
+        return Response.json({
+          entries: [{ source: "金", definition: "Hán Việt: KIM" }],
+        });
+      }),
+    );
+
+    const response = await invoke(
+      new Request("https://api.example.com/meanings", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body,
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(upstreamRequest?.url).toBe(
+      "https://test-function.lambda-url.ap-southeast-1.on.aws/meanings",
+    );
+    expect(upstreamRequest?.method).toBe("POST");
+    expect(upstreamRequest?.headers.get("authorization")).toContain(
+      "/ap-southeast-1/lambda/aws4_request",
+    );
+    expect(await upstreamRequest?.text()).toBe(body);
+  });
+
   it("rejects browser origins outside the configured allowlist", async () => {
     const upstreamFetch = vi.fn(() => new Response("unexpected"));
     vi.stubGlobal("fetch", upstreamFetch);

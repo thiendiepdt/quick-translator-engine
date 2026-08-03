@@ -7,6 +7,7 @@ const ALLOWED_ROUTES = new Map<string, ReadonlySet<string>>([
   ["/health", new Set(["GET"])],
   ["/modes", new Set(["GET"])],
   ["/dictionaries/defaults", new Set(["GET"])],
+  ["/meanings", new Set(["POST"])],
   ["/translate", new Set(["POST"])],
   ["/translate/batch", new Set(["POST"])],
   ["/names/filter", new Set(["POST"])],
