@@ -69,7 +69,6 @@ const SENTENCE_ENDERS: [&str; 11] = [
 ///
 /// Then, if the new chunk starts with , . ? ! and result ends with a space, drop that space.
 pub fn append_translated_word(result: &mut String, translated: &str, last: &mut String) -> isize {
-    let before = utf16_len(result) as isize;
     let new_last = if SENTENCE_ENDERS.iter().any(|e| last.ends_with(e)) {
         to_upper_case(translated)
     } else if last.ends_with(' ') || last.ends_with('(') {
@@ -84,11 +83,15 @@ pub fn append_translated_word(result: &mut String, translated: &str, last: &mut 
             translated.chars().next(),
             Some(',') | Some('.') | Some('?') | Some('!')
         );
+    // Delta tính từ chính đoạn vừa nối — tuyệt đối không utf16_len(result):
+    // quét lại cả output mỗi từ biến bản dịch chương dài thành O(n²).
+    let mut delta = utf16_len(last) as isize;
     if starts_punct && result.ends_with(' ') {
         result.pop();
+        delta -= 1;
     }
     result.push_str(last);
-    utf16_len(result) as isize - before
+    delta
 }
 
 pub(crate) fn utf16_len(text: &str) -> usize {
