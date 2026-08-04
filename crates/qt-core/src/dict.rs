@@ -103,8 +103,8 @@ pub struct DictionaryOverrides {
 impl DictionaryOverrides {
     pub fn from_sources(sources: DictionarySourceOverrides<'_>) -> Self {
         Self {
-            names: sources.names.map(first_wins_map),
-            names2: sources.names2.map(first_wins_map),
+            names: sources.names.map(first_wins_scan_map),
+            names2: sources.names2.map(first_wins_scan_map),
             luat_nhan: sources.luat_nhan.map(parse_luat_nhan),
             pronouns: sources.pronouns.map(first_wins_map),
             danh_tu: sources.danh_tu.map(first_wins_map),
@@ -278,8 +278,8 @@ impl Dictionaries {
         // but within Names2 itself the FIRST occurrence of a duplicate key wins
         // (engine guards the override with !onlyNamePhuDictionary.ContainsKey(key),
         // decompiled ~2103-2116).
-        let primary_names = first_wins_map(names_src);
-        let secondary_names = first_wins_map(names2_src);
+        let primary_names = first_wins_scan_map(names_src);
+        let secondary_names = first_wins_scan_map(names2_src);
         let mut only_name = primary_names.clone();
         for (key, value) in &secondary_names {
             only_name.insert(key.clone(), value.clone());
@@ -288,6 +288,9 @@ impl Dictionaries {
         // only_vietphrase: first-wins
         let mut only_vietphrase: HashMap<String, String> = HashMap::new();
         for (k, v) in parse_dict(vietphrase_src) {
+            if !within_scan_window(&k) {
+                continue;
+            }
             only_vietphrase.entry(k).or_insert(v);
         }
 
@@ -392,6 +395,29 @@ fn first_wins_map(source: &str) -> HashMap<String, String> {
         dictionary.entry(key).or_insert(value);
     }
     dictionary
+}
+
+/// First-wins map for dictionaries consumed by the translation scan loop
+/// (Names, Names2, VietPhrase). Keys longer than the scan window can never
+/// match and only inflate the per-character length index, so they are
+/// dropped at load. The QT2025 corpus tops out at 15 characters for real
+/// entries (Western full names); everything longer is sentence-level noise.
+fn first_wins_scan_map(source: &str) -> HashMap<String, String> {
+    let mut dictionary = HashMap::new();
+    for (key, value) in parse_dict(source) {
+        if !within_scan_window(&key) {
+            continue;
+        }
+        dictionary.entry(key).or_insert(value);
+    }
+    dictionary
+}
+
+/// Longest dictionary key the translation scan will ever probe.
+pub const MAX_TRANSLATE_KEY_CHARACTERS: usize = 15;
+
+fn within_scan_window(key: &str) -> bool {
+    key.chars().count() <= MAX_TRANSLATE_KEY_CHARACTERS
 }
 
 fn parse_ignored_chinese_phrases(source: &str) -> Vec<String> {

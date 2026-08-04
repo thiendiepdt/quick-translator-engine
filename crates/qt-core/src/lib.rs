@@ -12,7 +12,7 @@ mod translate;
 
 pub use dict::{
     parse_dict, Dictionaries, DictionaryDefaults, DictionaryOverrides, DictionaryPatches,
-    DictionarySourceOverrides,
+    DictionarySourceOverrides, MAX_TRANSLATE_KEY_CHARACTERS,
 };
 pub use meanings::LacVietMeaning;
 pub use name_filter::{
@@ -112,7 +112,12 @@ pub struct Options {
 impl Default for Options {
     fn default() -> Self {
         // QuickTranslatorMain.config stores scanRange=30,
-        // TranslationAlgorithm=1, and PrioritizedName=true.
+        // TranslationAlgorithm=1, and PrioritizedName=true. Dictionary keys
+        // are capped at MAX_TRANSLATE_KEY_CHARACTERS (15) on load, but the
+        // scan range must stay at 30: the Luật Nhân branch uses the first
+        // probed window as its lookahead, and shrinking it forces the
+        // expensive 100-character fallback scan far more often (measured
+        // ~35% slower end-to-end with scan_range 15).
         Options {
             wrap_type: 0,
             translation_algorithm: 1,
@@ -294,7 +299,9 @@ impl Engine {
                 .names
                 .as_ref()
                 .unwrap_or(&self.dicts.primary_names),
-            index: primary_names_index.as_ref().unwrap_or(&self.only_name_index),
+            index: primary_names_index
+                .as_ref()
+                .unwrap_or(&self.only_name_index),
         };
         let secondary_names = IndexedLookup {
             inner: overrides
@@ -354,7 +361,9 @@ impl Engine {
             .map(|map| KeyLenIndex::from_keys(map.keys()));
         let ho_nguoi = IndexedLookup {
             inner: overrides.ho_nguoi.as_ref().unwrap_or(&self.dicts.ho_nguoi),
-            index: ho_nguoi_custom_index.as_ref().unwrap_or(&self.ho_nguoi_index),
+            index: ho_nguoi_custom_index
+                .as_ref()
+                .unwrap_or(&self.ho_nguoi_index),
         };
         let hau_tu_custom_index = overrides
             .hau_tu
@@ -443,6 +452,29 @@ mod tests {
         let got = e.translate("他, 好", Mode::HanViet, &Options::default());
         // '他'→tha (leading space, lowercase), then raw ', ', then unknown '好' passes through
         assert_eq!(got, " tha, 好");
+    }
+
+    #[test]
+    fn scan_dictionaries_drop_keys_longer_than_the_scan_window() {
+        let long_key = "一".repeat(16);
+        let max_key = "二".repeat(15);
+        let d = Dictionaries::build(
+            "一=nhất\n二=nhị",
+            "",
+            "",
+            &format!("{long_key}=DROPPED\n{max_key}=KEPT"),
+        );
+        assert!(!d.only_vietphrase.contains_key(&long_key));
+        assert_eq!(
+            d.only_vietphrase.get(&max_key).map(String::as_str),
+            Some("KEPT")
+        );
+
+        let e = Engine::from_dicts(d);
+        assert_eq!(
+            e.translate(&max_key, Mode::VietPhraseOneMeaning, &Options::default()),
+            " KEPT"
+        );
     }
 
     #[test]
