@@ -13,18 +13,19 @@ struct CompiledRule {
     key: String,
     value: String,
     regex: FancyRegex,
-    /// Ký tự literal mở đầu key (nếu có): mọi match đều phải chứa nó, nên
-    /// cửa sổ không có ký tự này thì khỏi chạy regex.
-    trigger: Option<char>,
+    /// Mọi ký tự literal BẮT BUỘC trong key: mỗi match đều phải chứa đủ,
+    /// nên cửa sổ thiếu bất kỳ ký tự nào thì khỏi chạy regex.
+    literals: Vec<char>,
 }
 
-/// Literal BẮT BUỘC đầu tiên trong key: mọi match của rule đều phải chứa ký
-/// tự này, nên cửa sổ không có nó thì khỏi chạy regex. Bỏ qua placeholder
-/// `{n}`/`{s}`, nhóm `(a|b)` (không đơn nhất), phần tùy chọn `[x]`/`x?` và
-/// whitespace (được compile thành `\s*`). Không tìm được thì trả None —
-/// rule luôn được chạy, an toàn tuyệt đối.
-fn rule_trigger(key: &str) -> Option<char> {
+/// Tập ký tự literal BẮT BUỘC trong key: mọi match của rule đều phải chứa
+/// đủ các ký tự này, nên cửa sổ thiếu một ký tự là regex chắc chắn miss.
+/// Bỏ qua placeholder `{n}`/`{s}`, nhóm `(a|b)` (không đơn nhất), phần tùy
+/// chọn `[x]`/`x?` và whitespace (được compile thành `\s*`). Danh sách rỗng
+/// nghĩa là rule luôn được chạy — an toàn tuyệt đối.
+fn rule_literals(key: &str) -> Vec<char> {
     let chars: Vec<char> = key.chars().collect();
+    let mut literals = Vec::new();
     let mut index = 0;
     while index < chars.len() {
         match chars[index] {
@@ -58,11 +59,14 @@ fn rule_trigger(key: &str) -> Option<char> {
                     index += 2;
                     continue;
                 }
-                return Some(c);
+                if !literals.contains(&c) {
+                    literals.push(c);
+                }
+                index += 1;
             }
         }
     }
-    None
+    literals
 }
 
 #[derive(Debug)]
@@ -130,12 +134,12 @@ impl LuatNhan {
                 let pattern = compile_n_pattern(&key);
                 let regex = FancyRegex::new(&pattern)
                     .map_err(|error| format!("invalid LuatNhan rule {key:?}: {error}"))?;
-                let trigger = rule_trigger(&key);
+                let literals = rule_literals(&key);
                 Ok(CompiledRule {
                     key,
                     value,
                     regex,
-                    trigger,
+                    literals,
                 })
             })
             .collect::<Result<Vec<_>, String>>()?;
@@ -148,12 +152,12 @@ impl LuatNhan {
                 let pattern = compile_s_pattern(&key);
                 let regex = FancyRegex::new(&pattern)
                     .map_err(|error| format!("invalid LuatNhan rule {key:?}: {error}"))?;
-                let trigger = rule_trigger(&key);
+                let literals = rule_literals(&key);
                 Ok(CompiledRule {
                     key,
                     value,
                     regex,
-                    trigger,
+                    literals,
                 })
             })
             .collect::<Result<Vec<_>, String>>()?;
@@ -297,8 +301,9 @@ impl LuatNhan {
     ) -> Option<RuleMatch> {
         for rule in &self.n_rules {
             if rule
-                .trigger
-                .is_some_and(|trigger| !present.contains(&trigger))
+                .literals
+                .iter()
+                .any(|literal| !present.contains(literal))
             {
                 continue;
             }
@@ -360,8 +365,9 @@ impl LuatNhan {
     ) -> Option<RuleMatch> {
         for rule in &self.s_rules {
             if rule
-                .trigger
-                .is_some_and(|trigger| !present.contains(&trigger))
+                .literals
+                .iter()
+                .any(|literal| !present.contains(literal))
             {
                 continue;
             }
