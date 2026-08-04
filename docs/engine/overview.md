@@ -30,6 +30,13 @@ chỉ khác **từ điển** truyền vào. HanViet đi đường riêng.
 > lưu `scanRange=30`, `TranslationAlgorithm=1`, `PrioritizedName=true`. CLI/API chọn
 > `wrapType=0` để trả output không bọc theo mặc định.
 
+Key Names/Names2/VietPhrase dài hơn 15 ký tự bị loại ngay lúc load
+(`MAX_TRANSLATE_KEY_CHARACTERS`): entry thật dài nhất trong corpus QT2025 là tên Tây
+15 ký tự, phần dài hơn toàn câu/thành ngữ rác và một số key >20 vốn không bao giờ khớp.
+Không hạ `scanRange` xuống theo: nhánh Luật Nhân dùng chính cửa sổ probe đầu tiên làm
+lookahead, thu hẹp nó buộc fallback quét 100+ ký tự chạy thường xuyên hơn (đo được chậm
+đi ~35% khi thử `scanRange=15`).
+
 ## 3. Thứ tự ưu tiên khi dịch một vị trí
 
 Trước `TranslateAll`, engine gọi `StandardizeInput`: giản thể hóa, HTML decode, đổi dấu câu

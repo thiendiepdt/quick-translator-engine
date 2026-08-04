@@ -414,8 +414,9 @@ impl LuatNhan {
                 continue;
             }
             let phrase = &buffer[..offsets[length]];
-            if !is_ho_hau_window(chinese, start, &buffer, &offsets, length, ho_max, ho_nguoi, hau_tu)
-                || vietphrase.contains_key(phrase)
+            if !is_ho_hau_window(
+                chinese, start, &buffer, &offsets, length, ho_max, ho_nguoi, hau_tu,
+            ) || vietphrase.contains_key(phrase)
             {
                 continue;
             }
