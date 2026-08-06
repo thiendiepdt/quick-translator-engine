@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
 import { createIndexedDbStateStorage } from "@/lib/indexed-db-storage";
+import type { TranslationViolation } from "@/lib/ai-translation";
 import { sampleDictionaryValues, sampleResponse, sampleSource } from "@/lib/sample";
 import { readStoredActiveWorkspaceId } from "@/store/workspace-catalog";
 import {
@@ -33,7 +34,7 @@ export interface WorkspacePersistentState {
 
 type SourceView = "raw" | "linked";
 type OutputView = "output" | "json";
-export type WorkspaceView = "translate" | "names";
+export type WorkspaceView = "translate" | "ai-translate" | "names";
 
 interface WorkspaceState {
   sourceText: string;
@@ -48,6 +49,10 @@ interface WorkspaceState {
   rangePinEnabled: boolean;
   mobileInspectorOpen: boolean;
   workspaceView: WorkspaceView;
+  aiTranslationSource: string;
+  aiTranslationOutput: string;
+  aiTranslationThinking: string;
+  aiTranslationViolations: TranslationViolation[];
   nameFilterResponse?: NameFilterResponse;
   knownNames: Record<string, string>;
   rejectedNames: string[];
@@ -64,6 +69,11 @@ interface WorkspaceState {
   setRangePinEnabled: (rangePinEnabled: boolean) => void;
   setMobileInspectorOpen: (mobileInspectorOpen: boolean) => void;
   setWorkspaceView: (workspaceView: WorkspaceView) => void;
+  setAiTranslationSource: (source: string) => void;
+  setAiTranslationOutput: (output: string) => void;
+  setAiTranslationThinking: (thinking: string) => void;
+  setAiTranslationViolations: (violations: TranslationViolation[]) => void;
+  clearAiTranslation: () => void;
   setNameFilterResponse: (nameFilterResponse?: NameFilterResponse) => void;
   acceptNameCandidate: (text: string, suggested: string) => void;
   undoAcceptedNameCandidate: (text: string) => void;
@@ -221,6 +231,10 @@ export const useWorkspaceStore = create<WorkspaceState>()(persist((set) => ({
   rangePinEnabled: true,
   mobileInspectorOpen: false,
   workspaceView: "translate",
+  aiTranslationSource: "",
+  aiTranslationOutput: "",
+  aiTranslationThinking: "",
+  aiTranslationViolations: [],
   nameFilterResponse: undefined,
   knownNames: {},
   rejectedNames: [],
@@ -306,6 +320,25 @@ export const useWorkspaceStore = create<WorkspaceState>()(persist((set) => ({
   setRangePinEnabled: (rangePinEnabled) => set({ rangePinEnabled }),
   setMobileInspectorOpen: (mobileInspectorOpen) => set({ mobileInspectorOpen }),
   setWorkspaceView: (workspaceView) => set({ workspaceView }),
+  setAiTranslationSource: (aiTranslationSource) =>
+    set({
+      aiTranslationSource,
+      aiTranslationOutput: "",
+      aiTranslationThinking: "",
+      aiTranslationViolations: [],
+    }),
+  setAiTranslationOutput: (aiTranslationOutput) => set({ aiTranslationOutput }),
+  setAiTranslationThinking: (aiTranslationThinking) =>
+    set({ aiTranslationThinking }),
+  setAiTranslationViolations: (aiTranslationViolations) =>
+    set({ aiTranslationViolations }),
+  clearAiTranslation: () =>
+    set({
+      aiTranslationSource: "",
+      aiTranslationOutput: "",
+      aiTranslationThinking: "",
+      aiTranslationViolations: [],
+    }),
   setNameFilterResponse: (nameFilterResponse) => set({ nameFilterResponse }),
   acceptNameCandidate: (text, suggested) =>
     set((state) => {
@@ -490,6 +523,10 @@ export const useWorkspaceStore = create<WorkspaceState>()(persist((set) => ({
         sourceText: "",
         response: undefined,
         nameFilterResponse: undefined,
+        aiTranslationSource: "",
+        aiTranslationOutput: "",
+        aiTranslationThinking: "",
+        aiTranslationViolations: [],
         activeRange: undefined,
         dictionaries,
         sourceView: "raw",

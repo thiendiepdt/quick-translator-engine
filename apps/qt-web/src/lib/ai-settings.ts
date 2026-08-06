@@ -9,6 +9,12 @@ export interface AiProviderConfig {
   baseUrl: string;
 }
 
+export interface AiTranslationSettings {
+  provider: AiProvider;
+  models: Record<AiProvider, string>;
+  thinking: boolean;
+}
+
 /**
  * Cấu hình AI của chính người dùng cho tính năng lọc tên. Trình duyệt gọi
  * thẳng provider (hoặc proxy tự cấu hình) bằng key này — key không bao giờ
@@ -20,19 +26,32 @@ export interface AiProviderConfig {
  * ty này gửi sang endpoint của công ty kia.
  */
 export interface AiSettings {
+  /** Provider/model dùng cho lọc tên và trợ lý từ điển. */
   provider: AiProvider;
   deepseek: AiProviderConfig;
   gemini: AiProviderConfig;
+  /** Dịch AI dùng chung key/base URL, nhưng chọn provider/model/thinking riêng. */
+  translation: AiTranslationSettings;
 }
 
 /** Model điền sẵn cho người dùng mới theo từng provider; sửa được trong Cài đặt. */
 export const DEFAULT_DEEPSEEK_MODEL = "deepseek-v4-flash";
 export const DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite";
+export const DEFAULT_AI_TRANSLATION_DEEPSEEK_MODEL = "deepseek-v4-flash";
+export const DEFAULT_AI_TRANSLATION_GEMINI_MODEL = "gemini-3.5-flash";
 
 export const defaultAiSettings: AiSettings = {
   provider: "deepseek",
   deepseek: { apiKey: "", model: DEFAULT_DEEPSEEK_MODEL, baseUrl: "" },
   gemini: { apiKey: "", model: DEFAULT_GEMINI_MODEL, baseUrl: "" },
+  translation: {
+    provider: "gemini",
+    models: {
+      deepseek: DEFAULT_AI_TRANSLATION_DEEPSEEK_MODEL,
+      gemini: DEFAULT_AI_TRANSLATION_GEMINI_MODEL,
+    },
+    thinking: true,
+  },
 };
 
 export function isAiProvider(value: unknown): value is AiProvider {
@@ -42,6 +61,14 @@ export function isAiProvider(value: unknown): value is AiProvider {
 /** Cấu hình của provider đang được chọn. */
 export function activeAiProviderConfig(settings: AiSettings): AiProviderConfig {
   return settings[settings.provider];
+}
+
+export function activeAiTranslationProviderConfig(settings: AiSettings): AiProviderConfig {
+  const provider = settings.translation.provider;
+  return {
+    ...settings[provider],
+    model: settings.translation.models[provider],
+  };
 }
 
 function normalizeConfig(value: unknown, defaultModel = ""): AiProviderConfig {
@@ -55,6 +82,29 @@ function normalizeConfig(value: unknown, defaultModel = ""): AiProviderConfig {
   };
 }
 
+function normalizeTranslationSettings(value: unknown): AiTranslationSettings {
+  const record =
+    typeof value === "object" && value !== null
+      ? (value as Partial<AiTranslationSettings>)
+      : {};
+  const models =
+    typeof record.models === "object" && record.models !== null
+      ? (record.models as Partial<Record<AiProvider, unknown>>)
+      : {};
+  const deepseekModel =
+    typeof models.deepseek === "string" ? models.deepseek.trim() : "";
+  const geminiModel =
+    typeof models.gemini === "string" ? models.gemini.trim() : "";
+  return {
+    provider: isAiProvider(record.provider) ? record.provider : "gemini",
+    models: {
+      deepseek: deepseekModel || DEFAULT_AI_TRANSLATION_DEEPSEEK_MODEL,
+      gemini: geminiModel || DEFAULT_AI_TRANSLATION_GEMINI_MODEL,
+    },
+    thinking: typeof record.thinking === "boolean" ? record.thinking : true,
+  };
+}
+
 export function readStoredAiSettings(): AiSettings {
   try {
     const raw = window.localStorage.getItem(aiSettingsStorageKey);
@@ -64,6 +114,7 @@ export function readStoredAiSettings(): AiSettings {
       provider: isAiProvider(parsed?.provider) ? parsed.provider : "deepseek",
       deepseek: normalizeConfig(parsed?.deepseek, DEFAULT_DEEPSEEK_MODEL),
       gemini: normalizeConfig(parsed?.gemini, DEFAULT_GEMINI_MODEL),
+      translation: normalizeTranslationSettings(parsed?.translation),
     };
   } catch {
     return defaultAiSettings;
@@ -78,6 +129,7 @@ export function storeAiSettings(settings: AiSettings): void {
         provider: settings.provider,
         deepseek: normalizeConfig(settings.deepseek),
         gemini: normalizeConfig(settings.gemini),
+        translation: normalizeTranslationSettings(settings.translation),
       }),
     );
   } catch {

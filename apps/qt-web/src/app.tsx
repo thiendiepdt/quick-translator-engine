@@ -5,6 +5,7 @@ import {
   Languages,
   PanelRight,
   Settings2,
+  Sparkles,
 } from "lucide-react";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
@@ -47,6 +48,7 @@ import {
 import {
   dictionaryPatchPayload,
   dictionaryPayload,
+  type WorkspaceView,
   useWorkspaceStore,
 } from "@/store/workspace";
 import { useWorkspaceCatalogStore } from "@/store/workspace-catalog";
@@ -67,6 +69,11 @@ const TranslationWorkspace = lazy(() =>
 const NameFilterWorkspace = lazy(() =>
   import("@/components/name-filter-workspace").then((module) => ({
     default: module.NameFilterWorkspace,
+  })),
+);
+const AiTranslationWorkspace = lazy(() =>
+  import("@/components/ai-translation-workspace").then((module) => ({
+    default: module.AiTranslationWorkspace,
   })),
 );
 
@@ -130,14 +137,15 @@ function NavigationRail({
   onChange,
   onOpenSettings,
 }: {
-  active: "translate" | "names";
-  onChange: (value: "translate" | "names") => void;
+  active: WorkspaceView;
+  onChange: (value: WorkspaceView) => void;
   onOpenSettings: () => void;
 }) {
   return (
     <nav className="hidden min-h-0 flex-col items-center bg-sidebar text-sidebar-foreground md:flex" aria-label="Điều hướng chính">
       <div className="my-3 grid size-9 place-items-center rounded-sm border border-sidebar-foreground/25 font-mono text-xs font-bold">QT</div>
-      <RailItem label="Dịch" active={active === "translate"} onClick={() => onChange("translate")}><Languages className="size-5" /></RailItem>
+      <RailItem label="Convert" active={active === "translate"} onClick={() => onChange("translate")}><Languages className="size-5" /></RailItem>
+      <RailItem label="Dịch AI" active={active === "ai-translate"} onClick={() => onChange("ai-translate")}><Sparkles className="size-5" /></RailItem>
       <RailItem label="Tên" active={active === "names"} onClick={() => onChange("names")}><BookType className="size-5" /></RailItem>
       <div className="flex-1" />
       <RailItem label="Cài đặt" onClick={onOpenSettings}><Settings2 className="size-5" /></RailItem>
@@ -338,8 +346,23 @@ export default function App() {
           {/* Chip đã thay cho dấu ngoặc đơn, nên không lồng thêm ngoặc vào trong.
               Bỏ mono in hoa dãn chữ để cùng nhịp với wordmark viết hoa đầu từ. */}
           <span className="hidden shrink-0 rounded border border-primary/25 bg-primary/6 px-2 py-0.5 text-xs font-medium text-primary sm:block">
-            VietPhrase 1 nghĩa
+            {workspaceView === "translate"
+              ? "VietPhrase 1 nghĩa"
+              : workspaceView === "ai-translate"
+                ? "Dịch AI trung thành raw"
+                : "Lọc Names"}
           </span>
+
+          <select
+            aria-label="Khung làm việc"
+            className="h-8 min-w-0 rounded border bg-background px-2 text-xs md:hidden"
+            value={workspaceView}
+            onChange={(event) => setWorkspaceView(event.target.value as WorkspaceView)}
+          >
+            <option value="translate">Convert</option>
+            <option value="ai-translate">Dịch AI</option>
+            <option value="names">Tên</option>
+          </select>
 
           <div className="flex-1" />
 
@@ -419,6 +442,12 @@ export default function App() {
                 aiSettings={aiSettings}
                 onOpenSettings={() => setSettingsOpen(true)}
                 requestStatus={requestStatus}
+              />
+            ) : workspaceView === "ai-translate" ? (
+              <AiTranslationWorkspace
+                key={activeWorkspaceId}
+                aiSettings={aiSettings}
+                onOpenSettings={() => setSettingsOpen(true)}
               />
             ) : (
               <NameFilterWorkspace
