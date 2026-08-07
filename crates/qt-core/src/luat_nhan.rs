@@ -16,6 +16,72 @@ struct CompiledRule {
     /// Mọi ký tự literal BẮT BUỘC trong key: mỗi match đều phải chứa đủ,
     /// nên cửa sổ thiếu bất kỳ ký tự nào thì khỏi chạy regex.
     literals: Vec<char>,
+    /// Neo vị trí: mọi match phải bắt đầu bằng literal prefix của key, nên
+    /// chỉ cần thử bản regex `^(?:…)` tại các lần xuất hiện của prefix thay
+    /// vì để backtracker tự quét từng vị trí cửa sổ. `None` = không neo
+    /// được, giữ đường quét cũ.
+    anchor: Option<RuleAnchor>,
+}
+
+struct RuleAnchor {
+    literal: String,
+    regex: FancyRegex,
+}
+
+/// Literal prefix của key mà mọi match buộc phải bắt đầu bằng nó. Trả về
+/// chuỗi rỗng khi không neo được: key mở đầu bằng placeholder/nhóm/lớp,
+/// có `|` ngoài ngoặc (match được phép bắt đầu khác đi), hoặc ký tự đầu
+/// dính quantifier. Ký tự ASCII không phải chữ/số đều dừng neo vì có thể
+/// mang nghĩa regex; `*`/`+`/`{m,n}`/`?` còn loại luôn ký tự đứng trước nó.
+fn rule_anchor_literal(key: &str) -> String {
+    let mut depth = 0i32;
+    for c in key.chars() {
+        match c {
+            '(' | '[' => depth += 1,
+            ')' | ']' => depth -= 1,
+            '|' if depth == 0 => return String::new(),
+            _ => {}
+        }
+    }
+    let chars: Vec<char> = key.chars().collect();
+    let mut anchor = String::new();
+    let mut index = 0;
+    while index < chars.len() {
+        let c = chars[index];
+        if c == '{' {
+            let placeholder = matches!(chars.get(index + 1), Some(&'n') | Some(&'s'))
+                && chars.get(index + 2) == Some(&'}');
+            if !placeholder {
+                anchor.pop();
+            }
+            break;
+        }
+        if matches!(c, '(' | '[') || c.is_whitespace() {
+            break;
+        }
+        if c.is_ascii() && !c.is_ascii_alphanumeric() {
+            if matches!(c, '*' | '+') {
+                anchor.pop();
+            }
+            break;
+        }
+        if chars.get(index + 1) == Some(&'?') {
+            break;
+        }
+        anchor.push(c);
+        index += 1;
+    }
+    anchor
+}
+
+fn compile_anchor(key: &str, pattern: &str) -> Option<RuleAnchor> {
+    let literal = rule_anchor_literal(key);
+    if literal.is_empty() {
+        return None;
+    }
+    // Bọc `(?:…)` để chỉ số nhóm bên trong giữ nguyên (nhóm 1 vẫn là nhóm 1).
+    let regex = FancyRegex::new(&format!("^(?:{pattern})")).ok()?;
+    Some(RuleAnchor { literal, regex })
 }
 
 /// Tập ký tự literal BẮT BUỘC trong key: mọi match của rule đều phải chứa
@@ -135,11 +201,13 @@ impl LuatNhan {
                 let regex = FancyRegex::new(&pattern)
                     .map_err(|error| format!("invalid LuatNhan rule {key:?}: {error}"))?;
                 let literals = rule_literals(&key);
+                let anchor = compile_anchor(&key, &pattern);
                 Ok(CompiledRule {
                     key,
                     value,
                     regex,
                     literals,
+                    anchor,
                 })
             })
             .collect::<Result<Vec<_>, String>>()?;
@@ -153,11 +221,13 @@ impl LuatNhan {
                 let regex = FancyRegex::new(&pattern)
                     .map_err(|error| format!("invalid LuatNhan rule {key:?}: {error}"))?;
                 let literals = rule_literals(&key);
+                let anchor = compile_anchor(&key, &pattern);
                 Ok(CompiledRule {
                     key,
                     value,
                     regex,
                     literals,
+                    anchor,
                 })
             })
             .collect::<Result<Vec<_>, String>>()?;
@@ -307,50 +377,33 @@ impl LuatNhan {
             {
                 continue;
             }
-            let captures = rule.regex.captures_iter(chinese);
-            for captures in captures.flatten() {
-                let Some(whole) = captures.get(0) else {
-                    continue;
-                };
-                let Some(group) = captures.get(1) else {
-                    continue;
-                };
-                let captured = group.as_str();
-                let match_index = byte_to_char_index(chinese, whole.start());
-                let match_length = whole.as_str().chars().count();
-                let captured_chars: Vec<char> = captured.chars().collect();
-
-                if rule.key.ends_with("{n}") {
-                    for length in (1..=captured_chars.len()).rev() {
-                        let key: String = captured_chars[..length].iter().collect();
-                        if let Some(value) = dictionary_n.get(&key) {
-                            return Some(RuleMatch {
-                                index: match_index,
-                                length: match_length - (captured_chars.len() - length),
-                                key: rule.key.clone(),
-                                value_n: value.to_string(),
-                            });
+            if let Some(anchor) = &rule.anchor {
+                // Mô phỏng đúng captures_iter: các match KHÔNG chồng lấn,
+                // trái sang phải; sau một match (kể cả khi resolve dictionary
+                // fail) match kế tiếp chỉ được bắt đầu từ CUỐI match đó.
+                let step = anchor.literal.chars().next().map_or(1, char::len_utf8);
+                let mut search_from = 0usize;
+                while let Some(relative) = chinese[search_from..].find(&anchor.literal) {
+                    let position = search_from + relative;
+                    match anchor.regex.captures(&chinese[position..]).ok().flatten() {
+                        Some(captures) => {
+                            let matched_len =
+                                captures.get(0).map_or(0, |whole| whole.as_str().len());
+                            if let Some(found) =
+                                resolve_n(rule, &captures, chinese, position, dictionary_n)
+                            {
+                                return Some(found);
+                            }
+                            search_from = position + matched_len.max(step);
                         }
+                        None => search_from = position + step,
                     }
-                } else if rule.key.starts_with("{n}") {
-                    for offset in 0..captured_chars.len() {
-                        let key: String = captured_chars[offset..].iter().collect();
-                        if let Some(value) = dictionary_n.get(&key) {
-                            return Some(RuleMatch {
-                                index: match_index + offset,
-                                length: match_length - offset,
-                                key: rule.key.clone(),
-                                value_n: value.to_string(),
-                            });
-                        }
+                }
+            } else {
+                for captures in rule.regex.captures_iter(chinese).flatten() {
+                    if let Some(found) = resolve_n(rule, &captures, chinese, 0, dictionary_n) {
+                        return Some(found);
                     }
-                } else if let Some(value) = dictionary_n.get(captured) {
-                    return Some(RuleMatch {
-                        index: match_index,
-                        length: match_length,
-                        key: rule.key.clone(),
-                        value_n: value.to_string(),
-                    });
                 }
             }
         }
@@ -371,7 +424,31 @@ impl LuatNhan {
             {
                 continue;
             }
-            let Some(captures) = rule.regex.captures(chinese).ok().flatten() else {
+            // Chỉ cần match TRÁI NHẤT (captures cũ): với rule neo được, đó
+            // là vị trí anchor đầu tiên mà bản regex `^…` khớp.
+            let found = if let Some(anchor) = &rule.anchor {
+                let step = anchor.literal.chars().next().map_or(1, char::len_utf8);
+                let mut search_from = 0usize;
+                let mut found = None;
+                while let Some(relative) = chinese[search_from..].find(&anchor.literal) {
+                    let position = search_from + relative;
+                    if let Some(captures) =
+                        anchor.regex.captures(&chinese[position..]).ok().flatten()
+                    {
+                        found = Some((position, captures));
+                        break;
+                    }
+                    search_from = position + step;
+                }
+                found
+            } else {
+                rule.regex
+                    .captures(chinese)
+                    .ok()
+                    .flatten()
+                    .map(|captures| (0, captures))
+            };
+            let Some((byte_offset, captures)) = found else {
                 continue;
             };
             let (Some(whole), Some(number)) = (captures.get(0), captures.get(1)) else {
@@ -381,7 +458,7 @@ impl LuatNhan {
                 continue;
             }
             return Some(RuleMatch {
-                index: byte_to_char_index(chinese, whole.start()),
+                index: byte_to_char_index(chinese, byte_offset + whole.start()),
                 length: whole.as_str().chars().count(),
                 key: rule.key.clone(),
                 value_n: number.as_str().to_string(),
@@ -433,6 +510,60 @@ impl LuatNhan {
             }
         }
         None
+    }
+}
+
+/// Resolve một match regex của rule `{n}` thành RuleMatch qua dictionary_n.
+/// `byte_offset` là vị trí byte của match trong `chinese` (0 với đường quét
+/// cũ; vị trí anchor với đường neo — captures khi đó tính trên slice).
+/// Trả None khi không tra được — caller thử match kế tiếp, y như code cũ.
+fn resolve_n(
+    rule: &CompiledRule,
+    captures: &fancy_regex::Captures<'_>,
+    chinese: &str,
+    byte_offset: usize,
+    dictionary_n: &dyn DictionaryLookup,
+) -> Option<RuleMatch> {
+    let whole = captures.get(0)?;
+    let group = captures.get(1)?;
+    let captured = group.as_str();
+    let match_index = byte_to_char_index(chinese, byte_offset + whole.start());
+    let match_length = whole.as_str().chars().count();
+    let captured_chars: Vec<char> = captured.chars().collect();
+
+    if rule.key.ends_with("{n}") {
+        for length in (1..=captured_chars.len()).rev() {
+            let key: String = captured_chars[..length].iter().collect();
+            if let Some(value) = dictionary_n.get(&key) {
+                return Some(RuleMatch {
+                    index: match_index,
+                    length: match_length - (captured_chars.len() - length),
+                    key: rule.key.clone(),
+                    value_n: value.to_string(),
+                });
+            }
+        }
+        None
+    } else if rule.key.starts_with("{n}") {
+        for offset in 0..captured_chars.len() {
+            let key: String = captured_chars[offset..].iter().collect();
+            if let Some(value) = dictionary_n.get(&key) {
+                return Some(RuleMatch {
+                    index: match_index + offset,
+                    length: match_length - offset,
+                    key: rule.key.clone(),
+                    value_n: value.to_string(),
+                });
+            }
+        }
+        None
+    } else {
+        dictionary_n.get(captured).map(|value| RuleMatch {
+            index: match_index,
+            length: match_length,
+            key: rule.key.clone(),
+            value_n: value.to_string(),
+        })
     }
 }
 
@@ -686,6 +817,46 @@ mod tests {
                 "{input}"
             );
         }
+    }
+
+    #[test]
+    fn anchor_literals_are_extracted_conservatively() {
+        for (key, expected) in [
+            ("在{n}身后", "在"),
+            ("第{s}(更|章)", "第"),
+            ("百分[之]?{s}", "百分"),
+            ("QQ号{n}", "QQ号"),
+            ("{s}年{s}月{s}号", ""),  // mở đầu bằng placeholder
+            ("[与和跟]{n}无关", ""),  // mở đầu bằng lớp ký tự
+            ("在?他{n}", ""),         // ký tự đầu tùy chọn
+            ("很{2}好{n}", ""),       // quantifier nuốt ký tự trước nó
+            ("他|她{n}身后", ""),     // '|' ngoài ngoặc: match khỏi cần prefix
+            ("在 他{n}", "在"),       // whitespace dừng neo (s-rule nén \s*)
+        ] {
+            assert_eq!(rule_anchor_literal(key), expected, "{key}");
+        }
+    }
+
+    #[test]
+    fn anchored_match_skips_failed_resolve_without_overlapping() {
+        let mut dicts = Dictionaries::default();
+        dicts.pronouns.insert("他".into(), "hắn".into());
+        dicts
+            .luat_nhan
+            .push(("在{n}身后".into(), "sau lưng {n}".into()));
+        let rules = LuatNhan::new(&dicts);
+        assert!(rules.n_rules[0].anchor.is_some());
+        let empty = HashMap::new();
+        // Match đầu tại 0 ("在X身后") resolve fail vì X không có trong
+        // dictionary_n; match kế tiếp phải bắt đầu sau cuối match đó và
+        // tìm thấy "在他身后" ở index 4.
+        let chars: Vec<char> = "在X身后在他身后".chars().collect();
+        let matched = rules
+            .contains(&chars, &empty, &empty, None, None, None)
+            .expect("second occurrence must match");
+        assert_eq!(matched.index, 4);
+        assert_eq!(matched.length, 4);
+        assert_eq!(matched.value_n, "hắn");
     }
 
     #[test]
