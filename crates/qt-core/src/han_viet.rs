@@ -2,9 +2,9 @@
 
 use crate::text::{append_translated_word, needs_space_after_sentence_punctuation, utf16_len};
 use crate::{CharRange, TranslationResult};
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
-pub type HanVietMap = HashMap<char, String>;
+pub type HanVietMap = FxHashMap<char, String>;
 
 /// QT's definition: a char is "Chinese" iff it has a Han-Việt reading.
 pub fn is_chinese(c: char, han_viet: &HanVietMap) -> bool {
@@ -119,7 +119,7 @@ mod tests {
     use super::*;
 
     fn hv() -> HanVietMap {
-        let mut m = HanVietMap::new();
+        let mut m = HanVietMap::default();
         m.insert('一', "nhất".to_string());
         m
     }

@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 
@@ -129,8 +129,8 @@ impl DictionaryPatchesRequest {
             chinese_phien_am_words.insert(ch, value);
         }
         Ok(DictionaryPatches {
-            vietphrase: self.viet_phrase,
-            chinese_phien_am_words,
+            vietphrase: self.viet_phrase.into_iter().collect(),
+            chinese_phien_am_words: chinese_phien_am_words.into_iter().collect(),
         })
     }
 }
@@ -577,8 +577,8 @@ fn filter_names_local(
         include_known: true,
     };
     let memory = NameFilterMemory {
-        known_names: request.known_names,
-        rejected_names: request.rejected_names.into_iter().collect::<HashSet<_>>(),
+        known_names: request.known_names.into_iter().collect(),
+        rejected_names: request.rejected_names.into_iter().collect(),
     };
     let mut result = engine.filter_names(&request.text, &options, &memory, overrides.as_ref());
     result.candidates.sort_by(|left, right| {

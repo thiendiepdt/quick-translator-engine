@@ -1,7 +1,7 @@
 //! Chinese/Latin number recognition and conversion used by `TranslateAll`.
 //! Mirrors `TransLuatNhan` plus `PreScanForNumbers`/`NumberModifier` from QT2025.
 
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 use crate::dict::DictionaryLookup;
 
@@ -138,8 +138,8 @@ fn find_longest_number(chars: &[char], start: usize) -> Option<NumberInfo> {
 pub(crate) fn prescan_numbers(
     chars: &[char],
     only_vietphrase: &dyn DictionaryLookup,
-) -> HashMap<usize, NumberInfo> {
-    let mut numbers = HashMap::new();
+) -> FxHashMap<usize, NumberInfo> {
+    let mut numbers = FxHashMap::default();
     let mut cursor = 0;
     while cursor < chars.len() {
         if is_number_start(chars[cursor]) {
@@ -485,6 +485,7 @@ pub(crate) fn translate_number(text: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
 
     #[test]
     fn recognizes_longest_number_and_skips_unit_alone() {

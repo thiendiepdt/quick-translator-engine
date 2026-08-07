@@ -1,4 +1,5 @@
-use std::collections::{HashMap, HashSet};
+use rustc_hash::FxHashMap;
+use std::collections::HashSet;
 
 const MAX_LOOKUP_CHARACTERS: usize = 20;
 
@@ -13,7 +14,7 @@ pub struct LacVietMeaning {
 /// useful in one dialog instead of forcing the reader to reopen it per glyph.
 pub(crate) fn lookup_lac_viet(
     text: &str,
-    dictionary: &HashMap<String, String>,
+    dictionary: &FxHashMap<String, String>,
 ) -> Vec<LacVietMeaning> {
     let characters = text
         .trim()
@@ -46,12 +47,14 @@ mod tests {
 
     #[test]
     fn returns_phrase_prefixes_then_each_character_without_duplicates() {
-        let dictionary = HashMap::from([
+        let dictionary: FxHashMap<String, String> = [
             ("金美".to_string(), "cụm".to_string()),
             ("金".to_string(), "vàng".to_string()),
             ("美".to_string(), "đẹp\\n\tnghĩa phụ".to_string()),
             ("婷".to_string(), "xinh đẹp".to_string()),
-        ]);
+        ]
+        .into_iter()
+        .collect();
 
         assert_eq!(
             lookup_lac_viet("金美婷", &dictionary),

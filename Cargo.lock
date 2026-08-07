@@ -2722,6 +2722,7 @@ dependencies = [
  "fancy-regex",
  "jieba-rs",
  "regex",
+ "rustc-hash",
  "unicode-general-category",
 ]
 
