@@ -6,6 +6,8 @@ export interface AiTextGenerationOptions {
   thinking: boolean;
   signal?: AbortSignal;
   onChunk?: (kind: AiTextChunkKind, chunk: string) => void;
+  /** Gemini-only: bật grounding Google Search cho tác vụ tra cứu metadata. */
+  googleSearch?: boolean;
 }
 
 const MAX_OUTPUT_TOKENS = 65_536;
@@ -140,6 +142,7 @@ async function generateGeminiText(
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: systemPrompt }] },
         contents: [{ role: "user", parts: [{ text: userMessage }] }],
+        ...(options.googleSearch ? { tools: [{ googleSearch: {} }] } : {}),
         safetySettings: GEMINI_SAFETY_SETTINGS,
         generationConfig: buildGeminiTextGenerationConfig(model, options.thinking),
       }),

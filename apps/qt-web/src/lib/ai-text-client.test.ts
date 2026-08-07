@@ -90,6 +90,29 @@ describe("generateAiText", () => {
     ]);
   });
 
+  it("enables Google Search only for metadata calls that request it", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      sse({ candidates: [{ content: { parts: [{ text: "{}" }] } }] }),
+    );
+
+    await generateAiText(
+      {
+        provider: "gemini",
+        apiKey: "AIza-test",
+        model: "gemini-3.5-flash",
+        baseUrl: "https://generativelanguage.googleapis.com",
+      },
+      "system",
+      "metadata",
+      { thinking: false, googleSearch: true },
+    );
+
+    const [, init] = fetchSpy.mock.calls[0];
+    expect(JSON.parse(init?.body as string)).toMatchObject({
+      tools: [{ googleSearch: {} }],
+    });
+  });
+
   it("uses the separate DeepSeek model/thinking shape and parses reasoning", async () => {
     const chunks: Array<[string, string]> = [];
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(

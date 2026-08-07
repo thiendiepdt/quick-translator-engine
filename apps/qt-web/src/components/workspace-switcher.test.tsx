@@ -52,6 +52,9 @@ describe("workspace switcher", () => {
       expect(activeWorkspaceId).not.toBe(defaultWorkspace.id);
       expect(localStorage.getItem(activeWorkspaceStorageKey)).toBe(activeWorkspaceId);
     });
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
     expect(
       screen.getByRole("button", { name: `Không gian làm việc hiện tại: ${name}` }),
     ).toBeInTheDocument();

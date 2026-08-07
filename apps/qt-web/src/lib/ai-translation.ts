@@ -1,4 +1,5 @@
 import { NOVEL_TRANSLATOR_BASE_PROMPT } from "@/lib/ai-translation-prompt";
+import type { AiCheckRule, AiStoryConfig } from "@/lib/ai-story";
 import type { LocalDictionaryEntries } from "@/lib/types";
 
 export interface TranslationViolation {
@@ -7,7 +8,7 @@ export interface TranslationViolation {
   text: string;
 }
 
-type TranslationGlossary = Record<string, Record<string, string>>;
+export type TranslationGlossary = Record<string, Record<string, string>>;
 
 const TRANSLATION_PROMPT_SUFFIX = `
 ---
@@ -77,6 +78,14 @@ const CHECK_RULES: Array<[RegExp, string]> = [
   [/[^ \n]】/, "System text thiếu khoảng trắng trước 】"],
 ];
 
+export const DEFAULT_AI_CHECK_RULES: AiCheckRule[] = CHECK_RULES.map(
+  ([pattern, message]) => ({
+    pattern: pattern.source,
+    ...(pattern.flags ? { flags: pattern.flags } : {}),
+    message,
+  }),
+);
+
 function nonEmptyRecord(value: Record<string, string>): Record<string, string> | undefined {
   const entries = Object.entries(value).filter(
     ([source, target]) => source.trim() && target.trim(),
@@ -110,12 +119,54 @@ export function countTranslationGlossaryEntries(glossary: TranslationGlossary): 
   );
 }
 
-export function buildAiTranslationSystemPrompt(glossary: TranslationGlossary): string {
+function mergeStoryGlossary(
+  workspaceGlossary: TranslationGlossary,
+  story?: AiStoryConfig,
+): TranslationGlossary {
+  if (!story) return workspaceGlossary;
+  const merged: TranslationGlossary = Object.fromEntries(
+    Object.entries(workspaceGlossary).map(([key, value]) => [key, { ...value }]),
+  );
+  for (const [key, entries] of Object.entries(story.glossary)) {
+    const normalized = nonEmptyRecord(entries);
+    if (!normalized) continue;
+    merged[key] = { ...(merged[key] ?? {}), ...normalized };
+  }
+  return merged;
+}
+
+export function buildAiTranslationSystemPrompt(
+  workspaceGlossary: TranslationGlossary,
+  story?: AiStoryConfig,
+): string {
+  const glossary = mergeStoryGlossary(workspaceGlossary, story);
   const glossarySection =
     Object.keys(glossary).length > 0
-      ? `\n# Từ điển riêng của workspace\n\nCác mục này được ưu tiên và phải dùng nhất quán:\n\n${JSON.stringify(glossary, null, 2)}\n`
+      ? `\n# Từ điển riêng của truyện\n\nCác mục này được ưu tiên và phải dùng nhất quán:\n\n${JSON.stringify(glossary, null, 2)}\n`
       : "";
-  return `${NOVEL_TRANSLATOR_BASE_PROMPT}${glossarySection}${TRANSLATION_PROMPT_SUFFIX}`;
+  const storyContext = story && (story.name || story.protagonist || story.summary)
+    ? `\n# Thông tin truyện\n\n${JSON.stringify({
+        name: story.name || undefined,
+        protagonist: story.protagonist || undefined,
+        summary: story.summary || undefined,
+      }, null, 2)}\n`
+    : "";
+  const hasStyle = story && (
+    story.style.voice ||
+    story.style.toneRules.length > 0 ||
+    Object.keys(story.style.signaturePhrases).length > 0 ||
+    story.style.avoid.length > 0
+  );
+  const styleSection = hasStyle
+    ? `\n# Style đặc thù của truyện\n\nStyle chỉ điều chỉnh từ vựng, xưng hô và register trong giới hạn trung thành; không được thêm hoặc bớt nội dung.\n\n${JSON.stringify({
+        voice: story.style.voice,
+        tone_rules: story.style.toneRules,
+        signature_phrases: story.style.signaturePhrases,
+        avoid: story.style.avoid,
+      }, null, 2)}\n`
+    : "";
+  const basePrompt = story?.customPrompt.trim() || NOVEL_TRANSLATOR_BASE_PROMPT;
+  return `${basePrompt}${storyContext}${glossarySection}${styleSection}${TRANSLATION_PROMPT_SUFFIX}`;
 }
 
 export function formatAiTranslation(text: string): string {
@@ -139,10 +190,23 @@ export function nonEmptyLineCount(text: string): number {
   return text.split(/\r?\n/).filter((line) => line.trim()).length;
 }
 
-export function checkAiTranslationViolations(text: string): TranslationViolation[] {
+export function checkAiTranslationViolations(
+  text: string,
+  configuredRules?: AiCheckRule[],
+): TranslationViolation[] {
   const violations: TranslationViolation[] = [];
+  const rules: Array<[RegExp, string]> =
+    configuredRules && configuredRules.length > 0
+      ? configuredRules.flatMap(({ pattern, flags, message }) => {
+          try {
+            return [[new RegExp(pattern, flags), message] as [RegExp, string]];
+          } catch {
+            return [];
+          }
+        })
+      : CHECK_RULES;
   text.split(/\r?\n/).forEach((line, index) => {
-    for (const [pattern, message] of CHECK_RULES) {
+    for (const [pattern, message] of rules) {
       pattern.lastIndex = 0;
       if (!pattern.test(line)) continue;
       violations.push({ line: index + 1, message, text: line.trim().slice(0, 120) });
