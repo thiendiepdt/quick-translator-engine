@@ -14,6 +14,7 @@ pub use dict::{
     parse_dict, Dictionaries, DictionaryDefaults, DictionaryOverrides, DictionaryPatches,
     DictionarySourceOverrides, MAX_TRANSLATE_KEY_CHARACTERS,
 };
+pub use han_viet::HanVietMap;
 pub use meanings::LacVietMeaning;
 pub use name_filter::{
     NameCandidate, NameCandidateSource, NameEntityType, NameFilterDocument, NameFilterMemory,
@@ -411,10 +412,9 @@ impl Engine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
 
-    fn hv_map() -> HashMap<char, String> {
-        let mut m = HashMap::new();
+    fn hv_map() -> HanVietMap {
+        let mut m = HanVietMap::default();
         for (k, v) in [('他', "tha"), ('很', "ngận"), ('厉', "lệ"), ('害', "hại")] {
             m.insert(k, v.to_string());
         }
@@ -607,8 +607,10 @@ mod tests {
             Dictionaries::build("他=tha\n很=ngận\n好=hảo", "", "", "很好=base phrase");
         let engine = Engine::from_dicts(dictionaries);
         let patches = DictionaryPatches {
-            vietphrase: HashMap::from([("很好".to_string(), "rất ổn/rất tốt".to_string())]),
-            chinese_phien_am_words: HashMap::from([('他', "hắn".to_string())]),
+            vietphrase: [("很好".to_string(), "rất ổn/rất tốt".to_string())]
+                .into_iter()
+                .collect(),
+            chinese_phien_am_words: [('他', "hắn".to_string())].into_iter().collect(),
         };
         let custom = DictionaryOverrides::default().with_patches(patches);
 
@@ -635,10 +637,12 @@ mod tests {
             Dictionaries::build("一=nhất\n百=bách\n二=nhị\n十=thập\n三=tam", "", "", "");
         let engine = Engine::from_dicts(dictionaries);
         let custom = DictionaryOverrides::default().with_patches(DictionaryPatches {
-            vietphrase: HashMap::from([(
+            vietphrase: [(
                 "一百二十三".to_string(),
                 "một trăm hai mươi ba".to_string(),
-            )]),
+            )]
+            .into_iter()
+            .collect(),
             ..DictionaryPatches::default()
         });
 

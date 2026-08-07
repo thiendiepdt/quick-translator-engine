@@ -301,8 +301,8 @@ impl DictionaryPatchesReq {
             ));
         }
         Ok(DictionaryPatches {
-            vietphrase: self.viet_phrase,
-            chinese_phien_am_words,
+            vietphrase: self.viet_phrase.into_iter().collect(),
+            chinese_phien_am_words: chinese_phien_am_words.into_iter().collect(),
         })
     }
 }
@@ -572,7 +572,7 @@ async fn filter_names(
     let output_max_candidates = options.max_candidates;
     let include_known = options.include_known;
     let memory = NameFilterMemory {
-        known_names: req.known_names,
+        known_names: req.known_names.into_iter().collect(),
         rejected_names: req.rejected_names.into_iter().collect(),
     };
     let dictionaries = prepare_dictionaries(req.dictionaries, None).await?;
@@ -1079,7 +1079,9 @@ mod tests {
     fn extraction_merge_skips_known_names_when_include_known_is_false() {
         let (engine, document) = extraction_engine_and_document();
         let memory = NameFilterMemory {
-            known_names: HashMap::from([("萧炎".to_string(), "Tiêu Viêm".to_string())]),
+            known_names: [("萧炎".to_string(), "Tiêu Viêm".to_string())]
+                .into_iter()
+                .collect(),
             rejected_names: Default::default(),
         };
         let mut candidates = Vec::new();
@@ -1103,7 +1105,9 @@ mod tests {
     fn extraction_merge_keeps_known_score_invariant() {
         let (engine, document) = extraction_engine_and_document();
         let memory = NameFilterMemory {
-            known_names: HashMap::from([("萧炎".to_string(), "Tiêu Viêm".to_string())]),
+            known_names: [("萧炎".to_string(), "Tiêu Viêm".to_string())]
+                .into_iter()
+                .collect(),
             rejected_names: Default::default(),
         };
         let mut candidates = Vec::new();

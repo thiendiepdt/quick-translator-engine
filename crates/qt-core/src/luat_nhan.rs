@@ -7,7 +7,7 @@ use crate::number::{
 };
 use fancy_regex::Regex as FancyRegex;
 use regex::Regex;
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 struct CompiledRule {
     key: String,
@@ -81,9 +81,9 @@ pub(crate) struct RuleMatch {
 pub(crate) struct LuatNhan {
     n_rules: Vec<CompiledRule>,
     s_rules: Vec<CompiledRule>,
-    dictionary_n: HashMap<String, String>,
-    ho_nguoi: HashMap<String, String>,
-    hau_tu: HashMap<String, String>,
+    dictionary_n: FxHashMap<String, String>,
+    ho_nguoi: FxHashMap<String, String>,
+    hau_tu: FxHashMap<String, String>,
     ho_nguoi_index: KeyLenIndex,
     hau_tu_index: KeyLenIndex,
 }
@@ -193,7 +193,7 @@ impl LuatNhan {
         let ho_nguoi = ho_nguoi.unwrap_or(&internal_ho_nguoi);
         let hau_tu = hau_tu.unwrap_or(&internal_hau_tu);
         // Ký tự có mặt trong cửa sổ — mồi lọc để khỏi chạy regex vô ích.
-        let present: HashSet<char> = chinese.iter().copied().collect();
+        let present: FxHashSet<char> = chinese.iter().copied().collect();
         let mut best = self.match_n(&text, &present, dictionary_n);
         let mut best_index = best.as_ref().map_or(usize::MAX, |matched| matched.index);
 
@@ -296,7 +296,7 @@ impl LuatNhan {
     fn match_n(
         &self,
         chinese: &str,
-        present: &HashSet<char>,
+        present: &FxHashSet<char>,
         dictionary_n: &dyn DictionaryLookup,
     ) -> Option<RuleMatch> {
         for rule in &self.n_rules {
@@ -360,7 +360,7 @@ impl LuatNhan {
     fn match_s(
         &self,
         chinese: &str,
-        present: &HashSet<char>,
+        present: &FxHashSet<char>,
         only_vietphrase: &dyn DictionaryLookup,
     ) -> Option<RuleMatch> {
         for rule in &self.s_rules {
@@ -648,6 +648,7 @@ fn byte_to_char_index(text: &str, byte_index: usize) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
 
     #[test]
     fn translates_chapter_percentage_fraction_and_date_rules() {

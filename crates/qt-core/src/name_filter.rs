@@ -6,7 +6,7 @@
 //! and book-scoped accepted/rejected memory. Statistical NER and AI decisions
 //! are merged by the API layer so this module stays deterministic and cheap.
 
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::sync::OnceLock;
 
 use jieba_rs::Jieba;
@@ -141,9 +141,9 @@ impl Default for NameFilterOptions {
 #[derive(Debug, Clone, Default)]
 pub struct NameFilterMemory {
     /// Accepted book-level names and their user-approved Vietnamese values.
-    pub known_names: HashMap<String, String>,
+    pub known_names: FxHashMap<String, String>,
     /// Rejections are scoped to a book and suppress later chapters.
-    pub rejected_names: HashSet<String>,
+    pub rejected_names: FxHashSet<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -319,7 +319,7 @@ impl Engine {
 
         let tokens = jieba.cut(text, true);
         let segments: Vec<&str> = tokens.iter().map(|token| token.word).collect();
-        let mut counts: HashMap<&str, usize> = HashMap::new();
+        let mut counts: FxHashMap<&str, usize> = FxHashMap::default();
         for token in &tokens {
             let length = token.word.chars().count();
             if (QT_MIN_LENGTH..=QT_MAX_LENGTH).contains(&length)
@@ -332,7 +332,7 @@ impl Engine {
             }
         }
         let threshold = options.min_occurrences.max(1);
-        let phrases: HashSet<String> = counts
+        let phrases: FxHashSet<String> = counts
             .iter()
             .filter(|(word, count)| **count >= threshold && !contains_stopword(word))
             .map(|(word, _)| (*word).to_string())
@@ -477,7 +477,7 @@ impl Engine {
         let max_length = options
             .max_name_length
             .clamp(QT_MIN_LENGTH, HYBRID_MAX_LENGTH);
-        let mut seeds: HashMap<String, CandidateSeed> = HashMap::new();
+        let mut seeds: FxHashMap<String, CandidateSeed> = FxHashMap::default();
         let utf16_offsets = utf16_offsets(text);
         let jieba = jieba();
 
@@ -775,10 +775,10 @@ fn jieba() -> &'static Jieba {
 }
 
 fn dictionary_pair<'a>(
-    custom_primary: Option<&'a HashMap<String, String>>,
-    custom_secondary: Option<&'a HashMap<String, String>>,
-    default_primary: &'a HashMap<String, String>,
-    default_secondary: &'a HashMap<String, String>,
+    custom_primary: Option<&'a FxHashMap<String, String>>,
+    custom_secondary: Option<&'a FxHashMap<String, String>>,
+    default_primary: &'a FxHashMap<String, String>,
+    default_secondary: &'a FxHashMap<String, String>,
 ) -> DictionaryPair<'a> {
     DictionaryPair {
         primary: custom_primary.unwrap_or(default_primary),
@@ -787,8 +787,8 @@ fn dictionary_pair<'a>(
 }
 
 struct DictionaryPair<'a> {
-    primary: &'a HashMap<String, String>,
-    secondary: &'a HashMap<String, String>,
+    primary: &'a FxHashMap<String, String>,
+    secondary: &'a FxHashMap<String, String>,
 }
 
 impl DictionaryPair<'_> {
@@ -800,8 +800,8 @@ impl DictionaryPair<'_> {
 fn add_hybrid_ngrams(
     text: &str,
     max_length: usize,
-    han_viet: &HashMap<char, String>,
-    seeds: &mut HashMap<String, CandidateSeed>,
+    han_viet: &FxHashMap<char, String>,
+    seeds: &mut FxHashMap<String, CandidateSeed>,
 ) {
     let chars: Vec<(usize, char)> = text.char_indices().collect();
     let mut run_start = 0;
@@ -836,10 +836,10 @@ fn candidate_facts(
     document: &NameFilterDocument,
     candidate: &str,
     byte_starts: &[usize],
-    utf16_offsets: &HashMap<usize, usize>,
-    ho_nguoi: &HashMap<String, String>,
-    danh_tu: &HashMap<String, String>,
-    hau_tu: &HashMap<String, String>,
+    utf16_offsets: &FxHashMap<usize, usize>,
+    ho_nguoi: &FxHashMap<String, String>,
+    danh_tu: &FxHashMap<String, String>,
+    hau_tu: &FxHashMap<String, String>,
 ) -> CandidateFacts {
     let text = document.text();
     let candidate_utf16_length = candidate.encode_utf16().count();
@@ -925,8 +925,8 @@ fn previous_chars(text: &str, byte_start: usize, count: usize) -> String {
         .collect()
 }
 
-fn utf16_offsets(text: &str) -> HashMap<usize, usize> {
-    let mut offsets = HashMap::new();
+fn utf16_offsets(text: &str) -> FxHashMap<usize, usize> {
+    let mut offsets = FxHashMap::default();
     let mut utf16_start = 0;
     for (byte_start, character) in text.char_indices() {
         offsets.insert(byte_start, utf16_start);
@@ -990,11 +990,11 @@ fn hybrid_score(
 
 fn suggested_name(
     text: &str,
-    vietphrase: &HashMap<String, String>,
-    han_viet: &HashMap<char, String>,
+    vietphrase: &FxHashMap<String, String>,
+    han_viet: &FxHashMap<char, String>,
     prefer_han_viet: bool,
-    danh_tu: &HashMap<String, String>,
-    vietphrase_one_meaning: &HashMap<String, String>,
+    danh_tu: &FxHashMap<String, String>,
+    vietphrase_one_meaning: &FxHashMap<String, String>,
 ) -> String {
     if text.chars().count() > 2 && ends_with_any_key(text, danh_tu) {
         return title_case_with_danh_tu(text, danh_tu, vietphrase_one_meaning, han_viet);
@@ -1009,7 +1009,7 @@ fn suggested_name(
     title_case_han_viet(text, han_viet)
 }
 
-fn title_case_han_viet(text: &str, han_viet: &HashMap<char, String>) -> String {
+fn title_case_han_viet(text: &str, han_viet: &FxHashMap<char, String>) -> String {
     text.chars()
         .map(|ch| {
             han_viet
@@ -1027,9 +1027,9 @@ fn title_case_han_viet(text: &str, han_viet: &HashMap<char, String>) -> String {
 /// Port of QT2025 `LocNameOff.BuildFormattedHanViet` (checkVietPhrase=true).
 fn qt_formatted_value(
     candidate: &str,
-    danh_tu: &HashMap<String, String>,
-    vietphrase_one_meaning: &HashMap<String, String>,
-    han_viet: &HashMap<char, String>,
+    danh_tu: &FxHashMap<String, String>,
+    vietphrase_one_meaning: &FxHashMap<String, String>,
+    han_viet: &FxHashMap<char, String>,
 ) -> String {
     if candidate.trim().is_empty() {
         return String::new();
@@ -1050,9 +1050,9 @@ fn qt_formatted_value(
 /// `suffix={0} template` patterns applied to the translated prefix.
 fn title_case_with_danh_tu(
     candidate: &str,
-    danh_tu: &HashMap<String, String>,
-    vietphrase_one_meaning: &HashMap<String, String>,
-    han_viet: &HashMap<char, String>,
+    danh_tu: &FxHashMap<String, String>,
+    vietphrase_one_meaning: &FxHashMap<String, String>,
+    han_viet: &FxHashMap<char, String>,
 ) -> String {
     if let Some(value) = danh_tu.get(candidate) {
         return value.replace("{0}", "").trim().to_string();
@@ -1106,8 +1106,8 @@ fn is_title_case(value: &str) -> bool {
 /// (姜 + 太阿=Thái A).
 fn surname_proper_remainder(
     candidate: &str,
-    ho_nguoi: &HashMap<String, String>,
-    vietphrase: &HashMap<String, String>,
+    ho_nguoi: &FxHashMap<String, String>,
+    vietphrase: &FxHashMap<String, String>,
 ) -> bool {
     prefixes(candidate).any(|prefix| {
         if !ho_nguoi.contains_key(prefix) {
@@ -1125,21 +1125,21 @@ fn surname_proper_remainder(
 }
 
 /// `MatchAnyStartEnd(text, keys, isPrefix: false)` from QT2025.
-fn ends_with_any_key(text: &str, keys: &HashMap<String, String>) -> bool {
+fn ends_with_any_key(text: &str, keys: &FxHashMap<String, String>) -> bool {
     keys.keys()
         .any(|key| text != key && text.ends_with(key.as_str()))
 }
 
 /// `MatchAnyStartEnd(text, keys, isPrefix: true)` from QT2025.
-fn starts_with_any_key(text: &str, keys: &HashMap<String, String>) -> bool {
+fn starts_with_any_key(text: &str, keys: &FxHashMap<String, String>) -> bool {
     keys.keys()
         .any(|key| text != key && text.starts_with(key.as_str()))
 }
 
 /// QT2025 `FilterUnnecessaryPhrasesOptimized`: within each two-character
 /// prefix group only the shortest phrase survives.
-fn keep_shortest_per_prefix(phrases: HashSet<String>) -> HashSet<String> {
-    let mut groups: HashMap<String, (usize, String)> = HashMap::new();
+fn keep_shortest_per_prefix(phrases: FxHashSet<String>) -> FxHashSet<String> {
+    let mut groups: FxHashMap<String, (usize, String)> = FxHashMap::default();
     for phrase in phrases {
         let length = phrase.chars().count();
         if length < 2 {
@@ -1165,11 +1165,11 @@ fn keep_shortest_per_prefix(phrases: HashSet<String>) -> HashSet<String> {
 /// into it (key ends with the phrase's first character and the combined
 /// string occurs in the chapter).
 fn filter_names2_chain(
-    phrases: HashSet<String>,
+    phrases: FxHashSet<String>,
     text: &str,
-    names2: &HashMap<String, String>,
-) -> HashSet<String> {
-    let mut removed: HashSet<String> = HashSet::new();
+    names2: &FxHashMap<String, String>,
+) -> FxHashSet<String> {
+    let mut removed: FxHashSet<String> = FxHashSet::default();
     for phrase in &phrases {
         let Some(first) = phrase.chars().next() else {
             continue;
@@ -1197,8 +1197,8 @@ fn filter_names2_chain(
 /// QT2025 `IsPartOfAnyPhraseInDictionary` against Names2.
 fn is_part_of_names2(
     candidate: &str,
-    names2: &HashMap<String, String>,
-    ho_nguoi: &HashMap<String, String>,
+    names2: &FxHashMap<String, String>,
+    ho_nguoi: &FxHashMap<String, String>,
 ) -> bool {
     if candidate.chars().count() <= 1 {
         return false;
@@ -1238,15 +1238,15 @@ fn brackets_match(with_brackets: &str, to_check: &str) -> bool {
 /// following DanhTu segment or start with a surname; four-character terms
 /// must be `<prefix><DanhTu>` pairs that are not two common VietPhrase words.
 fn validate_and_merge_terms(
-    terms: &mut HashSet<String>,
+    terms: &mut FxHashSet<String>,
     segments: &[&str],
-    only_vietphrase: &HashMap<String, String>,
+    only_vietphrase: &FxHashMap<String, String>,
     in_vietphrase: &dyn Fn(&str) -> bool,
-    danh_tu: &HashMap<String, String>,
-    ho_nguoi: &HashMap<String, String>,
+    danh_tu: &FxHashMap<String, String>,
+    ho_nguoi: &FxHashMap<String, String>,
 ) {
-    let mut to_remove: HashSet<String> = HashSet::new();
-    let mut to_add: HashSet<String> = HashSet::new();
+    let mut to_remove: FxHashSet<String> = FxHashSet::default();
+    let mut to_add: FxHashSet<String> = FxHashSet::default();
     terms.retain(|term| !term.trim().is_empty());
     for term in terms.iter() {
         let length = term.chars().count();
@@ -1321,7 +1321,7 @@ fn title_words(value: &str) -> String {
 }
 
 fn prune_weaker_nested_candidates(candidates: Vec<NameCandidate>) -> Vec<NameCandidate> {
-    let strengths: HashMap<String, (f32, usize)> = candidates
+    let strengths: FxHashMap<String, (f32, usize)> = candidates
         .iter()
         .map(|candidate| {
             (
@@ -1397,7 +1397,7 @@ mod tests {
     #[test]
     fn book_memory_overrides_frequency_and_translation() {
         let memory = NameFilterMemory {
-            known_names: HashMap::from([("林动".to_string(), "Lâm Động".to_string())]),
+            known_names: [("林动".to_string(), "Lâm Động".to_string())].into_iter().collect(),
             ..Default::default()
         };
         let result =
@@ -1415,7 +1415,7 @@ mod tests {
     #[test]
     fn book_memory_is_returned_even_after_it_is_added_to_names2() {
         let memory = NameFilterMemory {
-            known_names: HashMap::from([("林动".to_string(), "Lâm Động".to_string())]),
+            known_names: [("林动".to_string(), "Lâm Động".to_string())].into_iter().collect(),
             ..Default::default()
         };
         let overrides = DictionaryOverrides::from_sources(crate::DictionarySourceOverrides {
@@ -1437,7 +1437,7 @@ mod tests {
     #[test]
     fn rejected_book_name_is_suppressed() {
         let memory = NameFilterMemory {
-            rejected_names: HashSet::from(["萧炎".to_string()]),
+            rejected_names: ["萧炎".to_string()].into_iter().collect(),
             ..Default::default()
         };
         let result = engine().filter_names(
@@ -1629,7 +1629,7 @@ mod tests {
     #[test]
     fn ranges_are_utf16_offsets() {
         let memory = NameFilterMemory {
-            known_names: HashMap::from([("萧炎".to_string(), "Tiêu Viêm".to_string())]),
+            known_names: [("萧炎".to_string(), "Tiêu Viêm".to_string())].into_iter().collect(),
             ..Default::default()
         };
         let result = engine().filter_names("😀萧炎", &NameFilterOptions::default(), &memory, None);
@@ -1650,10 +1650,12 @@ mod tests {
     #[test]
     fn ignored_phrases_remove_candidates_and_preserve_original_ranges() {
         let memory = NameFilterMemory {
-            known_names: HashMap::from([
+            known_names: [
                 ("萧炎".to_string(), "Tiêu Viêm".to_string()),
                 ("林动".to_string(), "Lâm Động".to_string()),
-            ]),
+            ]
+            .into_iter()
+            .collect(),
             ..Default::default()
         };
         let result = engine_with_ignored("本章萧炎完").filter_names(
@@ -1685,7 +1687,7 @@ mod tests {
     #[test]
     fn ignored_phrase_overrides_replace_the_engine_default() {
         let memory = NameFilterMemory {
-            known_names: HashMap::from([("萧炎".to_string(), "Tiêu Viêm".to_string())]),
+            known_names: [("萧炎".to_string(), "Tiêu Viêm".to_string())].into_iter().collect(),
             ..Default::default()
         };
         let overrides = DictionaryOverrides::from_sources(crate::DictionarySourceOverrides {
@@ -1716,7 +1718,7 @@ mod tests {
     #[test]
     fn ignored_phrases_do_not_join_names_across_the_removed_text() {
         let memory = NameFilterMemory {
-            known_names: HashMap::from([("萧炎".to_string(), "Tiêu Viêm".to_string())]),
+            known_names: [("萧炎".to_string(), "Tiêu Viêm".to_string())].into_iter().collect(),
             ..Default::default()
         };
         let result = engine_with_ignored("本章完").filter_names(

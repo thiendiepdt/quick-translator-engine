@@ -1,8 +1,10 @@
 //! Dictionary loading, merging, and QT's priority rules.
 
 use crate::han_viet::HanVietMap;
+use rustc_hash::FxHashMap;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::hash::BuildHasher;
 
 /// Raw QT2025 contents for every dictionary that can be replaced per request.
 /// VietPhrase and ChinesePhienAmWords stay fixed and are intentionally not
@@ -79,7 +81,7 @@ pub struct DictionarySourceOverrides<'a> {
 /// files. They only override matching keys for the current request.
 #[derive(Default)]
 pub struct DictionaryPatches {
-    pub vietphrase: HashMap<String, String>,
+    pub vietphrase: FxHashMap<String, String>,
     pub chinese_phien_am_words: HanVietMap,
 }
 
@@ -88,15 +90,15 @@ pub struct DictionaryPatches {
 /// ChinesePhienAmWords dictionaries.
 #[derive(Default)]
 pub struct DictionaryOverrides {
-    pub(crate) names: Option<HashMap<String, String>>,
-    pub(crate) names2: Option<HashMap<String, String>>,
+    pub(crate) names: Option<FxHashMap<String, String>>,
+    pub(crate) names2: Option<FxHashMap<String, String>>,
     pub(crate) luat_nhan: Option<Vec<(String, String)>>,
-    pub(crate) pronouns: Option<HashMap<String, String>>,
-    pub(crate) danh_tu: Option<HashMap<String, String>>,
-    pub(crate) ho_nguoi: Option<HashMap<String, String>>,
-    pub(crate) hau_tu: Option<HashMap<String, String>>,
+    pub(crate) pronouns: Option<FxHashMap<String, String>>,
+    pub(crate) danh_tu: Option<FxHashMap<String, String>>,
+    pub(crate) ho_nguoi: Option<FxHashMap<String, String>>,
+    pub(crate) hau_tu: Option<FxHashMap<String, String>>,
     pub(crate) ignored_chinese_phrases: Option<Vec<String>>,
-    pub(crate) vietphrase_patches: HashMap<String, String>,
+    pub(crate) vietphrase_patches: FxHashMap<String, String>,
     pub(crate) chinese_phien_am_words_patches: HanVietMap,
 }
 
@@ -113,8 +115,8 @@ impl DictionaryOverrides {
             ignored_chinese_phrases: sources
                 .ignored_chinese_phrases
                 .map(parse_ignored_chinese_phrases),
-            vietphrase_patches: HashMap::new(),
-            chinese_phien_am_words_patches: HanVietMap::new(),
+            vietphrase_patches: FxHashMap::default(),
+            chinese_phien_am_words_patches: HanVietMap::default(),
         }
     }
 
@@ -154,7 +156,7 @@ pub(crate) trait DictionaryLookup {
     }
 }
 
-impl DictionaryLookup for HashMap<String, String> {
+impl<S: BuildHasher> DictionaryLookup for HashMap<String, String, S> {
     fn get(&self, key: &str) -> Option<&str> {
         HashMap::get(self, key).map(String::as_str)
     }
@@ -164,11 +166,11 @@ impl DictionaryLookup for HashMap<String, String> {
 /// VietPhrase có max thực tế ~3 ký tự cho phần lớn ký tự đầu, trong khi vòng
 /// quét mặc định thử từ 30 xuống — index này cắt ~90% số lần tra hash.
 #[derive(Default)]
-pub(crate) struct KeyLenIndex(HashMap<char, u8>);
+pub(crate) struct KeyLenIndex(FxHashMap<char, u8>);
 
 impl KeyLenIndex {
     pub(crate) fn from_keys<'a>(keys: impl IntoIterator<Item = &'a String>) -> Self {
-        let mut index: HashMap<char, u8> = HashMap::new();
+        let mut index: FxHashMap<char, u8> = FxHashMap::default();
         for key in keys {
             let mut chars = key.chars();
             let Some(first) = chars.next() else { continue };
@@ -209,22 +211,22 @@ pub struct Dictionaries {
     pub han_viet: HanVietMap,
     /// Lạc Việt definitions used by the interactive meaning lookup. This
     /// dictionary is read-only and is never exposed as a request override.
-    pub lac_viet: HashMap<String, String>,
+    pub lac_viet: FxHashMap<String, String>,
     /// Parsed Names.txt before Names2 is applied.
-    pub primary_names: HashMap<String, String>,
+    pub primary_names: FxHashMap<String, String>,
     /// Parsed Names2 before it is merged over Names.txt.
-    pub secondary_names: HashMap<String, String>,
-    pub only_name: HashMap<String, String>,
-    pub only_name_one_meaning: HashMap<String, String>,
+    pub secondary_names: FxHashMap<String, String>,
+    pub only_name: FxHashMap<String, String>,
+    pub only_name_one_meaning: FxHashMap<String, String>,
     /// Raw VietPhrase entries before Names are merged in. Number pre-scanning
     /// consults this map so an explicit dictionary entry wins over conversion.
-    pub only_vietphrase: HashMap<String, String>,
-    pub vietphrase: HashMap<String, String>,
-    pub vietphrase_one_meaning: HashMap<String, String>,
-    pub pronouns: HashMap<String, String>,
-    pub danh_tu: HashMap<String, String>,
-    pub ho_nguoi: HashMap<String, String>,
-    pub hau_tu: HashMap<String, String>,
+    pub only_vietphrase: FxHashMap<String, String>,
+    pub vietphrase: FxHashMap<String, String>,
+    pub vietphrase_one_meaning: FxHashMap<String, String>,
+    pub pronouns: FxHashMap<String, String>,
+    pub danh_tu: FxHashMap<String, String>,
+    pub ho_nguoi: FxHashMap<String, String>,
+    pub hau_tu: FxHashMap<String, String>,
     /// Luật Nhân entries in QT's priority order: key length descending,
     /// followed by lexical order ascending.
     pub luat_nhan: Vec<(String, String)>,
@@ -266,7 +268,7 @@ impl Dictionaries {
         names2_src: &str,
         vietphrase_src: &str,
     ) -> Dictionaries {
-        let mut han_viet: HanVietMap = HashMap::new();
+        let mut han_viet = HanVietMap::default();
         for (k, v) in parse_dict(han_viet_src) {
             let mut it = k.chars();
             if let (Some(c), None) = (it.next(), it.next()) {
@@ -286,7 +288,7 @@ impl Dictionaries {
         }
 
         // only_vietphrase: first-wins
-        let mut only_vietphrase: HashMap<String, String> = HashMap::new();
+        let mut only_vietphrase: FxHashMap<String, String> = FxHashMap::default();
         for (k, v) in parse_dict(vietphrase_src) {
             if !within_scan_window(&k) {
                 continue;
@@ -295,13 +297,13 @@ impl Dictionaries {
         }
 
         // vietphrase = only_name first (all), then only_vietphrase for absent keys.
-        let mut vietphrase: HashMap<String, String> = only_name.clone();
+        let mut vietphrase: FxHashMap<String, String> = only_name.clone();
         for (k, v) in &only_vietphrase {
             vietphrase.entry(k.clone()).or_insert_with(|| v.clone());
         }
 
         // one-meaning: first segment split on '/' or '|'.
-        let mut vietphrase_one_meaning: HashMap<String, String> = HashMap::new();
+        let mut vietphrase_one_meaning: FxHashMap<String, String> = FxHashMap::default();
         for (k, v) in &vietphrase {
             let first = match v.split(['/', '|']).next() {
                 Some(s) => s.to_string(),
@@ -389,8 +391,8 @@ impl Dictionaries {
     }
 }
 
-fn first_wins_map(source: &str) -> HashMap<String, String> {
-    let mut dictionary = HashMap::new();
+fn first_wins_map(source: &str) -> FxHashMap<String, String> {
+    let mut dictionary = FxHashMap::default();
     for (key, value) in parse_dict(source) {
         dictionary.entry(key).or_insert(value);
     }
@@ -402,8 +404,8 @@ fn first_wins_map(source: &str) -> HashMap<String, String> {
 /// match and only inflate the per-character length index, so they are
 /// dropped at load. The QT2025 corpus tops out at 15 characters for real
 /// entries (Western full names); everything longer is sentence-level noise.
-fn first_wins_scan_map(source: &str) -> HashMap<String, String> {
-    let mut dictionary = HashMap::new();
+fn first_wins_scan_map(source: &str) -> FxHashMap<String, String> {
+    let mut dictionary = FxHashMap::default();
     for (key, value) in parse_dict(source) {
         if !within_scan_window(&key) {
             continue;

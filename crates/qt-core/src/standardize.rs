@@ -3,7 +3,7 @@
 
 use crate::han_viet::HanVietMap;
 use crate::CharRange;
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 use unicode_general_category::{get_general_category, GeneralCategory};
 
 #[derive(Clone)]
@@ -30,9 +30,9 @@ struct TaggedMappedChar {
 }
 
 pub(crate) struct Standardizer {
-    simplified: HashMap<char, char>,
-    html_entities: HashMap<String, Vec<char>>,
-    chinese: HashSet<char>,
+    simplified: FxHashMap<char, char>,
+    html_entities: FxHashMap<String, Vec<char>>,
+    chinese: FxHashSet<char>,
     ignored: Vec<Vec<char>>,
 }
 
@@ -259,7 +259,7 @@ impl Standardizer {
 /// `Microsoft.VisualBasic.Strings.StrConv(..., SimplifiedChinese, 0)` for all
 /// non-surrogate BMP code points. QT2025 uses that exact API; embedding the
 /// table makes its character-wise behavior deterministic on Linux as well.
-fn load_strconv_t2s_map() -> HashMap<char, char> {
+fn load_strconv_t2s_map() -> FxHashMap<char, char> {
     include_str!("strconv_t2s.tsv")
         .lines()
         .filter_map(|line| {
@@ -279,7 +279,7 @@ fn is_decimal_digit(ch: char) -> bool {
 /// Named-entity table accepted by .NET `WebUtility.HtmlDecode`. The .NET API
 /// intentionally recognizes the older entity set rather than every WHATWG
 /// HTML5 name (for example, it leaves `&NotEqualTilde;` unchanged).
-fn load_webutility_entities() -> HashMap<String, Vec<char>> {
+fn load_webutility_entities() -> FxHashMap<String, Vec<char>> {
     include_str!("webutility_entities.tsv")
         .lines()
         .filter_map(|line| {
@@ -325,7 +325,7 @@ fn replace_punctuation(input: &[MappedChar]) -> Vec<MappedChar> {
 
 fn decode_html_entities(
     input: &[MappedChar],
-    named_entities: &HashMap<String, Vec<char>>,
+    named_entities: &FxHashMap<String, Vec<char>>,
 ) -> Vec<MappedChar> {
     let mut output = Vec::with_capacity(input.len());
     let mut index = 0usize;
@@ -353,7 +353,7 @@ fn decode_html_entities(
 
 fn decode_html_entity(
     encoded: &str,
-    named_entities: &HashMap<String, Vec<char>>,
+    named_entities: &FxHashMap<String, Vec<char>>,
 ) -> Option<Vec<char>> {
     let body = encoded.strip_prefix('&')?.strip_suffix(';')?;
     if let Some(number) = body.strip_prefix("#x").or_else(|| body.strip_prefix("#X")) {
@@ -510,7 +510,7 @@ mod tests {
     use super::*;
 
     fn standardizer(ignored: &[&str]) -> Standardizer {
-        let mut hv = HanVietMap::new();
+        let mut hv = HanVietMap::default();
         for ch in "这是一本书他她本章完等等".chars() {
             hv.insert(ch, String::new());
         }
@@ -539,7 +539,7 @@ mod tests {
             ("後臺發展", "後台发展"),
             ("滑鼠裡面", "滑鼠里面"),
         ];
-        let mut hv = HanVietMap::new();
+        let mut hv = HanVietMap::default();
         for ch in samples.iter().flat_map(|(input, _)| input.chars()) {
             hv.insert(ch, String::new());
         }
