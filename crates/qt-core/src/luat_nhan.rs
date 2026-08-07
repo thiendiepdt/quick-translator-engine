@@ -143,6 +143,16 @@ pub(crate) struct RuleMatch {
     pub value_n: String,
 }
 
+/// Scratch tái dùng giữa các lần gọi [`LuatNhan::contains`] — tránh cấp phát
+/// String/set cửa sổ cho từng vị trí quét (hàng triệu lần trên một bộ truyện).
+#[derive(Default)]
+pub(crate) struct LuatNhanScratch {
+    text: String,
+    present: FxHashSet<char>,
+    window: String,
+    window_offsets: Vec<usize>,
+}
+
 #[derive(Default)]
 pub(crate) struct LuatNhan {
     n_rules: Vec<CompiledRule>,
@@ -239,6 +249,7 @@ impl LuatNhan {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn contains(
         &self,
         chinese: &[char],
@@ -247,8 +258,13 @@ impl LuatNhan {
         dictionary_n: Option<&dyn DictionaryLookup>,
         ho_nguoi: Option<&dyn DictionaryLookup>,
         hau_tu: Option<&dyn DictionaryLookup>,
+        scratch: &mut LuatNhanScratch,
     ) -> Option<RuleMatch> {
-        let text: String = chinese.iter().collect();
+        scratch.text.clear();
+        scratch.text.extend(chinese.iter());
+        // Ký tự có mặt trong cửa sổ — mồi lọc để khỏi chạy regex vô ích.
+        scratch.present.clear();
+        scratch.present.extend(chinese.iter().copied());
         let dictionary_n = dictionary_n.unwrap_or(&self.dictionary_n);
         // Map nội bộ đi kèm index chặn-trên của chính nó; map do caller đưa
         // vào tự mang index qua trait (hoặc mặc định "không biết").
@@ -262,15 +278,19 @@ impl LuatNhan {
         };
         let ho_nguoi = ho_nguoi.unwrap_or(&internal_ho_nguoi);
         let hau_tu = hau_tu.unwrap_or(&internal_hau_tu);
-        // Ký tự có mặt trong cửa sổ — mồi lọc để khỏi chạy regex vô ích.
-        let present: FxHashSet<char> = chinese.iter().copied().collect();
-        let mut best = self.match_n(&text, &present, dictionary_n);
+        let mut best = self.match_n(&scratch.text, &scratch.present, dictionary_n);
         let mut best_index = best.as_ref().map_or(usize::MAX, |matched| matched.index);
 
         for index in 0..chinese.len().min(best_index) {
-            if let Some(length) =
-                self.find_ho_hau_phrase(chinese, index, vietphrase, ho_nguoi, hau_tu)
-            {
+            if let Some(length) = self.find_ho_hau_phrase(
+                chinese,
+                index,
+                vietphrase,
+                ho_nguoi,
+                hau_tu,
+                &mut scratch.window,
+                &mut scratch.window_offsets,
+            ) {
                 best = Some(RuleMatch {
                     index,
                     length,
@@ -283,7 +303,7 @@ impl LuatNhan {
         }
 
         if best_index > 0 && chinese.iter().any(|ch| is_number_start(*ch)) {
-            if let Some(matched) = self.match_s(&text, &present, only_vietphrase) {
+            if let Some(matched) = self.match_s(&scratch.text, &scratch.present, only_vietphrase) {
                 if matched.index < best_index {
                     best = Some(matched);
                 }
@@ -467,6 +487,7 @@ impl LuatNhan {
         None
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn find_ho_hau_phrase(
         &self,
         chinese: &[char],
@@ -474,6 +495,8 @@ impl LuatNhan {
         vietphrase: &dyn DictionaryLookup,
         ho_nguoi: &dyn DictionaryLookup,
         hau_tu: &dyn DictionaryLookup,
+        buffer: &mut String,
+        offsets: &mut Vec<usize>,
     ) -> Option<usize> {
         // Không có họ nào bắt đầu bằng ký tự này thì mọi cách tách {h}{t}
         // đều fail — thoát ngay; đây là trường hợp của đa số vị trí.
@@ -489,16 +512,14 @@ impl LuatNhan {
         // "covered by longer" bị chặn bởi key vietphrase dài nhất có thể.
         let longer_cap = window_len.min(vietphrase.max_key_len(chinese[start]));
         let fill_len = window_len.min(6usize.max(longer_cap));
-        let mut buffer = String::new();
-        let mut offsets: Vec<usize> = Vec::new();
-        crate::translate::fill_window(chinese, start, fill_len, &mut buffer, &mut offsets);
+        crate::translate::fill_window(chinese, start, fill_len, buffer, offsets);
         for length in (2..=6).rev() {
             if length > window_len {
                 continue;
             }
             let phrase = &buffer[..offsets[length]];
             if !is_ho_hau_window(
-                chinese, start, &buffer, &offsets, length, ho_max, ho_nguoi, hau_tu,
+                chinese, start, buffer, offsets, length, ho_max, ho_nguoi, hau_tu,
             ) || vietphrase.contains_key(phrase)
             {
                 continue;
@@ -806,7 +827,7 @@ mod tests {
         ] {
             let chars: Vec<char> = input.chars().collect();
             let matched = rules
-                .contains(&chars, &empty, &empty, None, None, None)
+                .contains(&chars, &empty, &empty, None, None, None, &mut LuatNhanScratch::default())
                 .expect(input);
             assert_eq!(matched.index, 0, "{input}");
             assert_eq!(
@@ -852,7 +873,7 @@ mod tests {
         // tìm thấy "在他身后" ở index 4.
         let chars: Vec<char> = "在X身后在他身后".chars().collect();
         let matched = rules
-            .contains(&chars, &empty, &empty, None, None, None)
+            .contains(&chars, &empty, &empty, None, None, None, &mut LuatNhanScratch::default())
             .expect("second occurrence must match");
         assert_eq!(matched.index, 4);
         assert_eq!(matched.length, 4);
@@ -870,7 +891,7 @@ mod tests {
         let empty = HashMap::new();
         let chars: Vec<char> = "在他身后".chars().collect();
         let matched = rules
-            .contains(&chars, &empty, &empty, None, None, None)
+            .contains(&chars, &empty, &empty, None, None, None, &mut LuatNhanScratch::default())
             .unwrap();
         assert_eq!(
             rules.translate("在他身后", &matched.key, &matched.value_n, None, None),

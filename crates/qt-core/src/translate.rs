@@ -100,7 +100,7 @@ pub fn contains_name(
 }
 
 use crate::han_viet::{char_to_han_viet, is_chinese, HanVietMap};
-use crate::luat_nhan::LuatNhan;
+use crate::luat_nhan::{LuatNhan, LuatNhanScratch};
 use crate::number::{number_modifier, prescan_numbers, translate_number};
 use crate::text::{
     append_translated_word, needs_space_after_sentence_punctuation, next_char_is_chinese,
@@ -301,6 +301,7 @@ pub(crate) fn translate_all_mapped(
     // theo offset byte cho từng độ dài, thay vì cấp phát String mỗi probe.
     let mut window = String::new();
     let mut window_offsets: Vec<usize> = Vec::new();
+    let mut luat_nhan_scratch = LuatNhanScratch::default();
     while num2 < len {
         let mut flag = false;
         let mut flag2 = true;
@@ -367,6 +368,7 @@ pub(crate) fn translate_all_mapped(
                             dictionary_n,
                             ho_nguoi,
                             hau_tu,
+                            &mut luat_nhan_scratch,
                         );
                         if let Some(matched) = matched {
                             num4 = (num2 + matched.index) as isize;
@@ -416,6 +418,7 @@ pub(crate) fn translate_all_mapped(
                                         dictionary_n,
                                         ho_nguoi,
                                         hau_tu,
+                                        &mut luat_nhan_scratch,
                                     )
                                     .is_none()
                             {
