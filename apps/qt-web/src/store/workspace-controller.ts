@@ -1,5 +1,6 @@
 import {
   createWorkspaceId,
+  defaultWorkspace,
   normalizeWorkspaceName,
   type WorkspaceSummary,
   useWorkspaceCatalogStore,
@@ -73,4 +74,22 @@ export async function forkWorkspace(name: string): Promise<WorkspaceSummary> {
   await activateWorkspaceData(workspace.id, currentState);
   useWorkspaceCatalogStore.getState().addAndSelectWorkspace(workspace);
   return workspace;
+}
+
+export async function deleteWorkspace(workspaceId: string): Promise<void> {
+  const catalog = useWorkspaceCatalogStore.getState();
+  if (workspaceId === defaultWorkspace.id) {
+    throw new Error("Không thể xóa không gian làm việc mặc định");
+  }
+  if (!catalog.workspaces.some(({ id }) => id === workspaceId)) {
+    throw new Error("Workspace không tồn tại");
+  }
+
+  // Đang đứng trong workspace bị xóa thì nạp dữ liệu mặc định trước khi gỡ
+  // khỏi catalog, tránh khoảnh khắc store trỏ vào storage key đã xóa.
+  if (catalog.activeWorkspaceId === workspaceId) {
+    await activateWorkspaceData(defaultWorkspace.id);
+  }
+  useWorkspaceCatalogStore.getState().removeWorkspace(workspaceId);
+  await workspaceStateStorage.removeItem(workspaceStorageKeyFor(workspaceId));
 }

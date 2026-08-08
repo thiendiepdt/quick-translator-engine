@@ -10,12 +10,26 @@ hợp split workspace của direction B với typography/output reader của dir
 - shadcn/ui dạng open-code trên Radix primitives.
 - React Hook Form + Zod cho endpoint và engine options.
 - TanStack Query cho health check, default dictionaries và translate mutation.
-- Zustand cho source, output, range selection, dictionary draft và memory lọc name.
+- Zustand cho source, output, range selection, dictionary draft, memory lọc name và
+  workspace truyện Dịch AI.
 - Vitest cho UTF-16 range, API client và dictionary semantics.
 
 Nội dung chương và toàn bộ raw dictionary **không** được persist vào `localStorage`.
-Web chỉ lưu các entry cập nhật nhanh, trạng thái PIN và hai tập nhỏ
-`knownNames`/`rejectedNames` để dùng lại qua nhiều chương.
+Các workspace dùng IndexedDB (`qt-web` / `key-value`): Dịch AI lưu metadata truyện,
+prompt, glossary, style, check rules, hàng đợi chương và kết quả để phục hồi sau reload.
+Raw dictionary mặc định từ server vẫn không bị nhân bản; chỉ override và entry đã sửa
+được lưu. API key/model/theme tiếp tục là preference nhỏ trong `localStorage`.
+
+## Dịch AI theo truyện
+
+- Mỗi workspace tương ứng một truyện và có cấu hình riêng: thông tin truyện, từ điển,
+  style, prompt và regex kiểm tra sau dịch.
+- `AI fill` ưu tiên Gemini và bật Google Search để điền metadata/glossary/style; nếu
+  chưa có key Gemini thì dùng provider Dịch AI hiện tại mà không có search grounding.
+- Có thể chọn hoặc kéo-thả nhiều file `.txt`/`.md`; chương được xếp tự nhiên theo tên
+  file và dịch tuần tự để không tạo nhiều request provider đồng thời.
+- Reload giữa chừng giữ raw/output đã có và đưa chương đang chạy về `Chờ dịch`.
+  Người dùng bấm `Dịch hàng đợi` để tiếp tục; app không tự gọi API có tính phí sau reload.
 
 ## Development với Rust API local
 

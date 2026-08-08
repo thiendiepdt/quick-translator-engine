@@ -2,7 +2,17 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
 import { createIndexedDbStateStorage } from "@/lib/indexed-db-storage";
+import type { TranslationViolation } from "@/lib/ai-translation";
+import {
+  emptyAiStoryConfig,
+  naturalChapterCompare,
+  normalizeAiStoryConfig,
+  normalizeAiTranslationChapters,
+  type AiStoryConfig,
+  type AiTranslationChapter,
+} from "@/lib/ai-story";
 import { sampleDictionaryValues, sampleResponse, sampleSource } from "@/lib/sample";
+import { initialWorkspaceView } from "@/lib/workspace-route";
 import { readStoredActiveWorkspaceId } from "@/store/workspace-catalog";
 import {
   dictionaryUpdateKeys,
@@ -29,11 +39,17 @@ export interface WorkspacePersistentState {
   rangePinEnabled: boolean;
   localDictionaryEntries: LocalDictionaryEntries;
   dictionaryOverrides: Partial<Record<DictionaryKey, string>>;
+  aiStory: AiStoryConfig;
+  aiTranslationChapters: AiTranslationChapter[];
+  activeAiTranslationChapterId?: string;
+  aiTranslationSource: string;
+  aiTranslationOutput: string;
+  aiTranslationViolations: TranslationViolation[];
 }
 
 type SourceView = "raw" | "linked";
 type OutputView = "output" | "json";
-export type WorkspaceView = "translate" | "names";
+export type WorkspaceView = "translate" | "ai-translate" | "names";
 
 interface WorkspaceState {
   sourceText: string;
@@ -48,6 +64,13 @@ interface WorkspaceState {
   rangePinEnabled: boolean;
   mobileInspectorOpen: boolean;
   workspaceView: WorkspaceView;
+  aiTranslationSource: string;
+  aiTranslationOutput: string;
+  aiTranslationThinking: string;
+  aiTranslationViolations: TranslationViolation[];
+  aiStory: AiStoryConfig;
+  aiTranslationChapters: AiTranslationChapter[];
+  activeAiTranslationChapterId?: string;
   nameFilterResponse?: NameFilterResponse;
   knownNames: Record<string, string>;
   rejectedNames: string[];
@@ -64,6 +87,22 @@ interface WorkspaceState {
   setRangePinEnabled: (rangePinEnabled: boolean) => void;
   setMobileInspectorOpen: (mobileInspectorOpen: boolean) => void;
   setWorkspaceView: (workspaceView: WorkspaceView) => void;
+  setAiTranslationSource: (source: string) => void;
+  setAiTranslationOutput: (output: string) => void;
+  setAiTranslationThinking: (thinking: string) => void;
+  setAiTranslationViolations: (violations: TranslationViolation[]) => void;
+  clearAiTranslation: () => void;
+  updateAiStory: (patch: Partial<AiStoryConfig>) => void;
+  importAiTranslationChapters: (
+    files: Array<{ filename: string; source: string }>,
+  ) => void;
+  selectAiTranslationChapter: (id?: string) => void;
+  updateAiTranslationChapter: (
+    id: string,
+    patch: Partial<Omit<AiTranslationChapter, "id" | "filename">>,
+  ) => void;
+  removeAiTranslationChapter: (id: string) => void;
+  clearAiTranslationChapters: () => void;
   setNameFilterResponse: (nameFilterResponse?: NameFilterResponse) => void;
   acceptNameCandidate: (text: string, suggested: string) => void;
   undoAcceptedNameCandidate: (text: string) => void;
@@ -185,6 +224,12 @@ export function emptyWorkspacePersistentState(): WorkspacePersistentState {
     rangePinEnabled: true,
     localDictionaryEntries: emptyLocalDictionaryEntries(),
     dictionaryOverrides: {},
+    aiStory: emptyAiStoryConfig(),
+    aiTranslationChapters: [],
+    activeAiTranslationChapterId: undefined,
+    aiTranslationSource: "",
+    aiTranslationOutput: "",
+    aiTranslationViolations: [],
   };
 }
 
@@ -195,13 +240,26 @@ function persistentStateFrom(state: WorkspaceState): WorkspacePersistentState {
     rangePinEnabled: state.rangePinEnabled,
     localDictionaryEntries: state.localDictionaryEntries,
     dictionaryOverrides: state.dictionaryOverrides,
+    aiStory: state.aiStory,
+    aiTranslationChapters: state.aiTranslationChapters,
+    activeAiTranslationChapterId: state.activeAiTranslationChapterId,
+    // Khi có chapter, raw/output đã nằm trong record chapter; không nhân đôi dữ liệu lớn.
+    aiTranslationSource: state.activeAiTranslationChapterId
+      ? ""
+      : state.aiTranslationSource,
+    aiTranslationOutput: state.activeAiTranslationChapterId
+      ? ""
+      : state.aiTranslationOutput,
+    aiTranslationViolations: state.activeAiTranslationChapterId
+      ? []
+      : state.aiTranslationViolations,
   };
 }
 
 export function serializeWorkspacePersistentState(
   state: WorkspacePersistentState,
 ): string {
-  return JSON.stringify({ state, version: 0 });
+  return JSON.stringify({ state, version: 1 });
 }
 
 const initialWorkspaceStorageKey = workspaceStorageKeyFor(
@@ -220,7 +278,14 @@ export const useWorkspaceStore = create<WorkspaceState>()(persist((set) => ({
   outputView: "output",
   rangePinEnabled: true,
   mobileInspectorOpen: false,
-  workspaceView: "translate",
+  workspaceView: initialWorkspaceView(),
+  aiTranslationSource: "",
+  aiTranslationOutput: "",
+  aiTranslationThinking: "",
+  aiTranslationViolations: [],
+  aiStory: emptyAiStoryConfig(),
+  aiTranslationChapters: [],
+  activeAiTranslationChapterId: undefined,
   nameFilterResponse: undefined,
   knownNames: {},
   rejectedNames: [],
@@ -306,6 +371,216 @@ export const useWorkspaceStore = create<WorkspaceState>()(persist((set) => ({
   setRangePinEnabled: (rangePinEnabled) => set({ rangePinEnabled }),
   setMobileInspectorOpen: (mobileInspectorOpen) => set({ mobileInspectorOpen }),
   setWorkspaceView: (workspaceView) => set({ workspaceView }),
+  setAiTranslationSource: (aiTranslationSource) =>
+    set((state) => ({
+      aiTranslationSource,
+      aiTranslationOutput: "",
+      aiTranslationThinking: "",
+      aiTranslationViolations: [],
+      aiTranslationChapters: state.activeAiTranslationChapterId
+        ? state.aiTranslationChapters.map((chapter) =>
+            chapter.id === state.activeAiTranslationChapterId
+              ? {
+                  ...chapter,
+                  source: aiTranslationSource,
+                  output: "",
+                  thinking: "",
+                  violations: [],
+                  status: "queued" as const,
+                  reviewRound: 0,
+                  error: undefined,
+                  updatedAt: Date.now(),
+                }
+              : chapter,
+          )
+        : state.aiTranslationChapters,
+    })),
+  setAiTranslationOutput: (aiTranslationOutput) =>
+    set((state) => ({
+      aiTranslationOutput,
+      aiTranslationChapters: state.activeAiTranslationChapterId
+        ? state.aiTranslationChapters.map((chapter) =>
+            chapter.id === state.activeAiTranslationChapterId
+              ? { ...chapter, output: aiTranslationOutput, updatedAt: Date.now() }
+              : chapter,
+          )
+        : state.aiTranslationChapters,
+    })),
+  setAiTranslationThinking: (aiTranslationThinking) =>
+    set((state) => ({
+      aiTranslationThinking,
+      aiTranslationChapters: state.activeAiTranslationChapterId
+        ? state.aiTranslationChapters.map((chapter) =>
+            chapter.id === state.activeAiTranslationChapterId
+              ? { ...chapter, thinking: aiTranslationThinking, updatedAt: Date.now() }
+              : chapter,
+          )
+        : state.aiTranslationChapters,
+    })),
+  setAiTranslationViolations: (aiTranslationViolations) =>
+    set((state) => ({
+      aiTranslationViolations,
+      aiTranslationChapters: state.activeAiTranslationChapterId
+        ? state.aiTranslationChapters.map((chapter) =>
+            chapter.id === state.activeAiTranslationChapterId
+              ? { ...chapter, violations: aiTranslationViolations, updatedAt: Date.now() }
+              : chapter,
+          )
+        : state.aiTranslationChapters,
+    })),
+  clearAiTranslation: () =>
+    set((state) => ({
+      aiTranslationSource: "",
+      aiTranslationOutput: "",
+      aiTranslationThinking: "",
+      aiTranslationViolations: [],
+      aiTranslationChapters: state.activeAiTranslationChapterId
+        ? state.aiTranslationChapters.map((chapter) =>
+            chapter.id === state.activeAiTranslationChapterId
+              ? {
+                  ...chapter,
+                  source: "",
+                  output: "",
+                  thinking: "",
+                  violations: [],
+                  status: "queued" as const,
+                  reviewRound: 0,
+                  error: undefined,
+                  updatedAt: Date.now(),
+                }
+              : chapter,
+          )
+        : state.aiTranslationChapters,
+    })),
+  updateAiStory: (patch) =>
+    set((state) => ({ aiStory: normalizeAiStoryConfig({ ...state.aiStory, ...patch }) })),
+  importAiTranslationChapters: (files) =>
+    set((state) => {
+      const now = Date.now();
+      const chapters = [...state.aiTranslationChapters];
+      const importedIds: string[] = [];
+      files.forEach(({ filename, source }, index) => {
+        const normalizedFilename = filename.trim();
+        if (!normalizedFilename) return;
+        const existingIndex = chapters.findIndex(
+          (chapter) => chapter.filename.toLocaleLowerCase() === normalizedFilename.toLocaleLowerCase(),
+        );
+        if (existingIndex >= 0) {
+          const existing = chapters[existingIndex];
+          chapters[existingIndex] = {
+            ...existing,
+            filename: normalizedFilename,
+            source,
+            output: "",
+            thinking: "",
+            violations: [],
+            status: "queued",
+            reviewRound: 0,
+            error: undefined,
+            updatedAt: now + index,
+          };
+          importedIds.push(existing.id);
+          return;
+        }
+        const id = `chapter-${now.toString(36)}-${index.toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+        chapters.push({
+          id,
+          filename: normalizedFilename,
+          source,
+          output: "",
+          thinking: "",
+          violations: [],
+          status: "queued",
+          reviewRound: 0,
+          updatedAt: now + index,
+        });
+        importedIds.push(id);
+      });
+      chapters.sort((left, right) => naturalChapterCompare(left.filename, right.filename));
+      const activeId = importedIds[0] ?? state.activeAiTranslationChapterId;
+      const active = chapters.find((chapter) => chapter.id === activeId);
+      return {
+        aiTranslationChapters: chapters,
+        activeAiTranslationChapterId: active?.id,
+        ...(active
+          ? {
+              aiTranslationSource: active.source,
+              aiTranslationOutput: active.output,
+              aiTranslationThinking: active.thinking,
+              aiTranslationViolations: active.violations,
+            }
+          : {}),
+      };
+    }),
+  selectAiTranslationChapter: (id) =>
+    set((state) => {
+      const chapter = state.aiTranslationChapters.find((item) => item.id === id);
+      if (!chapter) {
+        return {
+          activeAiTranslationChapterId: undefined,
+          aiTranslationSource: "",
+          aiTranslationOutput: "",
+          aiTranslationThinking: "",
+          aiTranslationViolations: [],
+        };
+      }
+      return {
+        activeAiTranslationChapterId: chapter.id,
+        aiTranslationSource: chapter.source,
+        aiTranslationOutput: chapter.output,
+        aiTranslationThinking: chapter.thinking,
+        aiTranslationViolations: chapter.violations,
+      };
+    }),
+  updateAiTranslationChapter: (id, patch) =>
+    set((state) => {
+      const chapters = state.aiTranslationChapters.map((chapter) =>
+        chapter.id === id
+          ? { ...chapter, ...patch, updatedAt: patch.updatedAt ?? Date.now() }
+          : chapter,
+      );
+      const active = chapters.find(
+        (chapter) => chapter.id === state.activeAiTranslationChapterId,
+      );
+      return {
+        aiTranslationChapters: chapters,
+        ...(active?.id === id
+          ? {
+              aiTranslationSource: active.source,
+              aiTranslationOutput: active.output,
+              aiTranslationThinking: active.thinking,
+              aiTranslationViolations: active.violations,
+            }
+          : {}),
+      };
+    }),
+  removeAiTranslationChapter: (id) =>
+    set((state) => {
+      const removedIndex = state.aiTranslationChapters.findIndex((chapter) => chapter.id === id);
+      if (removedIndex < 0) return state;
+      const chapters = state.aiTranslationChapters.filter((chapter) => chapter.id !== id);
+      if (state.activeAiTranslationChapterId !== id) {
+        return { aiTranslationChapters: chapters };
+      }
+      const active = chapters[Math.min(removedIndex, Math.max(0, chapters.length - 1))];
+      return {
+        aiTranslationChapters: chapters,
+        activeAiTranslationChapterId: active?.id,
+        aiTranslationSource: active?.source ?? "",
+        aiTranslationOutput: active?.output ?? "",
+        aiTranslationThinking: active?.thinking ?? "",
+        aiTranslationViolations: active?.violations ?? [],
+      };
+    }),
+  clearAiTranslationChapters: () =>
+    set({
+      aiTranslationChapters: [],
+      activeAiTranslationChapterId: undefined,
+      aiTranslationSource: "",
+      aiTranslationOutput: "",
+      aiTranslationThinking: "",
+      aiTranslationViolations: [],
+    }),
   setNameFilterResponse: (nameFilterResponse) => set({ nameFilterResponse }),
   acceptNameCandidate: (text, suggested) =>
     set((state) => {
@@ -526,9 +801,24 @@ export const useWorkspaceStore = create<WorkspaceState>()(persist((set) => ({
     }),
 }), {
   name: initialWorkspaceStorageKey,
+  version: 1,
   storage: createJSONStorage(() => workspaceStateStorage),
+  // v0 chưa có mô hình truyện/chương; merge phía dưới điền schema mới an toàn.
+  migrate: (persistedState) => persistedState as WorkspacePersistentState,
   merge: (persistedState, currentState) => {
     const persisted = persistedState as Partial<WorkspacePersistentState>;
+    const aiStory = normalizeAiStoryConfig(persisted.aiStory);
+    const aiTranslationChapters = normalizeAiTranslationChapters(
+      persisted.aiTranslationChapters,
+    );
+    const activeAiTranslationChapterId = aiTranslationChapters.some(
+      (chapter) => chapter.id === persisted.activeAiTranslationChapterId,
+    )
+      ? persisted.activeAiTranslationChapterId
+      : aiTranslationChapters[0]?.id;
+    const activeChapter = aiTranslationChapters.find(
+      (chapter) => chapter.id === activeAiTranslationChapterId,
+    );
     const merged = {
       ...currentState,
       knownNames: persisted.knownNames ?? currentState.knownNames,
@@ -538,6 +828,16 @@ export const useWorkspaceStore = create<WorkspaceState>()(persist((set) => ({
         persisted.localDictionaryEntries ?? currentState.localDictionaryEntries,
       dictionaryOverrides:
         persisted.dictionaryOverrides ?? currentState.dictionaryOverrides,
+      aiStory,
+      aiTranslationChapters,
+      activeAiTranslationChapterId,
+      aiTranslationSource:
+        activeChapter?.source ?? persisted.aiTranslationSource ?? "",
+      aiTranslationOutput:
+        activeChapter?.output ?? persisted.aiTranslationOutput ?? "",
+      aiTranslationThinking: activeChapter?.thinking ?? "",
+      aiTranslationViolations:
+        activeChapter?.violations ?? persisted.aiTranslationViolations ?? [],
     };
     return {
       ...merged,

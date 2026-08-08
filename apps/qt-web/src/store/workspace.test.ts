@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
+import { emptyAiStoryConfig } from "@/lib/ai-story";
 import {
   dictionaryUpdateKeys,
   type DictionaryDefaults,
@@ -43,6 +44,79 @@ beforeEach(() => {
     .hydrateDictionaryDefaults(`/test-${endpointIndex}`, emptyDefaults);
   useWorkspaceStore.getState().clearNameMemory();
   useWorkspaceStore.getState().clearWorkspace();
+  useWorkspaceStore.getState().clearAiTranslationChapters();
+  useWorkspaceStore.getState().updateAiStory(emptyAiStoryConfig());
+});
+
+describe("AI story workspace persistence", () => {
+  it("stores sorted chapters, results and story config in IndexedDB", async () => {
+    useWorkspaceStore.getState().updateAiStory({
+      name: "Đấu Phá Thương Khung",
+      protagonist: "Tiêu Viêm",
+    });
+    useWorkspaceStore.getState().importAiTranslationChapters([
+      { filename: "chuong-10.txt", source: "第十章" },
+      { filename: "chuong-2.txt", source: "第二章" },
+    ]);
+
+    const state = useWorkspaceStore.getState();
+    expect(state.aiTranslationChapters.map((chapter) => chapter.filename)).toEqual([
+      "chuong-2.txt",
+      "chuong-10.txt",
+    ]);
+    const activeId = state.activeAiTranslationChapterId;
+    expect(activeId).toBeTruthy();
+    state.updateAiTranslationChapter(activeId!, {
+      status: "done",
+      output: "Chương hai",
+      reviewRound: 1,
+    });
+
+    const stored = await persistedWorkspace();
+    expect(stored).toContain("Đấu Phá Thương Khung");
+    expect(stored).toContain("chuong-10.txt");
+    expect(stored).toContain("Chương hai");
+  });
+
+  it("migrates v0 state and resumes an interrupted chapter as queued", async () => {
+    await workspaceStateStorage.setItem(
+      workspaceStorageKey,
+      JSON.stringify({
+        state: {
+          knownNames: {},
+          rejectedNames: [],
+          rangePinEnabled: true,
+          localDictionaryEntries: Object.fromEntries(
+            dictionaryUpdateKeys.map((key) => [key, {}]),
+          ),
+          dictionaryOverrides: {},
+          aiStory: { name: "Truyện đang dịch" },
+          aiTranslationChapters: [{
+            id: "chapter-recover",
+            filename: "chuong-1.txt",
+            source: "原文",
+            output: "Bản dịch đang dở",
+            thinking: "",
+            violations: [],
+            status: "translating",
+            reviewRound: 0,
+            updatedAt: 1,
+          }],
+          activeAiTranslationChapterId: "chapter-recover",
+        },
+        version: 0,
+      }),
+    );
+
+    await useWorkspaceStore.persist.rehydrate();
+    const state = useWorkspaceStore.getState();
+    expect(state.aiStory.name).toBe("Truyện đang dịch");
+    expect(state.aiTranslationChapters[0]).toMatchObject({
+      status: "queued",
+      output: "Bản dịch đang dở",
+    });
+    expect(state.aiTranslationOutput).toBe("Bản dịch đang dở");
+  });
 });
 
 describe("workspace dictionary semantics", () => {

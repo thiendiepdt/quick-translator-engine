@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { NameFilterWorkspace } from "@/components/name-filter-workspace";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import type { AiSettings } from "@/lib/ai-settings";
+import { defaultAiSettings, type AiSettings } from "@/lib/ai-settings";
 import {
   nameApprovalThresholdStorageKey,
   nameFilterModeStorageKey,
@@ -180,6 +180,7 @@ describe("name filter mode preference", () => {
     useWorkspaceStore.getState().setSourceText("萧炎走来。");
     const user = userEvent.setup();
     renderWorkspace({
+      ...defaultAiSettings,
       provider: "deepseek",
       deepseek: { apiKey: "sk-test", model: "deepseek-v4-flash", baseUrl: "" },
       gemini: { apiKey: "", model: "", baseUrl: "" },
@@ -250,6 +251,7 @@ describe("name filter mode preference", () => {
     useWorkspaceStore.getState().setSourceText("看向远方。看向远方。");
     const user = userEvent.setup();
     renderWorkspace({
+      ...defaultAiSettings,
       provider: "deepseek",
       deepseek: { apiKey: "sk-test", model: "deepseek-v4-flash", baseUrl: "" },
       gemini: { apiKey: "", model: "", baseUrl: "" },
@@ -294,6 +296,7 @@ describe("name filter mode preference", () => {
     const warning = vi.spyOn(toast, "warning").mockReturnValue("toast-id");
     const user = userEvent.setup();
     renderWorkspace({
+      ...defaultAiSettings,
       provider: "deepseek",
       deepseek: { apiKey: "sk-test", model: "deepseek-v4-flash", baseUrl: "" },
       gemini: { apiKey: "", model: "", baseUrl: "" },

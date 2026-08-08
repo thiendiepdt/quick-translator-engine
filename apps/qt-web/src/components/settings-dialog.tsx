@@ -24,6 +24,7 @@ import {
   type AiProviderConfig,
   type AiSettings,
 } from "@/lib/ai-settings";
+import { Switch } from "@/components/ui/switch";
 import { themes, type ThemeName } from "@/lib/theme";
 import { useTheme } from "@/lib/theme-context";
 import type { TranslationOptionsValues } from "@/lib/schema";
@@ -62,7 +63,7 @@ export function SettingsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="gap-5 p-5 sm:max-w-lg">
+      <DialogContent className="gap-5 overflow-y-auto p-5 sm:max-w-lg">
         <DialogHeader className="pr-8">
           <DialogTitle>Cài đặt</DialogTitle>
           <DialogDescription className="sr-only">
@@ -113,6 +114,8 @@ export function SettingsDialog({
 
         <AiCredentialsFields aiSettings={aiSettings} onAiSettingsChange={onAiSettingsChange} />
 
+        <AiTranslationFields aiSettings={aiSettings} onAiSettingsChange={onAiSettingsChange} />
+
         <div className="grid gap-2">
           <Label>Giao diện</Label>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -154,7 +157,7 @@ function AiCredentialsFields({
 
   return (
     <div className="grid gap-2">
-      <Label htmlFor="ai-api-key">AI (API key của bạn)</Label>
+      <Label htmlFor="ai-api-key">AI cho lọc tên &amp; từ điển</Label>
       <div className="flex gap-2">
         <Select
           value={aiSettings.provider}
@@ -184,7 +187,7 @@ function AiCredentialsFields({
         />
       </div>
       <Input
-        aria-label="Model AI"
+        aria-label="Model AI lọc tên"
         autoComplete="off"
         spellCheck={false}
         className="font-mono text-xs"
@@ -192,8 +195,8 @@ function AiCredentialsFields({
         onChange={(event) => updateActive({ model: event.target.value })}
         placeholder={
           aiSettings.provider === "gemini"
-            ? "Model (mặc định gemini-3.1-flash-lite)"
-            : "Model (mặc định deepseek-v4-flash)"
+            ? "Model lọc tên (mặc định gemini-3.1-flash-lite)"
+            : "Model lọc tên (mặc định deepseek-v4-flash)"
         }
       />
       <Input
@@ -206,11 +209,100 @@ function AiCredentialsFields({
         placeholder="Base URL proxy (tùy chọn — trống là endpoint chính thức)"
       />
       <p className="text-xs text-muted-foreground">
-        Dùng cho lọc tên, dịch và tra nghĩa trong từ điển. Key chỉ lưu trên trình duyệt này,
-        tách riêng theo từng nhà cung cấp. Trình duyệt gọi
+        Key và proxy này cũng được Dịch AI dùng lại; model dịch được cấu hình riêng bên dưới.
+        Key chỉ lưu trên trình duyệt này, tách riêng theo từng nhà cung cấp. Trình duyệt gọi
         thẳng {aiSettings.provider === "gemini" ? "Google AI" : "DeepSeek"} (hoặc proxy của
         bạn — endpoint cần cho phép CORS, hỗ trợ cả http://localhost); key không đi qua
         server của app. Chi phí tính vào tài khoản của bạn.
+      </p>
+    </div>
+  );
+}
+
+function AiTranslationFields({
+  aiSettings,
+  onAiSettingsChange,
+}: {
+  aiSettings: AiSettings;
+  onAiSettingsChange: (settings: AiSettings) => void;
+}) {
+  const provider = aiSettings.translation.provider;
+  const model = aiSettings.translation.models[provider];
+
+  return (
+    <div className="grid gap-2 rounded-md border bg-muted/25 p-3">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <Label htmlFor="ai-translation-provider">Dịch AI</Label>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Dùng key và Base URL của provider tương ứng ở trên.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Label htmlFor="ai-translation-thinking" className="text-xs font-normal">
+            Thinking
+          </Label>
+          <Switch
+            id="ai-translation-thinking"
+            checked={aiSettings.translation.thinking}
+            onCheckedChange={(thinking) =>
+              onAiSettingsChange({
+                ...aiSettings,
+                translation: { ...aiSettings.translation, thinking },
+              })
+            }
+          />
+        </div>
+      </div>
+      <div className="flex gap-2">
+        <Select
+          value={provider}
+          onValueChange={(value) => {
+            if (!isAiProvider(value)) return;
+            onAiSettingsChange({
+              ...aiSettings,
+              translation: { ...aiSettings.translation, provider: value },
+            });
+          }}
+        >
+          <SelectTrigger
+            id="ai-translation-provider"
+            className="w-32 shrink-0"
+            aria-label="Nhà cung cấp Dịch AI"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="deepseek">DeepSeek</SelectItem>
+            <SelectItem value="gemini">Gemini</SelectItem>
+          </SelectContent>
+        </Select>
+        <Input
+          aria-label="Model Dịch AI"
+          autoComplete="off"
+          spellCheck={false}
+          className="min-w-0 flex-1 font-mono text-xs"
+          value={model}
+          onChange={(event) =>
+            onAiSettingsChange({
+              ...aiSettings,
+              translation: {
+                ...aiSettings.translation,
+                models: {
+                  ...aiSettings.translation.models,
+                  [provider]: event.target.value,
+                },
+              },
+            })
+          }
+          placeholder={
+            provider === "gemini" ? "gemini-3.5-flash" : "deepseek-v4-flash"
+          }
+        />
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Thinking chỉ áp dụng cho Dịch AI: DeepSeek và Gemini 2.5 có thể tắt hẳn;
+        Gemini 3.x dùng mức tối thiểu khi tắt.
       </p>
     </div>
   );

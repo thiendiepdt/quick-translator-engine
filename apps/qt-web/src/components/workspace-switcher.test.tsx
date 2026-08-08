@@ -52,8 +52,50 @@ describe("workspace switcher", () => {
       expect(activeWorkspaceId).not.toBe(defaultWorkspace.id);
       expect(localStorage.getItem(activeWorkspaceStorageKey)).toBe(activeWorkspaceId);
     });
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
     expect(
       screen.getByRole("button", { name: `Không gian làm việc hiện tại: ${name}` }),
     ).toBeInTheDocument();
+  });
+
+  it("deletes the active workspace after confirming and falls back to default", async () => {
+    const user = userEvent.setup();
+    const name = `Không gian sẽ xóa ${testIndex}`;
+    render(<WorkspaceSwitcher />);
+
+    await user.click(
+      screen.getByRole("button", { name: "Không gian làm việc hiện tại: Mặc định" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Tạo không gian làm việc" }));
+    await user.type(screen.getByLabelText("Tên không gian làm việc"), name);
+    await user.click(screen.getByRole("button", { name: "Tạo không gian làm việc" }));
+    await waitFor(() => {
+      expect(useWorkspaceCatalogStore.getState().activeWorkspaceId).not.toBe(
+        defaultWorkspace.id,
+      );
+    });
+
+    await user.click(
+      screen.getByRole("button", { name: `Không gian làm việc hiện tại: ${name}` }),
+    );
+    expect(
+      screen.queryByRole("button", { name: "Xóa không gian làm việc Mặc định" }),
+    ).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: `Xóa không gian làm việc ${name}` }),
+    );
+    await user.click(screen.getByRole("button", { name: "Xóa" }));
+
+    await waitFor(() => {
+      expect(useWorkspaceCatalogStore.getState().activeWorkspaceId).toBe(
+        defaultWorkspace.id,
+      );
+    });
+    expect(
+      useWorkspaceCatalogStore.getState().workspaces.map(({ name: n }) => n),
+    ).not.toContain(name);
   });
 });

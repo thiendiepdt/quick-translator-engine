@@ -10,6 +10,7 @@ interface WorkspaceCatalogState {
   activeWorkspaceId: string;
   addAndSelectWorkspace: (workspace: WorkspaceSummary) => void;
   selectWorkspace: (workspaceId: string) => void;
+  removeWorkspace: (workspaceId: string) => void;
 }
 
 export const defaultWorkspace: WorkspaceSummary = {
@@ -102,6 +103,18 @@ export const useWorkspaceCatalogStore = create<WorkspaceCatalogState>((set) => (
       if (!state.workspaces.some(({ id }) => id === workspaceId)) return state;
       writeLocalStorage(activeWorkspaceStorageKey, workspaceId);
       return { activeWorkspaceId: workspaceId };
+    }),
+  removeWorkspace: (workspaceId) =>
+    set((state) => {
+      if (workspaceId === defaultWorkspace.id) return state;
+      const workspaces = state.workspaces.filter(({ id }) => id !== workspaceId);
+      if (workspaces.length === state.workspaces.length) return state;
+      // Xóa workspace đang dùng thì quay về mặc định.
+      const activeWorkspaceId = state.activeWorkspaceId === workspaceId
+        ? defaultWorkspace.id
+        : state.activeWorkspaceId;
+      persistCatalog(workspaces, activeWorkspaceId);
+      return { workspaces, activeWorkspaceId };
     }),
 }));
 

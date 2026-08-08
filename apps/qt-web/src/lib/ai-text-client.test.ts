@@ -1,0 +1,212 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import {
+  buildGeminiTextGenerationConfig,
+  generateAiText,
+} from "@/lib/ai-text-client";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+function sse(...payloads: unknown[]): Response {
+  return new Response(
+    payloads.map((payload) => `data: ${JSON.stringify(payload)}\n\n`).join("") +
+      "data: [DONE]\n\n",
+    { headers: { "content-type": "text/event-stream" } },
+  );
+}
+
+function requestUrlOf(input: RequestInfo | URL): string {
+  if (typeof input === "string") return input;
+  return input instanceof URL ? input.href : input.url;
+}
+
+describe("Gemini text generation settings", () => {
+  it("ports model-specific thinking behavior from Novel Translator", () => {
+    expect(buildGeminiTextGenerationConfig("gemini-2.5-flash", true)).toEqual({
+      temperature: 0.3,
+      maxOutputTokens: 65_536,
+      thinkingConfig: { thinkingBudget: -1, includeThoughts: true },
+    });
+    expect(buildGeminiTextGenerationConfig("gemini-2.5-flash", false)).toEqual({
+      temperature: 0.3,
+      maxOutputTokens: 65_536,
+      thinkingConfig: { thinkingBudget: 0, includeThoughts: true },
+    });
+    expect(buildGeminiTextGenerationConfig("gemini-3.5-flash", true)).toEqual({
+      maxOutputTokens: 65_536,
+      thinkingConfig: { includeThoughts: true },
+    });
+    expect(buildGeminiTextGenerationConfig("gemini-3.5-flash", false)).toEqual({
+      maxOutputTokens: 65_536,
+      thinkingConfig: { thinkingLevel: "minimal", includeThoughts: true },
+    });
+  });
+});
+
+describe("generateAiText", () => {
+  it("streams Gemini thought and output parts separately", async () => {
+    const chunks: Array<[string, string]> = [];
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      sse({
+        candidates: [
+          {
+            content: {
+              parts: [
+                { thought: true, text: "Đối chiếu raw" },
+                { text: "Tiêu Viêm bước vào." },
+              ],
+            },
+          },
+        ],
+      }),
+    );
+
+    await expect(
+      generateAiText(
+        {
+          provider: "gemini",
+          apiKey: "AIza-test",
+          model: "gemini-3.5-flash",
+          baseUrl: "https://generativelanguage.googleapis.com",
+        },
+        "system",
+        "萧炎走来。",
+        { thinking: true, onChunk: (kind, text) => chunks.push([kind, text]) },
+      ),
+    ).resolves.toBe("Tiêu Viêm bước vào.");
+
+    const [url, init] = fetchSpy.mock.calls[0];
+    expect(requestUrlOf(url)).toContain(
+      "/v1beta/models/gemini-3.5-flash:streamGenerateContent?alt=sse",
+    );
+    expect((init?.headers as Record<string, string>)["x-goog-api-key"]).toBe(
+      "AIza-test",
+    );
+    expect(chunks).toEqual([
+      ["thinking", "Đối chiếu raw"],
+      ["text", "Tiêu Viêm bước vào."],
+    ]);
+  });
+
+  it("enables Google Search only for metadata calls that request it", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      sse({ candidates: [{ content: { parts: [{ text: "{}" }] } }] }),
+    );
+
+    await generateAiText(
+      {
+        provider: "gemini",
+        apiKey: "AIza-test",
+        model: "gemini-3.5-flash",
+        baseUrl: "https://generativelanguage.googleapis.com",
+      },
+      "system",
+      "metadata",
+      { thinking: false, googleSearch: true },
+    );
+
+    const [, init] = fetchSpy.mock.calls[0];
+    expect(JSON.parse(init?.body as string)).toMatchObject({
+      tools: [{ googleSearch: {} }],
+    });
+  });
+
+  it("reports Google Search grounding once when metadata appears in the stream", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      sse(
+        {
+          candidates: [
+            {
+              content: { parts: [{ text: "{" }] },
+              groundingMetadata: { webSearchQueries: ["方寸道主"] },
+            },
+          ],
+        },
+        {
+          candidates: [
+            {
+              content: { parts: [{ text: "}" }] },
+              groundingMetadata: { webSearchQueries: ["方寸道主"] },
+            },
+          ],
+        },
+      ),
+    );
+
+    const onGoogleSearchUsed = vi.fn();
+    await generateAiText(
+      {
+        provider: "gemini",
+        apiKey: "AIza-test",
+        model: "gemini-3.5-flash",
+        baseUrl: "https://generativelanguage.googleapis.com",
+      },
+      "system",
+      "metadata",
+      { thinking: false, googleSearch: true, onGoogleSearchUsed },
+    );
+    expect(onGoogleSearchUsed).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not report grounding when Gemini answers without searching", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      sse({ candidates: [{ content: { parts: [{ text: "{}" }] }, groundingMetadata: {} }] }),
+    );
+
+    const onGoogleSearchUsed = vi.fn();
+    await generateAiText(
+      {
+        provider: "gemini",
+        apiKey: "AIza-test",
+        model: "gemini-3.5-flash",
+        baseUrl: "https://generativelanguage.googleapis.com",
+      },
+      "system",
+      "metadata",
+      { thinking: false, googleSearch: true, onGoogleSearchUsed },
+    );
+    expect(onGoogleSearchUsed).not.toHaveBeenCalled();
+  });
+
+  it("uses the separate DeepSeek model/thinking shape and parses reasoning", async () => {
+    const chunks: Array<[string, string]> = [];
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      sse(
+        { choices: [{ delta: { reasoning_content: "Suy luận" } }] },
+        { choices: [{ delta: { content: "Bản dịch" } }] },
+      ),
+    );
+
+    await expect(
+      generateAiText(
+        {
+          provider: "deepseek",
+          apiKey: "sk-test",
+          model: "deepseek-translate",
+          baseUrl: "https://api.deepseek.com",
+        },
+        "system",
+        "raw",
+        { thinking: false, onChunk: (kind, text) => chunks.push([kind, text]) },
+      ),
+    ).resolves.toBe("Bản dịch");
+
+    const [, init] = fetchSpy.mock.calls[0];
+    const body = JSON.parse(init?.body as string) as {
+      model: string;
+      thinking: { type: string };
+      stream: boolean;
+    };
+    expect(body).toMatchObject({
+      model: "deepseek-translate",
+      thinking: { type: "disabled" },
+      stream: true,
+    });
+    expect(chunks).toEqual([
+      ["thinking", "Suy luận"],
+      ["text", "Bản dịch"],
+    ]);
+  });
+});
