@@ -8,6 +8,8 @@ export interface AiTextGenerationOptions {
   onChunk?: (kind: AiTextChunkKind, chunk: string) => void;
   /** Gemini-only: bật grounding Google Search cho tác vụ tra cứu metadata. */
   googleSearch?: boolean;
+  /** Gemini-only: gọi khi response có grounding metadata — model đã tra Google thật. */
+  onGoogleSearchUsed?: () => void;
 }
 
 const MAX_OUTPUT_TOKENS = 65_536;
@@ -111,6 +113,16 @@ async function readSse(
   if (buffer.trim()) processLine(buffer.replace(/\r$/, ""));
 }
 
+/** Grounding metadata chỉ xuất hiện khi model thật sự chạy Google Search. */
+function geminiSearchedGoogle(candidate: Record<string, unknown>): boolean {
+  const metadata = candidate.groundingMetadata;
+  if (!isRecord(metadata)) return false;
+  return (
+    (Array.isArray(metadata.webSearchQueries) && metadata.webSearchQueries.length > 0) ||
+    (Array.isArray(metadata.groundingChunks) && metadata.groundingChunks.length > 0)
+  );
+}
+
 function geminiBlockedReason(payload: Record<string, unknown>): string | undefined {
   const feedback = payload.promptFeedback;
   if (isRecord(feedback) && typeof feedback.blockReason === "string") {
@@ -153,6 +165,7 @@ async function generateGeminiText(
 
   let output = "";
   let blockedReason: string | undefined;
+  let searchReported = false;
   await readSse(response, (payload) => {
     if (!isRecord(payload)) return;
     if (isRecord(payload.error) && typeof payload.error.message === "string") {
@@ -161,6 +174,10 @@ async function generateGeminiText(
     blockedReason = geminiBlockedReason(payload) ?? blockedReason;
     const candidates = payload.candidates;
     if (!Array.isArray(candidates) || !isRecord(candidates[0])) return;
+    if (!searchReported && geminiSearchedGoogle(candidates[0])) {
+      searchReported = true;
+      options.onGoogleSearchUsed?.();
+    }
     const content = candidates[0].content;
     if (!isRecord(content) || !Array.isArray(content.parts)) return;
     for (const part of content.parts) {

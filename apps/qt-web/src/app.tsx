@@ -37,6 +37,10 @@ import {
   translationOptionsSchema,
 } from "@/lib/schema";
 import { readStoredAiSettings, storeAiSettings } from "@/lib/ai-settings";
+import {
+  pathForWorkspaceView,
+  workspaceViewFromPath,
+} from "@/lib/workspace-route";
 import { readStoredEndpoint, storeEndpoint } from "@/lib/endpoint-setting";
 import type { TranslationRequest } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -207,6 +211,23 @@ export default function App() {
   useEffect(() => {
     storeAiSettings(aiSettings);
   }, [aiSettings]);
+
+  // Mỗi khung có URL riêng (/, /dich-ai, /loc-ten) để bookmark/F5 giữ nguyên
+  // tab; back/forward của trình duyệt cũng chuyển tab.
+  useEffect(() => {
+    const path = pathForWorkspaceView(workspaceView);
+    if (window.location.pathname !== path) {
+      window.history.pushState(null, "", path);
+    }
+  }, [workspaceView]);
+
+  useEffect(() => {
+    function onPopState() {
+      setWorkspaceView(workspaceViewFromPath(window.location.pathname) ?? "translate");
+    }
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [setWorkspaceView]);
 
   useEffect(() => {
     storeEngineSettings({

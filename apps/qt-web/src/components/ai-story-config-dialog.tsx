@@ -1,4 +1,5 @@
 import {
+  AlertTriangle,
   BookOpen,
   FileText,
   Languages,
@@ -76,6 +77,7 @@ export function AiStoryConfigDialog({
   onSave,
 }: AiStoryConfigDialogProps) {
   const [draft, setDraft] = useState(() => normalizeAiStoryConfig(story));
+  const hasGeminiKey = aiSettings.gemini.apiKey.trim().length > 0;
   const [filling, setFilling] = useState(false);
   const [promptEditorVersion, setPromptEditorVersion] = useState(0);
   const fillAbortRef = useRef<AbortController | undefined>(undefined);
@@ -102,8 +104,10 @@ export function AiStoryConfigDialog({
     const provider = aiSettings.gemini.apiKey.trim()
       ? "gemini"
       : aiSettings.translation.provider;
+    // Dùng model Gemini của Dịch AI thay vì model lọc tên: bản flash-lite
+    // mặc định của lọc tên không hỗ trợ Google Search grounding.
     const providerConfig = provider === "gemini" && aiSettings.gemini.apiKey.trim()
-      ? aiSettings.gemini
+      ? { ...aiSettings.gemini, model: aiSettings.translation.models.gemini }
       : activeAiTranslationProviderConfig(aiSettings);
     if (!providerConfig.apiKey.trim()) {
       toast.error("AI fill cần API key Gemini hoặc provider Dịch AI");
@@ -123,12 +127,20 @@ export function AiStoryConfigDialog({
         draft,
         controller.signal,
       );
-      setDraft((current) => normalizeAiStoryConfig({ ...current, ...result }));
-      toast.success("Đã điền thông tin truyện", {
-        description: provider === "gemini"
-          ? "Gemini đã dùng tra cứu Google khi endpoint hỗ trợ"
-          : "Đã dùng provider Dịch AI hiện tại",
-      });
+      setDraft((current) => normalizeAiStoryConfig({ ...current, ...result.values }));
+      if (provider !== "gemini") {
+        toast.warning("Đã điền bằng provider Dịch AI — không có web search", {
+          description: "Nhập API key Gemini để AI fill tra cứu Google Search.",
+        });
+      } else if (result.googleSearchUsed) {
+        toast.success("Đã điền thông tin truyện", {
+          description: "Gemini đã tra cứu bằng Google Search.",
+        });
+      } else {
+        toast.warning("Gemini không tra Google Search lần này", {
+          description: "Kết quả có thể không chính xác — kiểm tra lại hoặc bấm AI fill lần nữa.",
+        });
+      }
     } catch (error) {
       if (controller.signal.aborted) return;
       toast.error(error instanceof Error ? error.message : "Không thể AI fill");
@@ -185,7 +197,7 @@ export function AiStoryConfigDialog({
 
         <Tabs defaultValue="info" className="min-h-0 flex-1 gap-0">
           <div className="fine-scrollbar shrink-0 overflow-x-auto overflow-y-hidden px-6 pt-4">
-            <TabsList className="w-max">
+            <TabsList className="w-max border">
               <TabsTrigger value="info">
                 <BookOpen /> Thông tin
               </TabsTrigger>
@@ -212,7 +224,7 @@ export function AiStoryConfigDialog({
                   <div className="flex gap-2">
                     <Input
                       id="story-name"
-                      className="min-w-0 flex-1"
+                      className="min-w-0 flex-1 bg-card"
                       value={draft.name}
                       onChange={(event) => patch({ name: event.target.value })}
                       placeholder="Tên truyện Trung Quốc"
@@ -220,6 +232,9 @@ export function AiStoryConfigDialog({
                     <Button
                       type="button"
                       variant="outline"
+                      title={hasGeminiKey
+                        ? "Gemini tra cứu Google Search rồi tự điền thông tin truyện"
+                        : "Cần API key Gemini để tra Google Search — vào Cài đặt để nhập"}
                       onClick={() => void aiFill()}
                       disabled={filling}
                     >
@@ -227,6 +242,12 @@ export function AiStoryConfigDialog({
                       AI fill
                     </Button>
                   </div>
+                  {!hasGeminiKey ? (
+                    <p className="flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-300">
+                      <AlertTriangle className="size-3.5 shrink-0" />
+                      AI fill cần API key Gemini để tra Google Search — nhập ở Cài đặt, mục &ldquo;AI cho lọc tên &amp; từ điển&rdquo;, chọn Gemini. Thiếu key sẽ dùng provider Dịch AI và dễ bịa thông tin.
+                    </p>
+                  ) : null}
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="story-url">Link nguồn</Label>
@@ -235,7 +256,7 @@ export function AiStoryConfigDialog({
                     type="url"
                     autoComplete="off"
                     spellCheck={false}
-                    className="font-mono text-xs"
+                    className="bg-card font-mono text-xs"
                     value={draft.sourceUrl}
                     onChange={(event) => patch({ sourceUrl: event.target.value })}
                     placeholder="https://fanqienovel.com/page/..."
@@ -245,6 +266,7 @@ export function AiStoryConfigDialog({
                   <Label htmlFor="story-protagonist">Nhân vật chính</Label>
                   <Input
                     id="story-protagonist"
+                    className="bg-card"
                     value={draft.protagonist}
                     onChange={(event) => patch({ protagonist: event.target.value })}
                     placeholder="Tên Hán-Việt"
@@ -258,7 +280,7 @@ export function AiStoryConfigDialog({
                   value={draft.summary}
                   onChange={(event) => patch({ summary: event.target.value })}
                   placeholder="Tóm tắt bối cảnh, tuyến nhân vật và mạch truyện chính…"
-                  className="min-h-52 flex-1 resize-none leading-relaxed"
+                  className="min-h-52 flex-1 resize-none bg-card leading-relaxed"
                 />
               </div>
             </div>
@@ -279,6 +301,7 @@ export function AiStoryConfigDialog({
                         <Input
                           value={source}
                           aria-label={`${label} CN ${index + 1}`}
+                          className="bg-card"
                           placeholder="Hán tự"
                           onChange={(event) => {
                             const next = [...entries];
@@ -289,6 +312,7 @@ export function AiStoryConfigDialog({
                         <Input
                           value={target}
                           aria-label={`${label} VN ${index + 1}`}
+                          className="bg-card"
                           placeholder="Tiếng Việt"
                           onChange={(event) => {
                             const next = [...entries];
@@ -330,7 +354,7 @@ export function AiStoryConfigDialog({
                   id="story-voice"
                   value={draft.style.voice}
                   onChange={(event) => patch({ style: { ...draft.style, voice: event.target.value } })}
-                  className="min-h-24 resize-y"
+                  className="min-h-24 resize-y bg-card"
                 />
               </div>
               <div className="grid gap-1.5">
@@ -339,7 +363,7 @@ export function AiStoryConfigDialog({
                   id="story-tone"
                   value={listText(draft.style.toneRules)}
                   onChange={(event) => patch({ style: { ...draft.style, toneRules: parseList(event.target.value) } })}
-                  className="min-h-32 resize-y"
+                  className="min-h-32 resize-y bg-card"
                 />
               </div>
               <div className="grid gap-2">
@@ -354,6 +378,7 @@ export function AiStoryConfigDialog({
                     <Input
                       value={source}
                       aria-label={`Cụm đặc trưng CN ${index + 1}`}
+                      className="bg-card"
                       placeholder="Hán tự"
                       onChange={(event) => {
                         const next = [...entries];
@@ -364,6 +389,7 @@ export function AiStoryConfigDialog({
                     <Input
                       value={target}
                       aria-label={`Cụm đặc trưng VN ${index + 1}`}
+                      className="bg-card"
                       placeholder="Tiếng Việt"
                       onChange={(event) => {
                         const next = [...entries];
@@ -413,7 +439,7 @@ export function AiStoryConfigDialog({
                   id="story-avoid"
                   value={listText(draft.style.avoid)}
                   onChange={(event) => patch({ style: { ...draft.style, avoid: parseList(event.target.value) } })}
-                  className="min-h-32 resize-y"
+                  className="min-h-32 resize-y bg-card"
                 />
               </div>
             </div>
@@ -430,7 +456,7 @@ export function AiStoryConfigDialog({
                 </div>
                 <Button
                   type="button"
-                  variant="secondary"
+                  variant="outline"
                   size="sm"
                   onClick={() => {
                     patch({ customPrompt: "" });
@@ -466,7 +492,7 @@ export function AiStoryConfigDialog({
                   <h3 className="text-sm font-semibold">Rules kiểm tra sau dịch</h3>
                   <p className="text-xs text-muted-foreground">Review tối đa 3 lần và chỉ giữ bản làm giảm số vi phạm.</p>
                 </div>
-                <Button type="button" variant="secondary" size="sm" onClick={() => patch({ checkRules: [] })}>
+                <Button type="button" variant="outline" size="sm" onClick={() => patch({ checkRules: [] })}>
                   <RotateCcw /> Mặc định
                 </Button>
               </div>
@@ -478,19 +504,20 @@ export function AiStoryConfigDialog({
                   <Input
                     value={rule.pattern}
                     aria-label={`Regex ${index + 1}`}
-                    className="font-mono text-xs"
+                    className="bg-card font-mono text-xs"
                     onChange={(event) => editRule(index, "pattern", event.target.value)}
                   />
                   <Input
                     value={rule.flags ?? ""}
                     aria-label={`Flags ${index + 1}`}
-                    className="font-mono text-xs"
+                    className="bg-card font-mono text-xs"
                     placeholder="i"
                     onChange={(event) => editRule(index, "flags", event.target.value)}
                   />
                   <Input
                     value={rule.message}
                     aria-label={`Mô tả rule ${index + 1}`}
+                    className="bg-card"
                     onChange={(event) => editRule(index, "message", event.target.value)}
                   />
                   <Button

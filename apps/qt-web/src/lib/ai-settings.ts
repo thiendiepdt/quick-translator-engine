@@ -45,7 +45,7 @@ export const defaultAiSettings: AiSettings = {
   deepseek: { apiKey: "", model: DEFAULT_DEEPSEEK_MODEL, baseUrl: "" },
   gemini: { apiKey: "", model: DEFAULT_GEMINI_MODEL, baseUrl: "" },
   translation: {
-    provider: "gemini",
+    provider: "deepseek",
     models: {
       deepseek: DEFAULT_AI_TRANSLATION_DEEPSEEK_MODEL,
       gemini: DEFAULT_AI_TRANSLATION_GEMINI_MODEL,
@@ -96,7 +96,7 @@ function normalizeTranslationSettings(value: unknown): AiTranslationSettings {
   const geminiModel =
     typeof models.gemini === "string" ? models.gemini.trim() : "";
   return {
-    provider: isAiProvider(record.provider) ? record.provider : "gemini",
+    provider: isAiProvider(record.provider) ? record.provider : "deepseek",
     models: {
       deepseek: deepseekModel || DEFAULT_AI_TRANSLATION_DEEPSEEK_MODEL,
       gemini: geminiModel || DEFAULT_AI_TRANSLATION_GEMINI_MODEL,

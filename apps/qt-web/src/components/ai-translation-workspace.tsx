@@ -110,6 +110,9 @@ export function AiTranslationWorkspace({
   const [streamingThinking, setStreamingThinking] = useState<string>();
   const sourceTextareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const thinkingScrollRef = useRef<HTMLPreElement>(null);
+  /** Chỉ auto scroll khi đang bám đáy; người dùng cuộn lên đọc thì thôi bám. */
+  const thinkingPinnedRef = useRef(true);
   const dragDepthRef = useRef(0);
   const abortRef = useRef<AbortController | undefined>(undefined);
 
@@ -497,6 +500,11 @@ export function AiTranslationWorkspace({
     ? streamingThinking
     : thinking;
 
+  useEffect(() => {
+    const node = thinkingScrollRef.current;
+    if (node && thinkingPinnedRef.current) node.scrollTop = node.scrollHeight;
+  }, [visibleThinking, thinkingExpanded]);
+
   return (
     <>
     <main className="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-3 overflow-hidden p-3">
@@ -644,21 +652,21 @@ export function AiTranslationWorkspace({
             <Button
               type="button"
               variant="ghost"
-              size="icon-sm"
-              aria-label="Nhập nhiều chương cho Dịch AI"
+              size="sm"
+              title="Nhập nhiều file chương vào hàng đợi Dịch AI"
               onClick={() => fileInputRef.current?.click()}
             >
-              <FileUp />
+              <FileUp /> Nhập chương
             </Button>
             <Button
               type="button"
               variant="ghost"
-              size="icon-sm"
-              aria-label="Xóa khung Dịch AI"
+              size="sm"
+              title="Xóa nguyên văn và bản dịch của khung Dịch AI"
               disabled={!source && !output}
               onClick={clearSource}
             >
-              <Eraser />
+              <Eraser /> Xóa
             </Button>
           </header>
           <div
@@ -673,7 +681,7 @@ export function AiTranslationWorkspace({
               lang="zh-Hans"
               spellCheck={false}
               placeholder="Dán nguyên văn tiếng Trung hoặc thả nhiều file chương vào đây…"
-              className="absolute inset-0 h-full min-h-0 resize-none rounded-none border-0 bg-background px-6 py-5 font-serif text-[18px] leading-8 shadow-none focus-visible:ring-0"
+              className="absolute inset-0 h-full min-h-0 resize-none rounded-none border-0 bg-transparent px-6 py-5 font-serif text-[18px] leading-8 shadow-none focus-visible:ring-0"
             />
             {dropActive ? (
               <div className="pointer-events-none absolute inset-3 z-10 grid place-items-center rounded-md border-2 border-dashed border-primary bg-background/90 text-sm font-medium text-primary">
@@ -719,7 +727,15 @@ export function AiTranslationWorkspace({
                 <span className="ml-auto">{thinkingExpanded ? "Ẩn" : "Hiện"}</span>
               </button>
               {thinkingExpanded ? (
-                <pre className="fine-scrollbar max-h-28 overflow-auto whitespace-pre-wrap px-3 pb-2 font-mono text-[10px] leading-relaxed text-violet-700/65 dark:text-violet-200/55">
+                <pre
+                  ref={thinkingScrollRef}
+                  onScroll={(event) => {
+                    const node = event.currentTarget;
+                    thinkingPinnedRef.current =
+                      node.scrollHeight - node.scrollTop - node.clientHeight < 24;
+                  }}
+                  className="fine-scrollbar max-h-28 overflow-auto whitespace-pre-wrap px-3 pb-2 font-mono text-[10px] leading-relaxed text-violet-700/65 dark:text-violet-200/55"
+                >
                   {visibleThinking}
                 </pre>
               ) : null}

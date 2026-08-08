@@ -129,14 +129,14 @@ describe("AI credentials preference", () => {
 
     const restored = readStoredAiSettings();
     expect(restored.translation).toEqual({
-      provider: "gemini",
+      provider: "deepseek",
       models: {
         deepseek: DEFAULT_AI_TRANSLATION_DEEPSEEK_MODEL,
         gemini: DEFAULT_AI_TRANSLATION_GEMINI_MODEL,
       },
       thinking: true,
     });
-    expect(activeAiTranslationProviderConfig(restored).apiKey).toBe("AIza-old");
+    expect(activeAiTranslationProviderConfig(restored).apiKey).toBe("sk-old");
   });
 
   it("never assigns a flat legacy apiKey to any provider", () => {

@@ -113,6 +113,63 @@ describe("generateAiText", () => {
     });
   });
 
+  it("reports Google Search grounding once when metadata appears in the stream", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      sse(
+        {
+          candidates: [
+            {
+              content: { parts: [{ text: "{" }] },
+              groundingMetadata: { webSearchQueries: ["方寸道主"] },
+            },
+          ],
+        },
+        {
+          candidates: [
+            {
+              content: { parts: [{ text: "}" }] },
+              groundingMetadata: { webSearchQueries: ["方寸道主"] },
+            },
+          ],
+        },
+      ),
+    );
+
+    const onGoogleSearchUsed = vi.fn();
+    await generateAiText(
+      {
+        provider: "gemini",
+        apiKey: "AIza-test",
+        model: "gemini-3.5-flash",
+        baseUrl: "https://generativelanguage.googleapis.com",
+      },
+      "system",
+      "metadata",
+      { thinking: false, googleSearch: true, onGoogleSearchUsed },
+    );
+    expect(onGoogleSearchUsed).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not report grounding when Gemini answers without searching", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      sse({ candidates: [{ content: { parts: [{ text: "{}" }] }, groundingMetadata: {} }] }),
+    );
+
+    const onGoogleSearchUsed = vi.fn();
+    await generateAiText(
+      {
+        provider: "gemini",
+        apiKey: "AIza-test",
+        model: "gemini-3.5-flash",
+        baseUrl: "https://generativelanguage.googleapis.com",
+      },
+      "system",
+      "metadata",
+      { thinking: false, googleSearch: true, onGoogleSearchUsed },
+    );
+    expect(onGoogleSearchUsed).not.toHaveBeenCalled();
+  });
+
   it("uses the separate DeepSeek model/thinking shape and parses reasoning", async () => {
     const chunks: Array<[string, string]> = [];
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(

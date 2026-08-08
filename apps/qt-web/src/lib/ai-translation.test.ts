@@ -69,14 +69,13 @@ describe("AI translation post-processing", () => {
   });
 
   it("finds the ported automatic violations and builds a narrow review prompt", () => {
-    const text = "But hắn còn nói...\n萧炎 bước vào】";
+    const text = "But hắn còn nói…\n萧炎 bước vào】";
     const violations = checkAiTranslationViolations(text);
     expect(violations.map((item) => item.message)).toEqual(
       expect.arrayContaining([
         "Từ nối tiếng Anh lọt vào bản dịch → dịch sang tiếng Việt hoặc chỉ giữ khi có căn cứ",
-        "Dùng ... (3 chấm) → thay bằng ...... (6 chấm)",
+        "Còn ký tự … → chuẩn hóa thành dấu chấm ASCII, giữ số lượng (… → ..., …… → ......)",
         "CJK còn sót (chưa dịch hết!)",
-        "System text thiếu khoảng trắng trước 】",
       ]),
     );
     const review = buildAiTranslationReviewPrompt(text, violations);

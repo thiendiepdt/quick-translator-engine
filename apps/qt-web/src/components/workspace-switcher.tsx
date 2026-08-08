@@ -6,6 +6,7 @@ import {
   LoaderCircle,
   PanelsTopLeft,
   Plus,
+  Trash2,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -23,10 +24,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   createWorkspace,
+  deleteWorkspace,
   forkWorkspace,
   selectWorkspace,
 } from "@/store/workspace-controller";
 import {
+  defaultWorkspace,
+  type WorkspaceSummary,
   useWorkspaceCatalogStore,
   workspaceNameExists,
 } from "@/store/workspace-catalog";
@@ -52,6 +56,7 @@ export function WorkspaceSwitcher() {
   const [mode, setMode] = useState<CreationMode>();
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string>();
 
   const normalizedName = name.trim().replace(/\s+/g, " ");
   const duplicateName = normalizedName.length > 0 && workspaceNameExists(normalizedName);
@@ -62,6 +67,7 @@ export function WorkspaceSwitcher() {
     if (!nextOpen) {
       setMode(undefined);
       setName("");
+      setPendingDeleteId(undefined);
     }
   }
 
@@ -83,6 +89,22 @@ export function WorkspaceSwitcher() {
       setOpen(false);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Không đổi được không gian làm việc");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function removeWorkspace(workspace: WorkspaceSummary) {
+    setBusy(true);
+    try {
+      const wasActive = workspace.id === activeWorkspaceId;
+      await deleteWorkspace(workspace.id);
+      setPendingDeleteId(undefined);
+      toast.success(`Đã xóa không gian làm việc “${workspace.name}”`, {
+        description: wasActive ? "Đã chuyển về không gian Mặc định." : undefined,
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Không xóa được không gian làm việc");
     } finally {
       setBusy(false);
     }
@@ -198,21 +220,61 @@ export function WorkspaceSwitcher() {
               <div className="fine-scrollbar max-h-[min(52dvh,420px)] overflow-y-auto p-2">
                 {workspaces.map((workspace) => {
                   const active = workspace.id === activeWorkspaceId;
+                  const deletable = workspace.id !== defaultWorkspace.id;
+                  const confirmingDelete = pendingDeleteId === workspace.id;
                   return (
-                    <button
-                      key={workspace.id}
-                      type="button"
-                      disabled={busy}
-                      aria-current={active ? "true" : undefined}
-                      onClick={() => void switchTo(workspace.id)}
-                      className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-60"
-                    >
-                      <span className="grid size-8 shrink-0 place-items-center rounded-md border bg-card">
-                        {busy && !active ? <PanelsTopLeft /> : active ? <Check className="text-primary" /> : <PanelsTopLeft />}
-                      </span>
-                      <span className="min-w-0 flex-1 truncate font-medium">{workspace.name}</span>
-                      {active ? <span className="text-[10px] font-semibold text-primary uppercase">Đang dùng</span> : null}
-                    </button>
+                    <div key={workspace.id} className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        disabled={busy}
+                        aria-current={active ? "true" : undefined}
+                        onClick={() => void switchTo(workspace.id)}
+                        className="flex min-w-0 flex-1 items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-60"
+                      >
+                        <span className="grid size-8 shrink-0 place-items-center rounded-md border bg-card">
+                          {busy && !active ? <PanelsTopLeft /> : active ? <Check className="text-primary" /> : <PanelsTopLeft />}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate font-medium">{workspace.name}</span>
+                        {active ? <span className="text-[10px] font-semibold text-primary uppercase">Đang dùng</span> : null}
+                      </button>
+                      {deletable ? (
+                        confirmingDelete ? (
+                          <div className="flex shrink-0 items-center gap-1 pr-1">
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="xs"
+                              disabled={busy}
+                              onClick={() => void removeWorkspace(workspace)}
+                            >
+                              {busy ? <LoaderCircle className="animate-spin" /> : <Trash2 />} Xóa
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="xs"
+                              disabled={busy}
+                              onClick={() => setPendingDeleteId(undefined)}
+                            >
+                              Hủy
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            className="shrink-0 text-muted-foreground hover:text-destructive"
+                            aria-label={`Xóa không gian làm việc ${workspace.name}`}
+                            title="Xóa không gian làm việc này cùng từ điển và bộ nhớ tên của nó"
+                            disabled={busy}
+                            onClick={() => setPendingDeleteId(workspace.id)}
+                          >
+                            <Trash2 />
+                          </Button>
+                        )
+                      ) : null}
+                    </div>
                   );
                 })}
               </div>

@@ -73,9 +73,7 @@ const CHECK_RULES: Array<[RegExp, string]> = [
   [/\bhữu phương\b|\bhữu quân\b/, "hữu phương/quân → phe bạn"],
   [/quả thực đúng là/, "quả thực đúng là → chọn quả thực hoặc đúng là"],
   [/cư nhiên/, "cư nhiên → lại / dám / không ngờ"],
-  [/(^|[^.])\.{3}([^.]|$)/, "Dùng ... (3 chấm) → thay bằng ...... (6 chấm)"],
-  [/【[^ \n]/, "System text thiếu khoảng trắng sau 【"],
-  [/[^ \n]】/, "System text thiếu khoảng trắng trước 】"],
+  [/…/, "Còn ký tự … → chuẩn hóa thành dấu chấm ASCII, giữ số lượng (… → ..., …… → ......)"],
 ];
 
 export const DEFAULT_AI_CHECK_RULES: AiCheckRule[] = CHECK_RULES.map(

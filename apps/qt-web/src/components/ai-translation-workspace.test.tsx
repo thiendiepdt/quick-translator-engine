@@ -79,7 +79,11 @@ describe("AI translation workspace", () => {
         aiSettings={{
           ...defaultAiSettings,
           gemini: { ...defaultAiSettings.gemini, apiKey: "AIza-test" },
-          translation: { ...defaultAiSettings.translation, thinking: false },
+          translation: {
+            ...defaultAiSettings.translation,
+            provider: "gemini",
+            thinking: false,
+          },
         }}
         onOpenSettings={vi.fn()}
       />,

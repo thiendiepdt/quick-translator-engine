@@ -12,6 +12,7 @@ import {
   type AiTranslationChapter,
 } from "@/lib/ai-story";
 import { sampleDictionaryValues, sampleResponse, sampleSource } from "@/lib/sample";
+import { initialWorkspaceView } from "@/lib/workspace-route";
 import { readStoredActiveWorkspaceId } from "@/store/workspace-catalog";
 import {
   dictionaryUpdateKeys,
@@ -277,7 +278,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(persist((set) => ({
   outputView: "output",
   rangePinEnabled: true,
   mobileInspectorOpen: false,
-  workspaceView: "translate",
+  workspaceView: initialWorkspaceView(),
   aiTranslationSource: "",
   aiTranslationOutput: "",
   aiTranslationThinking: "",
