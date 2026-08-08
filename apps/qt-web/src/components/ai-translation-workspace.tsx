@@ -10,15 +10,18 @@ import {
   ListRestart,
   LoaderCircle,
   Octagon,
+  Pencil,
   Send,
   Settings2,
   Trash2,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { AiStoryConfigDialog } from "@/components/ai-story-config-dialog";
+import { MappedText } from "@/components/mapped-text";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
   activeAiTranslationProviderConfig,
@@ -36,6 +39,14 @@ import {
   nonEmptyLineCount,
   type TranslationViolation,
 } from "@/lib/ai-translation";
+import {
+  aiParagraphRanges,
+  aiParagraphsOf,
+  labeledAiRepairPayload,
+  labeledAiSourcePayload,
+  parseLabeledAiTranslation,
+  stripAiParagraphMarkers,
+} from "@/lib/ai-paragraphs";
 import { countStoryGlossaryEntries, type AiTranslationChapter } from "@/lib/ai-story";
 import { looksLikeTextFile, readChapterFile } from "@/lib/text-file";
 import { cn } from "@/lib/utils";
@@ -58,6 +69,17 @@ function phaseLabel(phase: TranslationPhase | null, reviewRound: number): string
 
 function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === "AbortError";
+}
+
+type MappedPane = "source" | "output";
+
+function scrollParagraphIntoView(container: HTMLDivElement | null, index: number) {
+  if (!container) return;
+  const target = container.querySelector<HTMLElement>(`[data-range-index="${index}"]`);
+  if (!target) return;
+  const containerRect = container.getBoundingClientRect();
+  const targetRect = target.getBoundingClientRect();
+  container.scrollTop += targetRect.top - containerRect.top - container.clientHeight / 3;
 }
 
 export function AiTranslationWorkspace({
@@ -113,6 +135,16 @@ export function AiTranslationWorkspace({
   const thinkingScrollRef = useRef<HTMLPreElement>(null);
   /** Chỉ auto scroll khi đang bám đáy; người dùng cuộn lên đọc thì thôi bám. */
   const thinkingPinnedRef = useRef(true);
+  const sourceScrollRef = useRef<HTMLDivElement>(null);
+  const outputScrollRef = useRef<HTMLDivElement>(null);
+  /** Bản dịch mặc định chỉ đọc; bật Sửa mới thành textarea. */
+  const [outputEditing, setOutputEditing] = useState(false);
+  const [sourceLinked, setSourceLinked] = useState(false);
+  const [activePair, setActivePair] = useState<number>();
+  const [pairScrollRequest, setPairScrollRequest] = useState<{
+    pane: MappedPane;
+    index: number;
+  }>();
   const dragDepthRef = useRef(0);
   const abortRef = useRef<AbortController | undefined>(undefined);
 
@@ -199,7 +231,7 @@ export function AiTranslationWorkspace({
           setStreamingThinking(streamedThinking);
         } else if (streamOutput) {
           streamedOutput += chunk;
-          setStreamingOutput(streamedOutput);
+          setStreamingOutput(stripAiParagraphMarkers(streamedOutput));
         }
       },
     });
@@ -261,32 +293,78 @@ export function AiTranslationWorkspace({
     setOutput("");
     setThinking("");
     setViolations([]);
+    setOutputEditing(false);
+    setActivePair(undefined);
 
     const systemPrompt = buildAiTranslationSystemPrompt(glossary, story);
-    let translated = formatAiTranslation(
-      await generate(systemPrompt, sourceText, controller.signal, workspaceChanged, true),
+    const paragraphs = aiParagraphsOf(sourceText);
+    const sourceParagraphs = paragraphs.length;
+    const rawOutput = await generate(
+      systemPrompt,
+      labeledAiSourcePayload(paragraphs),
+      controller.signal,
+      workspaceChanged,
+      true,
     );
     if (workspaceChanged()) throw new DOMException("Workspace changed", "AbortError");
-    setOutput(translated);
 
-    const sourceParagraphs = nonEmptyLineCount(sourceText);
-    const translatedParagraphs = nonEmptyLineCount(translated);
-    if (translatedParagraphs + 2 <= sourceParagraphs) {
-      setPhase("retrying");
-      setThinking("");
-      setOutput("");
-      setStreamingOutput("");
-      setStreamingThinking("");
-      const retried = formatAiTranslation(
-        await generate(systemPrompt, sourceText, controller.signal, workspaceChanged, true),
+    let translated: string;
+    const parsed = parseLabeledAiTranslation(rawOutput, sourceParagraphs);
+    if (parsed) {
+      const missing = parsed.flatMap((paragraph, index) =>
+        paragraph === undefined ? [index] : [],
       );
-      if (workspaceChanged()) throw new DOMException("Workspace changed", "AbortError");
-      const retriedParagraphs = nonEmptyLineCount(retried);
-      if (retriedParagraphs > translatedParagraphs) {
-        translated = retried;
+      if (missing.length > 0) {
+        // Nhãn cho biết chính xác đoạn nào thiếu — chỉ dịch bổ sung đúng các
+        // đoạn đó thay vì retry cả chương.
+        setPhase("retrying");
+        setStreamingOutput("");
+        setStreamingThinking("");
+        const repairRaw = await generate(
+          systemPrompt,
+          labeledAiRepairPayload(paragraphs, missing),
+          controller.signal,
+          workspaceChanged,
+          false,
+        );
+        if (workspaceChanged()) throw new DOMException("Workspace changed", "AbortError");
+        const repaired = parseLabeledAiTranslation(repairRaw, sourceParagraphs);
+        if (repaired) {
+          for (const index of missing) parsed[index] ??= repaired[index];
+        }
       }
-      setOutput(translated);
+      // Đoạn vẫn thiếu thì giữ nguyên văn tiếng Trung: rule "CJK còn sót" sẽ
+      // đánh vi phạm để vòng review dịch nốt, và người đọc thấy ngay chỗ hổng
+      // thay vì mất đoạn trong im lặng. Số đoạn nhờ vậy luôn khớp raw.
+      translated = `${parsed
+        .map((paragraph, index) => paragraph ?? paragraphs[index])
+        .join("\n\n")}\n`;
+    } else {
+      // Model bỏ toàn bộ nhãn — dùng nguyên output, giữ retry cả chương như
+      // cũ khi thiếu đoạn rõ rệt.
+      translated = formatAiTranslation(stripAiParagraphMarkers(rawOutput));
+      if (nonEmptyLineCount(translated) + 2 <= sourceParagraphs) {
+        setPhase("retrying");
+        setThinking("");
+        setOutput("");
+        setStreamingOutput("");
+        setStreamingThinking("");
+        const retried = formatAiTranslation(stripAiParagraphMarkers(
+          await generate(
+            systemPrompt,
+            labeledAiSourcePayload(paragraphs),
+            controller.signal,
+            workspaceChanged,
+            true,
+          ),
+        ));
+        if (workspaceChanged()) throw new DOMException("Workspace changed", "AbortError");
+        if (nonEmptyLineCount(retried) > nonEmptyLineCount(translated)) {
+          translated = retried;
+        }
+      }
     }
+    setOutput(translated);
 
     let currentViolations = checkAiTranslationViolations(
       translated,
@@ -319,6 +397,8 @@ export function AiTranslationWorkspace({
         reviewed,
         story.checkRules,
       );
+      // Review chỉ được sửa từ/cụm; bản sửa làm đổi số đoạn là hỏng ánh xạ.
+      if (aiParagraphsOf(reviewed).length !== aiParagraphsOf(translated).length) break;
       if (reviewedViolations.length >= previousCount) break;
       translated = reviewed;
       currentViolations = reviewedViolations;
@@ -505,6 +585,40 @@ export function AiTranslationWorkspace({
     if (node && thinkingPinnedRef.current) node.scrollTop = node.scrollHeight;
   }, [visibleThinking, thinkingExpanded]);
 
+  // Ánh xạ đoạn nguồn ↔ dịch theo chỉ số; chỉ khả dụng khi số đoạn hai bên
+  // khớp nhau (pipeline nhãn [[n]] đảm bảo điều này cho bản dịch mới).
+  const sourceParagraphRanges = useMemo(() => aiParagraphRanges(source), [source]);
+  const outputParagraphRanges = useMemo(
+    () => aiParagraphRanges(visibleOutput),
+    [visibleOutput],
+  );
+  const mappingAvailable = !phase &&
+    sourceParagraphRanges.length > 0 &&
+    sourceParagraphRanges.length === outputParagraphRanges.length;
+  const showSourceLinked = sourceLinked && mappingAvailable;
+
+  useEffect(() => {
+    if (!mappingAvailable) setActivePair(undefined);
+  }, [mappingAvailable]);
+
+  useLayoutEffect(() => {
+    if (!pairScrollRequest) return;
+    const container = pairScrollRequest.pane === "source"
+      ? sourceScrollRef.current
+      : outputScrollRef.current;
+    scrollParagraphIntoView(container, pairScrollRequest.index);
+  }, [pairScrollRequest]);
+
+  function selectPair(index: number, from: MappedPane) {
+    setActivePair(index);
+    if (from === "output") {
+      setSourceLinked(true);
+      setPairScrollRequest({ pane: "source", index });
+    } else {
+      setPairScrollRequest({ pane: "output", index });
+    }
+  }
+
   return (
     <>
     <main className="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-3 overflow-hidden p-3">
@@ -668,21 +782,49 @@ export function AiTranslationWorkspace({
             >
               <Eraser /> Xóa
             </Button>
+            <Tabs
+              value={showSourceLinked ? "linked" : "raw"}
+              onValueChange={(value) => setSourceLinked(value === "linked")}
+            >
+              <TabsList className="h-7">
+                <TabsTrigger value="raw" className="text-[11px]">Gốc</TabsTrigger>
+                <TabsTrigger value="linked" disabled={!mappingAvailable} className="text-[11px]">
+                  Đối chiếu
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
           </header>
           <div
             className={cn("relative min-h-0", dropActive && "bg-primary/5")}
             {...dropHandlers}
           >
-            <Textarea
-              ref={sourceTextareaRef}
-              value={source}
-              onChange={(event) => setSource(event.target.value)}
-              disabled={Boolean(phase)}
-              lang="zh-Hans"
-              spellCheck={false}
-              placeholder="Dán nguyên văn tiếng Trung hoặc thả nhiều file chương vào đây…"
-              className="absolute inset-0 h-full min-h-0 resize-none rounded-none border-0 bg-transparent px-6 py-5 font-serif text-[18px] leading-8 shadow-none focus-visible:ring-0"
-            />
+            {showSourceLinked ? (
+              <div
+                ref={sourceScrollRef}
+                lang="zh-Hans"
+                className="fine-scrollbar absolute inset-0 overflow-auto"
+              >
+                <MappedText
+                  text={source}
+                  ranges={sourceParagraphRanges}
+                  activeRange={activePair}
+                  onRangeSelect={(index) => selectPair(index, "source")}
+                  emptyMessage="Chưa có nguyên văn."
+                  className="min-h-full px-6 py-5 font-serif text-[18px] leading-8"
+                />
+              </div>
+            ) : (
+              <Textarea
+                ref={sourceTextareaRef}
+                value={source}
+                onChange={(event) => setSource(event.target.value)}
+                disabled={Boolean(phase)}
+                lang="zh-Hans"
+                spellCheck={false}
+                placeholder="Dán nguyên văn tiếng Trung hoặc thả nhiều file chương vào đây…"
+                className="absolute inset-0 h-full min-h-0 resize-none rounded-none border-0 bg-transparent px-6 py-5 font-serif text-[18px] leading-8 shadow-none focus-visible:ring-0"
+              />
+            )}
             {dropActive ? (
               <div className="pointer-events-none absolute inset-3 z-10 grid place-items-center rounded-md border-2 border-dashed border-primary bg-background/90 text-sm font-medium text-primary">
                 Thả các file .txt để thêm vào hàng đợi
@@ -703,6 +845,16 @@ export function AiTranslationWorkspace({
               {phaseLabel(phase, reviewRound)}
             </span>
             <div className="flex-1" />
+            <Button
+              type="button"
+              variant={outputEditing ? "secondary" : "ghost"}
+              size="sm"
+              title="Bản dịch mặc định chỉ đọc — bật Sửa để chỉnh trực tiếp"
+              disabled={Boolean(phase)}
+              onClick={() => setOutputEditing((value) => !value)}
+            >
+              <Pencil /> {outputEditing ? "Xong" : "Sửa"}
+            </Button>
             <Button
               type="button"
               variant="ghost"
@@ -743,15 +895,40 @@ export function AiTranslationWorkspace({
           ) : null}
 
           <div className="relative min-h-0 flex-1 bg-reader-paper">
-            <Textarea
-              value={visibleOutput}
-              onChange={(event) => updateOutput(event.target.value)}
-              disabled={Boolean(phase)}
-              lang="vi"
-              spellCheck
-              placeholder={phase ? "AI đang dịch…" : "Bản dịch AI sẽ xuất hiện ở đây và có thể sửa trực tiếp."}
-              className="absolute inset-0 h-full min-h-0 resize-none rounded-none border-0 bg-reader-paper px-7 py-5 font-serif text-[18px] leading-8 text-reader-ink shadow-none focus-visible:ring-0"
-            />
+            {phase || outputEditing ? (
+              <Textarea
+                value={visibleOutput}
+                onChange={(event) => updateOutput(event.target.value)}
+                disabled={Boolean(phase)}
+                lang="vi"
+                spellCheck
+                placeholder={phase ? "AI đang dịch…" : "Bản dịch AI sẽ xuất hiện ở đây."}
+                className="absolute inset-0 h-full min-h-0 resize-none rounded-none border-0 bg-reader-paper px-7 py-5 font-serif text-[18px] leading-8 text-reader-ink shadow-none focus-visible:ring-0"
+              />
+            ) : mappingAvailable && visibleOutput ? (
+              <div
+                ref={outputScrollRef}
+                lang="vi"
+                className="fine-scrollbar absolute inset-0 overflow-auto"
+              >
+                <MappedText
+                  text={visibleOutput}
+                  ranges={outputParagraphRanges}
+                  activeRange={activePair}
+                  onRangeSelect={(index) => selectPair(index, "output")}
+                  emptyMessage="Bản dịch AI sẽ xuất hiện ở đây."
+                  className="min-h-full px-7 py-5 font-serif text-[18px] leading-8 text-reader-ink"
+                />
+              </div>
+            ) : (
+              <div className="fine-scrollbar absolute inset-0 overflow-auto px-7 py-5 font-serif text-[18px] leading-8 whitespace-pre-wrap text-reader-ink">
+                {visibleOutput || (
+                  <span className="font-sans text-sm text-muted-foreground">
+                    Bản dịch AI sẽ xuất hiện ở đây · mặc định chỉ đọc, bấm Sửa để chỉnh trực tiếp.
+                  </span>
+                )}
+              </div>
+            )}
           </div>
           <footer className="flex h-8 shrink-0 items-center justify-between border-t px-3 text-[10px] text-muted-foreground">
             <span>{visibleOutput.length.toLocaleString("vi-VN")} ký tự</span>

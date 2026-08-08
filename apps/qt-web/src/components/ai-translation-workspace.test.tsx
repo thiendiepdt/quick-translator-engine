@@ -105,7 +105,8 @@ describe("AI translation workspace", () => {
     });
   });
 
-  it("keeps the output editor filling the panel when thinking is absent", () => {
+  it("keeps the output pane read-only until Sửa is toggled", async () => {
+    const user = userEvent.setup();
     render(
       <AiTranslationWorkspace
         aiSettings={defaultAiSettings}
@@ -113,9 +114,42 @@ describe("AI translation workspace", () => {
       />,
     );
 
+    expect(
+      screen.queryByPlaceholderText(/Bản dịch AI sẽ xuất hiện/),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText(/mặc định chỉ đọc/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Sửa" }));
     const output = screen.getByPlaceholderText(/Bản dịch AI sẽ xuất hiện/);
-    expect(output.parentElement).toHaveClass("flex-1", "min-h-0");
+    expect(output).toBeEnabled();
     expect(output.closest("section")).toHaveClass("flex", "flex-col");
+
+    await user.click(screen.getByRole("button", { name: "Xong" }));
+    expect(
+      screen.queryByPlaceholderText(/Bản dịch AI sẽ xuất hiện/),
+    ).not.toBeInTheDocument();
+  });
+
+  it("maps a translated paragraph back to its source paragraph on click", async () => {
+    const user = userEvent.setup();
+    useWorkspaceStore.setState({
+      aiTranslationSource: "第一段\n第二段",
+      aiTranslationOutput: "Đoạn một.\n\nĐoạn hai.\n",
+    });
+    render(
+      <AiTranslationWorkspace
+        aiSettings={defaultAiSettings}
+        onOpenSettings={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Range 2: Đoạn hai." }));
+
+    const sourceSegment = screen.getByRole("button", { name: "Range 2: 第二段" });
+    expect(sourceSegment).toHaveAttribute("data-active", "true");
+    expect(
+      screen.getByRole("button", { name: "Range 2: Đoạn hai." }),
+    ).toHaveAttribute("data-active", "true");
   });
 
   it("keeps its source/output frame separate from Convert", async () => {
