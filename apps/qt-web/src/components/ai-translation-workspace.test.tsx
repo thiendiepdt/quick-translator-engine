@@ -130,6 +130,22 @@ describe("AI translation workspace", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("shows the chapter sidebar with a default chuong-0 entry before any import", () => {
+    render(
+      <AiTranslationWorkspace
+        aiSettings={defaultAiSettings}
+        onOpenSettings={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("chuong-0")).toBeInTheDocument();
+    expect(screen.getByText("Dán nguyên văn hoặc nhập file")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Nhập chương từ file" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Xóa toàn bộ chương" })).toBeDisabled();
+  });
+
   it("maps a translated paragraph back to its source paragraph on click", async () => {
     const user = userEvent.setup();
     useWorkspaceStore.setState({

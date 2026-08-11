@@ -664,30 +664,49 @@ export function AiTranslationWorkspace({
         </>}
       </header>
 
-      <div className={cn(
-        "grid min-h-0 overflow-y-auto rounded-lg border bg-card lg:overflow-hidden lg:divide-x",
-        chapters.length > 0
-          ? "lg:grid-cols-[230px_minmax(0,1fr)_minmax(0,1fr)]"
-          : "lg:grid-cols-2",
-      )}>
-        {chapters.length > 0 ? (
-          <aside className="flex min-h-[220px] min-w-0 flex-col border-b lg:min-h-0 lg:border-b-0">
+      <div className="grid min-h-0 overflow-y-auto rounded-lg border bg-card lg:grid-cols-[230px_minmax(0,1fr)_minmax(0,1fr)] lg:overflow-hidden lg:divide-x">
+        <aside className="flex min-h-[220px] min-w-0 flex-col border-b lg:min-h-0 lg:border-b-0">
             <header className="flex h-10 shrink-0 items-center gap-2 border-b px-3">
               <strong className="text-xs">Chương</strong>
-              <span className="text-[10px] text-muted-foreground">{chapters.length}</span>
+              <span className="text-[10px] text-muted-foreground">{chapters.length || 1}</span>
               <div className="flex-1" />
               <Button
                 type="button"
                 variant="ghost"
                 size="icon-sm"
                 aria-label="Xóa toàn bộ chương"
-                disabled={Boolean(phase)}
+                disabled={Boolean(phase) || chapters.length === 0}
                 onClick={confirmClearChapters}
               >
                 <Trash2 />
               </Button>
             </header>
             <div className="fine-scrollbar min-h-0 flex-1 overflow-y-auto p-1.5">
+              {chapters.length === 0 ? (
+                // Buffer dán tay hiện như một chương mặc định để layout luôn
+                // ổn định; nhập file là danh sách thật thay chỗ.
+                <div className="flex items-center rounded-md bg-accent">
+                  <div className="flex min-w-0 flex-1 items-center gap-2 px-2 py-2">
+                    {output ? (
+                      violations.length > 0 ? (
+                        <AlertTriangle className="size-3.5 shrink-0 text-amber-600 dark:text-amber-300" />
+                      ) : (
+                        <CheckCircle2 className="size-3.5 shrink-0 text-ok" />
+                      )
+                    ) : (
+                      <Circle className="size-3.5 shrink-0 text-muted-foreground" />
+                    )}
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-xs font-medium">chuong-0</span>
+                      <span className="block truncate text-[10px] text-muted-foreground">
+                        {output
+                          ? `${violations.length} cảnh báo`
+                          : "Dán nguyên văn hoặc nhập file"}
+                      </span>
+                    </span>
+                  </div>
+                </div>
+              ) : null}
               {chapters.map((chapter) => (
                 <div
                   key={chapter.id}
@@ -737,13 +756,22 @@ export function AiTranslationWorkspace({
                   </Button>
                 </div>
               ))}
+              <button
+                type="button"
+                disabled={Boolean(phase)}
+                onClick={() => fileInputRef.current?.click()}
+                className="mt-1.5 flex w-full items-center justify-center gap-2 rounded-md border border-dashed px-3 py-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:bg-primary/5 hover:text-primary disabled:pointer-events-none disabled:opacity-50"
+              >
+                <FileUp className="size-4" /> Nhập chương từ file
+              </button>
             </div>
-            <footer className="flex h-8 shrink-0 items-center justify-between border-t px-3 text-[10px] text-muted-foreground">
-              <span>{chapters.filter((chapter) => chapter.status === "done").length} xong</span>
-              <span>{pendingChapterCount} chờ</span>
-            </footer>
+            {chapters.length > 0 ? (
+              <footer className="flex h-8 shrink-0 items-center justify-between border-t px-3 text-[10px] text-muted-foreground">
+                <span>{chapters.filter((chapter) => chapter.status === "done").length} xong</span>
+                <span>{pendingChapterCount} chờ</span>
+              </footer>
+            ) : null}
           </aside>
-        ) : null}
         <section className="grid min-h-[280px] min-w-0 grid-rows-[40px_minmax(0,1fr)_32px] lg:min-h-0">
           <header className="flex items-center gap-2 border-b px-3">
             <strong className="min-w-0 truncate text-xs">
