@@ -490,7 +490,10 @@ export function AiStoryConfigDialog({
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h3 className="text-sm font-semibold">Rules kiểm tra sau dịch</h3>
-                  <p className="text-xs text-muted-foreground">Review tối đa 3 lần và chỉ giữ bản làm giảm số vi phạm.</p>
+                  <p className="text-xs text-muted-foreground">
+                    Review tối đa 3 lần và chỉ giữ bản làm giảm số vi phạm. Rule bắt Hán tự còn
+                    sót luôn được áp, kể cả khi thay danh sách này.
+                  </p>
                 </div>
                 <Button type="button" variant="outline" size="sm" onClick={() => patch({ checkRules: [] })}>
                   <RotateCcw /> Mặc định

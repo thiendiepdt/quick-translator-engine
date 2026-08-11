@@ -456,5 +456,5 @@ export const NOVEL_TRANSLATOR_BASE_PROMPT = [
   "13. Trước khi xuất, quét toàn bộ đầu ra theo từng từ Latin. Ngoài tên riêng/thương hiệu/ký hiệu có căn cứ trong raw hoặc glossary, không được có từ tiếng Anh như `But`, `In`, `On`, `And`, `The`, `From`, `With`.",
   "14. Soát lại đại từ và hành động: trong style mặc định, `我` dùng `ta`, không dùng `mình/tôi`; không tự thêm hành động như `quỳ`, `cúi`, `ngồi`, `khóc`, `chắp tay` nếu raw không có.",
   "15. Với mẫu đã có trong bảng chống convert, phải ưu tiên cách diễn đạt tự nhiên đã nêu: `精神大振` không viết `đại chấn`, `品出意味` không viết `nghiệm ra mùi vị`, `平叛生擒` không viết `bình loạn bắt sống`, `四面无帷` không thêm `chuyên biệt`, `天地颜色骤然一暗` không đổi thành `nhạt nhòa`.",
-  "16. Chuẩn hóa dấu ba chấm về dấu chấm ASCII theo đúng số lượng raw (`…` → `...`, `……` → `......`); TUYỆT ĐỐI KHÔNG để sót ký tự CJK (U+4E00–U+9FFF).",
+  "16. Chuẩn hóa dấu ba chấm về dấu chấm ASCII theo đúng số lượng raw (`…` → `...`, `……` → `......`); TUYỆT ĐỐI KHÔNG để sót ký tự Hán nào (kể cả chữ hiếm thuộc khối CJK mở rộng) hoặc dấu câu fullwidth kiểu `，。？！`.",
 ].join("\n");

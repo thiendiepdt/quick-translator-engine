@@ -92,4 +92,20 @@ describe("AI translation post-processing", () => {
       { line: 1, message: "Rule riêng", text: "Vẫn còn văn convert" },
     ]);
   });
+
+  it("always flags leftover Han characters even with custom rules", () => {
+    const violations = checkAiTranslationViolations("Hắn đọc 㐀 trong bí tịch", [
+      { pattern: "CONVERT", flags: "i", message: "Rule riêng" },
+    ]);
+    expect(violations.map((item) => item.message)).toEqual([
+      "CJK còn sót (chưa dịch hết!)",
+    ]);
+  });
+
+  it("flags fullwidth Chinese punctuation by default", () => {
+    const violations = checkAiTranslationViolations("Hắn gật đầu，rồi rời đi。");
+    expect(violations.map((item) => item.message)).toContain(
+      "Dấu câu tiếng Trung còn sót → dùng dấu câu thường",
+    );
+  });
 });

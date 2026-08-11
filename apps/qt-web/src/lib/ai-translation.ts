@@ -25,7 +25,7 @@ Trước khi xuất, kiểm tra thầm từng câu:
 Chỉ xuất bản dịch tiếng Việt, không giải thích, không comment, không markdown.`;
 
 const CHECK_RULES: Array<[RegExp, string]> = [
-  [/[一-鿿]/, "CJK còn sót (chưa dịch hết!)"],
+  [/[，。、；：？！]/, "Dấu câu tiếng Trung còn sót → dùng dấu câu thường"],
   [/(^|[.!?]\s+|[【(])["“']?(?:but|and|so|the|in|on|at|from|with)\b/i, "Từ nối tiếng Anh lọt vào bản dịch → dịch sang tiếng Việt hoặc chỉ giữ khi có căn cứ"],
   [/\bvợ\b|\bchồng\b|\bngười vợ\b|\bngười chồng\b/i, "Dùng vợ/chồng → thay bằng thê tử/phu quân"],
   [/\banh ấy\b|\banh ta\b|\bcô ấy\b|\bchị ấy\b/i, "Đại từ sai → dùng hắn/nàng"],
@@ -83,6 +83,15 @@ export const DEFAULT_AI_CHECK_RULES: AiCheckRule[] = CHECK_RULES.map(
     message,
   }),
 );
+
+/**
+ * Rule cứng chạy trong mọi trường hợp, kể cả khi truyện thay bộ rules riêng —
+ * sót Hán tự là lỗi tuyệt đối. `\p{Script=Han}` phủ cả các khối mở rộng
+ * (Ext-A/B+…) và chữ hiếm trong tên công pháp mà khoảng U+4E00–U+9FFF bỏ lọt.
+ */
+const MANDATORY_CHECK_RULES: Array<[RegExp, string]> = [
+  [/\p{Script=Han}/u, "CJK còn sót (chưa dịch hết!)"],
+];
 
 function nonEmptyRecord(value: Record<string, string>): Record<string, string> | undefined {
   const entries = Object.entries(value).filter(
@@ -193,7 +202,7 @@ export function checkAiTranslationViolations(
   configuredRules?: AiCheckRule[],
 ): TranslationViolation[] {
   const violations: TranslationViolation[] = [];
-  const rules: Array<[RegExp, string]> =
+  const baseRules: Array<[RegExp, string]> =
     configuredRules && configuredRules.length > 0
       ? configuredRules.flatMap(({ pattern, flags, message }) => {
           try {
@@ -203,6 +212,15 @@ export function checkAiTranslationViolations(
           }
         })
       : CHECK_RULES;
+  const configuredPatterns = new Set(
+    (configuredRules ?? []).map(({ pattern }) => pattern),
+  );
+  const rules: Array<[RegExp, string]> = [
+    ...baseRules,
+    ...MANDATORY_CHECK_RULES.filter(
+      ([pattern]) => !configuredPatterns.has(pattern.source),
+    ),
+  ];
   text.split(/\r?\n/).forEach((line, index) => {
     for (const [pattern, message] of rules) {
       pattern.lastIndex = 0;
