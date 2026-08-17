@@ -43,9 +43,11 @@ export function buildGeminiTextGenerationConfig(
   const thinkingConfig: Record<string, unknown> = {};
   if (major === 2 && normalizedModel(model).includes("2.5")) {
     thinkingConfig.thinkingBudget = thinkingEnabled ? -1 : 0;
-  } else if (major !== undefined && major >= 3 && !thinkingEnabled) {
-    // Gemini 3.x không tắt hoàn toàn thinking; minimal là mức thấp nhất.
-    thinkingConfig.thinkingLevel = "minimal";
+  } else if (major !== undefined && major >= 3) {
+    // Gemini 3.x không tắt hoàn toàn thinking; minimal là mức thấp nhất. Khi
+    // bật thì ép "high" tường minh — để default, model tự co mức nghĩ và
+    // chương "dễ" sẽ bị nghĩ nông.
+    thinkingConfig.thinkingLevel = thinkingEnabled ? "high" : "minimal";
   }
   if ((major !== undefined && major >= 3) || Object.keys(thinkingConfig).length > 0) {
     thinkingConfig.includeThoughts = true;

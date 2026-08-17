@@ -34,9 +34,11 @@ describe("Gemini text generation settings", () => {
       maxOutputTokens: 65_536,
       thinkingConfig: { thinkingBudget: 0, includeThoughts: true },
     });
+    // Bật thinking trên 3.x: ép "high" tường minh — default của API để model
+    // tự co mức nghĩ, chương "dễ" sẽ bị nghĩ nông.
     expect(buildGeminiTextGenerationConfig("gemini-3.5-flash", true)).toEqual({
       maxOutputTokens: 65_536,
-      thinkingConfig: { includeThoughts: true },
+      thinkingConfig: { thinkingLevel: "high", includeThoughts: true },
     });
     expect(buildGeminiTextGenerationConfig("gemini-3.5-flash", false)).toEqual({
       maxOutputTokens: 65_536,
