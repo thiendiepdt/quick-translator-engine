@@ -14,6 +14,11 @@ const TRANSLATION_PROMPT_SUFFIX = `
 ---
 Dịch raw text tiếng Trung phía dưới sang tiếng Việt.
 
+Trong phần suy nghĩ nội bộ, phải lập kế hoạch dịch chứ không chỉ tóm tắt cốt truyện — phân tích truyện chỉ để phục vụ các quyết định dịch:
+- Liệt kê các cụm khó hoặc dễ phạm quy tắc (thành ngữ, cấu trúc dễ dịch máy móc theo trật tự tiếng Trung, từ bị cấm, thán từ) kèm phương án tiếng Việt định dùng.
+- Chốt xưng hô cho từng cặp nhân vật đối thoại và tên riêng theo glossary trước khi dịch câu đầu tiên.
+- Đánh dấu những câu nhiều rủi ro nhất (đổi chủ thể, phủ định, chơi chữ) để dịch chậm lại ở đó.
+
 Trước khi xuất, kiểm tra thầm từng câu:
 - Có chữ hoặc ý nào không chỉ được vị trí tương ứng trong raw không? Có thì xóa.
 - Có làm câu dài hơn, giàu cảm xúc hơn, rõ hơn hoặc bóng bẩy hơn nguyên tác không? Có thì trả về đúng mức của nguyên tác.

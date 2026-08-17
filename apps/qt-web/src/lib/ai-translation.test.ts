@@ -40,6 +40,16 @@ describe("AI translation prompt", () => {
     expect(prompt).toContain("树倒猢狲散");
     expect(prompt).toContain('"萧炎": "Tiêu Viêm"');
     expect(prompt).toContain("Chỉ xuất bản dịch tiếng Việt");
+    // Suffix phải ép thinking lập kế hoạch dịch, không chỉ tóm tắt truyện.
+    expect(prompt).toContain("kế hoạch dịch");
+  });
+
+  it("keeps the translation-plan nudge when a custom prompt replaces the base", () => {
+    const story = emptyAiStoryConfig();
+    story.customPrompt = "Prompt riêng của truyện.";
+    const prompt = buildAiTranslationSystemPrompt({}, story);
+    expect(prompt).toContain("Prompt riêng của truyện.");
+    expect(prompt).toContain("kế hoạch dịch");
   });
 
   it("adds story metadata, glossary, style and a custom prompt", () => {
