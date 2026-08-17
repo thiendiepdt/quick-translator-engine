@@ -6,6 +6,7 @@ import {
   buildWorkspaceTranslationGlossary,
   checkAiTranslationViolations,
   formatAiTranslation,
+  wordCount,
 } from "@/lib/ai-translation";
 import { NOVEL_TRANSLATOR_BASE_PROMPT } from "@/lib/ai-translation-prompt";
 import { emptyAiStoryConfig } from "@/lib/ai-story";
@@ -107,5 +108,20 @@ describe("AI translation post-processing", () => {
     expect(violations.map((item) => item.message)).toContain(
       "Dấu câu tiếng Trung còn sót → dùng dấu câu thường",
     );
+  });
+});
+
+describe("wordCount", () => {
+  it("counts whitespace-separated words", () => {
+    expect(wordCount("hắn vô cùng cao hứng")).toBe(5);
+  });
+
+  it("ignores blank lines and extra whitespace", () => {
+    expect(wordCount("một  hai\n\nba\n")).toBe(3);
+  });
+
+  it("returns zero for empty text", () => {
+    expect(wordCount("")).toBe(0);
+    expect(wordCount("  \n ")).toBe(0);
   });
 });

@@ -197,6 +197,11 @@ export function nonEmptyLineCount(text: string): number {
   return text.split(/\r?\n/).filter((line) => line.trim()).length;
 }
 
+/** Đếm chữ (âm tiết tách bằng khoảng trắng) — số liệu tự nhiên cho text Việt. */
+export function wordCount(text: string): number {
+  return text.split(/\s+/).filter(Boolean).length;
+}
+
 export function checkAiTranslationViolations(
   text: string,
   configuredRules?: AiCheckRule[],

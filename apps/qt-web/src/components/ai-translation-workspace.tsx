@@ -9,6 +9,7 @@ import {
   FileUp,
   ListRestart,
   LoaderCircle,
+  Maximize2,
   Octagon,
   Pencil,
   Send,
@@ -21,6 +22,12 @@ import { toast } from "sonner";
 import { AiStoryConfigDialog } from "@/components/ai-story-config-dialog";
 import { MappedText } from "@/components/mapped-text";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -37,8 +44,10 @@ import {
   countTranslationGlossaryEntries,
   formatAiTranslation,
   nonEmptyLineCount,
+  wordCount,
   type TranslationViolation,
 } from "@/lib/ai-translation";
+import { appendThinking, parseThinkingLog, thinkingPinAfterScroll } from "@/lib/thinking-log";
 import {
   aiParagraphRanges,
   aiParagraphsOf,
@@ -132,9 +141,9 @@ export function AiTranslationWorkspace({
   const [streamingThinking, setStreamingThinking] = useState<string>();
   const sourceTextareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const thinkingScrollRef = useRef<HTMLPreElement>(null);
-  /** Chỉ auto scroll khi đang bám đáy; người dùng cuộn lên đọc thì thôi bám. */
-  const thinkingPinnedRef = useRef(true);
+  /** Log thinking tích lũy của lần dịch đang chạy (dịch + dịch lại + các vòng soát). */
+  const thinkingLogRef = useRef("");
+  const [thinkingDialogOpen, setThinkingDialogOpen] = useState(false);
   const sourceScrollRef = useRef<HTMLDivElement>(null);
   const outputScrollRef = useRef<HTMLDivElement>(null);
   /** Bản dịch mặc định chỉ đọc; bật Sửa mới thành textarea. */
@@ -217,8 +226,10 @@ export function AiTranslationWorkspace({
     signal: AbortSignal,
     workspaceChanged: () => boolean,
     streamOutput: boolean,
+    thinkingLabel: string,
   ): Promise<string> {
     const config = resolveAiCall(provider, providerConfig);
+    const thinkingBase = thinkingLogRef.current;
     let streamedOutput = "";
     let streamedThinking = "";
     const result = await generateAiText(config, systemPrompt, userMessage, {
@@ -228,7 +239,7 @@ export function AiTranslationWorkspace({
         if (workspaceChanged()) return;
         if (kind === "thinking") {
           streamedThinking += chunk;
-          setStreamingThinking(streamedThinking);
+          setStreamingThinking(appendThinking(thinkingBase, thinkingLabel, streamedThinking));
         } else if (streamOutput) {
           streamedOutput += chunk;
           setStreamingOutput(stripAiParagraphMarkers(streamedOutput));
@@ -236,7 +247,8 @@ export function AiTranslationWorkspace({
       },
     });
     if (!workspaceChanged()) {
-      setThinking(streamedThinking);
+      thinkingLogRef.current = appendThinking(thinkingBase, thinkingLabel, streamedThinking);
+      setThinking(thinkingLogRef.current);
     }
     return result;
   }
@@ -292,6 +304,7 @@ export function AiTranslationWorkspace({
     setStreamingThinking("");
     setOutput("");
     setThinking("");
+    thinkingLogRef.current = "";
     setViolations([]);
     setOutputEditing(false);
     setActivePair(undefined);
@@ -305,6 +318,7 @@ export function AiTranslationWorkspace({
       controller.signal,
       workspaceChanged,
       true,
+      "Dịch",
     );
     if (workspaceChanged()) throw new DOMException("Workspace changed", "AbortError");
 
@@ -319,13 +333,15 @@ export function AiTranslationWorkspace({
         // đoạn đó thay vì retry cả chương.
         setPhase("retrying");
         setStreamingOutput("");
-        setStreamingThinking("");
+        // undefined → panel hiện log đã tích lũy trong lúc chờ lượt mới stream.
+        setStreamingThinking(undefined);
         const repairRaw = await generate(
           systemPrompt,
           labeledAiRepairPayload(paragraphs, missing),
           controller.signal,
           workspaceChanged,
           false,
+          "Dịch bổ sung",
         );
         if (workspaceChanged()) throw new DOMException("Workspace changed", "AbortError");
         const repaired = parseLabeledAiTranslation(repairRaw, sourceParagraphs);
@@ -345,10 +361,9 @@ export function AiTranslationWorkspace({
       translated = formatAiTranslation(stripAiParagraphMarkers(rawOutput));
       if (nonEmptyLineCount(translated) + 2 <= sourceParagraphs) {
         setPhase("retrying");
-        setThinking("");
         setOutput("");
         setStreamingOutput("");
-        setStreamingThinking("");
+        setStreamingThinking(undefined);
         const retried = formatAiTranslation(stripAiParagraphMarkers(
           await generate(
             systemPrompt,
@@ -356,6 +371,7 @@ export function AiTranslationWorkspace({
             controller.signal,
             workspaceChanged,
             true,
+            "Dịch lại",
           ),
         ));
         if (workspaceChanged()) throw new DOMException("Workspace changed", "AbortError");
@@ -376,9 +392,8 @@ export function AiTranslationWorkspace({
       round += 1;
       setPhase("reviewing");
       setReviewRound(round);
-      setThinking("");
       setStreamingOutput(undefined);
-      setStreamingThinking("");
+      setStreamingThinking(undefined);
       if (chapter) {
         updateChapter(chapter.id, { status: "reviewing", reviewRound: round });
       }
@@ -390,6 +405,7 @@ export function AiTranslationWorkspace({
           controller.signal,
           workspaceChanged,
           false,
+          `Soát lần ${round}`,
         ),
       );
       if (workspaceChanged()) throw new DOMException("Workspace changed", "AbortError");
@@ -580,10 +596,14 @@ export function AiTranslationWorkspace({
     ? streamingThinking
     : thinking;
 
-  useEffect(() => {
-    const node = thinkingScrollRef.current;
-    if (node && thinkingPinnedRef.current) node.scrollTop = node.scrollHeight;
-  }, [visibleThinking, thinkingExpanded]);
+  async function copyThinking() {
+    try {
+      await navigator.clipboard.writeText(visibleThinking);
+      toast.success("Đã sao chép quá trình suy nghĩ");
+    } catch {
+      toast.error("Trình duyệt không cho phép sao chép");
+    }
+  }
 
   // Ánh xạ đoạn nguồn ↔ dịch theo chỉ số; chỉ khả dụng khi số đoạn hai bên
   // khớp nhau (pipeline nhãn [[n]] đảm bảo điều này cho bản dịch mới).
@@ -896,28 +916,41 @@ export function AiTranslationWorkspace({
           </header>
 
           {visibleThinking ? (
-            <div className="shrink-0 border-b border-violet-500/20 bg-violet-500/5">
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[11px] text-violet-600 dark:text-violet-300"
-                onClick={() => setThinkingExpanded((value) => !value)}
-              >
-                <Brain className={cn("size-3.5", phase && "animate-pulse")} />
-                <span className="font-medium">Quá trình suy nghĩ</span>
-                <span className="ml-auto">{thinkingExpanded ? "Ẩn" : "Hiện"}</span>
-              </button>
-              {thinkingExpanded ? (
-                <pre
-                  ref={thinkingScrollRef}
-                  onScroll={(event) => {
-                    const node = event.currentTarget;
-                    thinkingPinnedRef.current =
-                      node.scrollHeight - node.scrollTop - node.clientHeight < 24;
-                  }}
-                  className="fine-scrollbar max-h-28 overflow-auto whitespace-pre-wrap px-3 pb-2 font-mono text-[10px] leading-relaxed text-violet-700/65 dark:text-violet-200/55"
+            <div className="shrink-0 border-b border-thinking/20 bg-thinking/5">
+              <div className="flex w-full items-center gap-1 px-3 py-1 text-[11px] text-thinking">
+                <button
+                  type="button"
+                  className="flex min-w-0 flex-1 items-center gap-2 py-0.5 text-left"
+                  onClick={() => setThinkingExpanded((value) => !value)}
                 >
-                  {visibleThinking}
-                </pre>
+                  <Brain className={cn("size-3.5", phase && "animate-pulse")} />
+                  <span className="font-medium">Quá trình suy nghĩ</span>
+                  <span className="ml-auto">{thinkingExpanded ? "Ẩn" : "Hiện"}</span>
+                </button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Sao chép quá trình suy nghĩ"
+                  onClick={() => void copyThinking()}
+                >
+                  <Copy />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Mở quá trình suy nghĩ"
+                  onClick={() => setThinkingDialogOpen(true)}
+                >
+                  <Maximize2 />
+                </Button>
+              </div>
+              {thinkingExpanded ? (
+                <ThinkingLogView
+                  text={visibleThinking}
+                  className="max-h-28 px-3 pb-2 text-[10px] leading-relaxed text-thinking/70"
+                />
               ) : null}
             </div>
           ) : null}
@@ -959,7 +992,7 @@ export function AiTranslationWorkspace({
             )}
           </div>
           <footer className="flex h-8 shrink-0 items-center justify-between border-t px-3 text-[10px] text-muted-foreground">
-            <span>{visibleOutput.length.toLocaleString("vi-VN")} ký tự</span>
+            <span>{wordCount(visibleOutput).toLocaleString("vi-VN")} chữ</span>
             <span>{nonEmptyLineCount(visibleOutput).toLocaleString("vi-VN")} đoạn</span>
           </footer>
         </section>
@@ -991,7 +1024,140 @@ export function AiTranslationWorkspace({
         onSave={(value) => updateStory(value)}
       />
     ) : null}
+    {thinkingDialogOpen ? (
+      <Dialog open onOpenChange={setThinkingDialogOpen}>
+        <DialogContent className="flex h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
+          <DialogHeader className="shrink-0 border-b px-6 py-4">
+            <DialogTitle className="flex items-center gap-2.5 text-sm">
+              <span className="flex size-7 items-center justify-center rounded-full bg-thinking">
+                <Brain className={cn("size-4 text-thinking-foreground", phase && "animate-pulse")} />
+              </span>
+              Quá trình suy nghĩ
+              {phase ? (
+                <span className="font-normal text-muted-foreground">
+                  · {phaseLabel(phase, reviewRound)}
+                </span>
+              ) : null}
+            </DialogTitle>
+          </DialogHeader>
+          <ThinkingRichView
+            text={visibleThinking}
+            className="min-h-0 flex-1 bg-reader-paper px-6 py-5"
+          />
+          <div className="flex shrink-0 items-center justify-between border-t px-6 py-3">
+            <span className="text-[11px] text-muted-foreground">
+              {wordCount(visibleThinking).toLocaleString("vi-VN")} chữ
+            </span>
+            <Button type="button" size="sm" onClick={() => void copyThinking()}>
+              <Copy /> Sao chép
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    ) : null}
     </>
+  );
+}
+
+/**
+ * Bám đáy khi stream: chỉ nhả khi người dùng thật sự cuộn lên (scrollTop
+ * giảm) — content mọc thêm không được phép nhả, tránh auto scroll chết ngẫu
+ * nhiên khi scroll event chen giữa chunk mới và effect.
+ */
+function usePinnedScroll<T extends HTMLElement>(dep: unknown) {
+  const ref = useRef<T>(null);
+  const pinnedRef = useRef(true);
+  const lastScrollTopRef = useRef(0);
+  useLayoutEffect(() => {
+    const node = ref.current;
+    if (node && pinnedRef.current) node.scrollTop = node.scrollHeight;
+  }, [dep]);
+  function onScroll(event: React.UIEvent<T>) {
+    const node = event.currentTarget;
+    pinnedRef.current = thinkingPinAfterScroll(
+      pinnedRef.current,
+      lastScrollTopRef.current,
+      node,
+    );
+    lastScrollTopRef.current = node.scrollTop;
+  }
+  return { ref, onScroll };
+}
+
+/** Dải thinking gọn trong panel bản dịch. */
+function ThinkingLogView({ text, className }: { text: string; className?: string }) {
+  const { ref, onScroll } = usePinnedScroll<HTMLPreElement>(text);
+  return (
+    <pre
+      ref={ref}
+      onScroll={onScroll}
+      className={cn("fine-scrollbar overflow-auto whitespace-pre-wrap font-mono", className)}
+    >
+      {text}
+    </pre>
+  );
+}
+
+/** Đoạn text thinking với **đậm** inline của model render thành strong thật. */
+function thinkingInline(text: string): React.ReactNode[] {
+  return text.split(/\*\*(.+?)\*\*/gs).map((part, index) =>
+    index % 2 === 1 ? (
+      <strong key={index} className="font-semibold text-reader-ink">{part}</strong>
+    ) : (
+      part
+    ),
+  );
+}
+
+/**
+ * Bản trình bày đầy đủ cho dialog: mỗi lượt gọi model một section có chip
+ * nhãn, dòng `**Tiêu đề**` của Gemini thành heading, còn lại là prose.
+ */
+function ThinkingRichView({ text, className }: { text: string; className?: string }) {
+  const { ref, onScroll } = usePinnedScroll<HTMLDivElement>(text);
+  const segments = parseThinkingLog(text);
+  return (
+    <div
+      ref={ref}
+      onScroll={onScroll}
+      className={cn("fine-scrollbar overflow-y-auto", className)}
+    >
+      <div className="space-y-7 pb-2">
+        {segments.map((segment, segmentIndex) => (
+          <section key={segmentIndex}>
+            {segment.label ? (
+              <div className="mb-4 flex items-center gap-3">
+                <span className="shrink-0 rounded-full bg-thinking px-3 py-1 text-[11px] font-semibold tracking-wide text-thinking-foreground">
+                  {segment.label}
+                </span>
+                <div className="h-px flex-1 bg-gradient-to-r from-thinking/40 to-transparent" />
+              </div>
+            ) : null}
+            <div className="space-y-3.5">
+              {segment.text.split(/\n{2,}/).map((block, blockIndex) => {
+                const heading = /^\*\*(.+?)\*\*$/s.exec(block.trim());
+                return heading ? (
+                  <h4
+                    key={blockIndex}
+                    className="flex items-center gap-2 pt-2.5 text-[15px] font-semibold tracking-tight text-reader-ink"
+                  >
+                    <span className="size-1.5 shrink-0 rounded-full bg-thinking" aria-hidden />
+                    {heading[1]}
+                  </h4>
+                ) : (
+                  <p
+                    key={blockIndex}
+                    className="whitespace-pre-wrap pl-3.5 text-sm leading-7 text-reader-ink/85"
+                  >
+                    {thinkingInline(block)}
+                  </p>
+                );
+              })}
+            </div>
+          </section>
+        ))}
+      </div>
+    </div>
   );
 }
 

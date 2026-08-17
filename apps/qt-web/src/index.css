@@ -67,6 +67,8 @@
   --color-field: var(--field);
   --color-reader-paper: var(--reader-paper);
   --color-reader-ink: var(--reader-ink);
+  --color-thinking: var(--thinking);
+  --color-thinking-foreground: var(--thinking-foreground);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -87,6 +89,7 @@
    --highlight  tô kết quả tìm kiếm trong trình sửa từ điển / lọc tên
    --code-*     khung JSON thô
    --sidebar-*  rail điều hướng
+   --thinking-* accent "quá trình suy nghĩ" của dịch AI (dải panel, chip, dialog)
    ========================================================================== */
 
 @layer base {
@@ -115,6 +118,8 @@
     --ring: oklch(0.61 0.14 255);
     --reader-paper: oklch(0.985 0.014 83);
     --reader-ink: oklch(0.24 0.025 63);
+    --thinking: oklch(0.5 0.19 300);
+    --thinking-foreground: oklch(0.99 0.003 250);
     --sidebar: oklch(0.25 0.05 250);
     --sidebar-foreground: oklch(0.94 0.015 245);
     --sidebar-accent: oklch(1 0 0 / 0.09);
@@ -157,6 +162,8 @@
     --ring: hsl(15 57% 46%);
     --reader-paper: hsl(42 34% 96%);
     --reader-ink: hsl(30 8% 14%);
+    --thinking: hsl(281 30% 44%);
+    --thinking-foreground: hsl(42 28% 96%);
     --sidebar: hsl(30 9% 17%);
     --sidebar-foreground: hsl(42 20% 90%);
     --sidebar-accent: hsl(42 30% 96% / 0.12);
@@ -199,6 +206,8 @@
     --ring: hsl(15 57% 52%);
     --reader-paper: hsl(42 8% 12%);
     --reader-ink: hsl(38 13% 88%);
+    --thinking: hsl(281 30% 72%);
+    --thinking-foreground: hsl(60 6% 10%);
     --sidebar: hsl(48 8% 8%);
     --sidebar-foreground: hsl(36 9% 84%);
     --sidebar-accent: hsl(36 20% 90% / 0.10);
@@ -241,6 +250,8 @@
     --ring: hsl(39 46% 61%);
     --reader-paper: hsl(30 5% 9%);
     --reader-ink: hsl(39 14% 88%);
+    --thinking: hsl(270 28% 74%);
+    --thinking-foreground: hsl(0 0% 10%);
     --sidebar: hsl(0 0% 5%);
     --sidebar-foreground: hsl(39 11% 80%);
     --sidebar-accent: hsl(39 30% 90% / 0.10);
@@ -283,6 +294,8 @@
     --ring: hsl(235 70% 62%);
     --reader-paper: hsl(223 8% 23%);
     --reader-ink: hsl(210 12% 91%);
+    --thinking: hsl(235 75% 74%);
+    --thinking-foreground: hsl(228 8% 12%);
     --sidebar: hsl(225 6% 13%);
     --sidebar-foreground: hsl(210 9% 82%);
     --sidebar-accent: hsl(210 20% 90% / 0.10);

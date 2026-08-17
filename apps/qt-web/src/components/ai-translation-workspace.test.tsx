@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -234,5 +234,74 @@ describe("AI translation workspace", () => {
     };
     expect(body.model).toBe("deepseek-translate");
     expect(body.thinking.type).toBe("disabled");
+  });
+});
+
+describe("thinking log", () => {
+  function geminiThinkingSse(thinking: string, text: string): Response {
+    const payload = {
+      candidates: [
+        { content: { parts: [{ text: thinking, thought: true }, { text }] } },
+      ],
+    };
+    return new Response(`data: ${JSON.stringify(payload)}\n\ndata: [DONE]\n\n`);
+  }
+
+  const settingsWithKey = {
+    ...defaultAiSettings,
+    gemini: { ...defaultAiSettings.gemini, apiKey: "AIza-test" },
+    translation: {
+      ...defaultAiSettings.translation,
+      provider: "gemini" as const,
+      thinking: true,
+    },
+  };
+
+  it("accumulates thinking across translate and review rounds and copies it all", async () => {
+    vi.spyOn(globalThis, "fetch")
+      // Bản dịch dính rule "thập phần" → chạy một vòng soát.
+      .mockResolvedValueOnce(geminiThinkingSse("suy nghĩ dịch", "hắn thập phần cao hứng"))
+      .mockResolvedValueOnce(geminiThinkingSse("suy nghĩ soát", "hắn vô cùng cao hứng"));
+    const user = userEvent.setup();
+    render(
+      <AiTranslationWorkspace aiSettings={settingsWithKey} onOpenSettings={vi.fn()} />,
+    );
+
+    useWorkspaceStore.getState().setAiTranslationSource("他十分高兴");
+    await user.click(screen.getByRole("button", { name: /Dịch AI/ }));
+
+    await waitFor(() => {
+      expect(useWorkspaceStore.getState().aiTranslationOutput).toContain("vô cùng");
+    });
+    const log = useWorkspaceStore.getState().aiTranslationThinking;
+    expect(log).toContain("── Dịch ──");
+    expect(log).toContain("suy nghĩ dịch");
+    expect(log).toContain("── Soát lần 1 ──");
+    expect(log).toContain("suy nghĩ soát");
+
+    await user.click(screen.getByRole("button", { name: "Sao chép quá trình suy nghĩ" }));
+    expect(await navigator.clipboard.readText()).toBe(log);
+  });
+
+  it("shows the thinking log in a dialog", async () => {
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(geminiThinkingSse("suy nghĩ dịch", "hắn vô cùng cao hứng"));
+    const user = userEvent.setup();
+    render(
+      <AiTranslationWorkspace aiSettings={settingsWithKey} onOpenSettings={vi.fn()} />,
+    );
+
+    useWorkspaceStore.getState().setAiTranslationSource("他十分高兴");
+    await user.click(screen.getByRole("button", { name: /Dịch AI/ }));
+    await waitFor(() => {
+      expect(useWorkspaceStore.getState().aiTranslationOutput).toContain("vô cùng");
+    });
+
+    await user.click(screen.getByRole("button", { name: "Mở quá trình suy nghĩ" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(/suy nghĩ dịch/)).toBeInTheDocument();
+    // Header thô của log phải được render thành chip nhãn, không lộ nguyên văn.
+    expect(within(dialog).queryByText(/── Dịch ──/)).not.toBeInTheDocument();
+    expect(within(dialog).getByText("Dịch")).toBeInTheDocument();
   });
 });
