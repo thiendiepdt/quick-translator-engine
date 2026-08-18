@@ -68,3 +68,24 @@ describe("AI story workspace data", () => {
     expect(normalizeAiStoryConfig(undefined)).toEqual(emptyAiStoryConfig());
   });
 });
+
+describe("auto glossary log", () => {
+  it("starts empty and survives normalization", () => {
+    expect(emptyAiStoryConfig().autoGlossaryLog).toEqual([]);
+    const normalized = normalizeAiStoryConfig({
+      ...emptyAiStoryConfig(),
+      autoGlossaryLog: [
+        { source: "震雷子", target: "Chấn Lôi Tử", category: "names", chapter: "chuong-163.txt" },
+        { source: "", target: "x", category: "names", chapter: "c" },
+        { source: "y", target: "Y", category: "bogus", chapter: "c" },
+      ],
+    });
+    expect(normalized.autoGlossaryLog).toEqual([
+      { source: "震雷子", target: "Chấn Lôi Tử", category: "names", chapter: "chuong-163.txt" },
+    ]);
+  });
+
+  it("defaults to empty for legacy stored configs", () => {
+    expect(normalizeAiStoryConfig({ name: "Cũ" }).autoGlossaryLog).toEqual([]);
+  });
+});

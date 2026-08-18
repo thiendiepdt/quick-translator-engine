@@ -13,6 +13,8 @@ export interface AiTranslationSettings {
   provider: AiProvider;
   models: Record<AiProvider, string>;
   thinking: boolean;
+  /** Sau mỗi chương, tự trích tên riêng mới từ bản dịch nạp vào glossary truyện. */
+  autoGlossary: boolean;
 }
 
 /**
@@ -51,6 +53,7 @@ export const defaultAiSettings: AiSettings = {
       gemini: DEFAULT_AI_TRANSLATION_GEMINI_MODEL,
     },
     thinking: true,
+    autoGlossary: true,
   },
 };
 
@@ -102,6 +105,7 @@ function normalizeTranslationSettings(value: unknown): AiTranslationSettings {
       gemini: geminiModel || DEFAULT_AI_TRANSLATION_GEMINI_MODEL,
     },
     thinking: typeof record.thinking === "boolean" ? record.thinking : true,
+    autoGlossary: typeof record.autoGlossary === "boolean" ? record.autoGlossary : true,
   };
 }
 

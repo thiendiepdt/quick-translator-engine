@@ -101,6 +101,7 @@ describe("AI credentials preference", () => {
           gemini: "gemini-translate",
         },
         thinking: false,
+        autoGlossary: true,
       },
     });
 
@@ -135,6 +136,7 @@ describe("AI credentials preference", () => {
         gemini: DEFAULT_AI_TRANSLATION_GEMINI_MODEL,
       },
       thinking: true,
+      autoGlossary: true,
     });
     expect(activeAiTranslationProviderConfig(restored).apiKey).toBe("sk-old");
   });
@@ -149,5 +151,24 @@ describe("AI credentials preference", () => {
     expect(restored.provider).toBe("gemini");
     expect(restored.deepseek.apiKey).toBe("");
     expect(restored.gemini.apiKey).toBe("");
+  });
+});
+
+describe("auto glossary setting", () => {
+  it("defaults to enabled, including for legacy stored settings", () => {
+    expect(defaultAiSettings.translation.autoGlossary).toBe(true);
+    window.localStorage.setItem(
+      aiSettingsStorageKey,
+      JSON.stringify({ translation: { provider: "gemini" } }),
+    );
+    expect(readStoredAiSettings().translation.autoGlossary).toBe(true);
+  });
+
+  it("round-trips an explicit off state", () => {
+    storeAiSettings({
+      ...defaultAiSettings,
+      translation: { ...defaultAiSettings.translation, autoGlossary: false },
+    });
+    expect(readStoredAiSettings().translation.autoGlossary).toBe(false);
   });
 });

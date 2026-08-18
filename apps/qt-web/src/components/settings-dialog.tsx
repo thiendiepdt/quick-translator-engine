@@ -253,6 +253,21 @@ function AiTranslationFields({
             }
           />
         </div>
+        <div className="flex items-center gap-2">
+          <Label htmlFor="ai-translation-auto-glossary" className="text-xs font-normal">
+            Tự thêm tên vào từ điển truyện
+          </Label>
+          <Switch
+            id="ai-translation-auto-glossary"
+            checked={aiSettings.translation.autoGlossary}
+            onCheckedChange={(autoGlossary) =>
+              onAiSettingsChange({
+                ...aiSettings,
+                translation: { ...aiSettings.translation, autoGlossary },
+              })
+            }
+          />
+        </div>
       </div>
       <div className="flex gap-2">
         <Select

@@ -10,6 +10,7 @@ import {
   ListRestart,
   LoaderCircle,
   Maximize2,
+  Sparkles,
   Octagon,
   Pencil,
   Send,
@@ -34,7 +35,12 @@ import {
   activeAiTranslationProviderConfig,
   type AiSettings,
 } from "@/lib/ai-settings";
-import { baseUrlProblem, resolveAiCall } from "@/lib/ai-client";
+import { baseUrlProblem, extractStoryGlossaryWithAi, resolveAiCall } from "@/lib/ai-client";
+import {
+  appendAutoGlossary,
+  collectGlossaryKeys,
+  sanitizeExtractedGlossary,
+} from "@/lib/ai-glossary";
 import { generateAiText } from "@/lib/ai-text-client";
 import {
   buildAiTranslationReviewPrompt,
@@ -56,7 +62,13 @@ import {
   parseLabeledAiTranslation,
   stripAiParagraphMarkers,
 } from "@/lib/ai-paragraphs";
-import { countStoryGlossaryEntries, type AiTranslationChapter } from "@/lib/ai-story";
+import {
+  countStoryGlossaryEntries,
+  storyGlossaryCategories,
+  type AiTranslationChapter,
+  type AutoGlossaryEntry,
+  type StoryGlossary,
+} from "@/lib/ai-story";
 import { looksLikeTextFile, readChapterFile } from "@/lib/text-file";
 import { cn } from "@/lib/utils";
 import { useWorkspaceCatalogStore } from "@/store/workspace-catalog";
@@ -67,18 +79,23 @@ interface AiTranslationWorkspaceProps {
   onOpenSettings: () => void;
 }
 
-type TranslationPhase = "translating" | "retrying" | "reviewing";
+type TranslationPhase = "translating" | "retrying" | "reviewing" | "extracting";
 
 function phaseLabel(phase: TranslationPhase | null, reviewRound: number): string {
   if (phase === "retrying") return "Bản đầu thiếu đoạn · đang dịch lại";
   if (phase === "reviewing") return `Đang soát lỗi · lần ${reviewRound}/3`;
   if (phase === "translating") return "Đang dịch nguyên văn";
+  if (phase === "extracting") return "Đang trích tên mới cho từ điển truyện";
   return "Sẵn sàng";
 }
 
 function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === "AbortError";
 }
+
+const glossaryCategoryLabels: Record<string, string> = Object.fromEntries(
+  storyGlossaryCategories.map(({ key, label }) => [key, label]),
+);
 
 type MappedPane = "source" | "output";
 
@@ -144,6 +161,7 @@ export function AiTranslationWorkspace({
   /** Log thinking tích lũy của lần dịch đang chạy (dịch + dịch lại + các vòng soát). */
   const thinkingLogRef = useRef("");
   const [thinkingDialogOpen, setThinkingDialogOpen] = useState(false);
+  const [autoGlossaryOpen, setAutoGlossaryOpen] = useState(false);
   const sourceScrollRef = useRef<HTMLDivElement>(null);
   const outputScrollRef = useRef<HTMLDivElement>(null);
   /** Bản dịch mặc định chỉ đọc; bật Sửa mới thành textarea. */
@@ -309,7 +327,10 @@ export function AiTranslationWorkspace({
     setOutputEditing(false);
     setActivePair(undefined);
 
-    const systemPrompt = buildAiTranslationSystemPrompt(glossary, story);
+    // Đọc story mới nhất từ store: khi chạy hàng đợi, glossary tự thêm ở
+    // chương trước phải có mặt trong prompt của chương sau, closure bị cũ.
+    const freshStory = useWorkspaceStore.getState().aiStory;
+    const systemPrompt = buildAiTranslationSystemPrompt(glossary, freshStory);
     const paragraphs = aiParagraphsOf(sourceText);
     const sourceParagraphs = paragraphs.length;
     const rawOutput = await generate(
@@ -384,7 +405,7 @@ export function AiTranslationWorkspace({
 
     let currentViolations = checkAiTranslationViolations(
       translated,
-      story.checkRules,
+      freshStory.checkRules,
     );
     let round = 0;
     while (currentViolations.length > 0 && round < 3) {
@@ -411,7 +432,7 @@ export function AiTranslationWorkspace({
       if (workspaceChanged()) throw new DOMException("Workspace changed", "AbortError");
       const reviewedViolations = checkAiTranslationViolations(
         reviewed,
-        story.checkRules,
+        freshStory.checkRules,
       );
       // Review chỉ được sửa từ/cụm; bản sửa làm đổi số đoạn là hỏng ánh xạ.
       if (aiParagraphsOf(reviewed).length !== aiParagraphsOf(translated).length) break;
@@ -443,7 +464,54 @@ export function AiTranslationWorkspace({
         error: undefined,
       });
     }
+    await harvestStoryGlossary(sourceText, translated, chapter, controller, workspaceChanged);
+
     return { reviewCount: round, violationCount: currentViolations.length };
+  }
+
+  /**
+   * Vòng phản hồi glossary: trích tên riêng mới từ cặp raw ↔ bản dịch rồi tự
+   * nạp vào glossary truyện (chỉ thêm key mới) để chương sau dịch nhất quán.
+   * Là bước phụ trợ — mọi lỗi đều nuốt, không được phép làm hỏng chương dịch.
+   */
+  async function harvestStoryGlossary(
+    sourceText: string,
+    translated: string,
+    chapter: AiTranslationChapter | undefined,
+    controller: AbortController,
+    workspaceChanged: () => boolean,
+  ) {
+    if (!aiSettings.translation.autoGlossary) return;
+    setPhase("extracting");
+    try {
+      const latestStory = useWorkspaceStore.getState().aiStory;
+      const existingKeys = collectGlossaryKeys(glossary, latestStory.glossary);
+      const suggestions = await extractStoryGlossaryWithAi(
+        resolveAiCall(provider, providerConfig),
+        sourceText,
+        translated,
+        [...existingKeys],
+      );
+      if (workspaceChanged() || controller.signal.aborted) return;
+      const pairs = sanitizeExtractedGlossary(suggestions, sourceText, translated, existingKeys);
+      if (pairs.length === 0) return;
+      const updated = appendAutoGlossary(
+        useWorkspaceStore.getState().aiStory,
+        pairs,
+        chapter?.filename ?? "chuong-0",
+      );
+      updateStory({ glossary: updated.glossary, autoGlossaryLog: updated.autoGlossaryLog });
+      const preview = pairs
+        .slice(0, 3)
+        .map(({ source, target }) => `${source} → ${target}`)
+        .join(" · ");
+      toast.message(
+        `${chapter?.filename ?? "chuong-0"}: +${pairs.length} tên vào từ điển truyện`,
+        { description: pairs.length > 3 ? `${preview} …` : preview },
+      );
+    } catch {
+      // Trích tên là bước bonus; chương đã dịch xong, lỗi ở đây chỉ bị bỏ qua.
+    }
   }
 
   async function runTranslation() {
@@ -596,6 +664,18 @@ export function AiTranslationWorkspace({
     ? streamingThinking
     : thinking;
 
+  function removeAutoGlossaryEntry(entry: AutoGlossaryEntry) {
+    const current = useWorkspaceStore.getState().aiStory;
+    const glossaryCopy = Object.fromEntries(
+      Object.entries(current.glossary).map(([key, group]) => [key, { ...group }]),
+    ) as StoryGlossary;
+    delete glossaryCopy[entry.category][entry.source];
+    updateStory({
+      glossary: glossaryCopy,
+      autoGlossaryLog: current.autoGlossaryLog.filter((item) => item.source !== entry.source),
+    });
+  }
+
   async function copyThinking() {
     try {
       await navigator.clipboard.writeText(visibleThinking);
@@ -654,6 +734,16 @@ export function AiTranslationWorkspace({
           {glossaryCount.toLocaleString("vi-VN")} mục từ điển
         </span>
         <div className="flex-1" />
+        {story.autoGlossaryLog.length > 0 ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setAutoGlossaryOpen(true)}
+          >
+            <Sparkles /> {story.autoGlossaryLog.length} tên tự thêm
+          </Button>
+        ) : null}
         <Button type="button" variant="ghost" size="sm" onClick={() => setStoryConfigOpen(true)}>
           <BookOpen /> Cấu hình truyện
         </Button>
@@ -1023,6 +1113,49 @@ export function AiTranslationWorkspace({
         aiSettings={aiSettings}
         onSave={(value) => updateStory(value)}
       />
+    ) : null}
+    {autoGlossaryOpen ? (
+      <Dialog open onOpenChange={setAutoGlossaryOpen}>
+        <DialogContent className="flex max-h-[80vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
+          <DialogHeader className="shrink-0 border-b px-6 py-4">
+            <DialogTitle className="flex items-center gap-2.5 text-sm">
+              <Sparkles className="size-4 text-thinking" />
+              Tên tự thêm vào từ điển truyện
+            </DialogTitle>
+          </DialogHeader>
+          <div className="fine-scrollbar min-h-0 flex-1 overflow-y-auto px-6 py-4">
+            {story.autoGlossaryLog.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Đã gỡ hết các tên tự thêm.</p>
+            ) : (
+              <ul className="space-y-1">
+                {story.autoGlossaryLog.map((entry) => (
+                  <li key={entry.source} className="flex items-center gap-2 rounded-md px-1 py-0.5 text-sm hover:bg-accent/50">
+                    <span className="shrink-0 font-medium">{entry.source}</span>
+                    <span className="text-muted-foreground">→</span>
+                    <span className="min-w-0 flex-1 truncate">{entry.target}</span>
+                    <span className="shrink-0 text-[10px] text-muted-foreground">
+                      {glossaryCategoryLabels[entry.category] ?? entry.category}
+                      {entry.chapter ? ` · ${entry.chapter}` : ""}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={`Gỡ ${entry.source}`}
+                      onClick={() => removeAutoGlossaryEntry(entry)}
+                    >
+                      <Trash2 />
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="pt-3 text-[11px] text-muted-foreground">
+              Tên tự trích từ bản dịch xong, chỉ thêm mục chưa có — muốn sửa target thì vào Cấu hình truyện, gỡ ở đây sẽ xóa khỏi từ điển truyện.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     ) : null}
     {thinkingDialogOpen ? (
       <Dialog open onOpenChange={setThinkingDialogOpen}>

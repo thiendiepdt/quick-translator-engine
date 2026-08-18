@@ -11,6 +11,7 @@ import {
   reviewCandidates,
   sanitizeEntitiesForRequest,
   selectReviewCandidates,
+  extractStoryGlossaryWithAi,
   translateDictionaryEntryWithAi,
 } from "@/lib/ai-client";
 import type { NameCandidate } from "@/lib/types";
@@ -365,5 +366,51 @@ describe("reviewCandidates", () => {
     });
     expect(result.decisions).toEqual([]);
     expect(result.warnings[0]).toContain("DeepSeek returned 429");
+  });
+});
+
+describe("extractStoryGlossaryWithAi", () => {
+  const config = {
+    provider: "gemini" as const,
+    apiKey: "AIza-test",
+    model: "gemini-3.5-flash",
+    baseUrl: "https://generativelanguage.googleapis.com",
+  };
+
+  it("sends raw, translation and excluded keys, returns parsed entries", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json({
+        candidates: [{
+          content: {
+            parts: [{
+              text: JSON.stringify({
+                entries: [
+                  { source: "震雷子", target: "Chấn Lôi Tử", category: "names" },
+                  { bogus: true },
+                ],
+              }),
+            }],
+          },
+        }],
+      }),
+    );
+
+    const entries = await extractStoryGlossaryWithAi(
+      config,
+      "震雷子看向太清山。",
+      "Chấn Lôi Tử nhìn về Thái Thanh Sơn.",
+      ["赵静文"],
+    );
+    expect(entries).toEqual([
+      { source: "震雷子", target: "Chấn Lôi Tử", category: "names" },
+    ]);
+    expect(requestUrlOf(fetchSpy.mock.calls[0][0])).toContain(":generateContent");
+    const body = requestBodyOf(fetchSpy.mock.calls[0][1]) as {
+      contents: Array<{ parts: Array<{ text: string }> }>;
+    };
+    const user = body.contents[0].parts[0].text;
+    expect(user).toContain("震雷子看向太清山。");
+    expect(user).toContain("Chấn Lôi Tử nhìn về Thái Thanh Sơn.");
+    expect(user).toContain("赵静文");
   });
 });

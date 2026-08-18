@@ -626,3 +626,86 @@ export function candidateContext(chapter: string, candidate: string, radius: num
   const after = [...afterWindow].slice(0, radius).join("");
   return `${before}【${candidate}】${after}`;
 }
+
+const GLOSSARY_EXTRACT_SYSTEM_PROMPT =
+  "Bạn nhận raw tiếng Trung và bản dịch tiếng Việt của cùng một chương truyện. " +
+  "Liệt kê các TÊN RIÊNG (nhân vật, địa danh, đồ vật/vũ khí, sinh vật, công pháp/kỹ năng) " +
+  "xuất hiện trong raw nhưng CHƯA có trong danh sách loại trừ, kèm đúng cách bản dịch đã phiên âm chúng. " +
+  "target phải chép nguyên văn từ bản dịch, không tự nghĩ phương án khác. " +
+  'category chỉ được là một trong: "names", "places", "items", "creatures", "skills". ' +
+  "Bỏ qua từ chung, chức danh, đại từ. Không có tên mới thì trả entries rỗng. " +
+  'Chỉ xuất JSON dạng {"entries": [{"source": "...", "target": "...", "category": "..."}]}.';
+
+const GLOSSARY_EXTRACT_SCHEMA = {
+  type: "object",
+  properties: {
+    entries: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          source: { type: "string" },
+          target: { type: "string" },
+          category: {
+            type: "string",
+            enum: ["names", "places", "items", "creatures", "skills"],
+          },
+        },
+        required: ["source", "target"],
+      },
+    },
+  },
+  required: ["entries"],
+} as const;
+
+export interface AiGlossaryPairSuggestion {
+  source: string;
+  target: string;
+  category?: string;
+}
+
+/**
+ * Trích tên riêng mới từ cặp raw ↔ bản dịch cho glossary truyện. Chỉ parse
+ * shape ở đây; việc kiểm chứng (có mặt trong hai văn bản, chưa tồn tại…) do
+ * `sanitizeExtractedGlossary` đảm nhiệm.
+ */
+export async function extractStoryGlossaryWithAi(
+  config: AiCallConfig,
+  raw: string,
+  translation: string,
+  excludeKeys: string[],
+): Promise<AiGlossaryPairSuggestion[]> {
+  const user = JSON.stringify({
+    exclude: excludeKeys,
+    raw,
+    translation,
+  });
+  const output = await completeJson(
+    config,
+    GLOSSARY_EXTRACT_SYSTEM_PROMPT,
+    user,
+    GLOSSARY_EXTRACT_SCHEMA,
+  );
+  let envelope: unknown;
+  try {
+    envelope = JSON.parse(output);
+  } catch (error) {
+    throw new Error(
+      `invalid AI glossary JSON: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error },
+    );
+  }
+  if (!isRecord(envelope) || !Array.isArray(envelope.entries)) {
+    throw new Error("invalid AI glossary JSON: missing entries array");
+  }
+  return envelope.entries.flatMap((item: unknown): AiGlossaryPairSuggestion[] => {
+    if (!isRecord(item) || typeof item.source !== "string" || typeof item.target !== "string") {
+      return [];
+    }
+    return [{
+      source: item.source,
+      target: item.target,
+      ...(typeof item.category === "string" ? { category: item.category } : {}),
+    }];
+  });
+}

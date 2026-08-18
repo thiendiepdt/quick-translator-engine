@@ -2,6 +2,8 @@ import { cleanup, render, screen, waitFor, within } from "@testing-library/react
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { toast } from "sonner";
+
 import { AiTranslationWorkspace } from "@/components/ai-translation-workspace";
 import { defaultAiSettings } from "@/lib/ai-settings";
 import { emptyAiStoryConfig } from "@/lib/ai-story";
@@ -70,9 +72,24 @@ describe("AI translation workspace", () => {
     const firstResponse = new Promise<Response>((resolve) => {
       resolveFirst = resolve;
     });
-    const fetchSpy = vi.spyOn(globalThis, "fetch")
-      .mockImplementationOnce(() => firstResponse)
-      .mockResolvedValueOnce(geminiSse("Bản dịch chương hai."));
+    const translations = [
+      () => firstResponse,
+      () => Promise.resolve(geminiSse("Bản dịch chương hai.")),
+    ];
+    let streamCalls = 0;
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (url.includes(":streamGenerateContent")) {
+        streamCalls += 1;
+        return translations.shift()?.() ?? Promise.reject(new Error("hết mock dịch"));
+      }
+      // Call trích glossary sau mỗi chương — trả rỗng cho test này.
+      return Promise.resolve(
+        Response.json({
+          candidates: [{ content: { parts: [{ text: JSON.stringify({ entries: [] }) }] } }],
+        }),
+      );
+    });
     const user = userEvent.setup();
     render(
       <AiTranslationWorkspace
@@ -95,9 +112,10 @@ describe("AI translation workspace", () => {
     ]);
     await user.click(await screen.findByRole("button", { name: /Dịch hàng đợi · 2/ }));
 
-    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(streamCalls).toBe(1));
+    expect(fetchSpy).toHaveBeenCalled();
     resolveFirst?.(geminiSse("Bản dịch chương một."));
-    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(streamCalls).toBe(2));
     await waitFor(() => {
       expect(
         useWorkspaceStore.getState().aiTranslationChapters.map(({ status }) => status),
@@ -210,6 +228,7 @@ describe("AI translation workspace", () => {
               deepseek: "deepseek-translate",
             },
             thinking: false,
+            autoGlossary: true,
           },
         }}
         onOpenSettings={vi.fn()}
@@ -303,5 +322,124 @@ describe("thinking log", () => {
     // Header thô của log phải được render thành chip nhãn, không lộ nguyên văn.
     expect(within(dialog).queryByText(/── Dịch ──/)).not.toBeInTheDocument();
     expect(within(dialog).getByText("Dịch")).toBeInTheDocument();
+  });
+});
+
+describe("auto glossary loop", () => {
+  it("skips extraction entirely when the auto glossary toggle is off", async () => {
+    const fetchSpy = mockTranslateAndExtractSpy(() =>
+      Promise.reject(new Error("không được gọi trích")),
+    );
+    const user = userEvent.setup();
+    render(
+      <AiTranslationWorkspace
+        aiSettings={{
+          ...settingsWithKeyBase,
+          translation: { ...settingsWithKeyBase.translation, autoGlossary: false },
+        }}
+        onOpenSettings={vi.fn()}
+      />,
+    );
+
+    useWorkspaceStore.getState().setAiTranslationSource("震雷子看向太清山。");
+    await user.click(screen.getByRole("button", { name: /Dịch AI/ }));
+    await waitFor(() => {
+      expect(useWorkspaceStore.getState().aiTranslationOutput).toContain("Chấn Lôi Tử");
+    });
+    const extractionCalls = fetchSpy.mock.calls.filter(([input]) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
+      return !url.includes(":streamGenerateContent");
+    });
+    expect(extractionCalls).toHaveLength(0);
+    expect(useWorkspaceStore.getState().aiStory.autoGlossaryLog).toEqual([]);
+  });
+
+  const settingsWithKeyBase = {
+    ...defaultAiSettings,
+    gemini: { ...defaultAiSettings.gemini, apiKey: "AIza-test" },
+    translation: {
+      ...defaultAiSettings.translation,
+      provider: "gemini" as const,
+      thinking: false,
+    },
+  };
+  const settingsWithKey = settingsWithKeyBase;
+
+  function mockTranslateAndExtractSpy(extraction: () => Promise<Response>) {
+    return vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (url.includes(":streamGenerateContent")) {
+        return Promise.resolve(geminiSse("Chấn Lôi Tử nhìn về Thái Thanh Sơn."));
+      }
+      return extraction();
+    });
+  }
+  const mockTranslateAndExtract = mockTranslateAndExtractSpy;
+
+  it("feeds new names from the finished translation back into the story glossary", async () => {
+    mockTranslateAndExtract(() =>
+      Promise.resolve(
+        Response.json({
+          candidates: [{
+            content: {
+              parts: [{
+                text: JSON.stringify({
+                  entries: [
+                    { source: "震雷子", target: "Chấn Lôi Tử", category: "names" },
+                    { source: "太清山", target: "Thái Thanh Sơn", category: "places" },
+                  ],
+                }),
+              }],
+            },
+          }],
+        }),
+      ),
+    );
+    const user = userEvent.setup();
+    render(
+      <AiTranslationWorkspace aiSettings={settingsWithKey} onOpenSettings={vi.fn()} />,
+    );
+
+    const toastSpy = vi.spyOn(toast, "message");
+    useWorkspaceStore.getState().setAiTranslationSource("震雷子看向太清山。");
+    await user.click(screen.getByRole("button", { name: /Dịch AI/ }));
+
+    await waitFor(() => {
+      expect(useWorkspaceStore.getState().aiStory.autoGlossaryLog).toHaveLength(2);
+    });
+    expect(toastSpy).toHaveBeenCalledWith(
+      "chuong-0: +2 tên vào từ điển truyện",
+      expect.objectContaining({ description: expect.stringContaining("震雷子 → Chấn Lôi Tử") }),
+    );
+    const story = useWorkspaceStore.getState().aiStory;
+    expect(story.glossary.names["震雷子"]).toBe("Chấn Lôi Tử");
+    expect(story.glossary.places["太清山"]).toBe("Thái Thanh Sơn");
+    expect(story.autoGlossaryLog[0].chapter).toBe("chuong-0");
+
+    // Badge mở dialog duyệt, gỡ được entry khỏi cả glossary lẫn log.
+    await user.click(screen.getByRole("button", { name: /2 tên tự thêm/ }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("震雷子")).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Gỡ 震雷子" }));
+    await waitFor(() => {
+      expect(useWorkspaceStore.getState().aiStory.autoGlossaryLog).toHaveLength(1);
+    });
+    expect(useWorkspaceStore.getState().aiStory.glossary.names["震雷子"]).toBeUndefined();
+  });
+
+  it("keeps the chapter done when glossary extraction fails", async () => {
+    mockTranslateAndExtract(() => Promise.reject(new TypeError("Failed to fetch")));
+    const user = userEvent.setup();
+    render(
+      <AiTranslationWorkspace aiSettings={settingsWithKey} onOpenSettings={vi.fn()} />,
+    );
+
+    useWorkspaceStore.getState().setAiTranslationSource("震雷子看向太清山。");
+    await user.click(screen.getByRole("button", { name: /Dịch AI/ }));
+
+    await waitFor(() => {
+      expect(useWorkspaceStore.getState().aiTranslationOutput).toContain("Chấn Lôi Tử");
+    });
+    expect(useWorkspaceStore.getState().aiStory.autoGlossaryLog).toEqual([]);
   });
 });

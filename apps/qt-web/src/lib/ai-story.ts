@@ -26,6 +26,14 @@ export interface AiCheckRule {
   message: string;
 }
 
+/** Một mục glossary do máy tự thêm sau khi dịch xong chương — giữ nguồn gốc để duyệt lại. */
+export interface AutoGlossaryEntry {
+  source: string;
+  target: string;
+  category: StoryGlossaryKey;
+  chapter: string;
+}
+
 export interface AiStoryConfig {
   name: string;
   sourceUrl: string;
@@ -37,6 +45,8 @@ export interface AiStoryConfig {
   customPrompt: string;
   /** Trống nghĩa là dùng bộ rule mặc định. */
   checkRules: AiCheckRule[];
+  /** Nhật ký các mục glossary tự thêm từ bản dịch, để duyệt/gỡ sau. */
+  autoGlossaryLog: AutoGlossaryEntry[];
 }
 
 export type AiChapterStatus =
@@ -80,6 +90,7 @@ export function emptyAiStoryConfig(): AiStoryConfig {
     },
     customPrompt: "",
     checkRules: [],
+    autoGlossaryLog: [],
   };
 }
 
@@ -125,6 +136,22 @@ export function normalizeAiStoryConfig(value: unknown): AiStoryConfig {
           : [];
       })
     : [];
+  const glossaryKeys = new Set<string>(storyGlossaryCategories.map(({ key }) => key));
+  const autoGlossaryLog: AutoGlossaryEntry[] = Array.isArray(source.autoGlossaryLog)
+    ? source.autoGlossaryLog.flatMap((entry) => {
+        if (!isRecord(entry)) return [];
+        const entrySource = stringValue(entry.source).trim();
+        const target = stringValue(entry.target).trim();
+        const category = stringValue(entry.category);
+        if (!entrySource || !target || !glossaryKeys.has(category)) return [];
+        return [{
+          source: entrySource,
+          target,
+          category: category as StoryGlossaryKey,
+          chapter: stringValue(entry.chapter),
+        }];
+      })
+    : [];
   return {
     name: stringValue(source.name),
     sourceUrl: stringValue(source.sourceUrl),
@@ -141,6 +168,7 @@ export function normalizeAiStoryConfig(value: unknown): AiStoryConfig {
     },
     customPrompt: stringValue(source.customPrompt),
     checkRules: rules,
+    autoGlossaryLog,
   };
 }
 
