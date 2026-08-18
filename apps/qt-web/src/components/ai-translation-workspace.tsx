@@ -6,6 +6,7 @@ import {
   Circle,
   Copy,
   Eraser,
+  FileDown,
   FileUp,
   ListRestart,
   LoaderCircle,
@@ -29,6 +30,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -71,6 +75,12 @@ import {
   type StoryGlossary,
 } from "@/lib/ai-story";
 import { looksLikeTextFile, readChapterFile } from "@/lib/text-file";
+import {
+  doneChapterRange,
+  mergeChapterOutputs,
+  selectChaptersForDownload,
+} from "@/lib/chapter-download";
+import { buildZip } from "@/lib/zip";
 import { cn } from "@/lib/utils";
 import { useWorkspaceCatalogStore } from "@/store/workspace-catalog";
 import { useWorkspaceStore } from "@/store/workspace";
@@ -163,6 +173,10 @@ export function AiTranslationWorkspace({
   const thinkingLogRef = useRef("");
   const [thinkingDialogOpen, setThinkingDialogOpen] = useState(false);
   const [autoGlossaryOpen, setAutoGlossaryOpen] = useState(false);
+  const [downloadOpen, setDownloadOpen] = useState(false);
+  const [downloadFrom, setDownloadFrom] = useState("1");
+  const [downloadTo, setDownloadTo] = useState("1");
+  const [downloadMerge, setDownloadMerge] = useState(false);
   const sourceScrollRef = useRef<HTMLDivElement>(null);
   const outputScrollRef = useRef<HTMLDivElement>(null);
   /** Bản dịch mặc định chỉ đọc; bật Sửa mới thành textarea. */
@@ -669,6 +683,67 @@ export function AiTranslationWorkspace({
     ? streamingThinking
     : thinking;
 
+  function resetDownloadRange() {
+    const range = doneChapterRange(chapters);
+    setDownloadFrom(String(range?.from ?? 1));
+    setDownloadTo(String(range?.to ?? chapters.length));
+  }
+
+  function openDownloadDialog() {
+    resetDownloadRange();
+    setDownloadOpen(true);
+  }
+
+  function saveBlob(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function storyFileBaseName(): string {
+    return (
+      (story.name.trim() || "dich-ai").replace(/[\\/:*?"<>|]/g, "").slice(0, 60) ||
+      "dich-ai"
+    );
+  }
+
+  function downloadSelection(): AiTranslationChapter[] {
+    return selectChaptersForDownload(
+      chapters,
+      Number.parseInt(downloadFrom, 10) || 1,
+      Number.parseInt(downloadTo, 10) || chapters.length,
+    );
+  }
+
+  function runChapterDownload() {
+    const selected = downloadSelection();
+    if (selected.length === 0) {
+      toast.error("Không có chương đã dịch trong khoảng đã chọn");
+      return;
+    }
+    const base = storyFileBaseName();
+    if (downloadMerge) {
+      saveBlob(
+        new Blob([mergeChapterOutputs(selected)], { type: "text/plain;charset=utf-8" }),
+        `${base}.txt`,
+      );
+      toast.success(`Đã gộp ${selected.length} chương vào ${base}.txt`);
+    } else {
+      const bytes = buildZip(
+        selected.map((chapter) => ({ name: chapter.filename, content: chapter.output })),
+      );
+      saveBlob(
+        new Blob([bytes.buffer as ArrayBuffer], { type: "application/zip" }),
+        `${base}.zip`,
+      );
+      toast.success(`Đã đóng gói ${selected.length} chương vào ${base}.zip`);
+    }
+    setDownloadOpen(false);
+  }
+
   function removeAutoGlossaryEntry(entry: AutoGlossaryEntry) {
     const current = useWorkspaceStore.getState().aiStory;
     const glossaryCopy = Object.fromEntries(
@@ -785,6 +860,18 @@ export function AiTranslationWorkspace({
               <strong className="text-xs">Chương</strong>
               <span className="text-[10px] text-muted-foreground">{chapters.length || 1}</span>
               <div className="flex-1" />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Tải các chương đã dịch (.zip)"
+                disabled={!chapters.some(
+                  (chapter) => chapter.status === "done" && chapter.output.trim(),
+                )}
+                onClick={openDownloadDialog}
+              >
+                <FileDown />
+              </Button>
               <Button
                 type="button"
                 variant="ghost"
@@ -1118,6 +1205,89 @@ export function AiTranslationWorkspace({
         aiSettings={aiSettings}
         onSave={(value) => updateStory(value)}
       />
+    ) : null}
+    {downloadOpen ? (
+      <Dialog open onOpenChange={setDownloadOpen}>
+        <DialogContent className="flex flex-col gap-0 overflow-hidden p-0 sm:max-w-md">
+          <DialogHeader className="shrink-0 border-b px-6 py-4">
+            <DialogTitle className="flex items-center gap-2.5 text-sm">
+              <span className="flex size-7 items-center justify-center rounded-full bg-primary/10">
+                <FileDown className="size-4 text-primary" />
+              </span>
+              Tải chương đã dịch
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-5 px-6 py-5">
+            <div className="grid grid-cols-[1fr_1fr_auto] items-end gap-3">
+              <div className="grid gap-1.5">
+                <Label htmlFor="download-from" className="text-xs text-muted-foreground">
+                  Từ chương
+                </Label>
+                <Input
+                  id="download-from"
+                  type="number"
+                  className="bg-card"
+                  min={1}
+                  max={chapters.length}
+                  value={downloadFrom}
+                  onChange={(event) => setDownloadFrom(event.target.value)}
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="download-to" className="text-xs text-muted-foreground">
+                  Đến chương
+                </Label>
+                <Input
+                  id="download-to"
+                  type="number"
+                  className="bg-card"
+                  min={1}
+                  max={chapters.length}
+                  value={downloadTo}
+                  onChange={(event) => setDownloadTo(event.target.value)}
+                />
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-9"
+                onClick={resetDownloadRange}
+              >
+                Chọn hết
+              </Button>
+            </div>
+            <div className="flex items-center justify-between gap-4 rounded-lg border bg-card px-4 py-3 shadow-xs">
+              <div>
+                <Label htmlFor="download-merge" className="text-sm font-semibold">
+                  Gộp thành 1 file
+                </Label>
+                <p className="pt-1 text-xs text-foreground/70">
+                  Một file .txt, mỗi chương cách nhau một dòng trống
+                </p>
+              </div>
+              <Switch
+                id="download-merge"
+                checked={downloadMerge}
+                onCheckedChange={setDownloadMerge}
+              />
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center justify-between border-t px-6 py-3.5">
+            <span className="text-xs text-muted-foreground">
+              {downloadSelection().length.toLocaleString("vi-VN")} chương đã dịch trong khoảng
+            </span>
+            <Button
+              type="button"
+              size="sm"
+              disabled={downloadSelection().length === 0}
+              onClick={runChapterDownload}
+            >
+              <FileDown /> Tải xuống
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     ) : null}
     {autoGlossaryOpen ? (
       <Dialog open onOpenChange={setAutoGlossaryOpen}>

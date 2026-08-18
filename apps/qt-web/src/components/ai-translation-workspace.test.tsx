@@ -540,3 +540,155 @@ describe("auto glossary loop", () => {
     expect(useWorkspaceStore.getState().aiStory.autoGlossaryLog).toEqual([]);
   });
 });
+
+describe("download translated chapters", () => {
+  function stubDownloadSinks() {
+    const blobs: Blob[] = [];
+    const createObjectURL = vi.fn((blob: Blob) => {
+      blobs.push(blob);
+      return "blob:test";
+    });
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal("URL", Object.assign(URL, { createObjectURL, revokeObjectURL }));
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => undefined);
+    return { blobs, createObjectURL, revokeObjectURL, clickSpy };
+  }
+
+  function seedChapters(
+    entries: Array<{ filename: string; done?: boolean; output?: string }>,
+  ) {
+    useWorkspaceStore.getState().importAiTranslationChapters(
+      entries.map(({ filename }) => ({ filename, source: "第一章" })),
+    );
+    const chapters = useWorkspaceStore.getState().aiTranslationChapters;
+    entries.forEach(({ filename, done, output }) => {
+      const chapter = chapters.find((item) => item.filename === filename);
+      if (!chapter) throw new Error(`thiếu ${filename}`);
+      useWorkspaceStore.getState().updateAiTranslationChapter(chapter.id, {
+        status: done ? "done" : "queued",
+        output: output ?? "",
+      });
+    });
+  }
+
+  it("defaults the range to the done chapters and zips the selection", async () => {
+    const { blobs, clickSpy, revokeObjectURL } = stubDownloadSinks();
+    seedChapters([
+      { filename: "chuong-1.txt" },
+      { filename: "chuong-2.txt", done: true, output: "Bản dịch chương hai.\n" },
+      { filename: "chuong-3.txt", done: true, output: "Bản dịch chương ba.\n" },
+      { filename: "chuong-4.txt" },
+    ]);
+    const user = userEvent.setup();
+    render(
+      <AiTranslationWorkspace aiSettings={defaultAiSettings} onOpenSettings={vi.fn()} />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Tải các chương đã dịch (.zip)" }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByLabelText("Từ chương")).toHaveValue(2);
+    expect(within(dialog).getByLabelText("Đến chương")).toHaveValue(3);
+    await user.click(within(dialog).getByRole("button", { name: "Tải xuống" }));
+
+    expect(clickSpy).toHaveBeenCalled();
+    const bytes = new Uint8Array(await blobs[0].arrayBuffer());
+    const eocd = bytes.length - 22;
+    expect(bytes[eocd + 10] | (bytes[eocd + 11] << 8)).toBe(2);
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:test");
+    clickSpy.mockRestore();
+    vi.unstubAllGlobals();
+  });
+
+  it("narrows the range and skips undone chapters inside it", async () => {
+    const { blobs, clickSpy } = stubDownloadSinks();
+    seedChapters([
+      { filename: "chuong-1.txt", done: true, output: "Một.\n" },
+      { filename: "chuong-2.txt" },
+      { filename: "chuong-3.txt", done: true, output: "Ba.\n" },
+    ]);
+    const user = userEvent.setup();
+    render(
+      <AiTranslationWorkspace aiSettings={defaultAiSettings} onOpenSettings={vi.fn()} />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Tải các chương đã dịch (.zip)" }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    const from = within(dialog).getByLabelText("Từ chương");
+    await user.clear(from);
+    await user.type(from, "2");
+    await user.click(within(dialog).getByRole("button", { name: "Tải xuống" }));
+
+    const bytes = new Uint8Array(await blobs[0].arrayBuffer());
+    const eocd = bytes.length - 22;
+    // Khoảng 2..3 nhưng chương 2 chưa dịch → chỉ 1 entry.
+    expect(bytes[eocd + 10] | (bytes[eocd + 11] << 8)).toBe(1);
+    clickSpy.mockRestore();
+    vi.unstubAllGlobals();
+  });
+
+  it("merges the selection into one text file separated by blank lines", async () => {
+    const { blobs, clickSpy } = stubDownloadSinks();
+    seedChapters([
+      { filename: "chuong-1.txt", done: true, output: "Chương một.\n" },
+      { filename: "chuong-2.txt", done: true, output: "Chương hai.\n" },
+    ]);
+    useWorkspaceStore.getState().updateAiStory({ name: "Đấu Phá" });
+    const user = userEvent.setup();
+    render(
+      <AiTranslationWorkspace aiSettings={defaultAiSettings} onOpenSettings={vi.fn()} />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Tải các chương đã dịch (.zip)" }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByLabelText("Gộp thành 1 file"));
+    await user.click(within(dialog).getByRole("button", { name: "Tải xuống" }));
+
+    expect(blobs[0].type).toContain("text/plain");
+    expect(await blobs[0].text()).toBe("Chương một.\n\nChương hai.\n");
+    clickSpy.mockRestore();
+    vi.unstubAllGlobals();
+  });
+
+  it("resets the range back to every done chapter", async () => {
+    stubDownloadSinks();
+    seedChapters([
+      { filename: "chuong-1.txt", done: true, output: "Một.\n" },
+      { filename: "chuong-2.txt", done: true, output: "Hai.\n" },
+      { filename: "chuong-3.txt", done: true, output: "Ba.\n" },
+    ]);
+    const user = userEvent.setup();
+    render(
+      <AiTranslationWorkspace aiSettings={defaultAiSettings} onOpenSettings={vi.fn()} />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Tải các chương đã dịch (.zip)" }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    const from = within(dialog).getByLabelText("Từ chương");
+    await user.clear(from);
+    await user.type(from, "3");
+    await user.click(within(dialog).getByRole("button", { name: "Chọn hết" }));
+    expect(within(dialog).getByLabelText("Từ chương")).toHaveValue(1);
+    expect(within(dialog).getByLabelText("Đến chương")).toHaveValue(3);
+    vi.unstubAllGlobals();
+  });
+
+  it("disables the download button when no chapter is done", () => {
+    seedChapters([{ filename: "chuong-1.txt" }]);
+    render(
+      <AiTranslationWorkspace aiSettings={defaultAiSettings} onOpenSettings={vi.fn()} />,
+    );
+    expect(
+      screen.getByRole("button", { name: "Tải các chương đã dịch (.zip)" }),
+    ).toBeDisabled();
+  });
+});
