@@ -147,11 +147,51 @@ function mergeStoryGlossary(
   return merged;
 }
 
+/**
+ * Entry glossary được coi là "có mặt trong chương" khi source xuất hiện nguyên
+ * văn, hoặc — với tên người 3-4 chữ Hán — khi dạng bỏ họ xuất hiện (văn Trung
+ * hay gọi tắt: 赵静文 → 静文, 慕容雪羽 → 雪羽). Không hạ tên 2 chữ xuống 1 chữ.
+ */
+const HAN_PERSON_NAME = /^\p{Script=Han}{3,4}$/u;
+
+export function glossaryEntryMatchesSource(source: string, text: string): boolean {
+  if (text.includes(source)) return true;
+  if (!HAN_PERSON_NAME.test(source)) return false;
+  if (text.includes(source.slice(1))) return true;
+  return source.length === 4 && text.includes(source.slice(2));
+}
+
+/**
+ * Chỉ giữ entry mà chương thực sự chạm tới — glossary tích lũy cả truyện thì
+ * lớn, một chương chỉ dùng phần nhỏ. `signature_phrases` là văn phong, giữ
+ * nguyên không lọc. Nhóm rỗng sau lọc bị bỏ hẳn khỏi prompt.
+ */
+export function filterTranslationGlossaryForSource(
+  glossary: TranslationGlossary,
+  sourceText: string,
+): TranslationGlossary {
+  return Object.fromEntries(
+    Object.entries(glossary).flatMap(([group, entries]) => {
+      if (group === "signature_phrases") return [[group, entries]];
+      const kept = Object.fromEntries(
+        Object.entries(entries).filter(([source]) =>
+          glossaryEntryMatchesSource(source, sourceText),
+        ),
+      );
+      return Object.keys(kept).length > 0 ? [[group, kept]] : [];
+    }),
+  );
+}
+
 export function buildAiTranslationSystemPrompt(
   workspaceGlossary: TranslationGlossary,
   story?: AiStoryConfig,
+  sourceText?: string,
 ): string {
-  const glossary = mergeStoryGlossary(workspaceGlossary, story);
+  const merged = mergeStoryGlossary(workspaceGlossary, story);
+  const glossary = sourceText
+    ? filterTranslationGlossaryForSource(merged, sourceText)
+    : merged;
   const glossarySection =
     Object.keys(glossary).length > 0
       ? `\n# Từ điển riêng của truyện\n\nCác mục này được ưu tiên và phải dùng nhất quán:\n\n${JSON.stringify(glossary, null, 2)}\n`

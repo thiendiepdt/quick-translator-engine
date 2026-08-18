@@ -330,7 +330,7 @@ export function AiTranslationWorkspace({
     // Đọc story mới nhất từ store: khi chạy hàng đợi, glossary tự thêm ở
     // chương trước phải có mặt trong prompt của chương sau, closure bị cũ.
     const freshStory = useWorkspaceStore.getState().aiStory;
-    const systemPrompt = buildAiTranslationSystemPrompt(glossary, freshStory);
+    const systemPrompt = buildAiTranslationSystemPrompt(glossary, freshStory, sourceText);
     const paragraphs = aiParagraphsOf(sourceText);
     const sourceParagraphs = paragraphs.length;
     const rawOutput = await generate(
@@ -490,7 +490,9 @@ export function AiTranslationWorkspace({
         resolveAiCall(provider, providerConfig),
         sourceText,
         translated,
-        [...existingKeys],
+        // Exclude chỉ cần các key chương này chạm tới — sanitize vốn đã chặn
+        // mọi đề xuất không có trong raw, gửi cả glossary là phí token.
+        [...existingKeys].filter((key) => sourceText.includes(key)),
       );
       if (workspaceChanged() || controller.signal.aborted) return;
       const pairs = sanitizeExtractedGlossary(suggestions, sourceText, translated, existingKeys);

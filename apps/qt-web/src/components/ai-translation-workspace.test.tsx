@@ -427,6 +427,47 @@ describe("auto glossary loop", () => {
     expect(useWorkspaceStore.getState().aiStory.glossary.names["震雷子"]).toBeUndefined();
   });
 
+  it("ships only glossary entries the chapter touches and filters the exclude list", async () => {
+    const fetchSpy = mockTranslateAndExtractSpy(() =>
+      Promise.resolve(
+        Response.json({
+          candidates: [{ content: { parts: [{ text: JSON.stringify({ entries: [] }) }] } }],
+        }),
+      ),
+    );
+    const story = emptyAiStoryConfig();
+    story.glossary.names["震雷子"] = "Chấn Lôi Tử";
+    story.glossary.names["萧炎"] = "Tiêu Viêm";
+    useWorkspaceStore.getState().updateAiStory(story);
+    const user = userEvent.setup();
+    render(
+      <AiTranslationWorkspace aiSettings={settingsWithKey} onOpenSettings={vi.fn()} />,
+    );
+
+    useWorkspaceStore.getState().setAiTranslationSource("震雷子看向太清山。");
+    await user.click(screen.getByRole("button", { name: /Dịch AI/ }));
+    await waitFor(() => {
+      expect(useWorkspaceStore.getState().aiTranslationOutput).toContain("Chấn Lôi Tử");
+    });
+
+    const bodies = fetchSpy.mock.calls.map(([input, init]) => ({
+      url: typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url,
+      body: JSON.parse(init?.body as string) as {
+        systemInstruction?: { parts: Array<{ text: string }> };
+        contents: Array<{ parts: Array<{ text: string }> }>;
+      },
+    }));
+    const translateBody = bodies.find(({ url }) => url.includes(":streamGenerateContent"))?.body;
+    const systemText = translateBody?.systemInstruction?.parts[0].text ?? "";
+    expect(systemText).toContain("震雷子");
+    expect(systemText).not.toContain("萧炎");
+
+    const extractBody = bodies.find(({ url }) => !url.includes(":streamGenerateContent"))?.body;
+    const extractUser = extractBody?.contents[0].parts[0].text ?? "";
+    expect(extractUser).toContain("震雷子");
+    expect(extractUser).not.toContain("萧炎");
+  });
+
   it("keeps the chapter done when glossary extraction fails", async () => {
     mockTranslateAndExtract(() => Promise.reject(new TypeError("Failed to fetch")));
     const user = userEvent.setup();

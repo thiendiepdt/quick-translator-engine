@@ -5,7 +5,9 @@ import {
   buildAiTranslationSystemPrompt,
   buildWorkspaceTranslationGlossary,
   checkAiTranslationViolations,
+  filterTranslationGlossaryForSource,
   formatAiTranslation,
+  glossaryEntryMatchesSource,
   wordCount,
 } from "@/lib/ai-translation";
 import { NOVEL_TRANSLATOR_BASE_PROMPT } from "@/lib/ai-translation-prompt";
@@ -133,5 +135,68 @@ describe("wordCount", () => {
   it("returns zero for empty text", () => {
     expect(wordCount("")).toBe(0);
     expect(wordCount("  \n ")).toBe(0);
+  });
+});
+
+describe("glossaryEntryMatchesSource", () => {
+  it("matches exact occurrences", () => {
+    expect(glossaryEntryMatchesSource("震雷子", "震雷子看向太清山。")).toBe(true);
+    expect(glossaryEntryMatchesSource("萧炎", "震雷子看向太清山。")).toBe(false);
+  });
+
+  it("matches a 3-char person name when the surname is dropped", () => {
+    expect(glossaryEntryMatchesSource("赵静文", "静文微微一笑。")).toBe(true);
+  });
+
+  it("matches a 4-char name when a compound surname is dropped", () => {
+    expect(glossaryEntryMatchesSource("慕容雪羽", "雪羽转身离去。")).toBe(true);
+  });
+
+  it("does not degrade 2-char names to single characters", () => {
+    expect(glossaryEntryMatchesSource("萧炎", "炎热的天气。")).toBe(false);
+  });
+});
+
+describe("filterTranslationGlossaryForSource", () => {
+  it("keeps matching entries, drops the rest and empty groups", () => {
+    const filtered = filterTranslationGlossaryForSource(
+      {
+        names: { "震雷子": "Chấn Lôi Tử", "萧炎": "Tiêu Viêm" },
+        nouns: { "灵石": "linh thạch" },
+        signature_phrases: { "三十年河东": "ba mươi năm Hà Đông" },
+      },
+      "震雷子看向太清山。",
+    );
+    expect(filtered).toEqual({
+      names: { "震雷子": "Chấn Lôi Tử" },
+      // signature_phrases là văn phong — không lọc theo raw.
+      signature_phrases: { "三十年河东": "ba mươi năm Hà Đông" },
+    });
+  });
+});
+
+describe("glossary filtering in the system prompt", () => {
+  it("only ships entries present in the chapter when sourceText is given", () => {
+    const story = emptyAiStoryConfig();
+    story.glossary.names["赵静文"] = "Triệu Tĩnh Văn";
+    story.glossary.places["太清山"] = "Thái Thanh Sơn";
+    story.glossary.places["塞下学宫"] = "Tắc Hạ Học Cung";
+    const prompt = buildAiTranslationSystemPrompt(
+      { names: { "震雷子": "Chấn Lôi Tử", "萧炎": "Tiêu Viêm" } },
+      story,
+      "震雷子与静文一同看向太清山。",
+    );
+    expect(prompt).toContain("震雷子");
+    expect(prompt).toContain("赵静文"); // khớp dạng bỏ họ
+    expect(prompt).toContain("太清山");
+    expect(prompt).not.toContain("萧炎");
+    expect(prompt).not.toContain("塞下学宫");
+  });
+
+  it("keeps the full glossary when sourceText is omitted", () => {
+    const prompt = buildAiTranslationSystemPrompt({
+      names: { "萧炎": "Tiêu Viêm" },
+    });
+    expect(prompt).toContain("萧炎");
   });
 });
