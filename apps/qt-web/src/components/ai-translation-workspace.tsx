@@ -39,6 +39,7 @@ import { baseUrlProblem, extractStoryGlossaryWithAi, resolveAiCall } from "@/lib
 import {
   appendAutoGlossary,
   collectGlossaryKeys,
+  resolveAutoGlossaryEnabled,
   sanitizeExtractedGlossary,
 } from "@/lib/ai-glossary";
 import { generateAiText } from "@/lib/ai-text-client";
@@ -481,10 +482,12 @@ export function AiTranslationWorkspace({
     controller: AbortController,
     workspaceChanged: () => boolean,
   ) {
-    if (!aiSettings.translation.autoGlossary) return;
+    const latestStory = useWorkspaceStore.getState().aiStory;
+    if (!resolveAutoGlossaryEnabled(latestStory.autoGlossary, aiSettings.translation.autoGlossary)) {
+      return;
+    }
     setPhase("extracting");
     try {
-      const latestStory = useWorkspaceStore.getState().aiStory;
       const existingKeys = collectGlossaryKeys(glossary, latestStory.glossary);
       const suggestions = await extractStoryGlossaryWithAi(
         resolveAiCall(provider, providerConfig),

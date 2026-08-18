@@ -47,7 +47,11 @@ export interface AiStoryConfig {
   checkRules: AiCheckRule[];
   /** Nhật ký các mục glossary tự thêm từ bản dịch, để duyệt/gỡ sau. */
   autoGlossaryLog: AutoGlossaryEntry[];
+  /** Bật/tắt tự thêm tên riêng cho truyện này; "inherit" = theo Cấu hình AI. */
+  autoGlossary: StoryAutoGlossarySetting;
 }
+
+export type StoryAutoGlossarySetting = "inherit" | "on" | "off";
 
 export type AiChapterStatus =
   | "queued"
@@ -91,6 +95,7 @@ export function emptyAiStoryConfig(): AiStoryConfig {
     customPrompt: "",
     checkRules: [],
     autoGlossaryLog: [],
+    autoGlossary: "inherit",
   };
 }
 
@@ -169,6 +174,10 @@ export function normalizeAiStoryConfig(value: unknown): AiStoryConfig {
     customPrompt: stringValue(source.customPrompt),
     checkRules: rules,
     autoGlossaryLog,
+    autoGlossary:
+      source.autoGlossary === "on" || source.autoGlossary === "off"
+        ? source.autoGlossary
+        : "inherit",
   };
 }
 

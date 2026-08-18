@@ -468,6 +468,62 @@ describe("auto glossary loop", () => {
     expect(extractUser).not.toContain("萧炎");
   });
 
+  it("lets the story setting override the AI settings toggle in both directions", async () => {
+    // Toggle chung tắt nhưng truyện bật → vẫn trích.
+    mockTranslateAndExtractSpy(() =>
+      Promise.resolve(
+        Response.json({
+          candidates: [{
+            content: {
+              parts: [{
+                text: JSON.stringify({
+                  entries: [{ source: "震雷子", target: "Chấn Lôi Tử", category: "names" }],
+                }),
+              }],
+            },
+          }],
+        }),
+      ),
+    );
+    useWorkspaceStore.getState().updateAiStory({ autoGlossary: "on" });
+    const user = userEvent.setup();
+    render(
+      <AiTranslationWorkspace
+        aiSettings={{
+          ...settingsWithKeyBase,
+          translation: { ...settingsWithKeyBase.translation, autoGlossary: false },
+        }}
+        onOpenSettings={vi.fn()}
+      />,
+    );
+    useWorkspaceStore.getState().setAiTranslationSource("震雷子看向太清山。");
+    await user.click(screen.getByRole("button", { name: /Dịch AI/ }));
+    await waitFor(() => {
+      expect(useWorkspaceStore.getState().aiStory.autoGlossaryLog).toHaveLength(1);
+    });
+  });
+
+  it("story off beats the global on toggle", async () => {
+    const fetchSpy = mockTranslateAndExtractSpy(() =>
+      Promise.reject(new Error("không được gọi trích")),
+    );
+    useWorkspaceStore.getState().updateAiStory({ autoGlossary: "off" });
+    const user = userEvent.setup();
+    render(
+      <AiTranslationWorkspace aiSettings={settingsWithKey} onOpenSettings={vi.fn()} />,
+    );
+    useWorkspaceStore.getState().setAiTranslationSource("震雷子看向太清山。");
+    await user.click(screen.getByRole("button", { name: /Dịch AI/ }));
+    await waitFor(() => {
+      expect(useWorkspaceStore.getState().aiTranslationOutput).toContain("Chấn Lôi Tử");
+    });
+    const extractionCalls = fetchSpy.mock.calls.filter(([input]) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
+      return !url.includes(":streamGenerateContent");
+    });
+    expect(extractionCalls).toHaveLength(0);
+  });
+
   it("keeps the chapter done when glossary extraction fails", async () => {
     mockTranslateAndExtract(() => Promise.reject(new TypeError("Failed to fetch")));
     const user = userEvent.setup();

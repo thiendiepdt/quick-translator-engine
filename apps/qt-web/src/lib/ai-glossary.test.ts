@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { appendAutoGlossary, collectGlossaryKeys, sanitizeExtractedGlossary } from "@/lib/ai-glossary";
+import {
+  appendAutoGlossary,
+  collectGlossaryKeys,
+  resolveAutoGlossaryEnabled,
+  sanitizeExtractedGlossary,
+} from "@/lib/ai-glossary";
 import { emptyAiStoryConfig } from "@/lib/ai-story";
 
 const RAW = "震雷子看向太清山。赵静文微微一笑。";
@@ -72,5 +77,14 @@ describe("appendAutoGlossary", () => {
     // Không đụng vào object gốc.
     expect(story.glossary.places["太清山"]).toBeUndefined();
     expect(story.autoGlossaryLog).toEqual([]);
+  });
+});
+
+describe("resolveAutoGlossaryEnabled", () => {
+  it("prioritizes the story setting over the AI settings default", () => {
+    expect(resolveAutoGlossaryEnabled("on", false)).toBe(true);
+    expect(resolveAutoGlossaryEnabled("off", true)).toBe(false);
+    expect(resolveAutoGlossaryEnabled("inherit", true)).toBe(true);
+    expect(resolveAutoGlossaryEnabled("inherit", false)).toBe(false);
   });
 });

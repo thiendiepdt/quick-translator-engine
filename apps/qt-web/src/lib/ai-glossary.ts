@@ -9,6 +9,7 @@ import {
   storyGlossaryCategories,
   type AiStoryConfig,
   type AutoGlossaryEntry,
+  type StoryAutoGlossarySetting,
   type StoryGlossary,
   type StoryGlossaryKey,
 } from "@/lib/ai-story";
@@ -91,4 +92,14 @@ export function appendAutoGlossary(
     log.push({ source, target, category, chapter });
   }
   return { ...story, glossary, autoGlossaryLog: log };
+}
+
+/** Cài đặt theo truyện thắng; "inherit" mới rơi về toggle chung trong Cấu hình AI. */
+export function resolveAutoGlossaryEnabled(
+  storySetting: StoryAutoGlossarySetting,
+  settingsEnabled: boolean,
+): boolean {
+  if (storySetting === "on") return true;
+  if (storySetting === "off") return false;
+  return settingsEnabled;
 }

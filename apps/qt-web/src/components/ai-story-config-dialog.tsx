@@ -27,6 +27,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -288,6 +295,34 @@ export function AiStoryConfigDialog({
 
           <TabsContent value="glossary" className="fine-scrollbar min-h-0 overflow-y-auto px-6 py-5">
             <div className="grid gap-4">
+              <div className="flex items-center justify-between rounded-lg border p-4">
+                <div>
+                  <Label htmlFor="story-auto-glossary" className="text-sm font-semibold">
+                    Tự thêm tên từ bản dịch
+                  </Label>
+                  <p className="pt-1 text-xs text-muted-foreground">
+                    Sau mỗi chương, trích tên riêng mới nạp vào từ điển truyện. Cài đặt của truyện được ưu tiên hơn toggle chung trong Cấu hình AI.
+                  </p>
+                </div>
+                <Select
+                  value={draft.autoGlossary}
+                  onValueChange={(autoGlossary) =>
+                    setDraft({
+                      ...draft,
+                      autoGlossary: autoGlossary as AiStoryConfig["autoGlossary"],
+                    })
+                  }
+                >
+                  <SelectTrigger id="story-auto-glossary" className="w-44 shrink-0">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="inherit">Theo Cấu hình AI</SelectItem>
+                    <SelectItem value="on">Bật cho truyện này</SelectItem>
+                    <SelectItem value="off">Tắt cho truyện này</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               {storyGlossaryCategories.map(({ key, label }) => {
                 const entries = pairEntries(draft.glossary[key]);
                 return (

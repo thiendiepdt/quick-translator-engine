@@ -89,3 +89,16 @@ describe("auto glossary log", () => {
     expect(normalizeAiStoryConfig({ name: "Cũ" }).autoGlossaryLog).toEqual([]);
   });
 });
+
+describe("per-story auto glossary setting", () => {
+  it("defaults to inherit, including for legacy stored configs", () => {
+    expect(emptyAiStoryConfig().autoGlossary).toBe("inherit");
+    expect(normalizeAiStoryConfig({ name: "Cũ" }).autoGlossary).toBe("inherit");
+    expect(normalizeAiStoryConfig({ autoGlossary: "bogus" }).autoGlossary).toBe("inherit");
+  });
+
+  it("keeps explicit on/off", () => {
+    expect(normalizeAiStoryConfig({ autoGlossary: "on" }).autoGlossary).toBe("on");
+    expect(normalizeAiStoryConfig({ autoGlossary: "off" }).autoGlossary).toBe("off");
+  });
+});
