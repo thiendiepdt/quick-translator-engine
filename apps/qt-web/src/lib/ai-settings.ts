@@ -1,6 +1,6 @@
 export const aiSettingsStorageKey = "qt-web-ai-settings";
 
-export type AiProvider = "deepseek" | "gemini";
+export type AiProvider = "deepseek" | "gemini" | "grok";
 
 export interface AiProviderConfig {
   apiKey: string;
@@ -13,6 +13,8 @@ export interface AiTranslationSettings {
   provider: AiProvider;
   models: Record<AiProvider, string>;
   thinking: boolean;
+  /** Gemini chặn nội dung (PROHIBITED_CONTENT/SAFETY) thì tự thử lại bằng Grok. */
+  grokFallback: boolean;
   /** Sau mỗi chương, tự trích tên riêng mới từ bản dịch nạp vào glossary truyện. */
   autoGlossary: boolean;
 }
@@ -32,6 +34,7 @@ export interface AiSettings {
   provider: AiProvider;
   deepseek: AiProviderConfig;
   gemini: AiProviderConfig;
+  grok: AiProviderConfig;
   /** Dịch AI dùng chung key/base URL, nhưng chọn provider/model/thinking riêng. */
   translation: AiTranslationSettings;
 }
@@ -39,26 +42,31 @@ export interface AiSettings {
 /** Model điền sẵn cho người dùng mới theo từng provider; sửa được trong Cài đặt. */
 export const DEFAULT_DEEPSEEK_MODEL = "deepseek-v4-flash";
 export const DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite";
+export const DEFAULT_GROK_MODEL = "grok-4.6";
 export const DEFAULT_AI_TRANSLATION_DEEPSEEK_MODEL = "deepseek-v4-flash";
 export const DEFAULT_AI_TRANSLATION_GEMINI_MODEL = "gemini-3.7-flash";
+export const DEFAULT_AI_TRANSLATION_GROK_MODEL = "grok-4.6";
 
 export const defaultAiSettings: AiSettings = {
   provider: "gemini",
   deepseek: { apiKey: "", model: DEFAULT_DEEPSEEK_MODEL, baseUrl: "" },
   gemini: { apiKey: "", model: DEFAULT_GEMINI_MODEL, baseUrl: "" },
+  grok: { apiKey: "", model: DEFAULT_GROK_MODEL, baseUrl: "" },
   translation: {
     provider: "gemini",
     models: {
       deepseek: DEFAULT_AI_TRANSLATION_DEEPSEEK_MODEL,
       gemini: DEFAULT_AI_TRANSLATION_GEMINI_MODEL,
+      grok: DEFAULT_AI_TRANSLATION_GROK_MODEL,
     },
     thinking: true,
+    grokFallback: true,
     autoGlossary: true,
   },
 };
 
 export function isAiProvider(value: unknown): value is AiProvider {
-  return value === "deepseek" || value === "gemini";
+  return value === "deepseek" || value === "gemini" || value === "grok";
 }
 
 /** Cấu hình của provider đang được chọn. */
@@ -98,13 +106,17 @@ function normalizeTranslationSettings(value: unknown): AiTranslationSettings {
     typeof models.deepseek === "string" ? models.deepseek.trim() : "";
   const geminiModel =
     typeof models.gemini === "string" ? models.gemini.trim() : "";
+  const grokModel = typeof models.grok === "string" ? models.grok.trim() : "";
   return {
     provider: isAiProvider(record.provider) ? record.provider : "gemini",
     models: {
       deepseek: deepseekModel || DEFAULT_AI_TRANSLATION_DEEPSEEK_MODEL,
       gemini: geminiModel || DEFAULT_AI_TRANSLATION_GEMINI_MODEL,
+      grok: grokModel || DEFAULT_AI_TRANSLATION_GROK_MODEL,
     },
     thinking: typeof record.thinking === "boolean" ? record.thinking : true,
+    grokFallback:
+      typeof record.grokFallback === "boolean" ? record.grokFallback : true,
     autoGlossary: typeof record.autoGlossary === "boolean" ? record.autoGlossary : true,
   };
 }
@@ -118,6 +130,7 @@ export function readStoredAiSettings(): AiSettings {
       provider: isAiProvider(parsed?.provider) ? parsed.provider : "gemini",
       deepseek: normalizeConfig(parsed?.deepseek, DEFAULT_DEEPSEEK_MODEL),
       gemini: normalizeConfig(parsed?.gemini, DEFAULT_GEMINI_MODEL),
+      grok: normalizeConfig(parsed?.grok, DEFAULT_GROK_MODEL),
       translation: normalizeTranslationSettings(parsed?.translation),
     };
   } catch {
@@ -133,6 +146,7 @@ export function storeAiSettings(settings: AiSettings): void {
         provider: settings.provider,
         deepseek: normalizeConfig(settings.deepseek),
         gemini: normalizeConfig(settings.gemini),
+        grok: normalizeConfig(settings.grok, DEFAULT_GROK_MODEL),
         translation: normalizeTranslationSettings(settings.translation),
       }),
     );
@@ -140,3 +154,9 @@ export function storeAiSettings(settings: AiSettings): void {
     // localStorage có thể bị chặn; cấu hình vẫn dùng được trong phiên hiện tại.
   }
 }
+
+export const aiProviderLabels: Record<AiProvider, string> = {
+  deepseek: "DeepSeek",
+  gemini: "Gemini",
+  grok: "Grok",
+};

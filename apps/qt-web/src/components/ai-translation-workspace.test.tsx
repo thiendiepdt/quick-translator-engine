@@ -228,6 +228,7 @@ describe("AI translation workspace", () => {
               deepseek: "deepseek-translate",
             },
             thinking: false,
+            grokFallback: false,
             autoGlossary: true,
           },
         }}
@@ -538,6 +539,74 @@ describe("auto glossary loop", () => {
       expect(useWorkspaceStore.getState().aiTranslationOutput).toContain("Chấn Lôi Tử");
     });
     expect(useWorkspaceStore.getState().aiStory.autoGlossaryLog).toEqual([]);
+  });
+});
+
+describe("grok fallback", () => {
+  const blockedSse = () =>
+    new Response(
+      `data: ${JSON.stringify({ candidates: [{ finishReason: "PROHIBITED_CONTENT" }] })}\n\ndata: [DONE]\n\n`,
+    );
+  const grokSse = () =>
+    new Response(
+      `data: ${JSON.stringify({ choices: [{ delta: { content: "Bản dịch Grok." } }] })}\n\ndata: [DONE]\n\n`,
+    );
+  const settingsWithGrok = (grokFallback: boolean) => ({
+    ...defaultAiSettings,
+    gemini: { ...defaultAiSettings.gemini, apiKey: "AIza-test" },
+    grok: { ...defaultAiSettings.grok, apiKey: "xai-key" },
+    translation: {
+      ...defaultAiSettings.translation,
+      provider: "gemini" as const,
+      thinking: false,
+      autoGlossary: false,
+      grokFallback,
+    },
+  });
+
+  function mockProviders() {
+    const urls: string[] = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      urls.push(url);
+      if (url.includes("api.x.ai")) return Promise.resolve(grokSse());
+      if (url.includes(":streamGenerateContent")) return Promise.resolve(blockedSse());
+      return Promise.reject(new Error(`fetch lạ: ${url}`));
+    });
+    return urls;
+  }
+
+  it("retries a blocked Gemini chapter through Grok when enabled", async () => {
+    const urls = mockProviders();
+    const user = userEvent.setup();
+    render(
+      <AiTranslationWorkspace aiSettings={settingsWithGrok(true)} onOpenSettings={vi.fn()} />,
+    );
+    useWorkspaceStore.getState().setAiTranslationSource("敏感内容。");
+    await user.click(screen.getByRole("button", { name: /Dịch AI/ }));
+
+    await waitFor(() => {
+      expect(useWorkspaceStore.getState().aiTranslationOutput).toContain("Bản dịch Grok.");
+    });
+    expect(urls.some((url) => url.includes("api.x.ai/v1/chat/completions"))).toBe(true);
+  });
+
+  it("surfaces the Gemini block as an error when the fallback is off", async () => {
+    mockProviders();
+    const errorToast = vi.spyOn(toast, "error");
+    const user = userEvent.setup();
+    render(
+      <AiTranslationWorkspace aiSettings={settingsWithGrok(false)} onOpenSettings={vi.fn()} />,
+    );
+    useWorkspaceStore.getState().setAiTranslationSource("敏感内容。");
+    await user.click(screen.getByRole("button", { name: /Dịch AI/ }));
+
+    await waitFor(() => {
+      expect(errorToast).toHaveBeenCalledWith(
+        expect.stringContaining("Gemini chặn nội dung"),
+      );
+    });
+    expect(useWorkspaceStore.getState().aiTranslationOutput).toBe("");
   });
 });
 

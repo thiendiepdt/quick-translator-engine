@@ -103,10 +103,12 @@ describe("AI credentials preference", () => {
       translation: {
         provider: "gemini",
         models: {
+          grok: "grok-4.6",
           deepseek: "deepseek-translate",
           gemini: "gemini-translate",
         },
         thinking: false,
+        grokFallback: false,
         autoGlossary: true,
       },
     });
@@ -140,8 +142,10 @@ describe("AI credentials preference", () => {
       models: {
         deepseek: DEFAULT_AI_TRANSLATION_DEEPSEEK_MODEL,
         gemini: DEFAULT_AI_TRANSLATION_GEMINI_MODEL,
+        grok: "grok-4.6",
       },
       thinking: true,
+      grokFallback: true,
       autoGlossary: true,
     });
     // Provider mặc định giờ là Gemini nên key hoạt động là key Gemini cũ.
@@ -177,5 +181,61 @@ describe("auto glossary setting", () => {
       translation: { ...defaultAiSettings.translation, autoGlossary: false },
     });
     expect(readStoredAiSettings().translation.autoGlossary).toBe(false);
+  });
+});
+
+describe("grok support", () => {
+  it("ships an empty grok config with defaults and fallback off", () => {
+    expect(defaultAiSettings.grok).toEqual({
+      apiKey: "",
+      model: "grok-4.6",
+      baseUrl: "",
+    });
+    expect(defaultAiSettings.translation.models.grok).toBe("grok-4.6");
+    expect(defaultAiSettings.translation.grokFallback).toBe(true);
+    expect(readStoredAiSettings().grok.model).toBe("grok-4.6");
+  });
+
+  it("round-trips the grok key, translation model and fallback toggle", () => {
+    storeAiSettings({
+      ...defaultAiSettings,
+      grok: { apiKey: " xai-key ", model: "grok-4.6", baseUrl: "" },
+      translation: {
+        ...defaultAiSettings.translation,
+        provider: "grok",
+        models: { ...defaultAiSettings.translation.models, grok: "grok-4.5" },
+        grokFallback: true,
+      },
+    });
+    const restored = readStoredAiSettings();
+    expect(restored.grok.apiKey).toBe("xai-key");
+    expect(restored.translation.provider).toBe("grok");
+    expect(restored.translation.models.grok).toBe("grok-4.5");
+    expect(restored.translation.grokFallback).toBe(true);
+    expect(activeAiTranslationProviderConfig(restored)).toEqual({
+      apiKey: "xai-key",
+      model: "grok-4.5",
+      baseUrl: "",
+    });
+  });
+
+  it("defaults grokFallback to on for legacy stored settings", () => {
+    localStorage.setItem(
+      aiSettingsStorageKey,
+      JSON.stringify({ translation: { provider: "gemini" } }),
+    );
+    const restored = readStoredAiSettings();
+    expect(restored.translation.grokFallback).toBe(true);
+    expect(restored.grok).toEqual({ apiKey: "", model: "grok-4.6", baseUrl: "" });
+  });
+});
+
+describe("grok fallback opt-out", () => {
+  it("keeps an explicit off through storage", () => {
+    storeAiSettings({
+      ...defaultAiSettings,
+      translation: { ...defaultAiSettings.translation, grokFallback: false },
+    });
+    expect(readStoredAiSettings().translation.grokFallback).toBe(false);
   });
 });

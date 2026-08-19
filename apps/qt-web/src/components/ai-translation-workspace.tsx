@@ -40,6 +40,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
   activeAiTranslationProviderConfig,
+  aiProviderLabels,
   type AiSettings,
 } from "@/lib/ai-settings";
 import { baseUrlProblem, extractStoryGlossaryWithAi, resolveAiCall } from "@/lib/ai-client";
@@ -49,7 +50,7 @@ import {
   resolveAutoGlossaryEnabled,
   sanitizeExtractedGlossary,
 } from "@/lib/ai-glossary";
-import { generateAiText } from "@/lib/ai-text-client";
+import { GeminiBlockedError, generateAiText } from "@/lib/ai-text-client";
 import {
   buildAiTranslationReviewPrompt,
   buildAiTranslationSystemPrompt,
@@ -286,10 +287,10 @@ export function AiTranslationWorkspace({
     const thinkingBase = thinkingLogRef.current;
     let streamedOutput = "";
     let streamedThinking = "";
-    const result = await generateAiText(config, systemPrompt, userMessage, {
+    const options = {
       thinking: aiSettings.translation.thinking,
       signal,
-      onChunk(kind, chunk) {
+      onChunk(kind: "thinking" | "text", chunk: string) {
         if (workspaceChanged()) return;
         if (kind === "thinking") {
           streamedThinking += chunk;
@@ -299,7 +300,30 @@ export function AiTranslationWorkspace({
           setStreamingOutput(stripAiParagraphMarkers(streamedOutput));
         }
       },
-    });
+    };
+    let result: string;
+    try {
+      result = await generateAiText(config, systemPrompt, userMessage, options);
+    } catch (error) {
+      const grokKey = aiSettings.grok.apiKey.trim();
+      const canFallback =
+        config.provider === "gemini" &&
+        aiSettings.translation.grokFallback &&
+        error instanceof GeminiBlockedError &&
+        Boolean(grokKey) &&
+        !signal.aborted &&
+        !workspaceChanged();
+      if (!canFallback) throw error;
+      // Chương dính kiểm duyệt Gemini: thử lại nguyên lượt bằng Grok.
+      toast.message("Gemini chặn nội dung — thử lại bằng Grok", {
+        description: error.reason,
+      });
+      const grokConfig = resolveAiCall("grok", {
+        ...aiSettings.grok,
+        model: aiSettings.translation.models.grok,
+      });
+      result = await generateAiText(grokConfig, systemPrompt, userMessage, options);
+    }
     if (!workspaceChanged()) {
       thinkingLogRef.current = appendThinking(thinkingBase, thinkingLabel, streamedThinking);
       setThinking(thinkingLogRef.current);
@@ -309,7 +333,7 @@ export function AiTranslationWorkspace({
 
   function canCallAi(): boolean {
     if (!providerConfig.apiKey.trim()) {
-      toast.error(`Dịch AI cần API key ${provider === "gemini" ? "Gemini" : "DeepSeek"}`, {
+      toast.error(`Dịch AI cần API key ${aiProviderLabels[provider]}`, {
         action: { label: "Mở Cài đặt", onClick: onOpenSettings },
       });
       return false;
@@ -827,7 +851,7 @@ export function AiTranslationWorkspace({
         <div className="min-w-0">
           <h1 className="text-sm font-semibold">Dịch AI{story.name ? ` · ${story.name}` : ""}</h1>
           <p className="truncate text-[11px] text-muted-foreground">
-            {provider === "gemini" ? "Gemini" : "DeepSeek"} · {model || "chưa đặt model"}
+            {aiProviderLabels[provider]} · {model || "chưa đặt model"}
             {` · thinking ${aiSettings.translation.thinking ? "bật" : "tắt"}`}
           </p>
         </div>

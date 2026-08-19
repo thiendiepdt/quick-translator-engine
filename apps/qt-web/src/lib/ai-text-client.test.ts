@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   buildGeminiTextGenerationConfig,
+  GeminiBlockedError,
   generateAiText,
 } from "@/lib/ai-text-client";
 
@@ -210,5 +211,50 @@ describe("generateAiText", () => {
       ["thinking", "Suy luận"],
       ["text", "Bản dịch"],
     ]);
+  });
+});
+
+describe("grok text generation", () => {
+  it("streams via chat/completions without the DeepSeek thinking field", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        `data: ${JSON.stringify({ choices: [{ delta: { content: "Bản dịch Grok." } }] })}\n\ndata: [DONE]\n\n`,
+      ),
+    );
+    const result = await generateAiText(
+      { provider: "grok", apiKey: "xai-key", model: "grok-4.6", baseUrl: "https://api.x.ai/v1" },
+      "system",
+      "user",
+      { thinking: true },
+    );
+    expect(result).toBe("Bản dịch Grok.");
+    const url = fetchSpy.mock.calls[0][0];
+    expect(typeof url === "string" ? url : String(url)).toBe(
+      "https://api.x.ai/v1/chat/completions",
+    );
+    const body = JSON.parse((fetchSpy.mock.calls[0][1] as RequestInit).body as string) as Record<string, unknown>;
+    expect(body.model).toBe("grok-4.6");
+    expect("thinking" in body).toBe(false);
+    expect(
+      new Headers((fetchSpy.mock.calls[0][1] as RequestInit).headers).get("authorization"),
+    ).toBe("Bearer xai-key");
+  });
+});
+
+describe("Gemini content blocking", () => {
+  it("throws a typed error carrying the block reason", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        `data: ${JSON.stringify({ candidates: [{ finishReason: "PROHIBITED_CONTENT" }] })}\n\ndata: [DONE]\n\n`,
+      ),
+    );
+    const call = generateAiText(
+      { provider: "gemini", apiKey: "AIza", model: "gemini-3.7-flash", baseUrl: "https://generativelanguage.googleapis.com" },
+      "system",
+      "user",
+      { thinking: false },
+    );
+    await expect(call).rejects.toBeInstanceOf(GeminiBlockedError);
+    await expect(call).rejects.toMatchObject({ reason: "PROHIBITED_CONTENT" });
   });
 });

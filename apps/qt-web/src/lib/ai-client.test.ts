@@ -414,3 +414,34 @@ describe("extractStoryGlossaryWithAi", () => {
     expect(user).toContain("赵静文");
   });
 });
+
+describe("grok call routing", () => {
+  it("defaults the grok base URL and keeps the model fallback", () => {
+    const resolved = resolveAiCall("grok", { apiKey: " xai-key ", model: "", baseUrl: "" });
+    expect(resolved).toEqual({
+      provider: "grok",
+      apiKey: "xai-key",
+      model: "grok-4.6",
+      baseUrl: "https://api.x.ai/v1",
+    });
+  });
+
+  it("extracts glossary through the OpenAI-compatible endpoint for grok", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json({
+        choices: [{ message: { content: JSON.stringify({ entries: [] }) } }],
+      }),
+    );
+    await extractStoryGlossaryWithAi(
+      { provider: "grok", apiKey: "xai-key", model: "grok-4.6", baseUrl: "https://api.x.ai/v1" },
+      "raw",
+      "dịch",
+      [],
+    );
+    expect(requestUrlOf(fetchSpy.mock.calls[0][0])).toBe(
+      "https://api.x.ai/v1/chat/completions",
+    );
+    const init = fetchSpy.mock.calls[0][1] as RequestInit;
+    expect(new Headers(init.headers).get("authorization")).toBe("Bearer xai-key");
+  });
+});

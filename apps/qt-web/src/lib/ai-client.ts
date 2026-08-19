@@ -14,7 +14,9 @@ import type { NameCandidate, NameEntityType } from "@/lib/types";
 
 export const DEFAULT_DEEPSEEK_BASE_URL = "https://api.deepseek.com";
 export const DEFAULT_GEMINI_BASE_URL = "https://generativelanguage.googleapis.com";
+export const DEFAULT_GROK_BASE_URL = "https://api.x.ai/v1";
 const DEEPSEEK_FALLBACK_MODEL = "deepseek-chat";
+const GROK_FALLBACK_MODEL = "grok-4.6";
 
 /** Chương được chia theo dòng thành các khúc tối đa chừng này ký tự. */
 export const EXTRACT_CHUNK_CHARACTERS = 15_000;
@@ -156,9 +158,19 @@ export interface AiCallConfig {
 }
 
 export function resolveAiCall(provider: AiProvider, config: AiProviderConfig): AiCallConfig {
-  const model = config.model.trim() || (provider === "deepseek" ? DEEPSEEK_FALLBACK_MODEL : "");
+  const model =
+    config.model.trim() ||
+    (provider === "deepseek"
+      ? DEEPSEEK_FALLBACK_MODEL
+      : provider === "grok"
+        ? GROK_FALLBACK_MODEL
+        : "");
   const defaultBaseUrl =
-    provider === "deepseek" ? DEFAULT_DEEPSEEK_BASE_URL : DEFAULT_GEMINI_BASE_URL;
+    provider === "deepseek"
+      ? DEFAULT_DEEPSEEK_BASE_URL
+      : provider === "grok"
+        ? DEFAULT_GROK_BASE_URL
+        : DEFAULT_GEMINI_BASE_URL;
   const baseUrl = (config.baseUrl.trim() || defaultBaseUrl).replace(/\/+$/, "");
   return { provider, apiKey: config.apiKey.trim(), model, baseUrl };
 }
@@ -248,13 +260,13 @@ async function completeJson(
   user: string,
   geminiSchema: object,
 ): Promise<string> {
-  const providerLabel = config.provider === "deepseek" ? "DeepSeek" : "Gemini";
+  const providerLabel = config.provider === "gemini" ? "Gemini" : config.provider === "grok" ? "Grok" : "DeepSeek";
   const url =
-    config.provider === "deepseek"
+    config.provider !== "gemini"
       ? `${config.baseUrl}/chat/completions`
       : `${config.baseUrl}/v1beta/models/${encodeURIComponent(config.model)}:generateContent`;
   const body =
-    config.provider === "deepseek"
+    config.provider !== "gemini"
       ? {
           model: config.model,
           temperature: 0.0,
@@ -279,7 +291,7 @@ async function completeJson(
       method: "POST",
       headers: {
         "content-type": "application/json",
-        ...(config.provider === "deepseek"
+        ...(config.provider !== "gemini"
           ? { authorization: `Bearer ${config.apiKey}` }
           : { "x-goog-api-key": config.apiKey }),
       },
@@ -306,7 +318,7 @@ async function completeJson(
     throw new Error(`invalid ${providerLabel} response`);
   });
   let content: string | undefined;
-  if (config.provider === "deepseek") {
+  if (config.provider !== "gemini") {
     if (isRecord(payload) && Array.isArray(payload.choices)) {
       const choice: unknown = payload.choices[0];
       if (isRecord(choice) && isRecord(choice.message) && typeof choice.message.content === "string") {

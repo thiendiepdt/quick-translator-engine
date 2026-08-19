@@ -2,6 +2,14 @@ import type { AiCallConfig } from "@/lib/ai-client";
 
 export type AiTextChunkKind = "thinking" | "text";
 
+/** Gemini từ chối sinh nội dung (PROHIBITED_CONTENT, SAFETY…) — khác lỗi mạng/HTTP. */
+export class GeminiBlockedError extends Error {
+  constructor(readonly reason: string) {
+    super(`Gemini chặn nội dung với finishReason/blockReason: ${reason}`);
+    this.name = "GeminiBlockedError";
+  }
+}
+
 export interface AiTextGenerationOptions {
   thinking: boolean;
   signal?: AbortSignal;
@@ -192,13 +200,14 @@ async function generateGeminiText(
 
   if (output) return output;
   if (blockedReason) {
-    throw new Error(`Gemini chặn nội dung với finishReason/blockReason: ${blockedReason}`);
+    throw new GeminiBlockedError(blockedReason);
   }
   throw new Error("Gemini không trả về nội dung");
 }
 
-async function generateDeepseekText(
+async function generateOpenAiCompatibleText(
   config: AiCallConfig,
+  providerLabel: string,
   systemPrompt: string,
   userMessage: string,
   options: AiTextGenerationOptions,
@@ -216,13 +225,16 @@ async function generateDeepseekText(
         { role: "system", content: systemPrompt },
         { role: "user", content: userMessage },
       ],
-      thinking: { type: options.thinking ? "enabled" : "disabled" },
+      // Trường thinking là riêng của DeepSeek; Grok (OpenAI-compatible) không nhận.
+      ...(config.provider === "deepseek"
+        ? { thinking: { type: options.thinking ? "enabled" : "disabled" } }
+        : {}),
       max_tokens: MAX_OUTPUT_TOKENS,
       stream: true,
     }),
     signal: options.signal,
   });
-  if (!response.ok) throw await responseProblem(response, "DeepSeek");
+  if (!response.ok) throw await responseProblem(response, providerLabel);
 
   let output = "";
   await readSse(response, (payload) => {
@@ -241,7 +253,7 @@ async function generateDeepseekText(
       options.onChunk?.("text", delta.content);
     }
   });
-  if (!output) throw new Error("DeepSeek không trả về nội dung");
+  if (!output) throw new Error(`${providerLabel} không trả về nội dung`);
   return output;
 }
 
@@ -255,14 +267,22 @@ export async function generateAiText(
   userMessage: string,
   options: AiTextGenerationOptions,
 ): Promise<string> {
+  const providerLabel =
+    config.provider === "gemini" ? "Gemini" : config.provider === "grok" ? "Grok" : "DeepSeek";
   try {
     if (config.provider === "gemini") {
       return await generateGeminiText(config, systemPrompt, userMessage, options);
     }
-    return await generateDeepseekText(config, systemPrompt, userMessage, options);
+    return await generateOpenAiCompatibleText(
+      config,
+      providerLabel,
+      systemPrompt,
+      userMessage,
+      options,
+    );
   } catch (error) {
     if (options.signal?.aborted || !(error instanceof TypeError)) throw error;
-    const provider = config.provider === "gemini" ? "Gemini" : "DeepSeek";
+    const provider = providerLabel;
     throw new Error(
       `${provider} request failed: ${error.message} (endpoint phải cho phép CORS)`,
       { cause: error },
