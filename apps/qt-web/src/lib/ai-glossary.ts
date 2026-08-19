@@ -58,7 +58,9 @@ export function sanitizeExtractedGlossary(
     const source = typeof record.source === "string" ? record.source.trim() : "";
     const target = typeof record.target === "string" ? record.target.trim() : "";
     if (!source || !target) continue;
-    if (!/\p{Script=Han}/u.test(source)) continue;
+    // Tối thiểu 2 chữ Hán: chữ đơn (雷, 炎…) đa nghĩa quá — vừa dễ ghim sai
+    // vào văn tả cảnh, vừa match mọi chương nên không bao giờ được lọc bớt.
+    if ((source.match(/\p{Script=Han}/gu) ?? []).length < 2) continue;
     if (seen.has(source) || existingKeys.has(source)) continue;
     if (!raw.includes(source) || !translation.includes(target)) continue;
     const category = typeof record.category === "string" && CATEGORY_KEYS.has(record.category)

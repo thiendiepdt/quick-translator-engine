@@ -45,6 +45,16 @@ describe("sanitizeExtractedGlossary", () => {
     ]);
   });
 
+  it("drops single-character sources — too ambiguous to pin", () => {
+    const pairs = sanitizeExtractedGlossary(
+      [{ source: "雷", target: "Lôi", category: "names" }],
+      "雷声轰鸣。",
+      "Lôi thanh vang rền.\n",
+      new Set(),
+    );
+    expect(pairs).toEqual([]);
+  });
+
   it("falls back to names for unknown categories", () => {
     const pairs = sanitizeExtractedGlossary(
       [{ source: "震雷子", target: "Chấn Lôi Tử", category: "bogus" }],
