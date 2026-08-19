@@ -311,7 +311,7 @@ function AiTranslationFields({
             })
           }
           placeholder={
-            provider === "gemini" ? "gemini-3.5-flash" : "deepseek-v4-flash"
+            provider === "gemini" ? "gemini-3.7-flash" : "deepseek-v4-flash"
           }
         />
       </div>

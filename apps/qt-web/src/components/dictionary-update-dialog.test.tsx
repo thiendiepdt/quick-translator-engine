@@ -18,8 +18,10 @@ function localEntries(): LocalDictionaryEntries {
 }
 
 function renderDialog(options: { ai?: boolean; target?: string } = {}) {
+  // Test này chốt request shape của DeepSeek — pin provider thay vì dựa default.
   const settings = {
     ...defaultAiSettings,
+    provider: "deepseek" as const,
     deepseek: {
       ...defaultAiSettings.deepseek,
       apiKey: options.ai ? "sk-test" : "",

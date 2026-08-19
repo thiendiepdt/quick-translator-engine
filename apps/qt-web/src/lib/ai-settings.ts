@@ -40,14 +40,14 @@ export interface AiSettings {
 export const DEFAULT_DEEPSEEK_MODEL = "deepseek-v4-flash";
 export const DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite";
 export const DEFAULT_AI_TRANSLATION_DEEPSEEK_MODEL = "deepseek-v4-flash";
-export const DEFAULT_AI_TRANSLATION_GEMINI_MODEL = "gemini-3.5-flash";
+export const DEFAULT_AI_TRANSLATION_GEMINI_MODEL = "gemini-3.7-flash";
 
 export const defaultAiSettings: AiSettings = {
-  provider: "deepseek",
+  provider: "gemini",
   deepseek: { apiKey: "", model: DEFAULT_DEEPSEEK_MODEL, baseUrl: "" },
   gemini: { apiKey: "", model: DEFAULT_GEMINI_MODEL, baseUrl: "" },
   translation: {
-    provider: "deepseek",
+    provider: "gemini",
     models: {
       deepseek: DEFAULT_AI_TRANSLATION_DEEPSEEK_MODEL,
       gemini: DEFAULT_AI_TRANSLATION_GEMINI_MODEL,
@@ -99,7 +99,7 @@ function normalizeTranslationSettings(value: unknown): AiTranslationSettings {
   const geminiModel =
     typeof models.gemini === "string" ? models.gemini.trim() : "";
   return {
-    provider: isAiProvider(record.provider) ? record.provider : "deepseek",
+    provider: isAiProvider(record.provider) ? record.provider : "gemini",
     models: {
       deepseek: deepseekModel || DEFAULT_AI_TRANSLATION_DEEPSEEK_MODEL,
       gemini: geminiModel || DEFAULT_AI_TRANSLATION_GEMINI_MODEL,
@@ -115,7 +115,7 @@ export function readStoredAiSettings(): AiSettings {
     if (!raw) return defaultAiSettings;
     const parsed = JSON.parse(raw) as Partial<Record<keyof AiSettings, unknown>> | null;
     return {
-      provider: isAiProvider(parsed?.provider) ? parsed.provider : "deepseek",
+      provider: isAiProvider(parsed?.provider) ? parsed.provider : "gemini",
       deepseek: normalizeConfig(parsed?.deepseek, DEFAULT_DEEPSEEK_MODEL),
       gemini: normalizeConfig(parsed?.gemini, DEFAULT_GEMINI_MODEL),
       translation: normalizeTranslationSettings(parsed?.translation),
