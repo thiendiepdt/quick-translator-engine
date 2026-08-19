@@ -11,6 +11,8 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
+import { ensurePersistentStorage } from "@/lib/persistent-storage";
+
 import { SettingsDialog } from "@/components/settings-dialog";
 import { WorkspaceSwitcher } from "@/components/workspace-switcher";
 import { Button } from "@/components/ui/button";
@@ -203,6 +205,26 @@ export default function App() {
   const translation = useTranslationMutation();
   const health = useHealthQuery(endpoint);
   const dictionaryDefaults = useDictionaryDefaultsQuery(dictionaryEndpoint);
+
+  // Xin chế độ persistent cho IndexedDB ngay khi vào app: không được cấp thì
+  // trình duyệt có quyền tự dọn dữ liệu (mất công dịch) — cảnh báo một lần.
+  useEffect(() => {
+    void ensurePersistentStorage().then((status) => {
+      if (status !== "denied" && status !== "unsupported") return;
+      const warnedKey = "qt-web-persist-warning-shown";
+      try {
+        if (window.localStorage.getItem(warnedKey)) return;
+        window.localStorage.setItem(warnedKey, "1");
+      } catch {
+        // localStorage bị chặn thì vẫn cảnh báo, chấp nhận lặp lại.
+      }
+      toast.warning("Trình duyệt chưa cho lưu dữ liệu vĩnh viễn", {
+        duration: 12_000,
+        description:
+          "IndexedDB có thể bị tự dọn khi thiếu dung lượng. Cài trang thành ứng dụng (Install app) hoặc dùng thường xuyên để được cấp quyền, và nhớ tải các chương đã dịch về máy làm backup.",
+      });
+    });
+  }, []);
 
   useEffect(() => {
     storeEndpoint(endpoint);
