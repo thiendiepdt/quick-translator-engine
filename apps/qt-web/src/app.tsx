@@ -12,6 +12,11 @@ import { FormProvider, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
 import { ensurePersistentStorage } from "@/lib/persistent-storage";
+import {
+  aiStoryIsEmpty,
+  readStoryMirror,
+  writeStoryMirror,
+} from "@/lib/story-mirror";
 
 import { SettingsDialog } from "@/components/settings-dialog";
 import { WorkspaceSwitcher } from "@/components/workspace-switcher";
@@ -224,6 +229,38 @@ export default function App() {
           "IndexedDB có thể bị tự dọn khi thiếu dung lượng. Cài trang thành ứng dụng (Install app) hoặc dùng thường xuyên để được cấp quyền, và nhớ tải các chương đã dịch về máy làm backup.",
       });
     });
+  }, []);
+
+  // Cấu hình truyện có bản sao dự phòng trong localStorage: IDB hỏng riêng lẻ
+  // thì khôi phục lại (không chống được eviction cả origin — persist() lo).
+  useEffect(() => {
+    const persistApi = useWorkspaceStore.persist;
+    const workspaceKey = () => persistApi.getOptions().name ?? "qt-web-workspace-v1";
+    function maybeRestoreFromMirror() {
+      const current = useWorkspaceStore.getState().aiStory;
+      if (!aiStoryIsEmpty(current)) return;
+      const mirror = readStoryMirror(workspaceKey());
+      if (!mirror || aiStoryIsEmpty(mirror)) return;
+      useWorkspaceStore.getState().updateAiStory(mirror);
+      toast.message("Đã khôi phục cấu hình truyện từ bản sao dự phòng", {
+        description:
+          "IndexedDB không còn cấu hình truyện — đã lấy lại bản sao trong localStorage.",
+      });
+    }
+    if (persistApi.hasHydrated()) maybeRestoreFromMirror();
+    // Đổi workspace cũng rehydrate → kiểm tra lại với key mới.
+    const unsubscribeHydration = persistApi.onFinishHydration(maybeRestoreFromMirror);
+    let lastStory = useWorkspaceStore.getState().aiStory;
+    const unsubscribeStore = useWorkspaceStore.subscribe((state) => {
+      if (state.aiStory === lastStory) return;
+      lastStory = state.aiStory;
+      // Không ghi đè mirror tốt bằng config trống (lúc chuyển workspace).
+      if (!aiStoryIsEmpty(state.aiStory)) writeStoryMirror(workspaceKey(), state.aiStory);
+    });
+    return () => {
+      unsubscribeHydration();
+      unsubscribeStore();
+    };
   }, []);
 
   useEffect(() => {

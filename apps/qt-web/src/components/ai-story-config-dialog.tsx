@@ -1,7 +1,9 @@
 import {
   AlertTriangle,
   BookOpen,
+  FileDown,
   FileText,
+  FileUp,
   Languages,
   LoaderCircle,
   Palette,
@@ -49,6 +51,7 @@ import {
   storyGlossaryCategories,
   type AiStoryConfig,
   type StoryGlossaryKey,
+  parseAiStoryConfigJson,
 } from "@/lib/ai-story";
 
 const PlatePromptEditor = lazy(async () => {
@@ -84,6 +87,39 @@ export function AiStoryConfigDialog({
   onSave,
 }: AiStoryConfigDialogProps) {
   const [draft, setDraft] = useState(() => normalizeAiStoryConfig(story));
+  const importFileRef = useRef<HTMLInputElement>(null);
+
+  async function importConfigFile(file: File | undefined) {
+    if (!file) return;
+    const parsed = parseAiStoryConfigJson(await file.text());
+    if (!parsed) {
+      toast.error("File cấu hình không hợp lệ", {
+        description: "Cần file JSON xuất từ chính dialog này.",
+      });
+      return;
+    }
+    setDraft(parsed);
+    toast.success("Đã nạp cấu hình từ file", {
+      description: "Kiểm tra lại rồi bấm Lưu cấu hình để áp dụng.",
+    });
+  }
+
+  function exportConfigFile() {
+    const normalized = normalizeAiStoryConfig(draft);
+    const filename = `${
+      (normalized.name.trim() || "cau-hinh-truyen").replace(/[\\/:*?"<>|]/g, "").slice(0, 60) ||
+      "cau-hinh-truyen"
+    }.json`;
+    const blob = new Blob([JSON.stringify(normalized, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
   const hasGeminiKey = aiSettings.gemini.apiKey.trim().length > 0;
   const [filling, setFilling] = useState(false);
   const [promptEditorVersion, setPromptEditorVersion] = useState(0);
@@ -583,6 +619,29 @@ export function AiStoryConfigDialog({
         </Tabs>
 
         <DialogFooter className="shrink-0 border-t px-6 py-4">
+          <div className="mr-auto flex items-center gap-2">
+            <input
+              ref={importFileRef}
+              type="file"
+              accept=".json,application/json"
+              className="hidden"
+              aria-label="Chọn file cấu hình truyện"
+              onChange={(event) => {
+                void importConfigFile(event.target.files?.[0]);
+                event.target.value = "";
+              }}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => importFileRef.current?.click()}
+            >
+              <FileUp /> Nhập JSON
+            </Button>
+            <Button type="button" variant="outline" onClick={exportConfigFile}>
+              <FileDown /> Xuất JSON
+            </Button>
+          </div>
           <Button
             type="button"
             variant="outline"

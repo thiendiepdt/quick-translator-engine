@@ -4,6 +4,7 @@ import {
   emptyAiStoryConfig,
   normalizeAiStoryConfig,
   normalizeAiTranslationChapters,
+  parseAiStoryConfigJson,
 } from "@/lib/ai-story";
 
 describe("AI story workspace data", () => {
@@ -100,5 +101,21 @@ describe("per-story auto glossary setting", () => {
   it("keeps explicit on/off", () => {
     expect(normalizeAiStoryConfig({ autoGlossary: "on" }).autoGlossary).toBe("on");
     expect(normalizeAiStoryConfig({ autoGlossary: "off" }).autoGlossary).toBe("off");
+  });
+});
+
+describe("parseAiStoryConfigJson", () => {
+  it("parses and normalizes an exported config", () => {
+    const text = JSON.stringify({ name: "Đấu Phá", autoGlossary: "off" });
+    const story = parseAiStoryConfigJson(text);
+    expect(story?.name).toBe("Đấu Phá");
+    expect(story?.autoGlossary).toBe("off");
+    expect(story?.glossary.names).toEqual({});
+  });
+
+  it("returns undefined for invalid JSON or non-object payloads", () => {
+    expect(parseAiStoryConfigJson("{hỏng")).toBeUndefined();
+    expect(parseAiStoryConfigJson('"chuỗi"')).toBeUndefined();
+    expect(parseAiStoryConfigJson("[1,2]")).toBeUndefined();
   });
 });

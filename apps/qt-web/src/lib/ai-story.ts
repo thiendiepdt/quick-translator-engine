@@ -239,3 +239,17 @@ export function countStoryGlossaryEntries(glossary: StoryGlossary): number {
     0,
   );
 }
+
+/** Đọc file JSON cấu hình truyện do người dùng xuất/nhập; hỏng thì undefined. */
+export function parseAiStoryConfigJson(text: string): AiStoryConfig | undefined {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    return undefined;
+  }
+  return normalizeAiStoryConfig(parsed);
+}
