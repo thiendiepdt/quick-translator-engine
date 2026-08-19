@@ -541,6 +541,138 @@ describe("auto glossary loop", () => {
   });
 });
 
+describe("chapter list ordinals", () => {
+  it("shows the 1-based order used by the download dialog", () => {
+    useWorkspaceStore.getState().importAiTranslationChapters([
+      { filename: "mo-dau.txt", source: "第一章" },
+      { filename: "than-binh.txt", source: "第二章" },
+    ]);
+    render(
+      <AiTranslationWorkspace aiSettings={defaultAiSettings} onOpenSettings={vi.fn()} />,
+    );
+    // Accessible name của hàng giờ mở đầu bằng số thứ tự; nút "Xóa …" không khớp.
+    expect(
+      screen.getByRole("button", { name: /^1\s*mo-dau\.txt/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /^2\s*than-binh\.txt/ }),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("auto glossary dialog pagination", () => {
+  it("renders 50 entries per page with pager controls", async () => {
+    useWorkspaceStore.getState().updateAiStory({
+      autoGlossaryLog: Array.from({ length: 120 }, (_, index) => ({
+        source: `源${index + 1}`,
+        target: `Nguồn ${index + 1}`,
+        category: "names" as const,
+        chapter: "chuong-1.txt",
+      })),
+    });
+    const user = userEvent.setup();
+    render(
+      <AiTranslationWorkspace aiSettings={defaultAiSettings} onOpenSettings={vi.fn()} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /120 tên tự thêm/ }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getAllByRole("listitem")).toHaveLength(50);
+    expect(within(dialog).getByText("源1")).toBeInTheDocument();
+    expect(within(dialog).queryByText("源51")).not.toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole("button", { name: "Trang sau" }));
+    expect(within(dialog).getByText("源51")).toBeInTheDocument();
+    expect(within(dialog).queryByText("源1")).not.toBeInTheDocument();
+
+    // Trang cuối chỉ còn phần dư.
+    await user.click(within(dialog).getByRole("button", { name: "Trang 3" }));
+    expect(within(dialog).getAllByRole("listitem")).toHaveLength(20);
+  });
+
+  it("searches across source and target and repages the matches", async () => {
+    useWorkspaceStore.getState().updateAiStory({
+      autoGlossaryLog: [
+        ...Array.from({ length: 60 }, (_, index) => ({
+          source: `源${index + 1}`,
+          target: `Nguồn ${index + 1}`,
+          category: "names" as const,
+          chapter: "chuong-1.txt",
+        })),
+        {
+          source: "震雷子",
+          target: "Chấn Lôi Tử",
+          category: "names" as const,
+          chapter: "chuong-2.txt",
+        },
+      ],
+    });
+    const user = userEvent.setup();
+    render(
+      <AiTranslationWorkspace aiSettings={defaultAiSettings} onOpenSettings={vi.fn()} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /61 tên tự thêm/ }));
+    const dialog = await screen.findByRole("dialog");
+    const search = within(dialog).getByPlaceholderText("Tìm tên…");
+
+    // Khớp target, không phân biệt hoa thường.
+    await user.type(search, "chấn lôi");
+    expect(within(dialog).getAllByRole("listitem")).toHaveLength(1);
+    expect(within(dialog).getByText("震雷子")).toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "Trang sau" })).not.toBeInTheDocument();
+
+    // Khớp source, đang ở trang nào cũng nhảy về trang 1 của kết quả.
+    await user.clear(search);
+    await user.type(search, "源6");
+    // 源6 và 源60: đúng 2 mục.
+    expect(within(dialog).getAllByRole("listitem")).toHaveLength(2);
+
+    await user.clear(search);
+    await user.type(search, "không-tồn-tại");
+    expect(within(dialog).queryAllByRole("listitem")).toHaveLength(0);
+    expect(within(dialog).getByText(/Không có tên nào khớp/)).toBeInTheDocument();
+  });
+});
+
+describe("chapter reset", () => {
+  it("requeues a done chapter while keeping its output until retranslation", async () => {
+    useWorkspaceStore.getState().importAiTranslationChapters([
+      { filename: "chuong-1.txt", source: "第一章" },
+    ]);
+    const chapter = useWorkspaceStore.getState().aiTranslationChapters[0];
+    useWorkspaceStore.getState().updateAiTranslationChapter(chapter.id, {
+      status: "done",
+      output: "Bản dịch cũ.\n",
+      reviewRound: 2,
+    });
+    const user = userEvent.setup();
+    render(
+      <AiTranslationWorkspace aiSettings={defaultAiSettings} onOpenSettings={vi.fn()} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Dịch lại chuong-1.txt" }));
+
+    const updated = useWorkspaceStore.getState().aiTranslationChapters[0];
+    expect(updated.status).toBe("queued");
+    expect(updated.reviewRound).toBe(0);
+    expect(updated.output).toBe("Bản dịch cũ.\n");
+    expect(screen.getByRole("button", { name: /Dịch hàng đợi · 1/ })).toBeEnabled();
+  });
+
+  it("offers no reset for chapters that were never translated", () => {
+    useWorkspaceStore.getState().importAiTranslationChapters([
+      { filename: "chuong-1.txt", source: "第一章" },
+    ]);
+    render(
+      <AiTranslationWorkspace aiSettings={defaultAiSettings} onOpenSettings={vi.fn()} />,
+    );
+    expect(
+      screen.queryByRole("button", { name: "Dịch lại chuong-1.txt" }),
+    ).not.toBeInTheDocument();
+  });
+});
+
 describe("download translated chapters", () => {
   function stubDownloadSinks() {
     const blobs: Blob[] = [];

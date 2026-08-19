@@ -2,6 +2,8 @@ import {
   AlertTriangle,
   BookOpen,
   Brain,
+  ChevronLeft,
+  ChevronRight,
   CheckCircle2,
   Circle,
   Copy,
@@ -14,6 +16,7 @@ import {
   Sparkles,
   Octagon,
   Pencil,
+  RotateCcw,
   Send,
   Settings2,
   Trash2,
@@ -80,6 +83,7 @@ import {
   mergeChapterOutputs,
   selectChaptersForDownload,
 } from "@/lib/chapter-download";
+import { paginationItems } from "@/lib/pagination";
 import { buildZip } from "@/lib/zip";
 import { cn } from "@/lib/utils";
 import { useWorkspaceCatalogStore } from "@/store/workspace-catalog";
@@ -103,6 +107,8 @@ function phaseLabel(phase: TranslationPhase | null, reviewRound: number): string
 function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === "AbortError";
 }
+
+const AUTO_GLOSSARY_PAGE_SIZE = 50;
 
 const glossaryCategoryLabels: Record<string, string> = Object.fromEntries(
   storyGlossaryCategories.map(({ key, label }) => [key, label]),
@@ -173,6 +179,8 @@ export function AiTranslationWorkspace({
   const thinkingLogRef = useRef("");
   const [thinkingDialogOpen, setThinkingDialogOpen] = useState(false);
   const [autoGlossaryOpen, setAutoGlossaryOpen] = useState(false);
+  const [autoGlossaryPage, setAutoGlossaryPage] = useState(0);
+  const [autoGlossaryQuery, setAutoGlossaryQuery] = useState("");
   const [downloadOpen, setDownloadOpen] = useState(false);
   const [downloadFrom, setDownloadFrom] = useState("1");
   const [downloadTo, setDownloadTo] = useState("1");
@@ -197,6 +205,19 @@ export function AiTranslationWorkspace({
     () => buildWorkspaceTranslationGlossary(localDictionaryEntries, knownNames),
     [knownNames, localDictionaryEntries],
   );
+  const autoGlossaryVisible = (() => {
+    const query = autoGlossaryQuery.trim().toLowerCase();
+    const entries = query
+      ? story.autoGlossaryLog.filter(
+          (entry) =>
+            entry.source.toLowerCase().includes(query) ||
+            entry.target.toLowerCase().includes(query) ||
+            entry.chapter.toLowerCase().includes(query),
+        )
+      : story.autoGlossaryLog;
+    const pageCount = Math.max(1, Math.ceil(entries.length / AUTO_GLOSSARY_PAGE_SIZE));
+    return { entries, pageCount, safePage: Math.min(autoGlossaryPage, pageCount - 1) };
+  })();
   const glossaryCount =
     countTranslationGlossaryEntries(glossary) +
     countStoryGlossaryEntries(story.glossary);
@@ -819,7 +840,11 @@ export function AiTranslationWorkspace({
             type="button"
             variant="ghost"
             size="sm"
-            onClick={() => setAutoGlossaryOpen(true)}
+            onClick={() => {
+              setAutoGlossaryPage(0);
+              setAutoGlossaryQuery("");
+              setAutoGlossaryOpen(true);
+            }}
           >
             <Sparkles /> {story.autoGlossaryLog.length} tên tự thêm
           </Button>
@@ -909,7 +934,7 @@ export function AiTranslationWorkspace({
                   </div>
                 </div>
               ) : null}
-              {chapters.map((chapter) => (
+              {chapters.map((chapter, index) => (
                 <div
                   key={chapter.id}
                   className={cn(
@@ -923,6 +948,15 @@ export function AiTranslationWorkspace({
                     className="flex min-w-0 flex-1 items-center gap-2 px-2 py-2 text-left disabled:cursor-default"
                     onClick={() => selectChapter(chapter.id)}
                   >
+                    {/* Số thứ tự 1-based — trùng với "Từ/Đến chương" trong dialog
+                        tải. Bề rộng theo số chữ số của tổng chương, khỏi phí chỗ
+                        khi danh sách ngắn. */}
+                    <span
+                      className="shrink-0 text-right text-[10px] tabular-nums text-muted-foreground"
+                      style={{ minWidth: `${String(chapters.length).length}ch` }}
+                    >
+                      {index + 1}
+                    </span>
                     {chapter.status === "done" ? (
                       <CheckCircle2 className="size-3.5 shrink-0 text-ok" />
                     ) : chapter.status === "translating" || chapter.status === "reviewing" ? (
@@ -941,6 +975,26 @@ export function AiTranslationWorkspace({
                       </span>
                     </span>
                   </button>
+                  {chapter.status === "done" || chapter.status === "error" ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                      aria-label={`Dịch lại ${chapter.filename}`}
+                      title="Đưa về chờ dịch — bản dịch cũ giữ nguyên tới khi dịch lại"
+                      disabled={Boolean(phase)}
+                      onClick={() =>
+                        updateChapter(chapter.id, {
+                          status: "queued",
+                          reviewRound: 0,
+                          error: undefined,
+                        })
+                      }
+                    >
+                      <RotateCcw />
+                    </Button>
+                  ) : null}
                   <Button
                     type="button"
                     variant="ghost"
@@ -1298,12 +1352,31 @@ export function AiTranslationWorkspace({
               Tên tự thêm vào từ điển truyện
             </DialogTitle>
           </DialogHeader>
+          <div className="shrink-0 border-b px-6 py-3">
+            <Input
+              value={autoGlossaryQuery}
+              onChange={(event) => {
+                setAutoGlossaryQuery(event.target.value);
+                setAutoGlossaryPage(0);
+              }}
+              placeholder="Tìm tên…"
+              aria-label="Tìm trong tên tự thêm"
+              className="bg-card"
+            />
+          </div>
           <div className="fine-scrollbar min-h-0 flex-1 overflow-y-auto px-6 py-4">
             {story.autoGlossaryLog.length === 0 ? (
               <p className="text-sm text-muted-foreground">Đã gỡ hết các tên tự thêm.</p>
+            ) : autoGlossaryVisible.entries.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Không có tên nào khớp tìm kiếm.</p>
             ) : (
               <ul className="space-y-1">
-                {story.autoGlossaryLog.map((entry) => (
+                {autoGlossaryVisible.entries
+                  .slice(
+                    autoGlossaryVisible.safePage * AUTO_GLOSSARY_PAGE_SIZE,
+                    (autoGlossaryVisible.safePage + 1) * AUTO_GLOSSARY_PAGE_SIZE,
+                  )
+                  .map((entry) => (
                   <li key={entry.source} className="flex items-center gap-2 rounded-md px-1 py-0.5 text-sm hover:bg-accent/50">
                     <span className="shrink-0 font-medium">{entry.source}</span>
                     <span className="text-muted-foreground">→</span>
@@ -1325,6 +1398,55 @@ export function AiTranslationWorkspace({
                 ))}
               </ul>
             )}
+            {autoGlossaryVisible.pageCount > 1 ? (
+              <div className="flex items-center justify-center gap-1 pt-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={autoGlossaryVisible.safePage === 0}
+                  aria-label="Trang trước"
+                  onClick={() => setAutoGlossaryPage(autoGlossaryVisible.safePage - 1)}
+                >
+                  <ChevronLeft />
+                </Button>
+                {paginationItems(autoGlossaryVisible.safePage, autoGlossaryVisible.pageCount).map(
+                  (item, index) =>
+                    item === "ellipsis" ? (
+                      <span
+                        key={`ellipsis-${index}`}
+                        aria-hidden="true"
+                        className="px-1 font-mono text-xs text-muted-foreground"
+                      >
+                        …
+                      </span>
+                    ) : (
+                      <Button
+                        key={item}
+                        type="button"
+                        variant={item === autoGlossaryVisible.safePage ? "default" : "ghost"}
+                        size="sm"
+                        className="min-w-8 px-2 font-mono"
+                        aria-label={`Trang ${item + 1}`}
+                        aria-current={item === autoGlossaryVisible.safePage ? "page" : undefined}
+                        onClick={() => setAutoGlossaryPage(item)}
+                      >
+                        {(item + 1).toLocaleString("vi")}
+                      </Button>
+                    ),
+                )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={autoGlossaryVisible.safePage >= autoGlossaryVisible.pageCount - 1}
+                  aria-label="Trang sau"
+                  onClick={() => setAutoGlossaryPage(autoGlossaryVisible.safePage + 1)}
+                >
+                  <ChevronRight />
+                </Button>
+              </div>
+            ) : null}
             <p className="pt-3 text-[11px] text-muted-foreground">
               Tên tự trích từ bản dịch xong, chỉ thêm mục chưa có — muốn sửa target thì vào Cấu hình truyện, gỡ ở đây sẽ xóa khỏi từ điển truyện.
             </p>
