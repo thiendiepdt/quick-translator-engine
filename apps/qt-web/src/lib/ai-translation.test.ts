@@ -97,6 +97,85 @@ describe("AI translation post-processing", () => {
     expect(review.system).toContain("không đổi văn phong");
   });
 
+  // Bộ lỗi rút ra từ lần đối chiếu Gemini 3.7 với GLM 5.3 trên cùng một chương.
+  it("flags the convert-ese and literal-idiom slips seen in provider output", () => {
+    const text = [
+      "khấp huyết giết địch vô số",
+      "chỉ trong một niệm có thể ma diệt",
+      "một thứ lãnh diêm sắc bén",
+      "Ta chỉ làm một màn thị phạm.",
+      "chỉ cần chồng cộng hai đạo thể",
+      "y phục nửa xẻ",
+      "rút dao chém chết hắn",
+      "quả bom khói ném ra",
+      "sát ý đông cứng thành thực chất",
+      "quả thực có chút phụ lòng tạo hóa",
+      "cũng phải nhìn theo bụi mà không kịp",
+      "đẹp đến nghẹt thở",
+      "Ngón ngọc thon trắng mảnh khảnh",
+      "chỉ nghe nói nàng trời sinh Kiếm Tâm",
+    ].join("\n");
+
+    const messages = checkAiTranslationViolations(text).map((item) => item.message);
+    expect(messages).toEqual(
+      expect.arrayContaining([
+        "泣血 → nhuộm máu / đẫm máu",
+        "抹杀 → xóa sổ / mạt sát",
+        "冷艳 → lạnh lùng sắc sảo / lạnh lùng kiêu sa",
+        "示范 → làm mẫu",
+        "叠加 → chồng lên nhau / kết hợp",
+        "衣衫半解 → y phục bán khai / xiêm y cởi dở",
+        "刀 là đao → vỏ đao / rút đao / thanh đao",
+        "烟雾弹 trong bối cảnh cổ → màn khói / hỏa mù",
+        "凝成 → ngưng tụ thành",
+        "暴殄天物 → phí phạm của quý",
+        "望尘莫及 → không sao theo kịp / tự thẹn không bằng",
+        "惊心动魄 → đẹp đến kinh tâm động phách",
+        "mảnh khảnh chỉ tả người → ngón tay dùng thon / thon dài",
+        "Danh xưng lai nửa Việt nửa Hán → dùng Hán-Việt cả cụm (Thiên Sinh ...)",
+      ]),
+    );
+  });
+
+  // `\b` của JS chỉ tính [A-Za-z0-9_], nên các rule bọc \b quanh từ bắt đầu
+  // hoặc kết thúc bằng chữ có dấu trước đây không bao giờ khớp.
+  it("still flags terms whose word boundaries are diacritics", () => {
+    const text = [
+      "Nàng là vợ hắn.",
+      "Ừm, cũng được.",
+      "Hắn đặc ý tới đây.",
+      "Giọng nói bi thê.",
+      "Ánh mắt u thê.",
+      "Thôi thì bỏ qua.",
+      "Hắn thật vô ngữ.",
+      "Địch phương đã rút lui.",
+    ].join("\n");
+
+    expect(checkAiTranslationViolations(text).map((item) => item.message)).toEqual(
+      expect.arrayContaining([
+        "Dùng vợ/chồng → thay bằng thê tử/phu quân",
+        "Hừm/Ừm → Ân",
+        "đặc ý → cố ý",
+        "bi thê → bi thương",
+        "u thê → u sầu",
+        "thôi thì → vậy thì / đã vậy",
+        "vô ngữ → bó tay",
+        "địch phương → quân địch",
+      ]),
+    );
+  });
+
+  it("leaves clean prose alone", () => {
+    const text = [
+      "Nàng đậu nơi vương đình, hai mươi tám năm chẳng bay cũng chẳng hót.",
+      "Hắn rút đao ra khỏi vỏ đao, sát ý ngưng tụ thành thực chất.",
+      "Ngón tay ngọc thon dài, móng sơn màu đỏ.",
+      "Chỉ nghe nói nàng có Thiên Sinh Kiếm Tâm.",
+    ].join("\n");
+
+    expect(checkAiTranslationViolations(text)).toEqual([]);
+  });
+
   it("uses configured story rules in place of defaults", () => {
     const violations = checkAiTranslationViolations("Vẫn còn văn convert", [
       { pattern: "CONVERT", flags: "i", message: "Rule riêng" },
