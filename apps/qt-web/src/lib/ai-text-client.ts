@@ -230,13 +230,14 @@ async function generateOpenAiCompatibleText(
       ...(config.provider === "deepseek"
         ? { thinking: { type: options.thinking ? "enabled" : "disabled" } }
         : {}),
-      // GLM 5.3 không tắt được thinking (`type` chỉ nhận "enabled"): công tắc
-      // Thinking chỉ chọn giữa mức nghĩ tối đa và mức mặc định của model.
-      // temperature/top_p là bộ tham số Z.ai khuyến nghị cho glm-5.3-flash.
+      // GLM 5.3 không tắt được thinking và `reasoning_effort` mặc định đã là
+      // "max" — để trống là mỗi chương nghĩ hàng chục phút. Model này chỉ nhận
+      // low/high/max nên công tắc Thinking map thành high ↔ low, giống cách
+      // Gemini 3.x dùng high ↔ minimal. temperature/top_p theo Z.ai khuyến nghị.
       ...(config.provider === "glm"
         ? {
             thinking: { type: "enabled", clear_thinking: false },
-            ...(options.thinking ? { reasoning_effort: "max" } : {}),
+            reasoning_effort: options.thinking ? "high" : "low",
             temperature: 1,
             top_p: 0.95,
           }

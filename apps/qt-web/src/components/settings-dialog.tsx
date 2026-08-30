@@ -353,8 +353,8 @@ function AiTranslationFields({
       </div>
       <p className="text-xs text-muted-foreground">
         Thinking chỉ áp dụng cho Dịch AI: DeepSeek và Gemini 2.5 có thể tắt hẳn;
-        Gemini 3.x dùng mức tối thiểu khi tắt; GLM 5.3 không tắt được thinking,
-        tắt công tắc chỉ bỏ ép mức nghĩ tối đa.
+        Gemini 3.x và GLM 5.3 không tắt hẳn được, tắt công tắc là hạ xuống mức
+        nghĩ thấp nhất (GLM bật rất chậm, mỗi chương có thể mất hàng chục phút).
       </p>
     </div>
   );

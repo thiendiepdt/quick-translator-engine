@@ -274,7 +274,7 @@ describe("glm text generation", () => {
     expect(JSON.parse(init.body as string) as Record<string, unknown>).toMatchObject({
       model: "glm-5.3-flash",
       thinking: { type: "enabled", clear_thinking: false },
-      reasoning_effort: "max",
+      reasoning_effort: "high",
       temperature: 1,
       top_p: 0.95,
       stream: true,
@@ -285,7 +285,9 @@ describe("glm text generation", () => {
     ]);
   });
 
-  it("keeps thinking enabled but drops the forced reasoning effort when thinking is off", async () => {
+  // Bỏ trống reasoning_effort là rơi về "max" của Z.ai, chương nào cũng nghĩ
+  // hàng chục phút — công tắc Thinking phải gửi mức thấp tường minh.
+  it("drops to the lowest supported reasoning effort when thinking is off", async () => {
     const fetchSpy = mockGlmStream();
     await generateAiText(glmConfig, "system", "user", { thinking: false });
 
@@ -293,7 +295,7 @@ describe("glm text generation", () => {
       (fetchSpy.mock.calls[0][1] as RequestInit).body as string,
     ) as Record<string, unknown>;
     expect(body.thinking).toEqual({ type: "enabled", clear_thinking: false });
-    expect("reasoning_effort" in body).toBe(false);
+    expect(body.reasoning_effort).toBe("low");
   });
 });
 
