@@ -228,8 +228,7 @@ describe("grok text generation", () => {
       { thinking: true },
     );
     expect(result).toBe("Bản dịch Grok.");
-    const url = fetchSpy.mock.calls[0][0];
-    expect(typeof url === "string" ? url : String(url)).toBe(
+    expect(requestUrlOf(fetchSpy.mock.calls[0][0])).toBe(
       "https://api.x.ai/v1/chat/completions",
     );
     const body = JSON.parse((fetchSpy.mock.calls[0][1] as RequestInit).body as string) as Record<string, unknown>;
@@ -238,6 +237,63 @@ describe("grok text generation", () => {
     expect(
       new Headers((fetchSpy.mock.calls[0][1] as RequestInit).headers).get("authorization"),
     ).toBe("Bearer xai-key");
+  });
+});
+
+describe("glm text generation", () => {
+  const glmConfig = {
+    provider: "glm" as const,
+    apiKey: "zai-key",
+    model: "glm-5.3-flash",
+    baseUrl: "https://api.z.ai/api/paas/v4",
+  };
+
+  function mockGlmStream() {
+    return vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      sse(
+        { choices: [{ delta: { reasoning_content: "Suy luận GLM" } }] },
+        { choices: [{ delta: { content: "Bản dịch GLM." } }] },
+      ),
+    );
+  }
+
+  it("streams via chat/completions with the Z.ai recommended parameters", async () => {
+    const fetchSpy = mockGlmStream();
+    const chunks: Array<[string, string]> = [];
+    const result = await generateAiText(glmConfig, "system", "user", {
+      thinking: true,
+      onChunk: (kind, text) => chunks.push([kind, text]),
+    });
+
+    expect(result).toBe("Bản dịch GLM.");
+    expect(requestUrlOf(fetchSpy.mock.calls[0][0])).toBe(
+      "https://api.z.ai/api/paas/v4/chat/completions",
+    );
+    const init = fetchSpy.mock.calls[0][1] as RequestInit;
+    expect(new Headers(init.headers).get("authorization")).toBe("Bearer zai-key");
+    expect(JSON.parse(init.body as string) as Record<string, unknown>).toMatchObject({
+      model: "glm-5.3-flash",
+      thinking: { type: "enabled", clear_thinking: false },
+      reasoning_effort: "max",
+      temperature: 1,
+      top_p: 0.95,
+      stream: true,
+    });
+    expect(chunks).toEqual([
+      ["thinking", "Suy luận GLM"],
+      ["text", "Bản dịch GLM."],
+    ]);
+  });
+
+  it("keeps thinking enabled but drops the forced reasoning effort when thinking is off", async () => {
+    const fetchSpy = mockGlmStream();
+    await generateAiText(glmConfig, "system", "user", { thinking: false });
+
+    const body = JSON.parse(
+      (fetchSpy.mock.calls[0][1] as RequestInit).body as string,
+    ) as Record<string, unknown>;
+    expect(body.thinking).toEqual({ type: "enabled", clear_thinking: false });
+    expect("reasoning_effort" in body).toBe(false);
   });
 });
 

@@ -445,3 +445,39 @@ describe("grok call routing", () => {
     expect(new Headers(init.headers).get("authorization")).toBe("Bearer xai-key");
   });
 });
+
+describe("glm call routing", () => {
+  it("defaults the Z.ai base URL and keeps the model fallback", () => {
+    const resolved = resolveAiCall("glm", { apiKey: " zai-key ", model: "", baseUrl: "" });
+    expect(resolved).toEqual({
+      provider: "glm",
+      apiKey: "zai-key",
+      model: "glm-5.3-flash",
+      baseUrl: "https://api.z.ai/api/paas/v4",
+    });
+  });
+
+  it("extracts glossary through the OpenAI-compatible endpoint for glm", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json({
+        choices: [{ message: { content: JSON.stringify({ entries: [] }) } }],
+      }),
+    );
+    await extractStoryGlossaryWithAi(
+      {
+        provider: "glm",
+        apiKey: "zai-key",
+        model: "glm-5.3-flash",
+        baseUrl: "https://api.z.ai/api/paas/v4",
+      },
+      "raw",
+      "dịch",
+      [],
+    );
+    expect(requestUrlOf(fetchSpy.mock.calls[0][0])).toBe(
+      "https://api.z.ai/api/paas/v4/chat/completions",
+    );
+    const init = fetchSpy.mock.calls[0][1] as RequestInit;
+    expect(new Headers(init.headers).get("authorization")).toBe("Bearer zai-key");
+  });
+});

@@ -1,4 +1,5 @@
 import type { AiCallConfig } from "@/lib/ai-client";
+import { aiProviderLabels } from "@/lib/ai-settings";
 
 export type AiTextChunkKind = "thinking" | "text";
 
@@ -229,6 +230,17 @@ async function generateOpenAiCompatibleText(
       ...(config.provider === "deepseek"
         ? { thinking: { type: options.thinking ? "enabled" : "disabled" } }
         : {}),
+      // GLM 5.3 không tắt được thinking (`type` chỉ nhận "enabled"): công tắc
+      // Thinking chỉ chọn giữa mức nghĩ tối đa và mức mặc định của model.
+      // temperature/top_p là bộ tham số Z.ai khuyến nghị cho glm-5.3-flash.
+      ...(config.provider === "glm"
+        ? {
+            thinking: { type: "enabled", clear_thinking: false },
+            ...(options.thinking ? { reasoning_effort: "max" } : {}),
+            temperature: 1,
+            top_p: 0.95,
+          }
+        : {}),
       max_tokens: MAX_OUTPUT_TOKENS,
       stream: true,
     }),
@@ -267,8 +279,7 @@ export async function generateAiText(
   userMessage: string,
   options: AiTextGenerationOptions,
 ): Promise<string> {
-  const providerLabel =
-    config.provider === "gemini" ? "Gemini" : config.provider === "grok" ? "Grok" : "DeepSeek";
+  const providerLabel = aiProviderLabels[config.provider];
   try {
     if (config.provider === "gemini") {
       return await generateGeminiText(config, systemPrompt, userMessage, options);

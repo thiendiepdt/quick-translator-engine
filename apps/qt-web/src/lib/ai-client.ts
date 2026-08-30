@@ -1,3 +1,4 @@
+import { aiProviderLabels } from "@/lib/ai-settings";
 import type { AiProvider, AiProviderConfig } from "@/lib/ai-settings";
 import type { NameCandidate, NameEntityType } from "@/lib/types";
 
@@ -15,8 +16,23 @@ import type { NameCandidate, NameEntityType } from "@/lib/types";
 export const DEFAULT_DEEPSEEK_BASE_URL = "https://api.deepseek.com";
 export const DEFAULT_GEMINI_BASE_URL = "https://generativelanguage.googleapis.com";
 export const DEFAULT_GROK_BASE_URL = "https://api.x.ai/v1";
-const DEEPSEEK_FALLBACK_MODEL = "deepseek-chat";
-const GROK_FALLBACK_MODEL = "grok-4.6";
+/** Z.ai (GLM) — endpoint tương thích OpenAI. */
+export const DEFAULT_GLM_BASE_URL = "https://api.z.ai/api/paas/v4";
+
+const DEFAULT_BASE_URLS: Record<AiProvider, string> = {
+  deepseek: DEFAULT_DEEPSEEK_BASE_URL,
+  gemini: DEFAULT_GEMINI_BASE_URL,
+  grok: DEFAULT_GROK_BASE_URL,
+  glm: DEFAULT_GLM_BASE_URL,
+};
+
+/** Model dùng khi người dùng để trống ô model; Gemini bắt buộc phải tự điền. */
+const FALLBACK_MODELS: Record<AiProvider, string> = {
+  deepseek: "deepseek-chat",
+  gemini: "",
+  grok: "grok-4.6",
+  glm: "glm-5.3-flash",
+};
 
 /** Chương được chia theo dòng thành các khúc tối đa chừng này ký tự. */
 export const EXTRACT_CHUNK_CHARACTERS = 15_000;
@@ -158,20 +174,8 @@ export interface AiCallConfig {
 }
 
 export function resolveAiCall(provider: AiProvider, config: AiProviderConfig): AiCallConfig {
-  const model =
-    config.model.trim() ||
-    (provider === "deepseek"
-      ? DEEPSEEK_FALLBACK_MODEL
-      : provider === "grok"
-        ? GROK_FALLBACK_MODEL
-        : "");
-  const defaultBaseUrl =
-    provider === "deepseek"
-      ? DEFAULT_DEEPSEEK_BASE_URL
-      : provider === "grok"
-        ? DEFAULT_GROK_BASE_URL
-        : DEFAULT_GEMINI_BASE_URL;
-  const baseUrl = (config.baseUrl.trim() || defaultBaseUrl).replace(/\/+$/, "");
+  const model = config.model.trim() || FALLBACK_MODELS[provider];
+  const baseUrl = (config.baseUrl.trim() || DEFAULT_BASE_URLS[provider]).replace(/\/+$/, "");
   return { provider, apiKey: config.apiKey.trim(), model, baseUrl };
 }
 
@@ -260,7 +264,7 @@ async function completeJson(
   user: string,
   geminiSchema: object,
 ): Promise<string> {
-  const providerLabel = config.provider === "gemini" ? "Gemini" : config.provider === "grok" ? "Grok" : "DeepSeek";
+  const providerLabel = aiProviderLabels[config.provider];
   const url =
     config.provider !== "gemini"
       ? `${config.baseUrl}/chat/completions`

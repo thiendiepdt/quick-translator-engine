@@ -172,6 +172,7 @@ function AiCredentialsFields({
             <SelectItem value="deepseek">DeepSeek</SelectItem>
             <SelectItem value="gemini">Gemini</SelectItem>
             <SelectItem value="grok">Grok</SelectItem>
+            <SelectItem value="glm">GLM</SelectItem>
           </SelectContent>
         </Select>
         <Input
@@ -187,6 +188,7 @@ function AiCredentialsFields({
               gemini: "API key Google AI",
               deepseek: "API key DeepSeek",
               grok: "API key xAI",
+              glm: "API key Z.ai",
             }[aiSettings.provider]
           }
         />
@@ -203,6 +205,7 @@ function AiCredentialsFields({
             gemini: "Model lọc tên (mặc định gemini-3.1-flash-lite)",
             deepseek: "Model lọc tên (mặc định deepseek-v4-flash)",
             grok: "Model lọc tên (mặc định grok-4.6)",
+            glm: "Model lọc tên (mặc định glm-5.3-flash)",
           }[aiSettings.provider]
         }
       />
@@ -218,7 +221,11 @@ function AiCredentialsFields({
       <p className="text-xs text-muted-foreground">
         Key và proxy này cũng được Dịch AI dùng lại; model dịch được cấu hình riêng bên dưới.
         Key chỉ lưu trên trình duyệt này, tách riêng theo từng nhà cung cấp. Trình duyệt gọi
-        thẳng {({ gemini: "Google AI", deepseek: "DeepSeek", grok: "xAI" })[aiSettings.provider]} (hoặc proxy của
+        thẳng{" "}
+        {({ gemini: "Google AI", deepseek: "DeepSeek", grok: "xAI", glm: "Z.ai" })[
+          aiSettings.provider
+        ]}{" "}
+        (hoặc proxy của
         bạn — endpoint cần cho phép CORS, hỗ trợ cả http://localhost); key không đi qua
         server của app. Chi phí tính vào tài khoản của bạn.
       </p>
@@ -266,6 +273,7 @@ function AiTranslationFields({
             <SelectItem value="deepseek">DeepSeek</SelectItem>
             <SelectItem value="gemini">Gemini</SelectItem>
             <SelectItem value="grok">Grok</SelectItem>
+            <SelectItem value="glm">GLM</SelectItem>
           </SelectContent>
         </Select>
         <Input
@@ -287,9 +295,12 @@ function AiTranslationFields({
             })
           }
           placeholder={
-            { gemini: "gemini-3.7-flash", deepseek: "deepseek-v4-flash", grok: "grok-4.6" }[
-              provider
-            ]
+            {
+              gemini: "gemini-3.7-flash",
+              deepseek: "deepseek-v4-flash",
+              grok: "grok-4.6",
+              glm: "glm-5.3-flash",
+            }[provider]
           }
         />
       </div>
@@ -342,7 +353,8 @@ function AiTranslationFields({
       </div>
       <p className="text-xs text-muted-foreground">
         Thinking chỉ áp dụng cho Dịch AI: DeepSeek và Gemini 2.5 có thể tắt hẳn;
-        Gemini 3.x dùng mức tối thiểu khi tắt.
+        Gemini 3.x dùng mức tối thiểu khi tắt; GLM 5.3 không tắt được thinking,
+        tắt công tắc chỉ bỏ ép mức nghĩ tối đa.
       </p>
     </div>
   );

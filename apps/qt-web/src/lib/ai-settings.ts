@@ -1,6 +1,6 @@
 export const aiSettingsStorageKey = "qt-web-ai-settings";
 
-export type AiProvider = "deepseek" | "gemini" | "grok";
+export type AiProvider = "deepseek" | "gemini" | "grok" | "glm";
 
 export interface AiProviderConfig {
   apiKey: string;
@@ -35,6 +35,7 @@ export interface AiSettings {
   deepseek: AiProviderConfig;
   gemini: AiProviderConfig;
   grok: AiProviderConfig;
+  glm: AiProviderConfig;
   /** Dịch AI dùng chung key/base URL, nhưng chọn provider/model/thinking riêng. */
   translation: AiTranslationSettings;
 }
@@ -43,21 +44,25 @@ export interface AiSettings {
 export const DEFAULT_DEEPSEEK_MODEL = "deepseek-v4-flash";
 export const DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite";
 export const DEFAULT_GROK_MODEL = "grok-4.6";
+export const DEFAULT_GLM_MODEL = "glm-5.3-flash";
 export const DEFAULT_AI_TRANSLATION_DEEPSEEK_MODEL = "deepseek-v4-flash";
 export const DEFAULT_AI_TRANSLATION_GEMINI_MODEL = "gemini-3.7-flash";
 export const DEFAULT_AI_TRANSLATION_GROK_MODEL = "grok-4.6";
+export const DEFAULT_AI_TRANSLATION_GLM_MODEL = "glm-5.3-flash";
 
 export const defaultAiSettings: AiSettings = {
   provider: "gemini",
   deepseek: { apiKey: "", model: DEFAULT_DEEPSEEK_MODEL, baseUrl: "" },
   gemini: { apiKey: "", model: DEFAULT_GEMINI_MODEL, baseUrl: "" },
   grok: { apiKey: "", model: DEFAULT_GROK_MODEL, baseUrl: "" },
+  glm: { apiKey: "", model: DEFAULT_GLM_MODEL, baseUrl: "" },
   translation: {
     provider: "gemini",
     models: {
       deepseek: DEFAULT_AI_TRANSLATION_DEEPSEEK_MODEL,
       gemini: DEFAULT_AI_TRANSLATION_GEMINI_MODEL,
       grok: DEFAULT_AI_TRANSLATION_GROK_MODEL,
+      glm: DEFAULT_AI_TRANSLATION_GLM_MODEL,
     },
     thinking: true,
     grokFallback: true,
@@ -66,7 +71,9 @@ export const defaultAiSettings: AiSettings = {
 };
 
 export function isAiProvider(value: unknown): value is AiProvider {
-  return value === "deepseek" || value === "gemini" || value === "grok";
+  return (
+    value === "deepseek" || value === "gemini" || value === "grok" || value === "glm"
+  );
 }
 
 /** Cấu hình của provider đang được chọn. */
@@ -107,12 +114,14 @@ function normalizeTranslationSettings(value: unknown): AiTranslationSettings {
   const geminiModel =
     typeof models.gemini === "string" ? models.gemini.trim() : "";
   const grokModel = typeof models.grok === "string" ? models.grok.trim() : "";
+  const glmModel = typeof models.glm === "string" ? models.glm.trim() : "";
   return {
     provider: isAiProvider(record.provider) ? record.provider : "gemini",
     models: {
       deepseek: deepseekModel || DEFAULT_AI_TRANSLATION_DEEPSEEK_MODEL,
       gemini: geminiModel || DEFAULT_AI_TRANSLATION_GEMINI_MODEL,
       grok: grokModel || DEFAULT_AI_TRANSLATION_GROK_MODEL,
+      glm: glmModel || DEFAULT_AI_TRANSLATION_GLM_MODEL,
     },
     thinking: typeof record.thinking === "boolean" ? record.thinking : true,
     grokFallback:
@@ -131,6 +140,7 @@ export function readStoredAiSettings(): AiSettings {
       deepseek: normalizeConfig(parsed?.deepseek, DEFAULT_DEEPSEEK_MODEL),
       gemini: normalizeConfig(parsed?.gemini, DEFAULT_GEMINI_MODEL),
       grok: normalizeConfig(parsed?.grok, DEFAULT_GROK_MODEL),
+      glm: normalizeConfig(parsed?.glm, DEFAULT_GLM_MODEL),
       translation: normalizeTranslationSettings(parsed?.translation),
     };
   } catch {
@@ -147,6 +157,7 @@ export function storeAiSettings(settings: AiSettings): void {
         deepseek: normalizeConfig(settings.deepseek),
         gemini: normalizeConfig(settings.gemini),
         grok: normalizeConfig(settings.grok, DEFAULT_GROK_MODEL),
+        glm: normalizeConfig(settings.glm, DEFAULT_GLM_MODEL),
         translation: normalizeTranslationSettings(settings.translation),
       }),
     );
@@ -159,4 +170,5 @@ export const aiProviderLabels: Record<AiProvider, string> = {
   deepseek: "DeepSeek",
   gemini: "Gemini",
   grok: "Grok",
+  glm: "GLM",
 };

@@ -104,6 +104,7 @@ describe("AI credentials preference", () => {
         provider: "gemini",
         models: {
           grok: "grok-4.6",
+          glm: "glm-5.3-flash",
           deepseek: "deepseek-translate",
           gemini: "gemini-translate",
         },
@@ -143,6 +144,7 @@ describe("AI credentials preference", () => {
         deepseek: DEFAULT_AI_TRANSLATION_DEEPSEEK_MODEL,
         gemini: DEFAULT_AI_TRANSLATION_GEMINI_MODEL,
         grok: "grok-4.6",
+        glm: "glm-5.3-flash",
       },
       thinking: true,
       grokFallback: true,
