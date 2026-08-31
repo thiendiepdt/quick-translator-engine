@@ -1,3 +1,7 @@
+---
+description: Vòng lặp dịch batch next → dịch → check → accept qua CLI qt-ai
+---
+
 # /translate — vòng lặp dịch batch
 
 Lặp cho tới khi hết chương hoặc chạm giới hạn chương/phiên (xem AGENTS.md luật 4):

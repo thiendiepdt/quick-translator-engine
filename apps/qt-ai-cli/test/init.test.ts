@@ -45,6 +45,11 @@ describe("qt-ai init", () => {
     expect(translate).toContain("check");
     expect(translate).toContain("accept");
     expect(translate).toContain("skip");
+    // Antigravity chỉ hiện workflow trong dropdown / khi file mở đầu bằng
+    // YAML frontmatter có description.
+    expect(translate).toMatch(/^---\r?\ndescription:/);
+    const setup = readFileSync(join(root, ".agent/workflows/setup-story.md"), "utf8");
+    expect(setup).toMatch(/^---\r?\ndescription:/);
     const agents = readFileSync(join(root, "AGENTS.md"), "utf8");
     expect(agents).toContain("không đọc lại out/");
     expect(agents).toContain("chương/phiên");
