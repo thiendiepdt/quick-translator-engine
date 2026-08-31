@@ -1,3 +1,4 @@
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { main, resolveRootArg } from "../src/main.ts";
 import { runInit } from "../src/commands/init.ts";
@@ -10,17 +11,21 @@ describe("resolveRootArg — root tương đối phải theo INIT_CWD của npm,
     expect(resolveRootArg("/abs/story", "/init/cwd", "/pkg/cwd")).toBe("/abs/story");
   });
 
+  // Expected lắp qua resolve() vì trên Windows "/home/..." được chuẩn hoá
+  // thành "D:\home\..." — hardcode chuỗi POSIX sẽ fail sai.
   it("root tương đối + có INIT_CWD (chạy qua npm --prefix) thì join theo INIT_CWD", () => {
     expect(resolveRootArg(".", "/home/user/my-story", "/repo/apps/qt-ai-cli")).toBe(
-      "/home/user/my-story",
+      resolve("/home/user/my-story"),
     );
     expect(resolveRootArg("../sibling", "/home/user/my-story", "/repo/apps/qt-ai-cli")).toBe(
-      "/home/user/sibling",
+      resolve("/home/user/sibling"),
     );
   });
 
   it("root tương đối + không có INIT_CWD (gọi tsx trực tiếp) thì join theo cwd", () => {
-    expect(resolveRootArg(".", undefined, "/home/user/my-story")).toBe("/home/user/my-story");
+    expect(resolveRootArg(".", undefined, "/home/user/my-story")).toBe(
+      resolve("/home/user/my-story"),
+    );
   });
 });
 

@@ -1,4 +1,5 @@
 import { isAbsolute, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { runAccept } from "./commands/accept.ts";
 import { runCheck } from "./commands/check.ts";
 import { runInit } from "./commands/init.ts";
@@ -97,6 +98,8 @@ export function main(argv: string[]): number {
   return 2;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// So sánh qua pathToFileURL vì trên Windows argv[1] là `D:\...\main.ts`
+// còn import.meta.url là `file:///D:/...` — nối chuỗi thô không bao giờ khớp.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   process.exit(main(process.argv.slice(2)));
 }

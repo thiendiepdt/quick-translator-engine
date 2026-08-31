@@ -1,4 +1,5 @@
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { emptyAiStoryConfig } from "@/lib/ai-story";
 import {
@@ -47,7 +48,7 @@ describe("story-fs", () => {
 
   it("đặt tên work files đúng quy ước", () => {
     const paths = storyPaths("/x");
-    expect(workFile(paths, "0001", "prompt")).toBe("/x/work/0001.prompt.md");
-    expect(workFile(paths, "0001", "glossary")).toBe("/x/work/0001.glossary.json");
+    expect(workFile(paths, "0001", "prompt")).toBe(join("/x", "work", "0001.prompt.md"));
+    expect(workFile(paths, "0001", "glossary")).toBe(join("/x", "work", "0001.glossary.json"));
   });
 });
