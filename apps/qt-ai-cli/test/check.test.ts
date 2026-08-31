@@ -41,6 +41,10 @@ describe("qt-ai check", () => {
     const review = readFileSync(result.reviewPath!, "utf8");
     expect(review).toContain("[[2]] 她沉默了很久没有说话。");   // repair payload đoạn thiếu
     expect(review).toContain("CJK");                            // danh sách vi phạm
+    expect(review).toMatch(/\[\[1\]\][^\n]*CJK/);                // vi phạm gắn đúng nhãn đoạn [[1]]
+    expect(review).not.toContain("Chỉ xuất toàn bộ text đã soát"); // không còn nhồi prompt review cũ (F1)
+    expect(review).toContain("0001.draft.md");                  // chỉ agent sửa tại chỗ trong draft
+    expect(review).toMatch(/GIỮ NGUYÊN.*nhãn/i);                 // giữ nhãn [[n]], không viết lại đoạn khác
     expect(loadState(storyPaths(root)).chapters["0001"]?.reviewRound).toBe(1);
   });
 

@@ -10,11 +10,11 @@ import { loadStoryConfig, readRawChapter, storyPaths, workFile } from "../src/st
 import { makeStoryDir } from "./helpers.ts";
 
 const CH1 = "赵静文抬头看向远方的高塔。\n\n她沉默了很久没有说话。";
-const CH2 = "第二天早上他们出发了。";
+const CH2 = "第二天早上，赵静文和他们一起出发了。";
 const DRAFTS: Record<string, string> = {
   "0001":
     "[[1]] Triệu Tĩnh Văn ngẩng đầu nhìn về phía tòa tháp cao nơi xa.\n\n[[2]] Nàng im lặng hồi lâu không nói lời nào.",
-  "0002": "[[1]] Sáng sớm hôm sau bọn họ liền lên đường xuất phát.",
+  "0002": "[[1]] Sáng sớm hôm sau, Triệu Tĩnh Văn cùng bọn họ lên đường xuất phát.",
 };
 
 describe("e2e: hai chương liên tiếp, glossary học từ chương 1 lọt vào prompt chương 2", () => {
@@ -26,6 +26,13 @@ describe("e2e: hai chương liên tiếp, glossary học từ chương 1 lọt v
     for (const id of ["0001", "0002"]) {
       const next = runNext(root);
       expect(next.chapterId).toBe(id);
+      if (id === "0002") {
+        // glossary học được từ chương 1 (赵静文 → Triệu Tĩnh Văn, merge lúc accept
+        // 0001 ở vòng lặp trước) phải lọt vào prompt của chương 2, vì CH2 cũng
+        // nhắc tới 赵静文 nên filterTranslationGlossaryForSource không lọc bỏ.
+        const prompt2 = readFileSync(next.promptPath, "utf8");
+        expect(prompt2).toContain("Triệu Tĩnh Văn");
+      }
       writeFileSync(workFile(paths, id, "draft"), DRAFTS[id]!, "utf8");
       if (id === "0001") {
         writeFileSync(

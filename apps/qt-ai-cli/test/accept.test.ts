@@ -56,6 +56,21 @@ describe("qt-ai accept", () => {
     expect(existsSync(forced.outPath)).toBe(true);
   });
 
+  it("không glossary mới thì KHÔNG ghi đè story.json (giữ field lạ do loadStoryConfig normalize mất)", () => {
+    const root = readyStory(GOOD_DRAFT); // không có glossary.json → addedGlossary sẽ = 0
+    const paths = storyPaths(root);
+    const withExtraField =
+      `${JSON.stringify({ ...JSON.parse(readFileSync(paths.storyJson, "utf8")), __unknownField: "seed lạ" }, null, 2)}\n`;
+    writeFileSync(paths.storyJson, withExtraField, "utf8");
+
+    const result = runAccept(root, "0001");
+
+    expect(result.addedGlossary).toBe(0);
+    const after = readFileSync(paths.storyJson, "utf8");
+    expect(after).toBe(withExtraField); // bytes y hệt — không bị saveStoryConfig ghi đè
+    expect(after).toContain("__unknownField");
+  });
+
   it("autoGlossary off thì không merge nhưng vẫn accept", () => {
     const root = readyStory(
       GOOD_DRAFT,

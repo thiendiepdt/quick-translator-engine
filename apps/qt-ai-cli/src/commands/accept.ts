@@ -55,7 +55,10 @@ export function runAccept(
       addedGlossary = pairs.length;
     }
   }
-  saveStoryConfig(paths, story);
+  // Chỉ ghi lại story.json khi thực sự có glossary mới merge — loadStoryConfig()
+  // ở trên đã normalize (và có thể âm thầm bỏ field lạ/hỏng); ghi vô điều kiện
+  // sẽ khiến mất mát đó thành vĩnh viễn dù accept không đổi gì trong story.json.
+  if (addedGlossary > 0) saveStoryConfig(paths, story);
 
   const state = loadState(paths);
   const chapter = state.chapters[id];

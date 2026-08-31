@@ -1,3 +1,4 @@
+import { isAbsolute, resolve } from "node:path";
 import { runAccept } from "./commands/accept.ts";
 import { runCheck } from "./commands/check.ts";
 import { runInit } from "./commands/init.ts";
@@ -15,8 +16,24 @@ Lệnh:
   skip <root> <id> --reason <lý do>  Bỏ qua chương (model từ chối...)
   status <root>                      Bảng tiến độ`;
 
+/**
+ * `npm --prefix apps/qt-ai-cli run -s qt-ai -- <lệnh> <root>` chạy với
+ * cwd = thư mục package CLI (không phải cwd của người gõ lệnh), nên một
+ * `root` tương đối (vd. `.`, `../my-story`) sẽ resolve nhầm vào trong repo.
+ * npm luôn set INIT_CWD = cwd gốc trước khi đổi cwd — dùng nó làm base khi
+ * root không tuyệt đối; fallback về `cwd` (process.cwd()) khi không có
+ * INIT_CWD (vd. gọi trực tiếp `tsx src/main.ts` hoặc trong test).
+ */
+export function resolveRootArg(root: string, initCwd: string | undefined, cwd: string): string {
+  if (isAbsolute(root)) return root;
+  return resolve(initCwd ?? cwd, root);
+}
+
 export function main(argv: string[]): number {
-  const [command, root, ...rest] = argv;
+  const [command, rootArg, ...rest] = argv;
+  const root = rootArg === undefined
+    ? undefined
+    : resolveRootArg(rootArg, process.env.INIT_CWD, process.cwd());
   try {
     switch (command) {
       case "init": {
@@ -56,9 +73,12 @@ export function main(argv: string[]): number {
       }
       case "skip": {
         const id = rest[0];
+        // Không có id, hoặc "--reason" bị hiểu nhầm thành id khi id thực sự bị
+        // thiếu (`qt-ai skip <root> --reason x`) → rơi xuống usage thay vì lỗi
+        // khó hiểu từ runSkip.
+        if (!root || !id || id.startsWith("--")) break;
         const reasonIndex = rest.indexOf("--reason");
         const reason = reasonIndex >= 0 ? rest.slice(reasonIndex + 1).join(" ") : "";
-        if (!root || !id) break;
         runSkip(root, id, reason);
         console.log(`Đã skip chương ${id}.`);
         return 0;

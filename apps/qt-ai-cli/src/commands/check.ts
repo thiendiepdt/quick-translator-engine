@@ -4,7 +4,7 @@ import {
   aiParagraphsOf, labeledAiRepairPayload, parseLabeledAiTranslation,
 } from "@/lib/ai-paragraphs";
 import {
-  buildAiTranslationReviewPrompt, checkAiTranslationViolations,
+  checkAiTranslationViolations,
   type TranslationViolation,
 } from "@/lib/ai-translation";
 import {
@@ -18,6 +18,40 @@ export interface CheckResult {
   ratio: number;
   escalatedToError: boolean;
   reviewPath?: string;
+}
+
+/**
+ * `violations` chứa `line` theo văn bản đã lắp (finalText): mỗi đoạn còn lại
+ * (paragraph không undefined trong `parsed`) chiếm 1 dòng, cách nhau 1 dòng
+ * trống — đoạn thứ k (tính trên các đoạn CÒN LẠI, 1-based) nằm ở dòng 2k−1.
+ * Muốn agent sửa đúng chỗ trong draft, phải quy dòng đó về nhãn [[n]] gốc:
+ * lấy vị trí k rồi tra ngược `definedIndices` (chỉ số 0-based trong mảng
+ * `parsed` gốc, đã bỏ các đoạn thiếu) để ra nhãn thật.
+ */
+function buildViolationsSection(
+  id: string,
+  parsed: Array<string | undefined>,
+  violations: TranslationViolation[],
+): string {
+  const definedIndices = parsed
+    .map((paragraph, index) => (paragraph !== undefined ? index : -1))
+    .filter((index) => index >= 0);
+  const list = violations
+    .map((item) => {
+      const position = Math.ceil(item.line / 2); // vị trí đoạn trong finalText (1-based)
+      const originalIndex = definedIndices[position - 1];
+      const label = originalIndex !== undefined ? originalIndex + 1 : position;
+      return `- [[${label}]] (dòng ${item.line} trong bản lắp): ${item.message} — "${item.text}"`;
+    })
+    .join("\n");
+  return [
+    `# Vi phạm rule — sửa tối thiểu ngay trong work/${id}.draft.md`,
+    "",
+    "Sửa ĐÚNG TẠI CHỖ trong work/" + id + ".draft.md: với mỗi vi phạm dưới đây, tìm đoạn có nhãn [[n]] tương ứng, " +
+      "chỉ đổi đúng từ/cụm gây lỗi, GIỮ NGUYÊN toàn bộ nhãn [[n]] hiện có và không viết lại hay chau chuốt các đoạn khác.",
+    "",
+    list,
+  ].join("\n");
 }
 
 export function assembleDraft(root: string, id: string): {
@@ -74,13 +108,13 @@ export function runCheck(root: string, id: string): CheckResult {
       const sections: string[] = [];
       if (missing.length > 0) {
         sections.push(
-          "# Đoạn còn thiếu — dịch bổ sung rồi chèn vào work draft\n\n" +
+          `# Đoạn còn thiếu — dịch bổ sung các đoạn dưới đây rồi CHÈN vào work/${id}.draft.md, ` +
+            "giữ đúng nhãn [[n]] cho từng đoạn, không sửa các đoạn đã có\n\n" +
             labeledAiRepairPayload(paragraphs, missing.map((label) => label - 1)),
         );
       }
       if (violations.length > 0) {
-        const review = buildAiTranslationReviewPrompt(finalText, violations);
-        sections.push(`# Vi phạm rule — sửa tối thiểu\n\n${review.system}\n\n${review.user}`);
+        sections.push(buildViolationsSection(id, parsed, violations));
       }
       if (tooShort) {
         sections.push(
