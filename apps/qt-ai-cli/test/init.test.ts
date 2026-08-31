@@ -36,4 +36,17 @@ describe("qt-ai init", () => {
     expect(after.chapters["0002"]?.status).toBe("queued");
     expect(readFileSync(join(root, "AGENTS.md"), "utf8")).toBe("tự sửa");
   });
+
+  it("template đầy đủ: có vòng lặp translate và luật vệ sinh context", () => {
+    const root = makeStoryDir({ "0001": "第一章" });
+    runInit(root);
+    const translate = readFileSync(join(root, ".agent/workflows/translate.md"), "utf8");
+    expect(translate).toContain("next");
+    expect(translate).toContain("check");
+    expect(translate).toContain("accept");
+    expect(translate).toContain("skip");
+    const agents = readFileSync(join(root, "AGENTS.md"), "utf8");
+    expect(agents).toContain("không đọc lại out/");
+    expect(agents).toContain("chương/phiên");
+  });
 });
