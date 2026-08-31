@@ -46,7 +46,7 @@ describe("e2e: hai chương liên tiếp, glossary học từ chương 1 lọt v
     }
 
     expect(runStatus(root)).toContain("done: 2");
-    expect(readFileSync(`${paths.outDir}/0001.md`, "utf8")).toContain("Triệu Tĩnh Văn");
+    expect(readFileSync(`${paths.outDir}/0001.txt`, "utf8")).toContain("Triệu Tĩnh Văn");
     expect(loadStoryConfig(paths).glossary.names["赵静文"]).toBe("Triệu Tĩnh Văn");
     expect(() => runNext(root)).toThrow(/không còn chương/i);
   });

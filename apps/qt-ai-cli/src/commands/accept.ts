@@ -29,7 +29,7 @@ export function runAccept(
 
   const { finalText } = assembleDraft(root, id);
   const output = formatAiTranslation(stripAiParagraphMarkers(finalText));
-  const outPath = join(paths.outDir, `${id}.md`);
+  const outPath = join(paths.outDir, `${id}.txt`);
   writeFileSync(outPath, output, "utf8");
 
   let story = loadStoryConfig(paths);

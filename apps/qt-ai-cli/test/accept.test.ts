@@ -36,6 +36,7 @@ describe("qt-ai accept", () => {
     );
     const result = runAccept(root, "0001");
     const paths = storyPaths(root);
+    expect(result.outPath.endsWith(".txt")).toBe(true); // output là txt trơn, không phải markdown
     const out = readFileSync(result.outPath, "utf8");
     expect(out).toContain("Triệu Tĩnh Văn ngẩng đầu");
     expect(out).not.toContain("[[");
