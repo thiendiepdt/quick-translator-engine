@@ -4,6 +4,7 @@ import { runAccept } from "./commands/accept.ts";
 import { runCheck } from "./commands/check.ts";
 import { runInit } from "./commands/init.ts";
 import { runNext } from "./commands/next.ts";
+import { runRetry } from "./commands/retry.ts";
 import { runSkip } from "./commands/skip.ts";
 import { runStatus } from "./commands/status.ts";
 
@@ -15,6 +16,7 @@ Lệnh:
   check <root> <id>                  Kiểm tra bản dịch work/<id>.draft.md
   accept <root> <id> [--force]       Chốt chương: ghi out/, merge glossary
   skip <root> <id> --reason <lý do>  Bỏ qua chương (model từ chối...)
+  retry <root> <id>                  Đưa chương error/skipped về hàng đợi dịch lại
   status <root>                      Bảng tiến độ`;
 
 /**
@@ -82,6 +84,13 @@ export function main(argv: string[]): number {
         const reason = reasonIndex >= 0 ? rest.slice(reasonIndex + 1).join(" ") : "";
         runSkip(root, id, reason);
         console.log(`Đã skip chương ${id}.`);
+        return 0;
+      }
+      case "retry": {
+        const id = rest[0];
+        if (!root || !id) break;
+        runRetry(root, id);
+        console.log(`Đã đưa chương ${id} về hàng đợi — next sẽ phát lại nó.`);
         return 0;
       }
       case "status": {
