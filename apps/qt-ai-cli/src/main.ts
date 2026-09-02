@@ -2,6 +2,7 @@ import { isAbsolute, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { runAccept } from "./commands/accept.ts";
 import { runCheck } from "./commands/check.ts";
+import { runExport } from "./commands/export.ts";
 import { runInit } from "./commands/init.ts";
 import { runNext } from "./commands/next.ts";
 import { runRetry } from "./commands/retry.ts";
@@ -17,6 +18,8 @@ Lệnh:
   accept <root> <id> [--force]       Chốt chương: ghi out/, merge glossary
   skip <root> <id> --reason <lý do>  Bỏ qua chương (model từ chối...)
   retry <root> <id>                  Đưa chương error/skipped về hàng đợi dịch lại
+  export <root> [--from <id>] [--to <id>] [--out <file>]
+                                     Gộp các chương done thành một file txt
   status <root>                      Bảng tiến độ`;
 
 /**
@@ -55,7 +58,11 @@ export function main(argv: string[]): number {
         if (!root || !id) break;
         const result = runCheck(root, id);
         if (result.pass) {
-          console.log(`Chương ${id} PASS (ratio ${result.ratio.toFixed(2)}) — chạy accept.`);
+          console.log(
+            result.acceptedWithWarnings
+              ? `Chương ${id} hết vòng review, còn ${result.violations.length} vi phạm rule → chốt kèm cảnh báo. Chạy accept.`
+              : `Chương ${id} PASS (ratio ${result.ratio.toFixed(2)}) — chạy accept.`,
+          );
           return 0;
         }
         if (result.escalatedToError) {
@@ -72,6 +79,9 @@ export function main(argv: string[]): number {
         if (!root || !id) break;
         const result = runAccept(root, id, { force: rest.includes("--force") });
         console.log(`Đã chốt ${result.outPath} (+${result.addedGlossary} glossary mới).`);
+        if (result.warnings.length > 0) {
+          console.log(`Kèm ${result.warnings.length} cảnh báo — xem qt-ai status.`);
+        }
         return 0;
       }
       case "skip": {
@@ -91,6 +101,19 @@ export function main(argv: string[]): number {
         if (!root || !id) break;
         runRetry(root, id);
         console.log(`Đã đưa chương ${id} về hàng đợi — next sẽ phát lại nó.`);
+        return 0;
+      }
+      case "export": {
+        if (!root) break;
+        const flag = (name: string): string | undefined => {
+          const index = rest.indexOf(name);
+          return index >= 0 ? rest[index + 1] : undefined;
+        };
+        const result = runExport(root, { from: flag("--from"), to: flag("--to"), out: flag("--out") });
+        console.log(`Đã gộp ${result.ids.length} chương → ${result.outPath}`);
+        if (result.gaps.length > 0) {
+          console.log(`Hổng ${result.gaps.length} chương chưa done trong khoảng: ${result.gaps.join(", ")}`);
+        }
         return 0;
       }
       case "status": {

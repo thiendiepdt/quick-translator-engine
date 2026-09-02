@@ -5,7 +5,7 @@ Chạy CLI (dùng NGUYÊN VĂN, đừng tự chế đường dẫn khác):
 
     {{QT_AI}} <lệnh> {{STORY_ROOT}} [chương] [cờ]
 
-Lệnh: `init` · `next` · `check <id>` · `accept <id> [--force]` · `skip <id> --reason <lý do>` · `retry <id>` · `status`
+Lệnh: `init` · `next` · `check <id>` · `accept <id> [--force]` · `skip <id> --reason <lý do>` · `retry <id>` · `export [--from <id> --to <id>]` · `status`
 
 ## Luật bắt buộc
 
