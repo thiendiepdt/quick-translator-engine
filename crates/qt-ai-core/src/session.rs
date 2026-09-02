@@ -65,7 +65,7 @@ pub enum StopReason {
     AgyFailed { code: i32 },
     UserCancelled,
     MaxSessions,
-    Internal(String),
+    Internal { message: String },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -250,8 +250,10 @@ impl SessionHandle {
     pub fn join(mut self) -> StopReason {
         self.thread
             .take()
-            .map(|t| t.join().unwrap_or_else(|_| StopReason::Internal("thread runner panic".to_string())))
-            .unwrap_or(StopReason::Internal("đã join".to_string()))
+            .map(|t| {
+                t.join().unwrap_or_else(|_| StopReason::Internal { message: "thread runner panic".to_string() })
+            })
+            .unwrap_or(StopReason::Internal { message: "đã join".to_string() })
     }
 }
 
@@ -261,7 +263,7 @@ fn session_loop(config: SessionConfig, sink: Sink, cancel: Arc<AtomicBool>) -> S
     for session_no in 1..=config.max_sessions {
         let before = match read_progress(&config.root) {
             Ok(p) => p,
-            Err(e) => return StopReason::Internal(e.to_string()),
+            Err(e) => return StopReason::Internal { message: e.to_string() },
         };
         if before.queued == 0 && before.translating == 0 {
             return StopReason::Finished;
@@ -274,7 +276,7 @@ fn session_loop(config: SessionConfig, sink: Sink, cancel: Arc<AtomicBool>) -> S
         let code = match run_child(&config, &prompt, &sink, Some(&cancel), Some(&child_slot)) {
             Ok(Some(code)) => code,
             Ok(None) => return StopReason::UserCancelled,
-            Err(e) => return StopReason::Internal(e.to_string()),
+            Err(e) => return StopReason::Internal { message: e.to_string() },
         };
         if code != 0 {
             consecutive_failures += 1;
@@ -286,7 +288,7 @@ fn session_loop(config: SessionConfig, sink: Sink, cancel: Arc<AtomicBool>) -> S
         consecutive_failures = 0;
         let after = match read_progress(&config.root) {
             Ok(p) => p,
-            Err(e) => return StopReason::Internal(e.to_string()),
+            Err(e) => return StopReason::Internal { message: e.to_string() },
         };
         if after.settled() <= before.settled() {
             return StopReason::NoProgress;
@@ -307,7 +309,7 @@ pub fn start_session(config: SessionConfig, sink: Sink) -> Result<SessionHandle>
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             session_loop(config, sink.clone(), thread_cancel)
         }));
-        let reason = result.unwrap_or_else(|_| StopReason::Internal("runner panic".to_string()));
+        let reason = result.unwrap_or_else(|_| StopReason::Internal { message: "runner panic".to_string() });
         release_lock(&root);
         sink(SessionEvent::Stopped(reason.clone()));
         thread_running.store(false, Ordering::SeqCst);
