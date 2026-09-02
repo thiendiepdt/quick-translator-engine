@@ -2,8 +2,8 @@ mod agy_cmds;
 mod app_config;
 mod error;
 mod sidecar;
+mod session_cmds;
 mod story_cmds;
-// mod session_cmds; // Task 4
 
 use app_config::AppConfig;
 use qt_ai_core::session::SessionHandle;
@@ -45,6 +45,10 @@ pub fn run() {
             story_cmds::chapter_force_accept,
             story_cmds::export_chapters,
             story_cmds::reveal_folder,
+            session_cmds::session_state,
+            session_cmds::session_start,
+            session_cmds::session_stop,
+            session_cmds::ai_fill_story,
         ])
         .run(tauri::generate_context!())
         .expect("không khởi động được QT AI Translator");
