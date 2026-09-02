@@ -1,0 +1,35 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "QT AI Translator",
+  "version": "0.1.0",
+  "identifier": "io.quicktranslator.ai-gui",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1421",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "security": {
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; img-src 'self' asset: data:; style-src 'self' 'unsafe-inline'; font-src 'self' data:"
+    },
+    "windows": [
+      {
+        "title": "QT AI Translator",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 960,
+        "minHeight": 640,
+        "resizable": true
+      }
+    ]
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "msi"],
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
+    "shortDescription": "Dịch truyện Trung sang Việt hàng loạt bằng Antigravity CLI",
+    "longDescription": "QT AI Translator điều khiển Antigravity CLI (agy) dịch truyện theo chương, quản lý glossary và kiểm tra bản dịch tự động.",
+    "windows": { "webviewInstallMode": { "type": "downloadBootstrapper" } }
+  }
+}

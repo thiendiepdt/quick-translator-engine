@@ -2724,6 +2724,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "qt-ai-gui"
+version = "0.1.0"
+dependencies = [
+ "qt-ai-core",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tempfile",
+]
+
+[[package]]
 name = "qt-api"
 version = "0.1.0"
 dependencies = [
