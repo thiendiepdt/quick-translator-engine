@@ -11,7 +11,7 @@ Spec kế thừa `2026-08-31-antigravity-translation-harness-design.md` (format 
 |---|---|---|
 | Đặt ở đâu | App riêng `apps/qt-ai-gui` | Gắn với agy + quota Antigravity; không ép người dùng có `qt-core` + data QT2025 như `qt-gui`. Bỏ: workspace mới trong qt-gui. |
 | Logic dịch chạy kiểu gì | Port sang Rust (`crates/qt-ai-core`) | Người dùng chọn: không phụ thuộc Node, không sidecar. Rủi ro drift với qt-web xử bằng golden fixtures (dưới). Bỏ: sidecar exe từ TS (Bun/Node SEA); chạy logic trong webview qua Tauri fs. |
-| Bản TS `qt-ai-cli` | Giữ song song | Cùng format folder truyện → dùng chéo. Về sau có thể thêm `src/bin/qt-ai.rs` từ core để thay, ngoài phạm vi spec này. |
+| Bản TS `qt-ai-cli` | Giữ song song | Cùng format folder truyện → dùng chéo. Crate Rust **phải** xuất binary `qt-ai` ngay từ đầu: agent bên trong agy đọc AGENTS.md và tự gọi `qt-ai next/check/accept`, nên GUI bundle binary này làm sidecar và render `{{QT_AI}}` thành đường dẫn tới nó. Bản TS giữ cho Antigravity IDE + qt-web. |
 | Nền tảng | Windows trước | Như qt-gui; bundle NSIS + MSI. |
 
 ## Kiến trúc
@@ -30,6 +30,8 @@ crates/qt-ai-core/         Rust lib thuần, không biết Tauri
   commands   init/next/check/accept/skip/retry/export/status                         <- commands/*.ts
   session    runner phiên agy: spawn, stream log, watch state.json, cầu dao, cancel  <- auto-translate.ps1
   templates  AGENTS.md + workflows, include_str! từ apps/qt-ai-cli/antigravity (một nguồn)
+  bin/qt-ai   CLI cùng lệnh/message với bản TS — agent gọi từ AGENTS.md; GUI bundle làm sidecar
+  bin/fake-agy agy giả cho test runner (không ship)
 agy (ngoài repo)           Antigravity CLI, người dùng tự cài + đăng nhập Google
 ```
 
@@ -86,7 +88,7 @@ State: một store zustand `useStoryStore` (truyện đang mở, chapters map, s
 ## Port Rust — điểm cần chú ý
 
 - `AiStoryConfig` serde `camelCase`, alias đọc `tone_rules`/`signature_phrases`; normalize bỏ field lạ như web; ghi ra giữ key order ổn định.
-- Prompt phải ra **đúng byte** với TS: base prompt copy nguyên văn; `serde_json` pretty 2 space thay `JSON.stringify(_, null, 2)` — key order theo insertion (feature `preserve_order`); filter glossary kể cả rule bỏ họ tên 3–4 chữ Hán và giữ nguyên `signature_phrases`.
+- Prompt phải ra **đúng byte** với TS: base prompt và suffix KHÔNG gõ tay — `gen-golden.ts` xuất `crates/qt-ai-core/prompts/prompts.json` (`{"base","suffix"}`), Rust `include_str!` rồi parse lúc chạy (JSON nên không sợ CRLF khi checkout trên Windows). `serde_json` pretty 2 space + feature `preserve_order` thay `JSON.stringify(_, null, 2)`; filter glossary kể cả rule bỏ họ tên 3–4 chữ Hán và giữ nguyên `signature_phrases`.
 - Check rules: web dùng lookbehind `(?<!\p{L})` → `fancy-regex`; regex `checkRules` hỏng thì bỏ qua rule đó như web.
 - Messages tiếng Việt của commands giữ nguyên câu chữ bản TS (agent đọc quen, workflow so khớp chuỗi "chốt kèm cảnh báo", "quá số vòng review → error").
 
