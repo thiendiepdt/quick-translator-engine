@@ -7,7 +7,7 @@ pub mod glossary;
 pub mod story_fs;
 pub mod templates;
 pub mod commands;
-// pub mod agy;          // Task 13
-// pub mod session;      // Task 13
+pub mod agy;
+pub mod session;
 
 pub use error::{CoreError, Result};
