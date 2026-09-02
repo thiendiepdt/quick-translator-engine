@@ -1,5 +1,5 @@
 pub mod error;
-// pub mod story;        // Task 2
+pub mod story;
 // pub mod paragraphs;   // Task 4
 // pub mod prompt;       // Task 5
 // pub mod check;        // Task 6
