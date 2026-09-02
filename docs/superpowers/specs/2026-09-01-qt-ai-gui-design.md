@@ -100,7 +100,7 @@ State: một store zustand `useStoryStore` (truyện đang mở, chapters map, s
 
 ## Test
 
-- **Golden parity với qt-web:** `apps/qt-ai-cli/scripts/gen-golden.ts` chạy code TS thật trên 5 story config mẫu (rỗng / đủ glossary 7 nhóm / customPrompt / checkRules riêng / glossary tên 4 chữ Hán) và vài bản dịch mẫu → `crates/qt-ai-core/tests/fixtures/*.json` gồm: prompt đầy đủ, kết quả parse nhãn, danh sách vi phạm, glossary sau sanitize. Rust test so từng byte. Fixtures commit vào repo; CI job gen lại + `git diff --exit-code` bắt drift.
+- **Golden parity với qt-web:** `apps/qt-ai-cli/scripts/gen-golden.ts` chạy code TS thật trên 5 story config mẫu (rỗng / đủ glossary 7 nhóm / customPrompt / checkRules riêng / glossary tên 4 chữ Hán) và vài bản dịch mẫu → `crates/qt-ai-core/tests/fixtures/*.json` gồm: prompt đầy đủ, kết quả parse nhãn, danh sách vi phạm, glossary sau sanitize. Rust test so từng byte. Fixtures commit vào repo. Repo chưa có CI; drift check là lệnh tay bắt buộc trước khi mở PR: `npm --prefix apps/qt-ai-cli run -s golden:check` (đỏ = web đã đổi prompt/rule, chạy `golden` rồi port Rust theo cho `cargo test -p qt-ai-core` xanh lại).
 - **State machine:** cargo test trên tempdir: init → next → check → accept trọn vòng, resume khi mất `work/*.prompt.md`, retry/skip/export, hết vòng review chỉ còn vi phạm → done kèm warnings, thiếu đoạn → error. Tương đương bộ vitest hiện có.
 - **Runner:** `fake-agy` (script ghi vào state.json rồi thoát theo kịch bản) để test cầu dao NoProgress/AgyFailed, cancel kill process, lock.
 - **Frontend:** vitest + testing-library cho store reducer từ event và zod schema form, như qt-gui.
