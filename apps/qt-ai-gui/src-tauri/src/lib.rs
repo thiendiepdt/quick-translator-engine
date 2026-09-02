@@ -2,7 +2,7 @@ mod agy_cmds;
 mod app_config;
 mod error;
 mod sidecar;
-// mod story_cmds;   // Task 3
+mod story_cmds;
 // mod session_cmds; // Task 4
 
 use app_config::AppConfig;
@@ -34,6 +34,17 @@ pub fn run() {
             agy_cmds::agy_status,
             agy_cmds::app_config_get,
             agy_cmds::app_config_set,
+            story_cmds::open_story,
+            story_cmds::init_story,
+            story_cmds::story_snapshot,
+            story_cmds::read_chapter,
+            story_cmds::save_story,
+            story_cmds::save_settings,
+            story_cmds::chapter_retry,
+            story_cmds::chapter_skip,
+            story_cmds::chapter_force_accept,
+            story_cmds::export_chapters,
+            story_cmds::reveal_folder,
         ])
         .run(tauri::generate_context!())
         .expect("không khởi động được QT AI Translator");
