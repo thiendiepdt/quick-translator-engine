@@ -26,6 +26,9 @@ công cụ xử lý văn bản.
   UTF-16 ranges.
 - Tauri desktop app chạy `qt-core` trực tiếp trên máy, có đủ ba mode, lọc name local,
   chỉnh dictionary theo workspace, mở chương và lưu output mà không cần HTTP API.
+- Tauri desktop app **QT AI Translator** (`apps/qt-ai-gui`): dịch truyện hàng loạt bằng
+  Antigravity CLI, quản lý glossary/hồ sơ truyện, kiểm tra bản dịch tự động; logic trong
+  crate `qt-ai-core`.
 - Cho phép thay thế Names, Names2, Luật Nhân và các từ điển phụ theo từng lần gọi CLI/API;
   VietPhrase và ChinesePhienAmWords luôn dùng bản cố định đã nạp lúc khởi động.
 
@@ -206,6 +209,7 @@ reference/        Source C# decompile dùng để đối chiếu hành vi
 - [Cloudflare gateway cho Lambda](deploy/cloudflare-worker/README.md)
 - [Web app](apps/qt-web/README.md)
 - [Desktop app](apps/qt-gui/README.md)
+- [QT AI Translator — dịch AI bằng Antigravity CLI](apps/qt-ai-gui/README.md)
 - [Đặc tả engine](docs/engine/README.md)
 - [Cách tái tạo source decompile](docs/dev/decompile.md)
 - [Hướng dẫn đóng góp](CONTRIBUTING.md)
