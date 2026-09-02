@@ -1,9 +1,10 @@
 //! So từng byte với fixtures do apps/qt-ai-cli/scripts/gen-golden.ts sinh từ code TS thật.
+use qt_ai_core::check::{check_violations, default_rules_as_check_rules, js_regex_to_rust, Violation};
 use qt_ai_core::paragraphs::*;
 use qt_ai_core::prompt::{
     build_system_prompt, filter_glossary_for_source, glossary_entry_matches_source, TranslationGlossary,
 };
-use qt_ai_core::story::{natural_chapter_compare, Glossary, StoryConfig};
+use qt_ai_core::story::{natural_chapter_compare, CheckRule, Glossary, StoryConfig};
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -171,4 +172,43 @@ fn glossary_matches_va_filter_khop_web() {
     for c in f.filter {
         assert_eq!(filter_glossary_for_source(&c.glossary, &c.source), c.result);
     }
+}
+
+#[derive(Deserialize)]
+struct CheckFixture {
+    #[serde(rename = "defaultRules")]
+    default_rules: Vec<CheckRule>,
+    cases: Vec<CheckCase>,
+}
+#[derive(Deserialize)]
+struct CheckCase {
+    name: String,
+    text: String,
+    rules: Option<Vec<CheckRule>>,
+    violations: Vec<Violation>,
+}
+
+#[test]
+fn check_rules_mac_dinh_dung_63_rule_nhu_web() {
+    let f: CheckFixture = fixture(include_str!("fixtures/check.json"));
+    assert_eq!(default_rules_as_check_rules(), f.default_rules);
+}
+
+#[test]
+fn check_violations_khop_web() {
+    let f: CheckFixture = fixture(include_str!("fixtures/check.json"));
+    for case in f.cases {
+        let got = check_violations(&case.text, case.rules.as_deref().unwrap_or(&[]));
+        assert_eq!(got, case.violations, "case {}", case.name);
+    }
+}
+
+#[test]
+fn js_regex_to_rust_dich_dung_cac_construct() {
+    assert_eq!(
+        js_regex_to_rust(r"\bthập phần\b", ""),
+        r"(?:(?<![A-Za-z0-9_])(?=[A-Za-z0-9_])|(?<=[A-Za-z0-9_])(?![A-Za-z0-9_]))thập phần(?:(?<![A-Za-z0-9_])(?=[A-Za-z0-9_])|(?<=[A-Za-z0-9_])(?![A-Za-z0-9_]))"
+    );
+    assert_eq!(js_regex_to_rust(r"\p{Script=Han}\d", "iu"), r"(?i)\p{Han}[0-9]");
+    assert_eq!(js_regex_to_rust(r"a\\b", ""), r"a\\b"); // backslash escape giữ nguyên, không nhầm là \b
 }
