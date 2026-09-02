@@ -1,0 +1,3 @@
+# Golden fixtures/prompts do gen-golden.ts sinh với LF; autocrlf ghi CRLF khi checkout làm golden:check báo lệch giả.
+crates/qt-ai-core/prompts/*.json text eol=lf
+crates/qt-ai-core/tests/fixtures/*.json text eol=lf
