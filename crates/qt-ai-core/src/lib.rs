@@ -5,8 +5,8 @@ pub mod prompt;
 pub mod check;
 pub mod glossary;
 pub mod story_fs;
-// pub mod templates;    // Task 9
-// pub mod commands;     // Task 9-11
+pub mod templates;
+pub mod commands;
 // pub mod agy;          // Task 13
 // pub mod session;      // Task 13
 
