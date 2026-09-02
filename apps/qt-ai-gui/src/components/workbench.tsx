@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { ChapterPanel } from "@/components/chapter-panel";
 import { ChapterTable } from "@/components/chapter-table";
 import { LogPanel } from "@/components/log-panel";
 import { ProgressHeader } from "@/components/progress-header";
+import { StoryFormDialog } from "@/components/story-form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useStoryStore } from "@/store/story";
 
@@ -14,12 +16,13 @@ export function Workbench() {
   const filter = useStoryStore((s) => s.statusFilter);
   const select = useStoryStore((s) => s.select);
   const setFilter = useStoryStore((s) => s.setStatusFilter);
+  const [storyOpen, setStoryOpen] = useState(false);
   if (!root || !snapshot) return null;
   const row = snapshot.chapters.find((c) => c.id === selectedId);
   const soon = () => toast.message("Sắp có");
   return (
     <div className="flex h-screen flex-col">
-      <ProgressHeader onOpenStory={soon} onOpenSettings={soon} onOpenExport={soon} />
+      <ProgressHeader onOpenStory={() => setStoryOpen(true)} onOpenSettings={soon} onOpenExport={soon} />
       <div className="grid min-h-0 flex-1 grid-cols-[360px_1fr]">
         <aside className="min-h-0 border-r">
           <ChapterTable
@@ -49,6 +52,7 @@ export function Workbench() {
           </Tabs>
         </main>
       </div>
+      <StoryFormDialog open={storyOpen} onOpenChange={setStoryOpen} />
     </div>
   );
 }
