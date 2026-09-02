@@ -8,7 +8,9 @@
     "qt-ai": "tsx src/main.ts",
     "typecheck": "tsc --noEmit --pretty false",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "golden": "tsx scripts/gen-golden.ts",
+    "golden:check": "tsx scripts/gen-golden.ts --check"
   },
   "devDependencies": {
     "@types/node": "^26.1.1",

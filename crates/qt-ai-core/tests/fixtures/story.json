@@ -1,0 +1,157 @@
+{
+  "normalize": [
+    {
+      "input": {},
+      "output": {
+        "name": "",
+        "sourceUrl": "",
+        "protagonist": "",
+        "summary": "",
+        "glossary": {
+          "names": {},
+          "places": {},
+          "items": {},
+          "creatures": {},
+          "skills": {},
+          "common": {},
+          "signature_phrases": {}
+        },
+        "style": {
+          "voice": "",
+          "toneRules": [],
+          "signaturePhrases": {},
+          "avoid": []
+        },
+        "customPrompt": "",
+        "checkRules": [],
+        "autoGlossaryLog": [],
+        "autoGlossary": "inherit"
+      }
+    },
+    {
+      "input": {
+        "name": "A",
+        "laField": 1,
+        "glossary": {
+          "names": {
+            "赵静文": "Triệu Tĩnh Văn",
+            " ": "x",
+            "k": 5
+          },
+          "la": {
+            "a": "b"
+          }
+        },
+        "style": {
+          "voice": "v",
+          "tone_rules": [
+            "r",
+            3
+          ],
+          "signature_phrases": {
+            "哼": "Hừ"
+          },
+          "toneRules": null
+        },
+        "checkRules": [
+          {
+            "pattern": "x",
+            "message": "m"
+          },
+          {
+            "pattern": "",
+            "message": "m"
+          },
+          {
+            "pattern": "y",
+            "flags": "i",
+            "message": "n"
+          },
+          "rác"
+        ],
+        "autoGlossaryLog": [
+          {
+            "source": " 高塔 ",
+            "target": "cao tháp",
+            "category": "places",
+            "chapter": "0001"
+          },
+          {
+            "source": "a",
+            "target": "b",
+            "category": "sai"
+          }
+        ],
+        "autoGlossary": "off"
+      },
+      "output": {
+        "name": "A",
+        "sourceUrl": "",
+        "protagonist": "",
+        "summary": "",
+        "glossary": {
+          "names": {
+            "赵静文": "Triệu Tĩnh Văn"
+          },
+          "places": {},
+          "items": {},
+          "creatures": {},
+          "skills": {},
+          "common": {},
+          "signature_phrases": {}
+        },
+        "style": {
+          "voice": "v",
+          "toneRules": [
+            "r"
+          ],
+          "signaturePhrases": {
+            "哼": "Hừ"
+          },
+          "avoid": []
+        },
+        "customPrompt": "",
+        "checkRules": [
+          {
+            "pattern": "x",
+            "message": "m"
+          },
+          {
+            "pattern": "y",
+            "flags": "i",
+            "message": "n"
+          }
+        ],
+        "autoGlossaryLog": [
+          {
+            "source": "高塔",
+            "target": "cao tháp",
+            "category": "places",
+            "chapter": "0001"
+          }
+        ],
+        "autoGlossary": "off"
+      }
+    }
+  ],
+  "sort": {
+    "input": [
+      "chuong-0010",
+      "chuong-0002",
+      "0001",
+      "10",
+      "2",
+      "Chuong-0001",
+      "chuong-0002b"
+    ],
+    "sorted": [
+      "0001",
+      "2",
+      "10",
+      "Chuong-0001",
+      "chuong-0002",
+      "chuong-0002b",
+      "chuong-0010"
+    ]
+  }
+}
