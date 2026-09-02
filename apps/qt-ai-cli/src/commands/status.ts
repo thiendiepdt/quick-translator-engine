@@ -7,6 +7,7 @@ export function runStatus(root: string): string {
   const counts: Record<ChapterStatus, number> = {
     queued: 0, translating: 0, done: 0, error: 0, skipped: 0,
   };
+  let withWarnings = 0;
   const flagged: string[] = [];
   const ids = Object.keys(state.chapters).sort(naturalChapterCompare);
   for (const id of ids) {
@@ -16,9 +17,14 @@ export function runStatus(root: string): string {
       flagged.push(`  ${id} [${chapter.status}] ${chapter.reason ?? ""}`.trimEnd());
     }
     if (chapter.status === "translating") flagged.push(`  ${id} [translating] — đang dở, check/accept/skip trước`);
+    if (chapter.status === "done" && chapter.warnings && chapter.warnings.length > 0) {
+      withWarnings += 1;
+      flagged.push(`  ${id} [done, ${chapter.warnings.length} cảnh báo] ${chapter.warnings[0]}`);
+    }
   }
   const lines = [
-    `Tổng ${ids.length} chương — done: ${counts.done}, queued: ${counts.queued}, translating: ${counts.translating}, error: ${counts.error}, skipped: ${counts.skipped}`,
+    `Tổng ${ids.length} chương — done: ${counts.done}, queued: ${counts.queued}, translating: ${counts.translating}, error: ${counts.error}, skipped: ${counts.skipped}` +
+      (withWarnings > 0 ? `, done kèm cảnh báo: ${withWarnings}` : ""),
   ];
   if (flagged.length > 0) lines.push("Cần chú ý:", ...flagged);
   lines.push(`Giới hạn phiên: dịch tối đa ${state.settings.chaptersPerSession} chương/phiên rồi nghỉ.`);

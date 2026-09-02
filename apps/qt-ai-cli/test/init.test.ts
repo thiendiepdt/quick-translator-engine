@@ -14,7 +14,7 @@ describe("qt-ai init", () => {
     const state = loadState(paths);
     expect(Object.keys(state.chapters)).toEqual(["0001", "0002"]);
     expect(state.chapters["0001"]?.status).toBe("queued");
-    expect(state.settings.maxReviewRounds).toBe(2);
+    expect(state.settings.maxReviewRounds).toBe(3);
     const agents = readFileSync(join(root, "AGENTS.md"), "utf8");
     expect(agents).not.toContain("{{QT_AI}}");
     expect(agents).toContain(root);

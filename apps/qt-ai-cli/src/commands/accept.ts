@@ -18,7 +18,7 @@ export function runAccept(
   root: string,
   id: string,
   options?: { force?: boolean },
-): { outPath: string; addedGlossary: number } {
+): { outPath: string; addedGlossary: number; warnings: string[] } {
   const paths = storyPaths(resolve(root));
   const check = runCheck(root, id);
   if (!check.pass && !options?.force) {
@@ -63,11 +63,16 @@ export function runAccept(
   const state = loadState(paths);
   const chapter = state.chapters[id];
   if (!chapter) throw new Error(`Không có chương ${id} trong state.json.`);
-  state.chapters[id] = { status: "done", reviewRound: chapter.reviewRound, updatedAt: Date.now() };
+  // Vấn đề còn sót (hết vòng review chỉ còn vi phạm rule, hoặc --force) ghi vào
+  // state để status liệt kê cho người dùng xem lại — giống web hiện cảnh báo.
+  state.chapters[id] = {
+    status: "done", reviewRound: chapter.reviewRound, updatedAt: Date.now(),
+    ...(check.issues.length > 0 ? { warnings: check.issues } : {}),
+  };
   saveState(paths, state);
 
   for (const kind of WORK_KINDS) {
     rmSync(workFile(paths, id, kind), { force: true });
   }
-  return { outPath, addedGlossary };
+  return { outPath, addedGlossary, warnings: check.issues };
 }

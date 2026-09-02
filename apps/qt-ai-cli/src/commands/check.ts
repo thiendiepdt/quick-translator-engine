@@ -16,6 +16,13 @@ export interface CheckResult {
   missing: number[];
   violations: TranslationViolation[];
   ratio: number;
+  /**
+   * Hết vòng review mà chỉ còn vi phạm rule (đủ đoạn, đủ dài): giống web,
+   * chương được coi là pass kèm cảnh báo thay vì chết ở error.
+   */
+  acceptedWithWarnings: boolean;
+  /** Mọi vấn đề còn lại, đã quy về nhãn [[n]] cho người đọc — accept ghi vào state.warnings. */
+  issues: string[];
   escalatedToError: boolean;
   reviewPath?: string;
 }
@@ -28,21 +35,22 @@ export interface CheckResult {
  * lấy vị trí k rồi tra ngược `definedIndices` (chỉ số 0-based trong mảng
  * `parsed` gốc, đã bỏ các đoạn thiếu) để ra nhãn thật.
  */
+function violationLabel(parsed: Array<string | undefined>, item: TranslationViolation): number {
+  const definedIndices = parsed
+    .map((paragraph, index) => (paragraph !== undefined ? index : -1))
+    .filter((index) => index >= 0);
+  const position = Math.ceil(item.line / 2); // vị trí đoạn trong finalText (1-based)
+  const originalIndex = definedIndices[position - 1];
+  return originalIndex !== undefined ? originalIndex + 1 : position;
+}
+
 function buildViolationsSection(
   id: string,
   parsed: Array<string | undefined>,
   violations: TranslationViolation[],
 ): string {
-  const definedIndices = parsed
-    .map((paragraph, index) => (paragraph !== undefined ? index : -1))
-    .filter((index) => index >= 0);
   const list = violations
-    .map((item) => {
-      const position = Math.ceil(item.line / 2); // vị trí đoạn trong finalText (1-based)
-      const originalIndex = definedIndices[position - 1];
-      const label = originalIndex !== undefined ? originalIndex + 1 : position;
-      return `- [[${label}]] (dòng ${item.line} trong bản lắp): ${item.message} — "${item.text}"`;
-    })
+    .map((item) => `- [[${violationLabel(parsed, item)}]] (dòng ${item.line} trong bản lắp): ${item.message} — "${item.text}"`)
     .join("\n");
   return [
     `# Vi phạm rule — sửa tối thiểu ngay trong work/${id}.draft.md`,
@@ -90,20 +98,36 @@ export function runCheck(root: string, id: string): CheckResult {
   const translatedLength = finalText.replace(/\s/g, "").length;
   const ratio = rawLength > 0 ? translatedLength / rawLength : 1;
   const tooShort = ratio < state.settings.minLengthRatio;
-  const pass = missing.length === 0 && violations.length === 0 && !tooShort;
+  const clean = missing.length === 0 && violations.length === 0 && !tooShort;
 
+  const issues: string[] = [
+    ...missing.map((label) => `[[${label}]] thiếu đoạn`),
+    ...violations.map((item) => `[[${violationLabel(parsed, item)}]] ${item.message} — "${item.text}"`),
+    ...(tooShort ? [`Quá ngắn: tỉ lệ ký tự dịch/raw ${ratio.toFixed(2)} < ${state.settings.minLengthRatio}`] : []),
+  ];
+
+  let pass = clean;
+  let acceptedWithWarnings = false;
   let escalatedToError = false;
   let reviewPath: string | undefined;
 
-  if (!pass) {
+  if (!clean) {
     if (chapter.reviewRound >= state.settings.maxReviewRounds) {
-      escalatedToError = true;
-      state.chapters[id] = {
-        ...chapter,
-        status: "error",
-        reason: `Quá ${state.settings.maxReviewRounds} vòng review vẫn chưa đạt (thiếu ${missing.length} đoạn, ${violations.length} vi phạm, ratio ${ratio.toFixed(2)}).`,
-        updatedAt: Date.now(),
-      };
+      if (missing.length === 0 && !tooShort) {
+        // Giống web: hết vòng soát mà chỉ còn vi phạm rule thì vẫn chốt, kèm
+        // cảnh báo cho người dùng xem sau. Error chỉ dành cho thiếu đoạn/quá ngắn.
+        pass = true;
+        acceptedWithWarnings = true;
+      } else {
+        escalatedToError = true;
+        state.chapters[id] = {
+          ...chapter,
+          status: "error",
+          reason: `Quá ${state.settings.maxReviewRounds} vòng review vẫn chưa đạt (thiếu ${missing.length} đoạn, ${violations.length} vi phạm, ratio ${ratio.toFixed(2)}).`,
+          updatedAt: Date.now(),
+        };
+        saveState(paths, state);
+      }
     } else {
       const sections: string[] = [];
       if (missing.length > 0) {
@@ -124,15 +148,15 @@ export function runCheck(root: string, id: string): CheckResult {
       reviewPath = workFile(paths, id, "review");
       writeFileSync(reviewPath, `${sections.join("\n\n---\n\n")}\n`, "utf8");
       state.chapters[id] = { ...chapter, reviewRound: chapter.reviewRound + 1, updatedAt: Date.now() };
+      saveState(paths, state);
     }
-    saveState(paths, state);
   }
 
   writeFileSync(
     workFile(paths, id, "check"),
     `${JSON.stringify(
       {
-        pass, missing, violationCount: violations.length, ratio,
+        pass, acceptedWithWarnings, missing, violationCount: violations.length, ratio,
         reviewRound: (state.chapters[id] ?? chapter).reviewRound,
         checkedAt: Date.now(),
       },
@@ -140,5 +164,8 @@ export function runCheck(root: string, id: string): CheckResult {
     )}\n`,
     "utf8",
   );
-  return { pass, missing, violations, ratio, escalatedToError, ...(reviewPath ? { reviewPath } : {}) };
+  return {
+    pass, missing, violations, ratio, acceptedWithWarnings, issues, escalatedToError,
+    ...(reviewPath ? { reviewPath } : {}),
+  };
 }

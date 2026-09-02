@@ -14,7 +14,8 @@ Lặp cho tới khi hết chương hoặc chạm giới hạn chương/phiên (x
 3. `{{QT_AI}} check {{STORY_ROOT}} <id>`
    - FAIL còn lượt sửa: đọc `work/<id>.review.md`, sửa đúng chỗ trong `work/<id>.draft.md`
      (dịch bổ sung đoạn thiếu / thay cụm vi phạm, KHÔNG viết lại chỗ khác), rồi chạy lại bước 3.
-   - Báo "quá số vòng review → error": bỏ chương này, quay lại bước 1.
+   - Báo "hết vòng review … chốt kèm cảnh báo": coi như PASS, sang bước 4 (người dùng xem cảnh báo sau).
+   - Báo "quá số vòng review → error" (thiếu đoạn/quá ngắn): bỏ chương này, quay lại bước 1.
 4. `{{QT_AI}} accept {{STORY_ROOT}} <id>` — không tự ý dùng `--force`; force là quyết định của người dùng.
 5. Báo một dòng tiến độ (`x/y chương của phiên`) rồi quay lại bước 1.
 

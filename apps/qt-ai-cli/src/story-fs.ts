@@ -13,6 +13,8 @@ export interface ChapterState {
   status: ChapterStatus;
   reviewRound: number;
   reason?: string;
+  /** Chương done nhưng hết vòng review vẫn còn vi phạm rule — người dùng xem lại sau. */
+  warnings?: string[];
   updatedAt: number;
 }
 
@@ -49,7 +51,7 @@ export function storyPaths(root: string): StoryPaths {
 }
 
 export function defaultSettings(): HarnessSettings {
-  return { minLengthRatio: 0.75, maxReviewRounds: 2, chaptersPerSession: 10 };
+  return { minLengthRatio: 0.75, maxReviewRounds: 3, chaptersPerSession: 10 };
 }
 
 export function listRawChapterIds(paths: StoryPaths): string[] {

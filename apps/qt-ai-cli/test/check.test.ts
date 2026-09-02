@@ -1,8 +1,10 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { runAccept } from "../src/commands/accept.ts";
 import { runCheck } from "../src/commands/check.ts";
 import { runInit } from "../src/commands/init.ts";
 import { runNext } from "../src/commands/next.ts";
+import { runStatus } from "../src/commands/status.ts";
 import { loadState, storyPaths, workFile } from "../src/story-fs.ts";
 import { makeStoryDir } from "./helpers.ts";
 
@@ -55,13 +57,47 @@ describe("qt-ai check", () => {
     expect(result.ratio).toBeLessThan(0.75);
   });
 
-  it("quá maxReviewRounds thì chuyển error", () => {
+  it("quá maxReviewRounds mà còn thiếu đoạn thì chuyển error", () => {
     const root = storyWithDraft("[[1]] 高塔");
     runCheck(root, "0001"); // round 1
     runCheck(root, "0001"); // round 2
+    runCheck(root, "0001"); // round 3 (mặc định 3 vòng như web)
     const result = runCheck(root, "0001"); // hết lượt
     expect(result.escalatedToError).toBe(true);
+    expect(result.pass).toBe(false);
     expect(loadState(storyPaths(root)).chapters["0001"]?.status).toBe("error");
+  });
+
+  it("quá maxReviewRounds mà chỉ còn vi phạm rule (đủ đoạn, đủ dài) → pass kèm cảnh báo, accept ghi warnings", () => {
+    // [[1]] còn Hán tự 高塔 (rule CJK), nhưng đủ 2 đoạn và ratio thừa — giống web: done kèm cảnh báo
+    const root = storyWithDraft(
+      "[[1]] Triệu Tĩnh Văn ngẩng đầu nhìn về phía 高塔 nơi xa.\n\n[[2]] Nàng im lặng hồi lâu không nói lời nào.",
+    );
+    for (let round = 0; round < 3; round += 1) expect(runCheck(root, "0001").pass).toBe(false);
+    const result = runCheck(root, "0001");
+    expect(result.pass).toBe(true);
+    expect(result.acceptedWithWarnings).toBe(true);
+    expect(result.escalatedToError).toBe(false);
+    expect(result.issues).toHaveLength(1);
+    expect(result.issues[0]).toMatch(/^\[\[1\]\].*CJK/);
+    expect(loadState(storyPaths(root)).chapters["0001"]?.status).toBe("translating"); // check không tự chốt
+
+    const accepted = runAccept(root, "0001");
+    expect(accepted.warnings).toEqual(result.issues);
+    const chapter = loadState(storyPaths(root)).chapters["0001"]!;
+    expect(chapter.status).toBe("done");
+    expect(chapter.warnings).toEqual(result.issues);
+    expect(runStatus(root)).toContain("done kèm cảnh báo: 1");
+    expect(runStatus(root)).toMatch(/0001 \[done, 1 cảnh báo\]/);
+  });
+
+  it("accept sạch thì không có warnings trong state", () => {
+    const root = storyWithDraft(
+      "[[1]] Triệu Tĩnh Văn ngẩng đầu nhìn về phía tòa tháp cao nơi xa.\n\n[[2]] Nàng im lặng hồi lâu không nói lời nào.",
+    );
+    runAccept(root, "0001");
+    expect(loadState(storyPaths(root)).chapters["0001"]?.warnings).toBeUndefined();
+    expect(runStatus(root)).not.toContain("cảnh báo:");
   });
 
   it("draft mất sạch nhãn → coi như thiếu toàn bộ", () => {
