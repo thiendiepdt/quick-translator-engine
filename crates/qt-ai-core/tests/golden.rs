@@ -1,10 +1,13 @@
 //! So từng byte với fixtures do apps/qt-ai-cli/scripts/gen-golden.ts sinh từ code TS thật.
 use qt_ai_core::check::{check_violations, default_rules_as_check_rules, js_regex_to_rust, Violation};
+use qt_ai_core::glossary::{
+    append_auto_glossary, collect_glossary_keys, resolve_auto_glossary_enabled, sanitize_extracted, ExtractedPair,
+};
 use qt_ai_core::paragraphs::*;
 use qt_ai_core::prompt::{
     build_system_prompt, filter_glossary_for_source, glossary_entry_matches_source, TranslationGlossary,
 };
-use qt_ai_core::story::{natural_chapter_compare, CheckRule, Glossary, StoryConfig};
+use qt_ai_core::story::{natural_chapter_compare, AutoGlossarySetting, CheckRule, Glossary, StoryConfig};
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -145,7 +148,6 @@ struct FilterCase {
     result: Glossary,
 }
 #[derive(Deserialize)]
-#[allow(dead_code)]
 struct SanitizeCase {
     entries: Value,
     raw: String,
@@ -155,7 +157,6 @@ struct SanitizeCase {
     result: Value,
 }
 #[derive(Deserialize)]
-#[allow(dead_code)]
 struct AppendCase {
     story: Value,
     pairs: Value,
@@ -211,4 +212,26 @@ fn js_regex_to_rust_dich_dung_cac_construct() {
     );
     assert_eq!(js_regex_to_rust(r"\p{Script=Han}\d", "iu"), r"(?i)\p{Han}[0-9]");
     assert_eq!(js_regex_to_rust(r"a\\b", ""), r"a\\b"); // backslash escape giữ nguyên, không nhầm là \b
+}
+
+#[test]
+fn glossary_sanitize_va_append_khop_web() {
+    let f: GlossaryFixture = fixture(include_str!("fixtures/glossary.json"));
+    for c in f.sanitize {
+        let existing = c.existing_keys.iter().cloned().collect();
+        let got = sanitize_extracted(&c.entries, &c.raw, &c.translation, &existing);
+        assert_eq!(serde_json::to_value(&got).unwrap(), c.result);
+    }
+    for c in f.append {
+        let story = StoryConfig::normalize(&c.story);
+        let pairs: Vec<ExtractedPair> = serde_json::from_value(c.pairs).unwrap();
+        let got = append_auto_glossary(&story, &pairs, &c.chapter);
+        assert_eq!(serde_json::to_value(&got).unwrap(), c.result);
+    }
+    let story = StoryConfig::normalize(&serde_json::json!({"glossary": {"names": {"a": "b"}}}));
+    let keys = collect_glossary_keys(&TranslationGlossary::new(), &story.glossary);
+    assert!(keys.contains("a") && keys.len() == 1);
+    assert!(resolve_auto_glossary_enabled(AutoGlossarySetting::On, false));
+    assert!(!resolve_auto_glossary_enabled(AutoGlossarySetting::Off, true));
+    assert!(resolve_auto_glossary_enabled(AutoGlossarySetting::Inherit, true));
 }
