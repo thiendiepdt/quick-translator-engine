@@ -1,6 +1,9 @@
 //! So từng byte với fixtures do apps/qt-ai-cli/scripts/gen-golden.ts sinh từ code TS thật.
 use qt_ai_core::paragraphs::*;
-use qt_ai_core::story::{natural_chapter_compare, StoryConfig};
+use qt_ai_core::prompt::{
+    build_system_prompt, filter_glossary_for_source, glossary_entry_matches_source, TranslationGlossary,
+};
+use qt_ai_core::story::{natural_chapter_compare, Glossary, StoryConfig};
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -96,5 +99,76 @@ fn paragraphs_khop_ts() {
     }
     for c in f.format {
         assert_eq!(format_translation(&c.input), c.output, "format {:?}", c.input);
+    }
+}
+
+#[derive(Deserialize)]
+struct PromptFixture {
+    cases: Vec<PromptCase>,
+}
+#[derive(Deserialize)]
+struct PromptCase {
+    name: String,
+    story: Option<Value>,
+    source: Option<String>,
+    prompt: String,
+}
+
+#[test]
+fn prompt_khop_tung_byte_voi_web() {
+    let f: PromptFixture = fixture(include_str!("fixtures/prompt.json"));
+    for case in f.cases {
+        let story = case.story.as_ref().map(StoryConfig::normalize);
+        let got = build_system_prompt(&TranslationGlossary::new(), story.as_ref(), case.source.as_deref());
+        assert_eq!(got, case.prompt, "case {}", case.name);
+    }
+}
+
+#[derive(Deserialize)]
+struct GlossaryFixture {
+    matches: Vec<MatchCase>,
+    filter: Vec<FilterCase>,
+    sanitize: Vec<SanitizeCase>,
+    append: Vec<AppendCase>,
+}
+#[derive(Deserialize)]
+struct MatchCase {
+    source: String,
+    text: String,
+    result: bool,
+}
+#[derive(Deserialize)]
+struct FilterCase {
+    glossary: Glossary,
+    source: String,
+    result: Glossary,
+}
+#[derive(Deserialize)]
+#[allow(dead_code)]
+struct SanitizeCase {
+    entries: Value,
+    raw: String,
+    translation: String,
+    #[serde(rename = "existingKeys")]
+    existing_keys: Vec<String>,
+    result: Value,
+}
+#[derive(Deserialize)]
+#[allow(dead_code)]
+struct AppendCase {
+    story: Value,
+    pairs: Value,
+    chapter: String,
+    result: Value,
+}
+
+#[test]
+fn glossary_matches_va_filter_khop_web() {
+    let f: GlossaryFixture = fixture(include_str!("fixtures/glossary.json"));
+    for c in f.matches {
+        assert_eq!(glossary_entry_matches_source(&c.source, &c.text), c.result, "{} in {}", c.source, c.text);
+    }
+    for c in f.filter {
+        assert_eq!(filter_glossary_for_source(&c.glossary, &c.source), c.result);
     }
 }

@@ -1,7 +1,7 @@
 pub mod error;
 pub mod story;
 pub mod paragraphs;
-// pub mod prompt;       // Task 5
+pub mod prompt;
 // pub mod check;        // Task 6
 // pub mod glossary;     // Task 7
 // pub mod story_fs;     // Task 8
