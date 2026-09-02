@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { ChapterPanel } from "@/components/chapter-panel";
 import { ChapterTable } from "@/components/chapter-table";
+import { ExportDialog } from "@/components/export-dialog";
 import { LogPanel } from "@/components/log-panel";
 import { ProgressHeader } from "@/components/progress-header";
+import { SettingsDialog } from "@/components/settings-dialog";
 import { StoryFormDialog } from "@/components/story-form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useStoryStore } from "@/store/story";
@@ -17,12 +18,17 @@ export function Workbench() {
   const select = useStoryStore((s) => s.select);
   const setFilter = useStoryStore((s) => s.setStatusFilter);
   const [storyOpen, setStoryOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   if (!root || !snapshot) return null;
   const row = snapshot.chapters.find((c) => c.id === selectedId);
-  const soon = () => toast.message("Sắp có");
   return (
     <div className="flex h-screen flex-col">
-      <ProgressHeader onOpenStory={() => setStoryOpen(true)} onOpenSettings={soon} onOpenExport={soon} />
+      <ProgressHeader
+        onOpenStory={() => setStoryOpen(true)}
+        onOpenSettings={() => setSettingsOpen(true)}
+        onOpenExport={() => setExportOpen(true)}
+      />
       <div className="grid min-h-0 flex-1 grid-cols-[360px_1fr]">
         <aside className="min-h-0 border-r">
           <ChapterTable
@@ -53,6 +59,8 @@ export function Workbench() {
         </main>
       </div>
       <StoryFormDialog open={storyOpen} onOpenChange={setStoryOpen} />
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <ExportDialog open={exportOpen} onOpenChange={setExportOpen} />
     </div>
   );
 }
