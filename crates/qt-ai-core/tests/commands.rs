@@ -1,8 +1,12 @@
 //! State machine trên tempdir — tương đương bộ vitest của apps/qt-ai-cli.
 use qt_ai_core::commands::accept::run_accept;
 use qt_ai_core::commands::check::run_check;
+use qt_ai_core::commands::export::{run_export, ExportOptions};
 use qt_ai_core::commands::init::run_init;
 use qt_ai_core::commands::next::run_next;
+use qt_ai_core::commands::retry::run_retry;
+use qt_ai_core::commands::skip::run_skip;
+use qt_ai_core::commands::status::run_status;
 use qt_ai_core::story::StoryConfig;
 use qt_ai_core::story_fs::*;
 use qt_ai_core::CoreError;
@@ -371,4 +375,145 @@ fn e2e_hai_chuong_glossary_hoc_tu_chuong_1_lot_vao_prompt_chuong_2() {
     }
     assert!(fs::read_to_string(paths.out_dir.join("0001.txt")).unwrap().contains("Triệu Tĩnh Văn"));
     assert!(matches!(run_next(root), Err(CoreError::InvalidState(_))));
+}
+
+#[test]
+fn skip_chuong_translating_kem_ly_do_next_di_tiep() {
+    let dir = make_story_dir(&[("0001", "第一章"), ("0002", "第二章")]);
+    let root = dir.path();
+    run_init(root, "qt-ai").unwrap();
+    run_next(root).unwrap();
+    run_skip(root, "0001", "model từ chối nội dung").unwrap();
+    let state = load_state(&story_paths(root)).unwrap();
+    assert_eq!(state.chapters["0001"].status, ChapterStatus::Skipped);
+    assert_eq!(state.chapters["0001"].reason.as_deref(), Some("model từ chối nội dung"));
+    assert!(!work_file(&story_paths(root), "0001", WorkKind::Prompt).exists());
+    assert_eq!(run_next(root).unwrap().chapter_id, "0002");
+    assert!(matches!(run_skip(root, "0002", "  "), Err(CoreError::InvalidState(ref m)) if m.contains("--reason")));
+}
+
+#[test]
+fn retry_dua_error_skipped_ve_queued_va_chan_case_vo_nghia() {
+    let dir = make_story_dir(&[("0001", "第一章"), ("0002", "第二章")]);
+    let root = dir.path();
+    run_init(root, "qt-ai").unwrap();
+    let paths = story_paths(root);
+    let mut state = load_state(&paths).unwrap();
+    state.chapters.insert(
+        "0001".into(),
+        ChapterState {
+            status: ChapterStatus::Error,
+            review_round: 3,
+            reason: Some("Quá 3 vòng".into()),
+            warnings: None,
+            updated_at: 1,
+        },
+    );
+    save_state(&paths, &state).unwrap();
+    fs::create_dir_all(&paths.work_dir).unwrap();
+    fs::write(work_file(&paths, "0001", WorkKind::Draft), "[[1]] nháp cũ").unwrap();
+    run_retry(root, "0001").unwrap();
+    let after = &load_state(&paths).unwrap().chapters["0001"];
+    assert_eq!(after.status, ChapterStatus::Queued);
+    assert_eq!(after.review_round, 0);
+    assert!(after.reason.is_none());
+    assert!(!work_file(&paths, "0001", WorkKind::Draft).exists());
+    assert_eq!(run_next(root).unwrap().chapter_id, "0001");
+
+    assert!(matches!(run_retry(root, "0001"), Err(CoreError::InvalidState(ref m)) if m.contains("translating")));
+    assert!(matches!(run_retry(root, "0002"), Err(CoreError::InvalidState(ref m)) if m.contains("queued sẵn")));
+    assert!(matches!(run_retry(root, "9999"), Err(CoreError::StoryNotFound(_))));
+    run_skip(root, "0001", "thử").unwrap();
+    run_retry(root, "0001").unwrap();
+    assert_eq!(load_state(&paths).unwrap().chapters["0001"].status, ChapterStatus::Queued);
+}
+
+#[test]
+fn status_tong_hop_du_trang_thai_va_canh_bao() {
+    let dir = make_story_dir(&[("0001", "第一章"), ("0002", "第二章"), ("0003", "第三章")]);
+    let root = dir.path();
+    run_init(root, "qt-ai").unwrap();
+    let paths = story_paths(root);
+    run_next(root).unwrap();
+    run_skip(root, "0001", "thử").unwrap();
+    let mut state = load_state(&paths).unwrap();
+    state.chapters.insert(
+        "0003".into(),
+        ChapterState {
+            status: ChapterStatus::Done,
+            review_round: 3,
+            reason: None,
+            warnings: Some(vec!["[[1]] CJK còn sót".into()]),
+            updated_at: 1,
+        },
+    );
+    save_state(&paths, &state).unwrap();
+    let report = run_status(root).unwrap();
+    assert!(report.starts_with(
+        "Tổng 3 chương — done: 1, queued: 1, translating: 0, error: 0, skipped: 1, done kèm cảnh báo: 1"
+    ));
+    assert!(report.contains("  0001 [skipped] thử"));
+    assert!(report.contains("  0003 [done, 1 cảnh báo] [[1]] CJK còn sót"));
+    assert!(report.ends_with("Giới hạn phiên: dịch tối đa 10 chương/phiên rồi nghỉ."));
+}
+
+/// 4 chương: 1, 2, 4 done có out/; 3 skipped.
+fn story_with_outputs() -> TempDir {
+    let dir = make_story_dir(&[("0001", "一"), ("0002", "二"), ("0003", "三"), ("0004", "四")]);
+    run_init(dir.path(), "qt-ai").unwrap();
+    let paths = story_paths(dir.path());
+    let mut state = load_state(&paths).unwrap();
+    for (id, text) in [("0001", "Chương một.\n"), ("0002", "Chương hai.\n\n"), ("0004", "Chương bốn.")] {
+        fs::write(paths.out_dir.join(format!("{id}.txt")), text).unwrap();
+        state.chapters.insert(
+            id.into(),
+            ChapterState { status: ChapterStatus::Done, review_round: 0, reason: None, warnings: None, updated_at: 1 },
+        );
+    }
+    state.chapters.insert(
+        "0003".into(),
+        ChapterState {
+            status: ChapterStatus::Skipped,
+            review_round: 0,
+            reason: Some("thử".into()),
+            warnings: None,
+            updated_at: 1,
+        },
+    );
+    save_state(&paths, &state).unwrap();
+    dir
+}
+
+#[test]
+fn export_gop_chuong_done_cach_1_dong_trong_bao_hong() {
+    let dir = story_with_outputs();
+    let result = run_export(dir.path(), &ExportOptions::default()).unwrap();
+    assert_eq!(result.ids, vec!["0001", "0002", "0004"]);
+    assert_eq!(result.gaps, vec!["0003"]);
+    assert_eq!(result.out_path, dir.path().join("export").join("0001-0004.txt"));
+    assert_eq!(fs::read_to_string(&result.out_path).unwrap(), "Chương một.\n\nChương hai.\n\nChương bốn.\n");
+
+    let out = dir.path().join("custom").join("tap1.txt");
+    let result = run_export(
+        dir.path(),
+        &ExportOptions { from: Some("0002".into()), to: Some("0004".into()), out: Some(out.clone()) },
+    )
+    .unwrap();
+    assert_eq!(result.ids, vec!["0002", "0004"]);
+    assert_eq!(fs::read_to_string(&out).unwrap(), "Chương hai.\n\nChương bốn.\n");
+
+    assert!(matches!(
+        run_export(dir.path(), &ExportOptions { from: Some("0004".into()), to: Some("0001".into()), out: None }),
+        Err(CoreError::InvalidState(ref m)) if m.contains("ngược")
+    ));
+    assert!(matches!(
+        run_export(dir.path(), &ExportOptions { from: Some("9999".into()), to: None, out: None }),
+        Err(CoreError::StoryNotFound(_))
+    ));
+    let empty = make_story_dir(&[("0001", "一")]);
+    run_init(empty.path(), "qt-ai").unwrap();
+    assert!(matches!(
+        run_export(empty.path(), &ExportOptions::default()),
+        Err(CoreError::InvalidState(ref m)) if m.contains("done")
+    ));
 }
