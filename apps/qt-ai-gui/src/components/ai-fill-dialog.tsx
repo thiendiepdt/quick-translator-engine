@@ -105,7 +105,7 @@ export function AiFillDialog({ root, initialName, initialUrl, open, onOpenChange
               </table>
             )}
             {result.log.length > 0 && (
-              <pre className="border-t bg-zinc-950 p-2 font-mono text-[11px] text-zinc-200">
+              <pre className="border-t bg-log p-2 font-mono text-[11px] text-log-foreground">
                 {result.log.slice(-40).join("\n")}
               </pre>
             )}
