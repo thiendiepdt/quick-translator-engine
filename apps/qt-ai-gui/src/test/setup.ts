@@ -1,5 +1,11 @@
 import "@testing-library/jest-dom/vitest";
 
+import { cleanup } from "@testing-library/react";
+import { afterEach } from "vitest";
+
+// Không bật globals nên RTL không tự cleanup — dọn DOM sau mỗi test để render không rò sang test khác.
+afterEach(cleanup);
+
 class ResizeObserverMock implements ResizeObserver {
   observe() {}
   unobserve() {}

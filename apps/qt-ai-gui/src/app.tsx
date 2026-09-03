@@ -1,18 +1,19 @@
 import { LoaderCircle } from "lucide-react";
-import { useCallback, useEffect, type ReactElement } from "react";
+import { useCallback, useEffect, type ComponentType } from "react";
 import { toast } from "sonner";
 
 import { AgyMissing } from "@/components/agy-missing";
 import { AppRail } from "@/components/app-rail";
+import { TranslatePage } from "@/components/pages/translate-page";
 import { StoryPicker } from "@/components/story-picker";
 import { useSessionEvents } from "@/hooks/use-session-events";
 import { useThemeSync } from "@/hooks/use-theme";
 import { agyStatus, appConfigGet, appConfigSet, pickAgyFile } from "@/lib/api";
 import { useStoryStore, type Page } from "@/store/story";
 
-// Task 4–6 thay bằng import trang thật
-const PAGES: Record<Page, () => ReactElement> = {
-  translate: () => <div className="p-6 text-sm">Dịch</div>,
+// Task 5–6 thay bằng import trang thật
+const PAGES: Record<Page, ComponentType> = {
+  translate: TranslatePage,
   story: () => <div className="p-6 text-sm">Hồ sơ</div>,
   export: () => <div className="p-6 text-sm">Export</div>,
   settings: () => <div className="p-6 text-sm">Cài đặt</div>,

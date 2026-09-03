@@ -13,16 +13,22 @@ export function LogPanel() {
     bottom.current?.scrollIntoView({ block: "end" });
   }, [logs.length]);
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between border-b p-2">
-        <span className="text-xs text-muted-foreground">{logs.length} dòng log agy</span>
-        <Button size="xs" variant="ghost" onClick={clear}>
+    <div className="flex h-full flex-col bg-log text-log-foreground">
+      <div className="flex items-center justify-between border-b border-log-foreground/10 px-3 py-1.5">
+        <span className="font-mono text-xs opacity-70">{logs.length} dòng log agy</span>
+        <Button
+          size="xs"
+          variant="ghost"
+          onClick={clear}
+          className="text-log-foreground hover:bg-log-foreground/10 hover:text-log-foreground"
+        >
           <Eraser /> Xoá
         </Button>
       </div>
-      <div className="flex-1 overflow-auto bg-zinc-950 p-2 font-mono text-xs text-zinc-100">
+      <div className="fine-scrollbar flex-1 overflow-auto p-3 font-mono text-xs leading-relaxed">
+        {logs.length === 0 && <p className="opacity-60">Chưa có log. Bấm Bắt đầu dịch để agy chạy.</p>}
         {logs.map((entry) => (
-          <div key={entry.seq} className={cn("whitespace-pre-wrap", entry.stream === "stderr" && "text-amber-300")}>
+          <div key={entry.seq} className={cn("whitespace-pre-wrap", entry.stream === "stderr" && "text-status-warning")}>
             {entry.line}
           </div>
         ))}
