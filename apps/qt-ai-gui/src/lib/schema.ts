@@ -93,6 +93,15 @@ export const appConfigSchema = z.object({
   model: z.string().nullable(),
   maxSessions: z.number().int().min(1).max(1000),
   recent: z.array(z.string()),
+  palette: z.string().default("editorial"),
+  themeMode: z.string().default("system"),
+});
+
+export const recentSummarySchema = z.object({
+  root: z.string(),
+  name: z.string().nullable(),
+  done: z.number().nullable(),
+  total: z.number().nullable(),
 });
 
 export const progressSchema = z.object({

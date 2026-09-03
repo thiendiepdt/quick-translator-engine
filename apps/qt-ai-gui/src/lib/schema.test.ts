@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { sessionEventSchema, storyConfigSchema, storySnapshotSchema } from "@/lib/schema";
+import { appConfigSchema, sessionEventSchema, storyConfigSchema, storySnapshotSchema } from "@/lib/schema";
 
 const story = {
   name: "A",
@@ -35,6 +35,12 @@ describe("schema", () => {
     });
     expect(snap.chapters[0]?.reason).toBeNull();
     expect(snap.story.checkRules[0]?.flags).toBeUndefined();
+  });
+
+  it("appConfig cũ thiếu palette/themeMode vẫn parse với default", () => {
+    const parsed = appConfigSchema.parse({ agyPath: null, model: null, maxSessions: 50, recent: [] });
+    expect(parsed.palette).toBe("editorial");
+    expect(parsed.themeMode).toBe("system");
   });
 
   it("từ chối status lạ", () => {

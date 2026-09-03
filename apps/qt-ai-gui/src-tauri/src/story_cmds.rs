@@ -71,6 +71,43 @@ pub struct ExportOutcome {
     pub gaps: Vec<String>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecentSummary {
+    pub root: String,
+    pub name: Option<String>,
+    pub done: Option<usize>,
+    pub total: Option<usize>,
+}
+
+/// Tóm tắt từng folder gần đây; folder hỏng/mất → chỉ có root (UI hiện mờ).
+pub fn summarize_recent(roots: &[String]) -> Vec<RecentSummary> {
+    roots
+        .iter()
+        .map(|root| {
+            let paths = story_paths(Path::new(root));
+            match (load_state(&paths), load_story_config(&paths)) {
+                (Ok(state), Ok(story)) => {
+                    let counts = count_chapters(&state);
+                    RecentSummary {
+                        root: root.clone(),
+                        name: Some(story.name).filter(|n| !n.trim().is_empty()),
+                        done: Some(counts.done),
+                        total: Some(counts.total),
+                    }
+                }
+                _ => RecentSummary { root: root.clone(), name: None, done: None, total: None },
+            }
+        })
+        .collect()
+}
+
+#[tauri::command]
+pub fn recent_summaries(state: State<'_, AppState>) -> CmdResult<Vec<RecentSummary>> {
+    let roots = state.config.lock().unwrap().recent.clone();
+    Ok(summarize_recent(&roots))
+}
+
 pub fn snapshot(root: &Path, session_running: bool) -> CmdResult<StorySnapshot> {
     let paths = story_paths(root);
     let state = load_state(&paths)?;
@@ -294,5 +331,19 @@ mod tests {
         };
         save_settings_inner(dir.path(), settings.clone()).unwrap();
         assert_eq!(snapshot(dir.path(), false).unwrap().settings, settings);
+    }
+
+    #[test]
+    fn summarize_recent_doc_ten_va_tien_do_folder_hong_thi_none() {
+        let dir = story();
+        save_story_inner(dir.path(), serde_json::json!({"name": "Nam Nữ Đế"})).unwrap();
+        let roots = vec![dir.path().display().to_string(), "D:\\khong\\co".to_string()];
+        let list = summarize_recent(&roots);
+        assert_eq!(list.len(), 2);
+        assert_eq!(list[0].name.as_deref(), Some("Nam Nữ Đế"));
+        assert_eq!(list[0].total, Some(2));
+        assert_eq!(list[0].done, Some(0));
+        assert_eq!(list[1].root, "D:\\khong\\co");
+        assert!(list[1].name.is_none() && list[1].total.is_none());
     }
 }

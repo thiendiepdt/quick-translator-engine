@@ -13,11 +13,22 @@ pub struct AppConfig {
     pub max_sessions: u32,
     /// Folder truyện mở gần đây, mới nhất đứng đầu.
     pub recent: Vec<String>,
+    /// Bộ màu: editorial | studio | soft (UI kiểm tra giá trị, Rust chỉ lưu).
+    pub palette: String,
+    /// light | dark | system.
+    pub theme_mode: String,
 }
 
 impl Default for AppConfig {
     fn default() -> Self {
-        AppConfig { agy_path: None, model: None, max_sessions: 50, recent: vec![] }
+        AppConfig {
+            agy_path: None,
+            model: None,
+            max_sessions: 50,
+            recent: vec![],
+            palette: "editorial".to_string(),
+            theme_mode: "system".to_string(),
+        }
     }
 }
 
@@ -64,5 +75,18 @@ mod tests {
         assert_eq!(AppConfig::load(&path), config);
         std::fs::write(&path, "hỏng").unwrap();
         assert_eq!(AppConfig::load(&path), AppConfig::default()); // file hỏng → default, không panic
+    }
+
+    #[test]
+    fn default_co_palette_editorial_va_theme_system_va_doc_config_cu_thieu_truong() {
+        let config = AppConfig::default();
+        assert_eq!(config.palette, "editorial");
+        assert_eq!(config.theme_mode, "system");
+        let old: AppConfig =
+            serde_json::from_str(r#"{"agyPath":null,"model":null,"maxSessions":7,"recent":[]}"#).unwrap();
+        assert_eq!(old.max_sessions, 7);
+        assert_eq!(old.palette, "editorial");
+        let json = serde_json::to_value(&config).unwrap();
+        assert_eq!(json["themeMode"], "system");
     }
 }

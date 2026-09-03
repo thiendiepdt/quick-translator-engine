@@ -11,6 +11,7 @@ import {
   type exportOutcomeSchema,
   type harnessSettingsSchema,
   type progressSchema,
+  type recentSummarySchema,
   type sessionEventSchema,
   type stopReasonSchema,
   type storyConfigSchema,
@@ -32,6 +33,7 @@ export type StopReason = z.infer<typeof stopReasonSchema>;
 export type SessionEvent = z.infer<typeof sessionEventSchema>;
 export type AiFillResult = z.infer<typeof aiFillResultSchema>;
 export type ExportOutcome = z.infer<typeof exportOutcomeSchema>;
+export type RecentSummary = z.infer<typeof recentSummarySchema>;
 
 export const GLOSSARY_LABELS: Record<GlossaryKey, string> = {
   names: "Tên nhân vật",

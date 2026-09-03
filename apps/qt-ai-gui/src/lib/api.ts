@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
+import { z } from "zod";
 
 import {
   agyStatusSchema,
@@ -8,6 +9,7 @@ import {
   chapterViewSchema,
   exportOutcomeSchema,
   harnessSettingsSchema,
+  recentSummarySchema,
   sessionStatusSchema,
   storyConfigSchema,
   storySnapshotSchema,
@@ -71,6 +73,8 @@ export const agyStatus = (configured?: string) =>
 export const appConfigGet = () => call("app_config_get", undefined, (v) => appConfigSchema.parse(v));
 export const appConfigSet = (config: AppConfig) =>
   call("app_config_set", { config }, (v) => appConfigSchema.parse(v));
+export const recentSummaries = () =>
+  call("recent_summaries", undefined, (v) => z.array(recentSummarySchema).parse(v));
 export const sessionStart = (root: string, model?: string) =>
   call("session_start", { root, model: model ?? null }, (v) => sessionStatusSchema.parse(v));
 export const sessionStop = () => call("session_stop", undefined, (v) => sessionStatusSchema.parse(v));
