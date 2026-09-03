@@ -127,7 +127,12 @@ export function ChapterReader({ root, row, hasPrev, hasNext, onPrev, onNext }: P
           </ul>
         </div>
       )}
-      <Tabs key={viewKey} defaultValue={defaultTab} className="flex min-h-0 flex-1 flex-col gap-0">
+      {/* key đổi khi view tải xong để defaultValue tính lại (Bản dịch nếu có, không thì Gốc) */}
+      <Tabs
+        key={`${viewKey}|${view ? "loaded" : "loading"}`}
+        defaultValue={defaultTab}
+        className="flex min-h-0 flex-1 flex-col gap-0"
+      >
         <TabsList variant="line" className="mx-5 mt-2 border-b">
           <TabsTrigger value="output" disabled={!view?.output}>
             Bản dịch

@@ -56,8 +56,17 @@ export function TranslateToolbar() {
     <header className={cn("border-b bg-card px-5 py-3 transition-colors", running && "border-b-primary/50")}>
       <div className="flex items-center gap-3">
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-base font-semibold tracking-tight">{snapshot?.story.name || root}</h1>
-          <p className="truncate font-mono text-xs text-muted-foreground">{root}</p>
+          {snapshot?.story.name ? (
+            <>
+              <h1 className="truncate text-base font-semibold tracking-tight">{snapshot.story.name}</h1>
+              <p className="truncate font-mono text-xs text-muted-foreground">{root}</p>
+            </>
+          ) : (
+            <>
+              <h1 className="truncate font-mono text-sm font-medium">{root}</h1>
+              <p className="text-xs text-muted-foreground">Chưa đặt tên truyện — vào Hồ sơ truyện để điền.</p>
+            </>
+          )}
         </div>
         <Select value={model ?? ""} onValueChange={(value) => setModel(value || undefined)} disabled={running}>
           <SelectTrigger className="h-9 w-56" aria-label="Model">

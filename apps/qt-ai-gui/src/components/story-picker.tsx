@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { ApiError, initStory, openStory, pickFolder, recentSummaries } from "@/lib/api";
 import type { RecentSummary } from "@/lib/types";
+import { cn } from "@/lib/utils";
 import { useStoryStore } from "@/store/story";
 
 export function StoryPicker() {
@@ -87,23 +88,35 @@ export function StoryPicker() {
         {rows.length > 0 && (
           <section className="mt-8">
             <h2 className="mb-2 text-xs font-medium tracking-widest text-muted-foreground uppercase">Mở gần đây</h2>
-            <ul className="grid gap-2">
+            <ul className="grid grid-cols-[minmax(0,1fr)] gap-2">
               {rows.map((item) => {
                 const percent = item.total ? Math.round(((item.done ?? 0) / item.total) * 100) : 0;
                 const broken = item.total === null;
                 return (
-                  <li key={item.root}>
+                  <li key={item.root} className="min-w-0">
                     <button
                       type="button"
                       disabled={busy}
                       onClick={() => void tryOpen(item.root)}
-                      className="flex w-full items-center gap-4 rounded-lg border bg-card p-4 text-left transition-colors hover:bg-accent disabled:opacity-50"
+                      className="flex w-full items-center gap-4 overflow-hidden rounded-lg border bg-card p-4 text-left transition-colors hover:bg-accent disabled:opacity-50"
                     >
                       <div className="min-w-0 flex-1">
-                        <p className={broken ? "truncate text-sm text-muted-foreground" : "truncate font-medium"}>
-                          {item.name ?? item.root}
-                        </p>
-                        <p className="truncate font-mono text-xs text-muted-foreground">{item.root}</p>
+                        {item.name ? (
+                          <>
+                            <p className="truncate font-medium">{item.name}</p>
+                            <p className="truncate font-mono text-xs text-muted-foreground">{item.root}</p>
+                          </>
+                        ) : (
+                          <p
+                            className={cn(
+                              "truncate font-mono text-sm",
+                              broken ? "text-muted-foreground" : "text-foreground",
+                            )}
+                            title={broken ? "Không đọc được folder này" : undefined}
+                          >
+                            {item.root}
+                          </p>
+                        )}
                       </div>
                       {!broken && (
                         <div className="w-32 shrink-0 text-right">
