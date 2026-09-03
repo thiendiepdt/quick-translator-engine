@@ -1,20 +1,31 @@
 import { LoaderCircle } from "lucide-react";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, type ReactElement } from "react";
 import { toast } from "sonner";
 
 import { AgyMissing } from "@/components/agy-missing";
+import { AppRail } from "@/components/app-rail";
 import { StoryPicker } from "@/components/story-picker";
-import { Workbench } from "@/components/workbench";
 import { useSessionEvents } from "@/hooks/use-session-events";
+import { useThemeSync } from "@/hooks/use-theme";
 import { agyStatus, appConfigGet, appConfigSet, pickAgyFile } from "@/lib/api";
-import { useStoryStore } from "@/store/story";
+import { useStoryStore, type Page } from "@/store/story";
+
+// Task 4–6 thay bằng import trang thật
+const PAGES: Record<Page, () => ReactElement> = {
+  translate: () => <div className="p-6 text-sm">Dịch</div>,
+  story: () => <div className="p-6 text-sm">Hồ sơ</div>,
+  export: () => <div className="p-6 text-sm">Export</div>,
+  settings: () => <div className="p-6 text-sm">Cài đặt</div>,
+};
 
 export default function App() {
   const agy = useStoryStore((s) => s.agy);
   const screen = useStoryStore((s) => s.screen);
+  const page = useStoryStore((s) => s.page);
   const setAgy = useStoryStore((s) => s.setAgy);
   const setConfig = useStoryStore((s) => s.setConfig);
   useSessionEvents();
+  useThemeSync();
 
   const probe = useCallback(async () => {
     try {
@@ -41,7 +52,7 @@ export default function App() {
 
   if (!agy) {
     return (
-      <main className="flex h-screen items-center justify-center text-sm text-muted-foreground">
+      <main className="flex h-full items-center justify-center text-sm text-muted-foreground">
         <LoaderCircle className="mr-2 animate-spin" /> Đang kiểm tra agy…
       </main>
     );
@@ -49,5 +60,14 @@ export default function App() {
   if (!agy.found) {
     return <AgyMissing status={agy} onRetry={() => void probe()} onPickPath={() => void pickAgy()} />;
   }
-  return screen === "picker" ? <StoryPicker /> : <Workbench />;
+  if (screen === "picker") return <StoryPicker />;
+  const Current = PAGES[page];
+  return (
+    <div className="flex h-full">
+      <AppRail />
+      <main className="min-w-0 flex-1 overflow-hidden">
+        <Current />
+      </main>
+    </div>
+  );
 }

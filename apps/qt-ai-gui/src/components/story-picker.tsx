@@ -1,5 +1,5 @@
-import { FolderOpen, History, Sparkles } from "lucide-react";
-import { useState } from "react";
+import { FolderOpen, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -11,25 +11,37 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ApiError, initStory, openStory, pickFolder } from "@/lib/api";
+import { ApiError, initStory, openStory, pickFolder, recentSummaries } from "@/lib/api";
+import type { RecentSummary } from "@/lib/types";
 import { useStoryStore } from "@/store/story";
 
 export function StoryPicker() {
   const recent = useStoryStore((s) => s.config?.recent ?? []);
   const open = useStoryStore((s) => s.openStory);
+  const [summaries, setSummaries] = useState<RecentSummary[]>([]);
   const [pendingInit, setPendingInit] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (recent.length === 0) return;
+    recentSummaries()
+      .then((list) => {
+        if (!cancelled) setSummaries(list);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [recent]);
 
   async function tryOpen(root: string) {
     setBusy(true);
     try {
       open(await openStory(root));
     } catch (error) {
-      if (error instanceof ApiError && error.kind === "story_not_found") {
-        setPendingInit(root); // chưa có state.json → hỏi khởi tạo
-      } else {
-        toast.error(error instanceof Error ? error.message : "Không mở được truyện");
-      }
+      if (error instanceof ApiError && error.kind === "story_not_found") setPendingInit(root);
+      else toast.error(error instanceof Error ? error.message : "Không mở được truyện");
     } finally {
       setBusy(false);
     }
@@ -54,38 +66,63 @@ export function StoryPicker() {
     if (root) await tryOpen(root);
   }
 
+  const rows: RecentSummary[] = recent.map(
+    (root) => summaries.find((s) => s.root === root) ?? { root, name: null, done: null, total: null },
+  );
+
   return (
-    <main className="mx-auto flex max-w-2xl flex-col gap-6 p-8">
-      <header>
-        <h1 className="text-2xl font-semibold">QT AI Translator</h1>
-        <p className="text-sm text-muted-foreground">
-          Chọn folder truyện có thư mục <code>raw/</code> chứa các chương <code>.txt</code>.
-        </p>
-      </header>
-      <Button size="lg" disabled={busy} onClick={() => void pickAndOpen()}>
-        <FolderOpen /> Mở folder truyện
-      </Button>
-      {recent.length > 0 && (
-        <section className="flex flex-col gap-2">
-          <h2 className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-            <History className="size-4" /> Mở gần đây
-          </h2>
-          <ul className="divide-y rounded-md border">
-            {recent.map((root) => (
-              <li key={root}>
-                <button
-                  type="button"
-                  disabled={busy}
-                  className="w-full px-3 py-2 text-left text-sm hover:bg-accent disabled:opacity-50"
-                  onClick={() => void tryOpen(root)}
-                >
-                  {root}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+    <main className="fine-scrollbar flex h-full items-start justify-center overflow-auto p-8">
+      <div className="w-full max-w-2xl">
+        <header className="mb-8">
+          <p className="text-xs font-medium tracking-widest text-primary uppercase">QT AI Translator</p>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight">Chọn truyện để dịch</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Folder truyện có thư mục <code className="font-mono">raw/</code> chứa các chương{" "}
+            <code className="font-mono">.txt</code>. Folder mới sẽ được khởi tạo.
+          </p>
+        </header>
+        <Button size="lg" disabled={busy} onClick={() => void pickAndOpen()}>
+          <FolderOpen /> Mở folder truyện
+        </Button>
+        {rows.length > 0 && (
+          <section className="mt-8">
+            <h2 className="mb-2 text-xs font-medium tracking-widest text-muted-foreground uppercase">Mở gần đây</h2>
+            <ul className="grid gap-2">
+              {rows.map((item) => {
+                const percent = item.total ? Math.round(((item.done ?? 0) / item.total) * 100) : 0;
+                const broken = item.total === null;
+                return (
+                  <li key={item.root}>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void tryOpen(item.root)}
+                      className="flex w-full items-center gap-4 rounded-lg border bg-card p-4 text-left transition-colors hover:bg-accent disabled:opacity-50"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className={broken ? "truncate text-sm text-muted-foreground" : "truncate font-medium"}>
+                          {item.name ?? item.root}
+                        </p>
+                        <p className="truncate font-mono text-xs text-muted-foreground">{item.root}</p>
+                      </div>
+                      {!broken && (
+                        <div className="w-32 shrink-0 text-right">
+                          <p className="text-sm tabular-nums">
+                            {item.done}/{item.total}
+                          </p>
+                          <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
+                            <div className="h-full bg-status-done" style={{ width: `${percent}%` }} />
+                          </div>
+                        </div>
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        )}
+      </div>
       <Dialog
         open={pendingInit !== undefined}
         onOpenChange={(value) => {
@@ -96,9 +133,9 @@ export function StoryPicker() {
           <DialogHeader>
             <DialogTitle>Khởi tạo folder truyện?</DialogTitle>
             <DialogDescription>
-              <code>{pendingInit}</code> chưa có <code>state.json</code>. Khởi tạo sẽ tạo <code>story.json</code>,{" "}
-              <code>state.json</code>, <code>AGENTS.md</code> và đưa mọi chương trong <code>raw/</code> vào hàng
-              đợi. Không đụng file gốc.
+              <code className="font-mono">{pendingInit}</code> chưa có <code>state.json</code>. Khởi tạo sẽ tạo{" "}
+              <code>story.json</code>, <code>state.json</code>, <code>AGENTS.md</code> và đưa mọi chương trong{" "}
+              <code>raw/</code> vào hàng đợi. Không đụng file gốc.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

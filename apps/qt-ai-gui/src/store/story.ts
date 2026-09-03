@@ -1,14 +1,9 @@
 import { create } from "zustand";
 
-import type {
-  AgyStatus,
-  AppConfig,
-  ChapterStatus,
-  Progress,
-  SessionEvent,
-  StopReason,
-  StorySnapshot,
-} from "@/lib/types";
+import type { ChapterFilter } from "@/lib/chapters";
+import type { AgyStatus, AppConfig, Progress, SessionEvent, StopReason, StorySnapshot } from "@/lib/types";
+
+export type Page = "translate" | "story" | "export" | "settings";
 
 export type SessionState =
   | { status: "idle" }
@@ -26,10 +21,12 @@ let logSeq = 0;
 
 interface StoryState {
   screen: "picker" | "workbench";
+  page: Page;
   root?: string;
   snapshot?: StorySnapshot;
   selectedId?: string;
-  statusFilter: ChapterStatus | "all";
+  statusFilter: ChapterFilter;
+  searchQuery: string;
   session: SessionState;
   progress?: Progress;
   logs: LogLine[];
@@ -37,9 +34,11 @@ interface StoryState {
   config?: AppConfig;
   openStory: (snapshot: StorySnapshot) => void;
   closeStory: () => void;
+  setPage: (page: Page) => void;
   setSnapshot: (snapshot: StorySnapshot) => void;
   select: (id?: string) => void;
-  setStatusFilter: (filter: ChapterStatus | "all") => void;
+  setStatusFilter: (filter: ChapterFilter) => void;
+  setSearchQuery: (query: string) => void;
   applySessionEvent: (event: SessionEvent) => void;
   clearLogs: () => void;
   setAgy: (agy: AgyStatus) => void;
@@ -72,25 +71,31 @@ export function applySessionEventPure(
 
 export const useStoryStore = create<StoryState>()((set) => ({
   screen: "picker",
+  page: "translate",
   statusFilter: "all",
+  searchQuery: "",
   session: { status: "idle" },
   logs: [],
   openStory: (snapshot) =>
     set({
       screen: "workbench",
+      page: "translate",
       root: snapshot.root,
       snapshot,
       selectedId: undefined,
       statusFilter: "all",
+      searchQuery: "",
       progress: undefined,
       logs: [],
       session: snapshot.sessionRunning ? { status: "running", sessionNo: 0 } : { status: "idle" },
     }),
   closeStory: () =>
     set({ screen: "picker", root: undefined, snapshot: undefined, selectedId: undefined, progress: undefined }),
+  setPage: (page) => set({ page }),
   setSnapshot: (snapshot) => set({ snapshot }),
   select: (id) => set({ selectedId: id }),
   setStatusFilter: (statusFilter) => set({ statusFilter }),
+  setSearchQuery: (searchQuery) => set({ searchQuery }),
   applySessionEvent: (event) => set((state) => applySessionEventPure(state, event)),
   clearLogs: () => set({ logs: [] }),
   setAgy: (agy) => set({ agy }),

@@ -71,4 +71,31 @@ describe("applySessionEvent", () => {
     expect(useStoryStore.getState().screen).toBe("picker");
     expect(useStoryStore.getState().snapshot).toBeUndefined();
   });
+
+  it("page mặc định translate, openStory reset về translate, setPage đổi", () => {
+    useStoryStore.getState().setPage("settings");
+    expect(useStoryStore.getState().page).toBe("settings");
+    useStoryStore.getState().setSearchQuery("00");
+    useStoryStore.getState().openStory({
+      root: "D:\\t",
+      chapters: [],
+      counts: { total: 0, queued: 0, translating: 0, done: 0, error: 0, skipped: 0, withWarnings: 0 },
+      settings: { minLengthRatio: 0.75, maxReviewRounds: 3, chaptersPerSession: 10 },
+      story: {
+        name: "",
+        sourceUrl: "",
+        protagonist: "",
+        summary: "",
+        glossary: { names: {}, places: {}, items: {}, creatures: {}, skills: {}, common: {}, signature_phrases: {} },
+        style: { voice: "", toneRules: [], signaturePhrases: {}, avoid: [] },
+        customPrompt: "",
+        checkRules: [],
+        autoGlossaryLog: [],
+        autoGlossary: "inherit" as const,
+      },
+      sessionRunning: false,
+    });
+    expect(useStoryStore.getState().page).toBe("translate");
+    expect(useStoryStore.getState().searchQuery).toBe("");
+  });
 });
