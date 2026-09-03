@@ -4,6 +4,8 @@ import { toast } from "sonner";
 
 import { AgyMissing } from "@/components/agy-missing";
 import { AppRail } from "@/components/app-rail";
+import { ExportPage } from "@/components/pages/export-page";
+import { SettingsPage } from "@/components/pages/settings-page";
 import { StoryPage } from "@/components/pages/story-page";
 import { TranslatePage } from "@/components/pages/translate-page";
 import { StoryPicker } from "@/components/story-picker";
@@ -12,12 +14,11 @@ import { useThemeSync } from "@/hooks/use-theme";
 import { agyStatus, appConfigGet, appConfigSet, pickAgyFile } from "@/lib/api";
 import { useStoryStore, type Page } from "@/store/story";
 
-// Task 6 thay bằng import trang thật
 const PAGES: Record<Page, ComponentType> = {
   translate: TranslatePage,
   story: StoryPage,
-  export: () => <div className="p-6 text-sm">Export</div>,
-  settings: () => <div className="p-6 text-sm">Cài đặt</div>,
+  export: ExportPage,
+  settings: SettingsPage,
 };
 
 export default function App() {
