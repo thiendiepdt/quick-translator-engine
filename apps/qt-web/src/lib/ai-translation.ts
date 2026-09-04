@@ -1,5 +1,5 @@
-import { NOVEL_TRANSLATOR_BASE_PROMPT } from "@/lib/ai-translation-prompt";
-import type { AiCheckRule, AiStoryConfig } from "@/lib/ai-story";
+import { composeBasePrompt } from "@/lib/ai-translation-prompt";
+import { defaultStoryGenre, type AiCheckRule, type AiStoryConfig } from "@/lib/ai-story";
 import type { LocalDictionaryEntries } from "@/lib/types";
 
 export interface TranslationViolation {
@@ -233,7 +233,7 @@ export function buildAiTranslationSystemPrompt(
         avoid: story.style.avoid,
       }, null, 2)}\n`
     : "";
-  const basePrompt = story?.customPrompt.trim() || NOVEL_TRANSLATOR_BASE_PROMPT;
+  const basePrompt = story?.customPrompt.trim() || composeBasePrompt(story?.genre ?? defaultStoryGenre());
   return `${basePrompt}${storyContext}${glossarySection}${styleSection}${TRANSLATION_PROMPT_SUFFIX}`;
 }
 
