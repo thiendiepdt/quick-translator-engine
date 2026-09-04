@@ -43,13 +43,19 @@ import {
   type AiSettings,
 } from "@/lib/ai-settings";
 import { baseUrlProblem, resolveAiCall } from "@/lib/ai-client";
-import { NOVEL_TRANSLATOR_BASE_PROMPT } from "@/lib/ai-translation-prompt";
+import { composeBasePrompt } from "@/lib/ai-translation-prompt";
 import { defaultAiCheckRules } from "@/lib/ai-translation";
 import { fillAiStoryConfig } from "@/lib/ai-story-fill";
 import {
+  GENRE_NAMES,
+  GENRE_NAMES_LABELS,
+  GENRE_SETTINGS,
+  GENRE_SETTING_LABELS,
   normalizeAiStoryConfig,
   storyGlossaryCategories,
   type AiStoryConfig,
+  type GenreNames,
+  type GenreSetting,
   type StoryGlossaryKey,
   parseAiStoryConfigJson,
 } from "@/lib/ai-story";
@@ -315,6 +321,44 @@ export function AiStoryConfigDialog({
                     placeholder="Tên Hán-Việt"
                   />
                 </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="grid gap-2">
+                    <Label htmlFor="story-genre-setting">Bối cảnh</Label>
+                    <Select
+                      value={draft.genre.setting}
+                      onValueChange={(setting) =>
+                        patch({ genre: { ...draft.genre, setting: setting as GenreSetting } })
+                      }
+                    >
+                      <SelectTrigger id="story-genre-setting" aria-label="Bối cảnh" className="bg-card">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {GENRE_SETTINGS.map((id) => (
+                          <SelectItem key={id} value={id}>{GENRE_SETTING_LABELS[id].label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">{GENRE_SETTING_LABELS[draft.genre.setting].hint}</p>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="story-genre-names">Tên riêng</Label>
+                    <Select
+                      value={draft.genre.names}
+                      onValueChange={(names) => patch({ genre: { ...draft.genre, names: names as GenreNames } })}
+                    >
+                      <SelectTrigger id="story-genre-names" aria-label="Tên riêng" className="bg-card">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {GENRE_NAMES.map((id) => (
+                          <SelectItem key={id} value={id}>{GENRE_NAMES_LABELS[id].label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">{GENRE_NAMES_LABELS[draft.genre.names].hint}</p>
+                  </div>
+                </div>
               </div>
               <div className="flex min-h-0 flex-col gap-2">
                 <Label htmlFor="story-summary">Tóm tắt</Label>
@@ -522,7 +566,7 @@ export function AiStoryConfigDialog({
                 <div>
                   <h3 className="text-sm font-semibold">Prompt dịch thuật</h3>
                   <p className="text-xs text-muted-foreground">
-                    Từ điển, style và thông tin truyện vẫn được nối vào phía sau.
+                    Bản mặc định ghép theo bối cảnh và tên riêng đã chọn; từ điển, style và thông tin truyện vẫn được nối vào phía sau.
                   </p>
                 </div>
                 <Button
@@ -548,8 +592,8 @@ export function AiStoryConfigDialog({
                 )}
               >
                 <PlatePromptEditor
-                  key={promptEditorVersion}
-                  initialValue={draft.customPrompt || NOVEL_TRANSLATOR_BASE_PROMPT}
+                  key={`${promptEditorVersion}-${draft.genre.setting}-${draft.genre.names}`}
+                  initialValue={draft.customPrompt || composeBasePrompt(draft.genre)}
                   onChange={(customPrompt) => patch({ customPrompt })}
                 />
               </Suspense>
