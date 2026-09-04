@@ -161,15 +161,16 @@ mod tests {
     use crate::story::{GenreNames, GenreSetting};
 
     #[test]
-    fn base_prompt_co_du_6_genre_va_khac_nhau() {
+    fn base_prompt_co_du_9_genre_va_khac_nhau() {
         let mut seen = std::collections::HashSet::new();
-        for setting in [GenreSetting::Ancient, GenreSetting::Modern] {
+        for setting in [GenreSetting::Ancient, GenreSetting::Modern, GenreSetting::Mixed] {
             for names in [GenreNames::Han, GenreNames::Foreign, GenreNames::Mixed] {
                 let base = base_prompt(&StoryGenre { setting, names });
                 assert!(base.len() > 5000, "{setting:?}/{names:?}");
                 assert!(seen.insert(base), "trùng base {setting:?}/{names:?}");
             }
         }
+        assert_eq!(seen.len(), 9);
         assert!(base_prompt(&StoryGenre::default()).contains("| 我          | **ta**"));
         let modern = StoryGenre { setting: GenreSetting::Modern, names: GenreNames::Han };
         assert!(!base_prompt(&modern).contains("| 我          | **ta**"));

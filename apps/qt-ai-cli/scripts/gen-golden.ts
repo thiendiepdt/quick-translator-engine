@@ -94,6 +94,7 @@ const story = {
       output: null as unknown,
     },
     { input: { genre: { setting: "modern", names: "sai" } }, output: null as unknown },
+    { input: { genre: { setting: "mixed", names: "han" } }, output: null as unknown },
   ],
   sort: {
     input: ["chuong-0010", "chuong-0002", "0001", "10", "2", "Chuong-0001", "chuong-0002b"],
@@ -102,6 +103,7 @@ const story = {
 };
 story.normalize[1]!.output = normalizeAiStoryConfig(story.normalize[1]!.input);
 story.normalize[2]!.output = normalizeAiStoryConfig(story.normalize[2]!.input);
+story.normalize[3]!.output = normalizeAiStoryConfig(story.normalize[3]!.input);
 story.sort.sorted = [...story.sort.input].sort(naturalChapterCompare);
 
 const p1 = aiParagraphsOf(CH1);
@@ -153,7 +155,11 @@ const CHECK_TEXT = [
 const SIMPLE_RULES = [{ pattern: "x", message: "m" }];
 const MODERN_TEXT = "Vợ anh đang đợi ở công ty.\nNgươi dám nói vậy sao?\nThê tử của tổng tài Lâm, ừm.";
 const check = {
-  defaultRules: { ancient: defaultAiCheckRules("ancient"), modern: defaultAiCheckRules("modern") },
+  defaultRules: {
+    ancient: defaultAiCheckRules("ancient"),
+    modern: defaultAiCheckRules("modern"),
+    mixed: defaultAiCheckRules("mixed"),
+  },
   cases: [
     { name: "default", text: CHECK_TEXT, rules: null, setting: "ancient", violations: checkAiTranslationViolations(CHECK_TEXT) },
     { name: "crlf", text: "a…\r\nb，", rules: null, setting: "ancient", violations: checkAiTranslationViolations("a…\r\nb，") },
@@ -163,6 +169,7 @@ const check = {
     { name: "modern-default", text: MODERN_TEXT, rules: null, setting: "modern", violations: checkAiTranslationViolations(MODERN_TEXT, undefined, "modern") },
     { name: "modern-story-rules-ignore-setting", text: MODERN_TEXT, rules: SIMPLE_RULES, setting: "modern", violations: checkAiTranslationViolations(MODERN_TEXT, SIMPLE_RULES, "modern") },
     { name: "ancient-on-modern-text", text: MODERN_TEXT, rules: null, setting: "ancient", violations: checkAiTranslationViolations(MODERN_TEXT) },
+    { name: "mixed-default", text: MODERN_TEXT, rules: null, setting: "mixed", violations: checkAiTranslationViolations(MODERN_TEXT, undefined, "mixed") },
   ],
 };
 

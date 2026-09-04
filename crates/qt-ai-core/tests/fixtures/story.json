@@ -177,6 +177,43 @@
         "autoGlossaryLog": [],
         "autoGlossary": "inherit"
       }
+    },
+    {
+      "input": {
+        "genre": {
+          "setting": "mixed",
+          "names": "han"
+        }
+      },
+      "output": {
+        "name": "",
+        "sourceUrl": "",
+        "protagonist": "",
+        "summary": "",
+        "genre": {
+          "setting": "mixed",
+          "names": "han"
+        },
+        "glossary": {
+          "names": {},
+          "places": {},
+          "items": {},
+          "creatures": {},
+          "skills": {},
+          "common": {},
+          "signature_phrases": {}
+        },
+        "style": {
+          "voice": "",
+          "toneRules": [],
+          "signaturePhrases": {},
+          "avoid": []
+        },
+        "customPrompt": "",
+        "checkRules": [],
+        "autoGlossaryLog": [],
+        "autoGlossary": "inherit"
+      }
     }
   ],
   "sort": {

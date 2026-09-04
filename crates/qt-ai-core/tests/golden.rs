@@ -187,6 +187,7 @@ struct CheckFixture {
 struct DefaultRules {
     ancient: Vec<CheckRule>,
     modern: Vec<CheckRule>,
+    mixed: Vec<CheckRule>,
 }
 #[derive(Deserialize)]
 struct CheckCase {
@@ -202,6 +203,7 @@ fn check_rules_mac_dinh_theo_setting_nhu_web() {
     let f: CheckFixture = fixture(include_str!("fixtures/check.json"));
     assert_eq!(default_rules_as_check_rules(GenreSetting::Ancient), f.default_rules.ancient);
     assert_eq!(default_rules_as_check_rules(GenreSetting::Modern), f.default_rules.modern);
+    assert_eq!(default_rules_as_check_rules(GenreSetting::Mixed), f.default_rules.mixed);
 }
 
 #[test]

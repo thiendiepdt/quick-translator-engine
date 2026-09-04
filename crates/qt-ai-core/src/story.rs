@@ -26,6 +26,8 @@ pub enum GenreSetting {
     #[default]
     Ancient,
     Modern,
+    /// Xuyên qua lại cổ đại ↔ hiện đại, đô thị tu tiên: prompt có cả hai bộ xưng hô, rule chỉ trung lập.
+    Mixed,
 }
 
 impl GenreSetting {
@@ -33,6 +35,7 @@ impl GenreSetting {
         match self {
             GenreSetting::Ancient => "ancient",
             GenreSetting::Modern => "modern",
+            GenreSetting::Mixed => "mixed",
         }
     }
 }
@@ -75,6 +78,7 @@ impl StoryGenre {
         StoryGenre {
             setting: match get("setting") {
                 Some("modern") => GenreSetting::Modern,
+                Some("mixed") => GenreSetting::Mixed,
                 _ => GenreSetting::Ancient,
             },
             names: match get("names") {
@@ -373,6 +377,9 @@ mod tests {
         assert_eq!(ok.genre, StoryGenre { setting: GenreSetting::Modern, names: GenreNames::Foreign });
         let bad = StoryConfig::normalize(&json!({ "genre": { "setting": "future", "names": 3 } }));
         assert_eq!(bad.genre, StoryGenre::default());
+        let mixed = StoryConfig::normalize(&json!({ "genre": { "setting": "mixed" } }));
+        assert_eq!(mixed.genre, StoryGenre { setting: GenreSetting::Mixed, names: GenreNames::Han });
+        assert_eq!(mixed.genre.key(), "mixed/han");
         let json = ok.to_json_pretty();
         assert!(json.contains(
             "\"summary\": \"\",\n  \"genre\": {\n    \"setting\": \"modern\",\n    \"names\": \"foreign\"\n  },\n  \"glossary\""
