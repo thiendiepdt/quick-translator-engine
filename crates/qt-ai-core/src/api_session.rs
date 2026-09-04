@@ -203,8 +203,8 @@ Giữ nguyên toàn bộ chữ, thứ tự câu, dấu câu và ngắt đoạn k
         return Ok(());
     }
     let reviewed: Vec<String> = reviewed.into_iter().flatten().collect();
-    let before = check_violations(&final_text(draft), &story.check_rules).len();
-    let after = check_violations(&final_text(&reviewed), &story.check_rules).len();
+    let before = check_violations(&final_text(draft), &story.check_rules, story.genre.setting).len();
+    let after = check_violations(&final_text(&reviewed), &story.check_rules, story.genre.setting).len();
     if after >= before {
         log(format!("{id}: bản soát không giảm vi phạm ({before} → {after}) — bỏ"));
         return Ok(());

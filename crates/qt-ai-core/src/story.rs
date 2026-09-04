@@ -20,6 +20,72 @@ pub struct StoryStyle {
     pub avoid: Vec<String>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum GenreSetting {
+    #[default]
+    Ancient,
+    Modern,
+}
+
+impl GenreSetting {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            GenreSetting::Ancient => "ancient",
+            GenreSetting::Modern => "modern",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum GenreNames {
+    #[default]
+    Han,
+    Foreign,
+    Mixed,
+}
+
+impl GenreNames {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            GenreNames::Han => "han",
+            GenreNames::Foreign => "foreign",
+            GenreNames::Mixed => "mixed",
+        }
+    }
+}
+
+/// Hai trục độc lập (port `StoryGenre` của qt-web). Thiếu/sai → ancient/han để truyện cũ không đổi.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct StoryGenre {
+    pub setting: GenreSetting,
+    pub names: GenreNames,
+}
+
+impl StoryGenre {
+    /// Key tra `prompts.json` — cùng định dạng `genreKey` của web.
+    pub fn key(&self) -> String {
+        format!("{}/{}", self.setting.as_str(), self.names.as_str())
+    }
+
+    fn normalize(value: Option<&Value>) -> Self {
+        let record = value.and_then(Value::as_object);
+        let get = |key: &str| record.and_then(|r| r.get(key)).and_then(Value::as_str);
+        StoryGenre {
+            setting: match get("setting") {
+                Some("modern") => GenreSetting::Modern,
+                _ => GenreSetting::Ancient,
+            },
+            names: match get("names") {
+                Some("foreign") => GenreNames::Foreign,
+                Some("mixed") => GenreNames::Mixed,
+                _ => GenreNames::Han,
+            },
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CheckRule {
     pub pattern: String,
@@ -51,6 +117,7 @@ pub struct StoryConfig {
     pub source_url: String,
     pub protagonist: String,
     pub summary: String,
+    pub genre: StoryGenre,
     pub glossary: Glossary,
     pub style: StoryStyle,
     pub custom_prompt: String,
@@ -101,6 +168,7 @@ impl StoryConfig {
             source_url: String::new(),
             protagonist: String::new(),
             summary: String::new(),
+            genre: StoryGenre::default(),
             glossary: empty_glossary(),
             style: StoryStyle {
                 voice: String::new(),
@@ -180,6 +248,7 @@ impl StoryConfig {
             source_url: string_value(get("sourceUrl")),
             protagonist: string_value(get("protagonist")),
             summary: string_value(get("summary")),
+            genre: StoryGenre::normalize(get("genre")),
             glossary,
             style: StoryStyle {
                 voice: string_value(sget("voice")),
@@ -296,10 +365,25 @@ mod tests {
     }
 
     #[test]
+    fn normalize_genre_thieu_hoac_sai_ve_ancient_han() {
+        let none = StoryConfig::normalize(&json!({}));
+        assert_eq!(none.genre, StoryGenre::default());
+        assert_eq!(none.genre.key(), "ancient/han");
+        let ok = StoryConfig::normalize(&json!({ "genre": { "setting": "modern", "names": "foreign" } }));
+        assert_eq!(ok.genre, StoryGenre { setting: GenreSetting::Modern, names: GenreNames::Foreign });
+        let bad = StoryConfig::normalize(&json!({ "genre": { "setting": "future", "names": 3 } }));
+        assert_eq!(bad.genre, StoryGenre::default());
+        let json = ok.to_json_pretty();
+        assert!(json.contains(
+            "\"summary\": \"\",\n  \"genre\": {\n    \"setting\": \"modern\",\n    \"names\": \"foreign\"\n  },\n  \"glossary\""
+        ));
+    }
+
+    #[test]
     fn empty_round_trip_giu_thu_tu_key_nhu_web() {
         let json = StoryConfig::empty().to_json_pretty();
         assert!(json.starts_with(
-            "{\n  \"name\": \"\",\n  \"sourceUrl\": \"\",\n  \"protagonist\": \"\",\n  \"summary\": \"\",\n  \"glossary\": {\n    \"names\": {},"
+            "{\n  \"name\": \"\",\n  \"sourceUrl\": \"\",\n  \"protagonist\": \"\",\n  \"summary\": \"\",\n  \"genre\": {\n    \"setting\": \"ancient\",\n    \"names\": \"han\"\n  },\n  \"glossary\": {\n    \"names\": {},"
         ));
         assert!(json.ends_with("\"autoGlossary\": \"inherit\"\n}\n"));
         let back = StoryConfig::normalize(&serde_json::from_str(&json).unwrap());

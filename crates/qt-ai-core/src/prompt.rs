@@ -1,7 +1,8 @@
 //! Port phần lắp prompt của qt-web/src/lib/ai-translation.ts. Base prompt + suffix đọc từ
 //! prompts/prompts.json (do gen-golden.ts sinh) để không bao giờ lệch chữ với web.
 
-use crate::story::{Glossary, StoryConfig, StringMap};
+use crate::story::{Glossary, StoryConfig, StoryGenre, StringMap};
+use indexmap::IndexMap;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -11,7 +12,8 @@ pub type TranslationGlossary = Glossary;
 
 #[derive(Deserialize)]
 struct Prompts {
-    base: String,
+    /// 6 base đã ghép sẵn ở web theo key `setting/names` — Rust không port logic ghép nên không thể drift.
+    bases: IndexMap<String, String>,
     suffix: String,
 }
 
@@ -21,8 +23,12 @@ static PROMPTS: LazyLock<Prompts> = LazyLock::new(|| {
 });
 static HAN_PERSON_NAME: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\p{Han}{3,4}$").unwrap());
 
-pub fn base_prompt() -> &'static str {
-    &PROMPTS.base
+pub fn base_prompt(genre: &StoryGenre) -> &'static str {
+    PROMPTS
+        .bases
+        .get(&genre.key())
+        .map(String::as_str)
+        .unwrap_or_else(|| panic!("prompts.json thiếu base cho genre {}", genre.key()))
 }
 
 pub fn prompt_suffix() -> &'static str {
@@ -141,9 +147,31 @@ pub fn build_system_prompt(
         }
         _ => String::new(),
     };
+    let default_genre = StoryGenre::default();
     let base = story
         .map(|s| s.custom_prompt.trim())
         .filter(|custom| !custom.is_empty())
-        .unwrap_or_else(|| base_prompt());
+        .unwrap_or_else(|| base_prompt(story.map(|s| &s.genre).unwrap_or(&default_genre)));
     format!("{base}{story_context}{glossary_section}{style_section}{}", prompt_suffix())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::story::{GenreNames, GenreSetting};
+
+    #[test]
+    fn base_prompt_co_du_6_genre_va_khac_nhau() {
+        let mut seen = std::collections::HashSet::new();
+        for setting in [GenreSetting::Ancient, GenreSetting::Modern] {
+            for names in [GenreNames::Han, GenreNames::Foreign, GenreNames::Mixed] {
+                let base = base_prompt(&StoryGenre { setting, names });
+                assert!(base.len() > 5000, "{setting:?}/{names:?}");
+                assert!(seen.insert(base), "trùng base {setting:?}/{names:?}");
+            }
+        }
+        assert!(base_prompt(&StoryGenre::default()).contains("| 我          | **ta**"));
+        let modern = StoryGenre { setting: GenreSetting::Modern, names: GenreNames::Han };
+        assert!(!base_prompt(&modern).contains("| 我          | **ta**"));
+    }
 }

@@ -93,7 +93,7 @@ pub fn run_check(root: &Path, id: &str) -> Result<CheckResult> {
 
     let missing: Vec<usize> =
         parsed.iter().enumerate().filter(|(_, p)| p.is_none()).map(|(i, _)| i + 1).collect();
-    let violations = check_violations(&final_text, &story.check_rules);
+    let violations = check_violations(&final_text, &story.check_rules, story.genre.setting);
     let raw_length = char_count_no_ws(&paragraphs.concat());
     let translated_length = char_count_no_ws(&final_text);
     let ratio = if raw_length > 0 { translated_length as f64 / raw_length as f64 } else { 1.0 };

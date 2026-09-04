@@ -7,7 +7,9 @@ use qt_ai_core::paragraphs::*;
 use qt_ai_core::prompt::{
     build_system_prompt, filter_glossary_for_source, glossary_entry_matches_source, TranslationGlossary,
 };
-use qt_ai_core::story::{natural_chapter_compare, AutoGlossarySetting, CheckRule, Glossary, StoryConfig};
+use qt_ai_core::story::{
+    natural_chapter_compare, AutoGlossarySetting, CheckRule, GenreSetting, Glossary, StoryConfig,
+};
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -178,28 +180,35 @@ fn glossary_matches_va_filter_khop_web() {
 #[derive(Deserialize)]
 struct CheckFixture {
     #[serde(rename = "defaultRules")]
-    default_rules: Vec<CheckRule>,
+    default_rules: DefaultRules,
     cases: Vec<CheckCase>,
+}
+#[derive(Deserialize)]
+struct DefaultRules {
+    ancient: Vec<CheckRule>,
+    modern: Vec<CheckRule>,
 }
 #[derive(Deserialize)]
 struct CheckCase {
     name: String,
     text: String,
     rules: Option<Vec<CheckRule>>,
+    setting: GenreSetting,
     violations: Vec<Violation>,
 }
 
 #[test]
-fn check_rules_mac_dinh_dung_63_rule_nhu_web() {
+fn check_rules_mac_dinh_theo_setting_nhu_web() {
     let f: CheckFixture = fixture(include_str!("fixtures/check.json"));
-    assert_eq!(default_rules_as_check_rules(), f.default_rules);
+    assert_eq!(default_rules_as_check_rules(GenreSetting::Ancient), f.default_rules.ancient);
+    assert_eq!(default_rules_as_check_rules(GenreSetting::Modern), f.default_rules.modern);
 }
 
 #[test]
 fn check_violations_khop_web() {
     let f: CheckFixture = fixture(include_str!("fixtures/check.json"));
     for case in f.cases {
-        let got = check_violations(&case.text, case.rules.as_deref().unwrap_or(&[]));
+        let got = check_violations(&case.text, case.rules.as_deref().unwrap_or(&[]), case.setting);
         assert_eq!(got, case.violations, "case {}", case.name);
     }
 }
