@@ -212,6 +212,16 @@ describe("AI translation post-processing", () => {
     expect(ancient.map((v) => v.message)).toContain("Hừm/Ừm → Ân");
   });
 
+  it("mixed chỉ chạy rule trung lập: vợ, ngươi, Ừm qua; dấu câu Trung vẫn bắt", () => {
+    const messages = defaultAiCheckRules("mixed").map((r) => r.message);
+    expect(messages).not.toContain("Dùng vợ/chồng → thay bằng thê tử/phu quân");
+    expect(messages).not.toContain("Xưng hô cổ trang trong truyện hiện đại → anh/cô/tôi theo quan hệ");
+    const text = "Vợ anh nói: Ngươi dám? Ừm，được.";
+    expect(checkAiTranslationViolations(text, undefined, "mixed").map((v) => v.message)).toEqual([
+      "Dấu câu tiếng Trung còn sót → dùng dấu câu thường",
+    ]);
+  });
+
   it("uses configured story rules in place of defaults", () => {
     const violations = checkAiTranslationViolations("Vẫn còn văn convert", [
       { pattern: "CONVERT", flags: "i", message: "Rule riêng" },

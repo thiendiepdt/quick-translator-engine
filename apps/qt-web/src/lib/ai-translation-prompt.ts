@@ -600,7 +600,46 @@ const modern: SettingModule = {
   ],
 };
 
-const SETTINGS: Record<GenreSetting, SettingModule> = { ancient, modern };
+/** Bỏ heading "## 1." + dòng trống đầu và "---" cuối để ghép một mục vào mục lớn hơn. */
+const stripSection = (lines: string[]) => lines.slice(2, lines.lastIndexOf("---"));
+
+/** Xuyên qua lại cổ đại ↔ hiện đại, đô thị tu tiên: cả hai bộ xưng hô, chọn theo cảnh; rule chỉ trung lập. */
+const mixedSetting: SettingModule = {
+  constraints: [
+    "Truyện đổi bối cảnh theo cảnh hoặc chương (xuyên không qua lại, đô thị có tu luyện). Trước mỗi đoạn, xác định cảnh đang ở thời nào qua tín hiệu trong raw: điện thoại, xe, công ty, trường học, mạng → hiện đại; cung điện, tu vi, đan dược, tước vị, kiệu ngựa → cổ đại. Cảnh cổ đại dùng bộ xưng hô cổ (`ta`/`ngươi`/`hắn`/`nàng`), cảnh hiện đại dùng bộ hiện đại (`tôi`/`anh`/`cô` theo quan hệ); chốt cho từng cặp nhân vật trong từng cảnh, đổi cảnh thì đổi cả bộ, tuyệt đối không lai hai bộ trong cùng một câu. Nhân vật xuyên không giữ thói quen xưng hô cũ nếu raw thể hiện vậy.",
+    "Thán từ theo cảnh: cảnh cổ đại dùng `A?` / `Ân`; cảnh hiện đại dùng `Ừ` / `Ừm` / `Ơ?` / `À` / `Ôi`. Không đem thán từ hiện đại vào cảnh cổ và ngược lại.",
+  ],
+  pronouns: [
+    "## 1. Đại từ nhân xưng — chọn bảng theo cảnh",
+    "",
+    "### Cảnh cổ đại",
+    "",
+    ...stripSection(ancient.pronouns),
+    "### Cảnh hiện đại",
+    "",
+    ...stripSection(modern.pronouns),
+    "---",
+    "",
+  ],
+  terms: [...ancient.terms.slice(0, ancient.terms.lastIndexOf("---")), ...modern.terms],
+  inversion: [
+    "### Đảo ngữ cổ phong — chỉ trong cảnh cổ đại",
+    "",
+    ...ancient.inversion.slice(2),
+    ...modern.inversion.slice(2),
+  ],
+  vocabulary: [
+    "### Từ gia đình theo cảnh",
+    "",
+    'Cảnh cổ đại: thê tử, phu nhân, phu quân, lang quân, phụ thân, mẫu thân — KHÔNG dùng "vợ", "chồng". Cảnh hiện đại: vợ, chồng, bố, mẹ, bạn trai, bạn gái — KHÔNG dùng thê tử, phu quân, phụ thân, mẫu thân trừ khi nhân vật cố tình nói cổ.',
+    "",
+  ],
+  editing: [
+    "Soát lại xưng hô theo cảnh: mỗi cảnh chỉ dùng một bộ (cổ: ta/ngươi/hắn/nàng; hiện đại: tôi/anh/cô), không lẫn `ngươi` vào cảnh hiện đại hay `anh/tôi` vào cảnh cổ; không tự thêm hành động raw không có.",
+  ],
+};
+
+const SETTINGS: Record<GenreSetting, SettingModule> = { ancient, modern, mixed: mixedSetting };
 
 /** Mục 3 cũ: phiên âm Hán-Việt. */
 const han: string[] = [
@@ -680,7 +719,7 @@ export function genreKey(genre: StoryGenre): string {
   return `${genre.setting}/${genre.names}`;
 }
 
-export const PROMPT_GENRE_COMBOS: StoryGenre[] = (["ancient", "modern"] as const).flatMap((setting) =>
+export const PROMPT_GENRE_COMBOS: StoryGenre[] = (["ancient", "modern", "mixed"] as const).flatMap((setting) =>
   (["han", "foreign", "mixed"] as const).map((names) => ({ setting, names })),
 );
 

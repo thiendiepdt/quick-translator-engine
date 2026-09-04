@@ -54,9 +54,18 @@ describe("composeBasePrompt", () => {
     expect(mixed).toContain("Bách gia tính");
   });
 
-  it("6 tổ hợp cho 6 chuỗi khác nhau", () => {
+  it("mixed có cả hai bộ xưng hô, hai bảng thuật ngữ", () => {
+    const mixed = composeBasePrompt({ setting: "mixed", names: "han" });
+    expect(mixed).toContain("| 我          | **ta**");
+    expect(mixed).toContain("| 他          | **anh** / **anh ta** / **hắn**");
+    expect(mixed).toContain("### Tu tiên / Xianxia");
+    expect(mixed).toContain("### Đô thị / Hiện đại");
+    expect(mixed).toContain("theo cảnh");
+  });
+
+  it("9 tổ hợp cho 9 chuỗi khác nhau", () => {
     const set = new Set(PROMPT_GENRE_COMBOS.map((g) => composeBasePrompt(g)));
-    expect(set.size).toBe(6);
+    expect(set.size).toBe(9);
     expect(PROMPT_GENRE_COMBOS.map(genreKey)).toEqual([
       "ancient/han",
       "ancient/foreign",
@@ -64,6 +73,9 @@ describe("composeBasePrompt", () => {
       "modern/han",
       "modern/foreign",
       "modern/mixed",
+      "mixed/han",
+      "mixed/foreign",
+      "mixed/mixed",
     ]);
   });
 });

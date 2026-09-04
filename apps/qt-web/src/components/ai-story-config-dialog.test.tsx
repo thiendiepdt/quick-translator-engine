@@ -59,6 +59,17 @@ describe("story genre", () => {
     await user.click(screen.getByRole("tab", { name: /Kiểm tra/ }));
     expect(hasSpouseRule()).toBe(false);
   });
+
+  it("Hỗn hợp: tab Kiểm tra không có rule xưng hô của cả hai bối cảnh", async () => {
+    renderDialog();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("combobox", { name: "Bối cảnh" }));
+    await user.click(await screen.findByRole("option", { name: /Hỗn hợp/ }));
+    await user.click(screen.getByRole("tab", { name: /Kiểm tra/ }));
+    const messages = screen.getAllByLabelText(/^Mô tả rule/).map((el) => (el as HTMLInputElement).value);
+    expect(messages.some((m) => m.includes("thê tử/phu quân"))).toBe(false);
+    expect(messages.some((m) => m.includes("Xưng hô cổ trang"))).toBe(false);
+  });
 });
 
 describe("story config export/import", () => {

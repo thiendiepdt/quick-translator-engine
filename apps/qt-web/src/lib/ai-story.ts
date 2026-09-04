@@ -20,7 +20,7 @@ export interface StoryStyle {
   avoid: string[];
 }
 
-export const GENRE_SETTINGS = ["ancient", "modern"] as const;
+export const GENRE_SETTINGS = ["ancient", "modern", "mixed"] as const;
 export const GENRE_NAMES = ["han", "foreign", "mixed"] as const;
 export type GenreSetting = (typeof GENRE_SETTINGS)[number];
 export type GenreNames = (typeof GENRE_NAMES)[number];
@@ -34,6 +34,7 @@ export interface StoryGenre {
 export const GENRE_SETTING_LABELS: Record<GenreSetting, { label: string; hint: string }> = {
   ancient: { label: "Cổ đại / tiên hiệp", hint: "ta/ngươi/hắn/nàng, thán từ A?/Ân, cấm vợ/chồng" },
   modern: { label: "Hiện đại", hint: "anh/cô/tôi theo quan hệ, từ đời thường, thán từ hiện đại" },
+  mixed: { label: "Hỗn hợp / xuyên qua lại", hint: "Chọn xưng hô theo cảnh; không bắt lỗi xưng hô" },
 };
 export const GENRE_NAMES_LABELS: Record<GenreNames, { label: string; hint: string }> = {
   han: { label: "Hán-Việt", hint: "Kế Duyên, Bắc Kinh" },
