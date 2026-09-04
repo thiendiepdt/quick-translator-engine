@@ -32,3 +32,9 @@ Object.defineProperty(Element.prototype, "releasePointerCapture", {
   configurable: true,
   value: () => undefined,
 });
+
+// Radix Select trong jsdom cần các API này khi mở/đóng danh sách (như setup của qt-web).
+Object.defineProperty(Element.prototype, "hasPointerCapture", { configurable: true, value: () => false });
+Object.defineProperty(Element.prototype, "setPointerCapture", { configurable: true, value: () => undefined });
+Object.defineProperty(Element.prototype, "releasePointerCapture", { configurable: true, value: () => undefined });
+Object.defineProperty(Element.prototype, "scrollIntoView", { configurable: true, value: () => undefined });

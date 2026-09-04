@@ -2,27 +2,32 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { storyDefaults } from "@/lib/api";
-import type { StoryDefaults } from "@/lib/types";
+import type { StoryDefaults, StoryGenre } from "@/lib/types";
 
-let cached: Promise<StoryDefaults> | undefined;
+const cache = new Map<string, Promise<StoryDefaults>>();
 
-/** Prompt gốc + rule mặc định không đổi trong một phiên app — tải một lần, dùng chung. */
-export function useStoryDefaults(): StoryDefaults | undefined {
-  const [defaults, setDefaults] = useState<StoryDefaults | undefined>();
+/** Prompt gốc + rule mặc định theo genre — không đổi trong một phiên app, tải một lần mỗi tổ hợp. */
+export function useStoryDefaults(genre: StoryGenre): StoryDefaults | undefined {
+  const key = `${genre.setting}/${genre.names}`;
+  const [state, setState] = useState<{ key: string; value: StoryDefaults } | undefined>();
   useEffect(() => {
     let cancelled = false;
-    cached ??= storyDefaults();
-    cached
+    let pending = cache.get(key);
+    if (!pending) {
+      pending = storyDefaults(genre);
+      cache.set(key, pending);
+    }
+    pending
       .then((value) => {
-        if (!cancelled) setDefaults(value);
+        if (!cancelled) setState({ key, value });
       })
       .catch((error: unknown) => {
-        cached = undefined;
+        cache.delete(key);
         toast.error(error instanceof Error ? error.message : "Không đọc được prompt mặc định");
       });
     return () => {
       cancelled = true;
     };
-  }, []);
-  return defaults;
+  }, [key, genre]);
+  return state?.key === key ? state.value : undefined;
 }

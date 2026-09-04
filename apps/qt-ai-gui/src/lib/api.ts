@@ -15,7 +15,7 @@ import {
   storyDefaultsSchema,
   storySnapshotSchema,
 } from "@/lib/schema";
-import type { AppConfig, HarnessSettings, StoryConfig } from "@/lib/types";
+import type { AppConfig, HarnessSettings, StoryConfig, StoryGenre } from "@/lib/types";
 
 export class ApiError extends Error {
   kind: string;
@@ -69,7 +69,8 @@ export const exportChapters = (root: string, range: { from?: string; to?: string
     exportOutcomeSchema.parse(v),
   );
 export const revealFolder = (path: string) => call("reveal_folder", { path }, noop);
-export const storyDefaults = () => call("story_defaults", undefined, (v) => storyDefaultsSchema.parse(v));
+export const storyDefaults = (genre: StoryGenre) =>
+  call("story_defaults", { genre }, (v) => storyDefaultsSchema.parse(v));
 export const agyStatus = (configured?: string) =>
   call("agy_status", { configured: configured ?? null }, (v) => agyStatusSchema.parse(v));
 export const appConfigGet = () => call("app_config_get", undefined, (v) => appConfigSchema.parse(v));

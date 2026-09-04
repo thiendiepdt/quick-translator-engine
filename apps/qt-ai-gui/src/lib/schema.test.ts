@@ -7,6 +7,7 @@ const story = {
   sourceUrl: "",
   protagonist: "",
   summary: "",
+  genre: { setting: "ancient", names: "han" },
   glossary: {
     names: { 赵静文: "Triệu Tĩnh Văn" },
     places: {},

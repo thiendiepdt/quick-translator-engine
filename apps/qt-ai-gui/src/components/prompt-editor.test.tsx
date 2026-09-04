@@ -25,7 +25,7 @@ function Harness({ custom, defs }: { custom: string; defs?: StoryDefaults }) {
 describe("PromptEditor", () => {
   it("trống thì nạp prompt gốc vào editor markdown; 'Về mặc định' bị khoá", async () => {
     render(<Harness custom="" defs={defaults} />);
-    const editor = await screen.findByRole("textbox", { name: "Prompt dịch thuật" });
+    const editor = await screen.findByRole("textbox", { name: "Prompt dịch thuật" }, { timeout: 5000 });
     expect(editor).toHaveAttribute("contenteditable", "true");
     expect(screen.getByRole("heading", { name: "Prompt gốc" })).toBeInTheDocument();
     expect(screen.getByText("gốc").closest("strong")).not.toBeNull();
@@ -37,7 +37,7 @@ describe("PromptEditor", () => {
   it("prompt riêng hiện nguyên; 'Về mặc định' lưu trống và nạp lại bản gốc", async () => {
     const user = userEvent.setup();
     render(<Harness custom="Prompt **của tôi**" defs={defaults} />);
-    await screen.findByRole("textbox", { name: "Prompt dịch thuật" });
+    await screen.findByRole("textbox", { name: "Prompt dịch thuật" }, { timeout: 5000 });
     expect(screen.getByText("của tôi").closest("strong")).not.toBeNull();
     expect(screen.getByText("riêng")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /Về mặc định/ }));

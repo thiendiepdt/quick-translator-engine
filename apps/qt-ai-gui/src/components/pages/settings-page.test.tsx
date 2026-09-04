@@ -25,6 +25,7 @@ const snapshot = storySnapshotSchema.parse({
     sourceUrl: "",
     protagonist: "",
     summary: "",
+    genre: { setting: "ancient", names: "han" },
     glossary: { names: {}, places: {}, items: {}, creatures: {}, skills: {}, common: {}, signature_phrases: {} },
     style: { voice: "", toneRules: [], signaturePhrases: {}, avoid: [] },
     customPrompt: "",

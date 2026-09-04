@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Download, Save, Sparkles, Upload } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -15,14 +15,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useStoryDefaults } from "@/hooks/use-story-defaults";
 import { saveStory, storySnapshot } from "@/lib/api";
-import { storyConfigSchema } from "@/lib/schema";
+import { GENRE_NAMES, GENRE_SETTINGS, storyConfigSchema } from "@/lib/schema";
 import { fromFormValues, storyFormSchema, toFormValues, type StoryFormValues } from "@/lib/story-form";
-import { GLOSSARY_KEYS, GLOSSARY_LABELS, type StoryConfig } from "@/lib/types";
+import {
+  GENRE_NAMES_LABELS,
+  GENRE_SETTING_LABELS,
+  GLOSSARY_KEYS,
+  GLOSSARY_LABELS,
+  type StoryConfig,
+  type StoryGenre,
+} from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useStoryStore } from "@/store/story";
 
 const SECTIONS = [
   { id: "info", label: "Thông tin" },
+  { id: "genre", label: "Thể loại" },
   { id: "style", label: "Style" },
   { id: "glossary", label: "Glossary" },
   { id: "rules", label: "Rule kiểm tra" },
@@ -61,7 +69,14 @@ export function StoryPage() {
     defaultValues: story ? toFormValues(story) : undefined,
   });
   const autoGlossary = useWatch({ control: form.control, name: "autoGlossary" });
-  const defaults = useStoryDefaults();
+  const genreSetting = useWatch({ control: form.control, name: "genreSetting" });
+  const genreNames = useWatch({ control: form.control, name: "genreNames" });
+  // Object ổn định theo hai giá trị watch để hook defaults không tải lại mỗi render.
+  const genre = useMemo<StoryGenre>(
+    () => ({ setting: genreSetting ?? "ancient", names: genreNames ?? "han" }),
+    [genreSetting, genreNames],
+  );
+  const defaults = useStoryDefaults(genre);
   const [fillOpen, setFillOpen] = useState(false);
   const [active, setActive] = useState<SectionId>("info");
   const fileInput = useRef<HTMLInputElement>(null);
@@ -192,6 +207,51 @@ export function StoryPage() {
                   <Sparkles /> AI điền từ tên + link
                 </Button>
               </Section>
+              <Section id="genre" active={active} title="Thể loại">
+                <p className="text-sm text-muted-foreground">
+                  Quyết định prompt và bộ rule kiểm tra mặc định. Prompt riêng hoặc rule riêng (nếu có) vẫn thắng.
+                </p>
+                <div className="grid grid-cols-2 gap-4">
+                  <Field id="genreSetting" label="Bối cảnh" hint={GENRE_SETTING_LABELS[genre.setting].hint}>
+                    <Select
+                      value={genre.setting}
+                      onValueChange={(v) =>
+                        form.setValue("genreSetting", v as StoryFormValues["genreSetting"], { shouldDirty: true })
+                      }
+                    >
+                      <SelectTrigger id="genreSetting" aria-label="Bối cảnh">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {GENRE_SETTINGS.map((id) => (
+                          <SelectItem key={id} value={id}>
+                            {GENRE_SETTING_LABELS[id].label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field id="genreNames" label="Tên riêng" hint={GENRE_NAMES_LABELS[genre.names].hint}>
+                    <Select
+                      value={genre.names}
+                      onValueChange={(v) =>
+                        form.setValue("genreNames", v as StoryFormValues["genreNames"], { shouldDirty: true })
+                      }
+                    >
+                      <SelectTrigger id="genreNames" aria-label="Tên riêng">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {GENRE_NAMES.map((id) => (
+                          <SelectItem key={id} value={id}>
+                            {GENRE_NAMES_LABELS[id].label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                </div>
+              </Section>
               <Section id="style" active={active} title="Style">
                 <Field id="voice" label="Giọng kể / voice">
                   <Input id="voice" {...form.register("voice")} />
@@ -213,7 +273,8 @@ export function StoryPage() {
                 <CheckRulesEditor defaults={defaults} />
               </Section>
               <Section id="prompt" active={active} title="Prompt">
-                <PromptEditor defaults={defaults} />
+                {/* Remount khi đổi genre để editor nạp bản mặc định mới (chỉ có tác dụng khi đang dùng mặc định). */}
+                <PromptEditor key={`${genre.setting}/${genre.names}`} defaults={defaults} />
               </Section>
             </div>
           </div>

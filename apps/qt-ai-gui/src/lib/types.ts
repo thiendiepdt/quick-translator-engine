@@ -19,6 +19,7 @@ import {
   type stopReasonSchema,
   type storyConfigSchema,
   type storyDefaultsSchema,
+  type storyGenreSchema,
   type storySnapshotSchema,
 } from "@/lib/schema";
 
@@ -26,7 +27,20 @@ export { GLOSSARY_KEYS };
 export type GlossaryKey = (typeof GLOSSARY_KEYS)[number];
 export type ChapterStatus = z.infer<typeof chapterStatusSchema>;
 export type StoryConfig = z.infer<typeof storyConfigSchema>;
+export type StoryGenre = z.infer<typeof storyGenreSchema>;
+export type GenreSetting = StoryGenre["setting"];
+export type GenreNames = StoryGenre["names"];
 export type StoryDefaults = z.infer<typeof storyDefaultsSchema>;
+
+export const GENRE_SETTING_LABELS: Record<GenreSetting, { label: string; hint: string }> = {
+  ancient: { label: "Cổ đại / tiên hiệp", hint: "ta/ngươi/hắn/nàng, thán từ A?/Ân, cấm vợ/chồng" },
+  modern: { label: "Hiện đại", hint: "anh/cô/tôi theo quan hệ, từ đời thường, thán từ hiện đại" },
+};
+export const GENRE_NAMES_LABELS: Record<GenreNames, { label: string; hint: string }> = {
+  han: { label: "Hán-Việt", hint: "Kế Duyên, Bắc Kinh" },
+  foreign: { label: "Gốc nước ngoài", hint: "Emily, New York, Naruto" },
+  mixed: { label: "Hỗn hợp", hint: "Họ Hán → Hán-Việt, tên phiên âm → gốc" },
+};
 export type HarnessSettings = z.infer<typeof harnessSettingsSchema>;
 export type ChapterRow = z.infer<typeof chapterRowSchema>;
 export type StorySnapshot = z.infer<typeof storySnapshotSchema>;

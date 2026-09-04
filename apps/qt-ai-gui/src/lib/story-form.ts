@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { GENRE_NAMES, GENRE_SETTINGS } from "@/lib/schema";
 import { GLOSSARY_KEYS, type StoryConfig } from "@/lib/types";
 
 const pairSchema = z.object({ source: z.string(), target: z.string() });
@@ -10,6 +11,8 @@ export const storyFormSchema = z.object({
   sourceUrl: z.string(),
   protagonist: z.string(),
   summary: z.string(),
+  genreSetting: z.enum(GENRE_SETTINGS),
+  genreNames: z.enum(GENRE_NAMES),
   customPrompt: z.string(),
   voice: z.string(),
   toneRules: z.string(),
@@ -50,6 +53,8 @@ export function toFormValues(config: StoryConfig): StoryFormValues {
     sourceUrl: config.sourceUrl,
     protagonist: config.protagonist,
     summary: config.summary,
+    genreSetting: config.genre.setting,
+    genreNames: config.genre.names,
     customPrompt: config.customPrompt,
     voice: config.style.voice,
     toneRules: lines(config.style.toneRules),
@@ -80,6 +85,7 @@ export function fromFormValues(values: StoryFormValues, base: StoryConfig): Stor
     sourceUrl: values.sourceUrl,
     protagonist: values.protagonist,
     summary: values.summary,
+    genre: { setting: values.genreSetting, names: values.genreNames },
     glossary: {
       names: fromPairs(values.glossary.names),
       places: fromPairs(values.glossary.places),
@@ -140,6 +146,7 @@ export function diffStoryConfig(before: StoryConfig, after: StoryConfig): DiffLi
     ["sourceUrl", before.sourceUrl, after.sourceUrl],
     ["protagonist", before.protagonist, after.protagonist],
     ["summary", before.summary, after.summary],
+    ["genre", before.genre, after.genre],
     ["customPrompt", before.customPrompt, after.customPrompt],
     ["style.voice", before.style.voice, after.style.voice],
     ["style.toneRules", before.style.toneRules, after.style.toneRules],

@@ -9,7 +9,7 @@ use qt_ai_core::commands::skip::run_skip;
 use qt_ai_core::check::default_rules_as_check_rules;
 use qt_ai_core::commands::status::count_chapters;
 use qt_ai_core::prompt::{base_prompt, prompt_suffix};
-use qt_ai_core::story::{natural_chapter_compare, CheckRule, StoryConfig};
+use qt_ai_core::story::{natural_chapter_compare, CheckRule, StoryConfig, StoryGenre};
 use qt_ai_core::story_fs::{
     load_state, load_story_config, read_raw_chapter, read_text, save_state, save_story_config, story_paths,
     work_file, HarnessSettings, WorkKind,
@@ -114,17 +114,17 @@ pub struct StoryDefaults {
     pub check_rules: Vec<CheckRule>,
 }
 
-pub fn defaults() -> StoryDefaults {
+pub fn defaults(genre: &StoryGenre) -> StoryDefaults {
     StoryDefaults {
-        base_prompt: base_prompt().to_string(),
+        base_prompt: base_prompt(genre).to_string(),
         prompt_suffix: prompt_suffix().to_string(),
-        check_rules: default_rules_as_check_rules(),
+        check_rules: default_rules_as_check_rules(genre.setting),
     }
 }
 
 #[tauri::command]
-pub fn story_defaults() -> CmdResult<StoryDefaults> {
-    Ok(defaults())
+pub fn story_defaults(genre: StoryGenre) -> CmdResult<StoryDefaults> {
+    Ok(defaults(&genre))
 }
 
 #[tauri::command]
@@ -310,11 +310,15 @@ mod tests {
     }
 
     #[test]
-    fn defaults_co_prompt_goc_duoi_va_bo_rule_mac_dinh() {
-        let d = defaults();
+    fn defaults_theo_genre() {
+        use qt_ai_core::story::{GenreNames, GenreSetting};
+        let d = defaults(&StoryGenre::default());
         assert!(d.base_prompt.len() > 200 && !d.base_prompt.contains("Dịch raw text tiếng Trung"));
         assert!(d.prompt_suffix.contains("Dịch raw text tiếng Trung"));
-        assert!(d.check_rules.len() > 20);
+        assert!(d.check_rules.iter().any(|r| r.message.contains("vợ/chồng")));
+        let m = defaults(&StoryGenre { setting: GenreSetting::Modern, names: GenreNames::Foreign });
+        assert!(m.base_prompt.contains("Emily"));
+        assert!(!m.check_rules.iter().any(|r| r.message.contains("thê tử/phu quân")));
         let json = serde_json::to_value(&d).unwrap();
         assert!(json["checkRules"][0]["pattern"].is_string());
         assert!(json["basePrompt"].is_string());

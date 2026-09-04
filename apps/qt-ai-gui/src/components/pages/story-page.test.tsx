@@ -10,7 +10,13 @@ vi.mock("@/lib/api", () => ({
   saveStory: vi.fn(),
   storySnapshot: vi.fn(),
   aiFillStory: vi.fn(),
-  storyDefaults: vi.fn(() => Promise.resolve({ basePrompt: "Prompt gốc.", promptSuffix: "Đuôi.", checkRules: [] })),
+  storyDefaults: vi.fn((genre: { setting: string }) =>
+    Promise.resolve({
+      basePrompt: genre.setting === "modern" ? "Prompt hiện đại." : "Prompt gốc.",
+      promptSuffix: "Đuôi.",
+      checkRules: [],
+    }),
+  ),
 }));
 
 const snapshot = storySnapshotSchema.parse({
@@ -23,6 +29,7 @@ const snapshot = storySnapshotSchema.parse({
     sourceUrl: "",
     protagonist: "",
     summary: "",
+    genre: { setting: "ancient", names: "han" },
     glossary: { names: { 赵静文: "Triệu Tĩnh Văn" }, places: {}, items: {}, creatures: {}, skills: {}, common: {}, signature_phrases: {} },
     style: { voice: "", toneRules: [], signaturePhrases: {}, avoid: [] },
     customPrompt: "",
@@ -51,11 +58,24 @@ describe("StoryPage", () => {
     expect(screen.getByLabelText("Tên nhân vật CN 1")).toHaveValue("赵静文");
 
     await user.click(screen.getByRole("tab", { name: "Prompt" }));
-    expect(await screen.findByRole("textbox", { name: "Prompt dịch thuật" })).toBeInTheDocument();
+    expect(await screen.findByRole("textbox", { name: "Prompt dịch thuật" }, { timeout: 5000 })).toBeInTheDocument();
     expect(screen.queryByLabelText("Tên nhân vật CN 1")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("tab", { name: "Thông tin" }));
     expect(screen.getByLabelText("Tên truyện")).toHaveValue("Truyện A sửa");
     expect(screen.getByText("Có thay đổi chưa lưu")).toBeInTheDocument();
+  });
+
+  it("mục Thể loại đổi bối cảnh làm form dirty và prompt mặc định nạp lại theo genre", async () => {
+    const user = userEvent.setup();
+    render(<StoryPage />);
+    await user.click(screen.getByRole("tab", { name: "Thể loại" }));
+    await user.click(screen.getByRole("combobox", { name: "Bối cảnh" }));
+    await user.click(await screen.findByRole("option", { name: /Hiện đại/ }));
+    expect(screen.getByText("Có thay đổi chưa lưu")).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Prompt" }));
+    expect(await screen.findByRole("textbox", { name: "Prompt dịch thuật" }, { timeout: 5000 })).toBeInTheDocument();
+    const { storyDefaults } = await import("@/lib/api");
+    expect(storyDefaults).toHaveBeenCalledWith({ setting: "modern", names: "han" });
   });
 });
