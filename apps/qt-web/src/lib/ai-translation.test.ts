@@ -5,6 +5,7 @@ import {
   buildAiTranslationSystemPrompt,
   buildWorkspaceTranslationGlossary,
   checkAiTranslationViolations,
+  defaultAiCheckRules,
   filterTranslationGlossaryForSource,
   formatAiTranslation,
   glossaryEntryMatchesSource,
@@ -174,6 +175,40 @@ describe("AI translation post-processing", () => {
     ].join("\n");
 
     expect(checkAiTranslationViolations(text)).toEqual([]);
+  });
+
+  it("bộ rule ancient giữ nguyên thứ tự cũ; modern bỏ rule cổ trang và thêm rule xưng hô", () => {
+    const ancient = defaultAiCheckRules("ancient");
+    const modern = defaultAiCheckRules("modern");
+    expect(ancient[0]?.message).toBe("Dấu câu tiếng Trung còn sót → dùng dấu câu thường");
+    expect(ancient.map((r) => r.message)).toContain("Dùng vợ/chồng → thay bằng thê tử/phu quân");
+    expect(modern.map((r) => r.message)).not.toContain("Dùng vợ/chồng → thay bằng thê tử/phu quân");
+    expect(modern.map((r) => r.message)).toContain(
+      "Xưng hô cổ trang trong truyện hiện đại → anh/cô/tôi theo quan hệ",
+    );
+    expect(ancient.map((r) => r.message)).not.toContain(
+      "Xưng hô cổ trang trong truyện hiện đại → anh/cô/tôi theo quan hệ",
+    );
+  });
+
+  it("checks theo setting: modern cho vợ/chồng qua, bắt ngươi/nàng/thê tử/tổng tài", () => {
+    const text = [
+      "Vợ anh đang đợi ở công ty.",
+      "Ngươi dám nói vậy sao?",
+      "Nàng im lặng.",
+      "Thê tử của tổng tài Lâm.",
+      "Bố mẹ tôi ở Bắc Kinh, ừm.",
+    ].join("\n");
+    const modern = checkAiTranslationViolations(text, undefined, "modern");
+    expect(modern.map((v) => `${v.line}:${v.message}`)).toEqual([
+      "2:Xưng hô cổ trang trong truyện hiện đại → anh/cô/tôi theo quan hệ",
+      "3:Xưng hô cổ trang trong truyện hiện đại → anh/cô/tôi theo quan hệ",
+      "4:Từ gia đình cổ trang → vợ/chồng/bố/mẹ",
+      "4:tổng tài → tổng giám đốc",
+    ]);
+    const ancient = checkAiTranslationViolations(text);
+    expect(ancient.map((v) => v.message)).toContain("Dùng vợ/chồng → thay bằng thê tử/phu quân");
+    expect(ancient.map((v) => v.message)).toContain("Hừm/Ừm → Ân");
   });
 
   it("uses configured story rules in place of defaults", () => {

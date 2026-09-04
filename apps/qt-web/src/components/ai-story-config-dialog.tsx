@@ -44,7 +44,7 @@ import {
 } from "@/lib/ai-settings";
 import { baseUrlProblem, resolveAiCall } from "@/lib/ai-client";
 import { NOVEL_TRANSLATOR_BASE_PROMPT } from "@/lib/ai-translation-prompt";
-import { DEFAULT_AI_CHECK_RULES } from "@/lib/ai-translation";
+import { defaultAiCheckRules } from "@/lib/ai-translation";
 import { fillAiStoryConfig } from "@/lib/ai-story-fill";
 import {
   normalizeAiStoryConfig,
@@ -211,7 +211,7 @@ export function AiStoryConfigDialog({
 
   const effectiveRules = draft.checkRules.length > 0
     ? draft.checkRules
-    : DEFAULT_AI_CHECK_RULES;
+    : defaultAiCheckRules(draft.genre.setting);
 
   function editRule(index: number, field: "pattern" | "flags" | "message", value: string) {
     const rules = effectiveRules.map((rule) => ({ ...rule }));

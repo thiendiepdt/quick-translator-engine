@@ -93,7 +93,7 @@ export function runCheck(root: string, id: string): CheckResult {
   const missing = parsed
     .map((paragraph, index) => (paragraph === undefined ? index + 1 : 0))
     .filter((label) => label > 0);
-  const violations = checkAiTranslationViolations(finalText, story.checkRules);
+  const violations = checkAiTranslationViolations(finalText, story.checkRules, story.genre.setting);
   const rawLength = paragraphs.join("").replace(/\s/g, "").length;
   const translatedLength = finalText.replace(/\s/g, "").length;
   const ratio = rawLength > 0 ? translatedLength / rawLength : 1;

@@ -8,7 +8,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { NOVEL_TRANSLATOR_BASE_PROMPT } from "@/lib/ai-translation-prompt";
 import {
-  DEFAULT_AI_CHECK_RULES, buildAiTranslationSystemPrompt, checkAiTranslationViolations,
+  defaultAiCheckRules, buildAiTranslationSystemPrompt, checkAiTranslationViolations,
   filterTranslationGlossaryForSource, formatAiTranslation, glossaryEntryMatchesSource,
 } from "@/lib/ai-translation";
 import {
@@ -130,7 +130,7 @@ const CHECK_TEXT = [
 ].join("\n");
 const SIMPLE_RULES = [{ pattern: "x", message: "m" }];
 const check = {
-  defaultRules: DEFAULT_AI_CHECK_RULES,
+  defaultRules: defaultAiCheckRules("ancient"),
   cases: [
     { name: "default", text: CHECK_TEXT, rules: null, violations: checkAiTranslationViolations(CHECK_TEXT) },
     { name: "crlf", text: "a…\r\nb，", rules: null, violations: checkAiTranslationViolations("a…\r\nb，") },
