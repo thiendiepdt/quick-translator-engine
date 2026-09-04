@@ -63,6 +63,8 @@ pub enum StopReason {
     Finished,
     NoProgress,
     AgyFailed { code: i32 },
+    /// Động cơ API: lỗi gọi model lặp lại (mạng/key/quota) — dừng để khỏi skip hàng loạt.
+    ApiFailed { message: String },
     UserCancelled,
     MaxSessions,
     Internal { message: String },
@@ -297,18 +299,20 @@ fn session_loop(config: SessionConfig, sink: Sink, cancel: Arc<AtomicBool>) -> S
     StopReason::MaxSessions
 }
 
-/// Bắt đầu vòng phiên trên thread riêng. Giữ lock `work/.session.lock` tới khi dừng.
-pub fn start_session(config: SessionConfig, sink: Sink) -> Result<SessionHandle> {
-    acquire_lock(&config.root)?;
+/// Chạy `run` trên thread riêng dưới lock `work/.session.lock`; panic → Internal; luôn phát Stopped.
+/// Dùng chung cho vòng agy và vòng API.
+pub fn spawn_runner(
+    root: PathBuf,
+    sink: Sink,
+    run: impl FnOnce(Arc<AtomicBool>) -> StopReason + Send + 'static,
+) -> Result<SessionHandle> {
+    acquire_lock(&root)?;
     let cancel = Arc::new(AtomicBool::new(false));
     let running = Arc::new(AtomicBool::new(true));
     let thread_cancel = cancel.clone();
     let thread_running = running.clone();
     let thread = thread::spawn(move || {
-        let root = config.root.clone();
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            session_loop(config, sink.clone(), thread_cancel)
-        }));
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| run(thread_cancel)));
         let reason = result.unwrap_or_else(|_| StopReason::Internal { message: "runner panic".to_string() });
         release_lock(&root);
         sink(SessionEvent::Stopped(reason.clone()));
@@ -316,4 +320,11 @@ pub fn start_session(config: SessionConfig, sink: Sink) -> Result<SessionHandle>
         reason
     });
     Ok(SessionHandle { cancel, running, thread: Some(thread) })
+}
+
+/// Bắt đầu vòng phiên agy trên thread riêng. Giữ lock `work/.session.lock` tới khi dừng.
+pub fn start_session(config: SessionConfig, sink: Sink) -> Result<SessionHandle> {
+    let root = config.root.clone();
+    let loop_sink = sink.clone();
+    spawn_runner(root, sink, move |cancel| session_loop(config, loop_sink, cancel))
 }

@@ -1,4 +1,4 @@
-import { ExternalLink, FolderSearch, RefreshCw, TerminalSquare } from "lucide-react";
+import { ExternalLink, FolderSearch, KeyRound, RefreshCw, TerminalSquare } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,8 @@ interface Props {
   status: AgyStatus;
   onRetry: () => void;
   onPickPath: () => void;
+  /** Chuyển sang động cơ API key (không cần agy) và mở Cài đặt. */
+  onUseApi: () => void;
 }
 
 const STEPS: ReactNode[] = [
@@ -23,7 +25,7 @@ const STEPS: ReactNode[] = [
   </>,
 ];
 
-export function AgyMissing({ status, onRetry, onPickPath }: Props) {
+export function AgyMissing({ status, onRetry, onPickPath, onUseApi }: Props) {
   return (
     <main className="flex h-full items-center justify-center p-8">
       <section className="w-full max-w-xl rounded-xl border bg-card p-8 shadow-sm">
@@ -56,6 +58,9 @@ export function AgyMissing({ status, onRetry, onPickPath }: Props) {
           </Button>
           <Button variant="outline" onClick={onPickPath}>
             <FolderSearch /> Chọn file agy tay
+          </Button>
+          <Button variant="outline" onClick={onUseApi}>
+            <KeyRound /> Dùng API key thay thế
           </Button>
           <Button variant="ghost" asChild>
             <a href="https://antigravity.google/docs/cli/install" target="_blank" rel="noreferrer">

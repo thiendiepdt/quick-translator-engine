@@ -41,6 +41,42 @@ describe("schema", () => {
     const parsed = appConfigSchema.parse({ agyPath: null, model: null, maxSessions: 50, recent: [] });
     expect(parsed.palette).toBe("editorial");
     expect(parsed.themeMode).toBe("system");
+    expect(parsed.readingWidth).toBe("normal");
+  });
+
+  it("appConfig cũ thiếu engine/api ra agy và api mặc định; engine api giữ key theo provider", () => {
+    const parsed = appConfigSchema.parse({ agyPath: null, model: null, maxSessions: 50, recent: [] });
+    expect(parsed.engine).toBe("agy");
+    expect(parsed.api).toEqual({
+      provider: "gemini",
+      gemini: { apiKey: "", model: "gemini-3.7-flash", baseUrl: "" },
+      openai: { apiKey: "", model: "gpt-5.6-sol", baseUrl: "" },
+      thinking: true,
+      reasoningEffort: "high",
+    });
+    const api = appConfigSchema.parse({
+      engine: "api",
+      api: { provider: "openai", openai: { apiKey: "sk-hub", baseUrl: "http://192.0.2.10/v1" }, reasoningEffort: "xhigh" },
+      agyPath: null,
+      model: null,
+      maxSessions: 50,
+      recent: [],
+    });
+    expect(api.engine).toBe("api");
+    expect(api.api.openai).toEqual({ apiKey: "sk-hub", model: "", baseUrl: "http://192.0.2.10/v1" });
+    expect(api.api.gemini.model).toBe("gemini-3.7-flash");
+    expect(() => appConfigSchema.parse({ engine: "cloud", agyPath: null, model: null, maxSessions: 1, recent: [] })).toThrow();
+    expect(() =>
+      appConfigSchema.parse({ api: { reasoningEffort: "ultra" }, agyPath: null, model: null, maxSessions: 1, recent: [] }),
+    ).toThrow();
+  });
+
+  it("parse stopped api_failed", () => {
+    expect(sessionEventSchema.parse({ type: "stopped", kind: "api_failed", message: "401" })).toEqual({
+      type: "stopped",
+      kind: "api_failed",
+      message: "401",
+    });
   });
 
   it("từ chối status lạ", () => {

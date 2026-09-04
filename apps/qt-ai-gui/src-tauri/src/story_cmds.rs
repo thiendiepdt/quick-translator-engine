@@ -6,8 +6,10 @@ use qt_ai_core::commands::export::{run_export, ExportOptions};
 use qt_ai_core::commands::init::run_init;
 use qt_ai_core::commands::retry::run_retry;
 use qt_ai_core::commands::skip::run_skip;
+use qt_ai_core::check::default_rules_as_check_rules;
 use qt_ai_core::commands::status::count_chapters;
-use qt_ai_core::story::{natural_chapter_compare, StoryConfig};
+use qt_ai_core::prompt::{base_prompt, prompt_suffix};
+use qt_ai_core::story::{natural_chapter_compare, CheckRule, StoryConfig};
 use qt_ai_core::story_fs::{
     load_state, load_story_config, read_raw_chapter, read_text, save_state, save_story_config, story_paths,
     work_file, HarnessSettings, WorkKind,
@@ -100,6 +102,29 @@ pub fn summarize_recent(roots: &[String]) -> Vec<RecentSummary> {
             }
         })
         .collect()
+}
+
+/// Prompt gốc + bộ rule mặc định của hệ để UI hiện cho người dùng sửa thành bản riêng.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StoryDefaults {
+    pub base_prompt: String,
+    /// Phần đuôi luôn nối sau prompt (mặc định hay tuỳ chỉnh) — chỉ đọc.
+    pub prompt_suffix: String,
+    pub check_rules: Vec<CheckRule>,
+}
+
+pub fn defaults() -> StoryDefaults {
+    StoryDefaults {
+        base_prompt: base_prompt().to_string(),
+        prompt_suffix: prompt_suffix().to_string(),
+        check_rules: default_rules_as_check_rules(),
+    }
+}
+
+#[tauri::command]
+pub fn story_defaults() -> CmdResult<StoryDefaults> {
+    Ok(defaults())
 }
 
 #[tauri::command]
@@ -282,6 +307,17 @@ mod tests {
         fs::write(dir.path().join("raw").join("0002.txt"), "第二章").unwrap();
         run_init(dir.path(), "qt-ai").unwrap();
         dir
+    }
+
+    #[test]
+    fn defaults_co_prompt_goc_duoi_va_bo_rule_mac_dinh() {
+        let d = defaults();
+        assert!(d.base_prompt.len() > 200 && !d.base_prompt.contains("Dịch raw text tiếng Trung"));
+        assert!(d.prompt_suffix.contains("Dịch raw text tiếng Trung"));
+        assert!(d.check_rules.len() > 20);
+        let json = serde_json::to_value(&d).unwrap();
+        assert!(json["checkRules"][0]["pattern"].is_string());
+        assert!(json["basePrompt"].is_string());
     }
 
     #[test]

@@ -108,6 +108,25 @@ export function fromFormValues(values: StoryFormValues, base: StoryConfig): Stor
   };
 }
 
+/** Chế độ sửa dạng văn bản của bảng glossary: mỗi dòng `Hán=Việt`. */
+export function pairsToText(pairs: Pair[]): string {
+  return pairs.map((pair) => `${pair.source}=${pair.target}`).join("\n");
+}
+
+/** Dòng trống bỏ; dòng không có `=` giữ source và target rỗng để người dùng thấy mà sửa. */
+export function textToPairs(text: string): Pair[] {
+  return text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const index = line.indexOf("=");
+      return index < 0
+        ? { source: line, target: "" }
+        : { source: line.slice(0, index).trim(), target: line.slice(index + 1).trim() };
+    });
+}
+
 export interface DiffLine {
   field: string;
   before: string;

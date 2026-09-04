@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { diffStoryConfig, fromFormValues, storyFormSchema, toFormValues } from "@/lib/story-form";
+import { diffStoryConfig, fromFormValues, pairsToText, storyFormSchema, textToPairs, toFormValues } from "@/lib/story-form";
 import type { StoryConfig } from "@/lib/types";
 
 const base: StoryConfig = {
@@ -54,6 +54,19 @@ describe("story-form", () => {
     expect(config.style.toneRules).toEqual(["a", "b"]);
     expect(config.glossary.places).toEqual({ 高塔: "Cao Tháp" });
     expect(config.checkRules).toEqual([{ pattern: "y", message: "n" }]);
+  });
+
+  it("pairs ↔ text: mỗi dòng Hán=Việt, dấu = đầu tiên là ranh giới, dòng trống bỏ", () => {
+    const pairs = [
+      { source: "赵静文", target: "Triệu Tĩnh Văn" },
+      { source: "a=b", target: "c" },
+    ];
+    expect(pairsToText(pairs)).toBe("赵静文=Triệu Tĩnh Văn\na=b=c");
+    expect(textToPairs("赵静文=Triệu Tĩnh Văn\n\n  a=b=c \nkhông có dấu\n")).toEqual([
+      { source: "赵静文", target: "Triệu Tĩnh Văn" },
+      { source: "a", target: "b=c" },
+      { source: "không có dấu", target: "" },
+    ]);
   });
 
   it("diff chỉ liệt kê field đổi", () => {

@@ -88,13 +88,51 @@ export const agyStatusSchema = z.object({
   message: z.string().nullable(),
 });
 
+export const engineSchema = z.enum(["agy", "api"]);
+export const apiProviderSchema = z.enum(["gemini", "openai"]);
+export const OPENAI_REASONING_EFFORTS = ["none", "low", "medium", "high", "xhigh", "max"] as const;
+export const reasoningEffortSchema = z.enum(OPENAI_REASONING_EFFORTS);
+
+export const providerCredentialsSchema = z.object({
+  apiKey: z.string().default(""),
+  model: z.string().default(""),
+  baseUrl: z.string().default(""),
+});
+
+export const DEFAULT_API_MODELS = { gemini: "gemini-3.7-flash", openai: "gpt-5.6-sol" } as const;
+
+/** Cùng default với `ApiSettings::default()` bên Rust; config cũ thiếu cả khối vẫn parse. */
+export const apiSettingsSchema = z.object({
+  provider: apiProviderSchema.default("gemini"),
+  gemini: providerCredentialsSchema.default({ apiKey: "", model: DEFAULT_API_MODELS.gemini, baseUrl: "" }),
+  openai: providerCredentialsSchema.default({ apiKey: "", model: DEFAULT_API_MODELS.openai, baseUrl: "" }),
+  thinking: z.boolean().default(true),
+  reasoningEffort: reasoningEffortSchema.default("high"),
+});
+
 export const appConfigSchema = z.object({
+  engine: engineSchema.default("agy"),
+  api: apiSettingsSchema.default({
+    provider: "gemini",
+    gemini: { apiKey: "", model: DEFAULT_API_MODELS.gemini, baseUrl: "" },
+    openai: { apiKey: "", model: DEFAULT_API_MODELS.openai, baseUrl: "" },
+    thinking: true,
+    reasoningEffort: "high",
+  }),
   agyPath: z.string().nullable(),
   model: z.string().nullable(),
   maxSessions: z.number().int().min(1).max(1000),
   recent: z.array(z.string()),
   palette: z.string().default("editorial"),
   themeMode: z.string().default("system"),
+  readingWidth: z.string().default("normal"),
+});
+
+/** Prompt gốc + rule mặc định của hệ (Rust `story_defaults`). */
+export const storyDefaultsSchema = z.object({
+  basePrompt: z.string(),
+  promptSuffix: z.string(),
+  checkRules: z.array(checkRuleSchema),
 });
 
 export const recentSummarySchema = z.object({
@@ -118,6 +156,7 @@ export const stopReasonSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("finished") }),
   z.object({ kind: z.literal("no_progress") }),
   z.object({ kind: z.literal("agy_failed"), code: z.number() }),
+  z.object({ kind: z.literal("api_failed"), message: z.string() }),
   z.object({ kind: z.literal("user_cancelled") }),
   z.object({ kind: z.literal("max_sessions") }),
   z.object({ kind: z.literal("internal"), message: z.string() }),
@@ -130,6 +169,7 @@ const stoppedEventSchema = z.discriminatedUnion("kind", [
   z.object({ type: z.literal("stopped"), kind: z.literal("finished") }),
   z.object({ type: z.literal("stopped"), kind: z.literal("no_progress") }),
   z.object({ type: z.literal("stopped"), kind: z.literal("agy_failed"), code: z.number() }),
+  z.object({ type: z.literal("stopped"), kind: z.literal("api_failed"), message: z.string() }),
   z.object({ type: z.literal("stopped"), kind: z.literal("user_cancelled") }),
   z.object({ type: z.literal("stopped"), kind: z.literal("max_sessions") }),
   z.object({ type: z.literal("stopped"), kind: z.literal("internal"), message: z.string() }),

@@ -27,6 +27,8 @@ export default function App() {
   const page = useStoryStore((s) => s.page);
   const setAgy = useStoryStore((s) => s.setAgy);
   const setConfig = useStoryStore((s) => s.setConfig);
+  const setPage = useStoryStore((s) => s.setPage);
+  const engine = useStoryStore((s) => s.config?.engine ?? "agy");
   useSessionEvents();
   useThemeSync();
 
@@ -60,8 +62,27 @@ export default function App() {
       </main>
     );
   }
-  if (!agy.found) {
-    return <AgyMissing status={agy} onRetry={() => void probe()} onPickPath={() => void pickAgy()} />;
+  async function switchToApi() {
+    const config = useStoryStore.getState().config;
+    if (!config) return;
+    try {
+      setConfig(await appConfigSet({ ...config, engine: "api" }));
+      setPage("settings");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Không lưu được cấu hình");
+    }
+  }
+
+  // Thiếu agy chỉ chặn khi động cơ là agy; API key chạy được mà không cần agy.
+  if (!agy.found && engine === "agy") {
+    return (
+      <AgyMissing
+        status={agy}
+        onRetry={() => void probe()}
+        onPickPath={() => void pickAgy()}
+        onUseApi={() => void switchToApi()}
+      />
+    );
   }
   if (screen === "picker") return <StoryPicker />;
   const Current = PAGES[page];

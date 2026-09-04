@@ -263,11 +263,83 @@
     font-family: var(--font-reading);
     font-size: var(--reading-size);
     line-height: 1.75;
-    max-width: 70ch;
+    max-width: 78ch;
+  }
+  /* Chiều ngang vùng đọc do người dùng chọn (config.readingWidth). */
+  .reading[data-width="narrow"] {
+    max-width: 62ch;
+  }
+  .reading[data-width="wide"] {
+    max-width: 100ch;
+  }
+  .reading[data-width="full"] {
+    max-width: none;
   }
 
   .fine-scrollbar {
     scrollbar-color: color-mix(in oklch, var(--foreground) 25%, transparent) transparent;
     scrollbar-width: thin;
+  }
+
+  .reading-font {
+    font-family: var(--font-reading);
+  }
+
+  /* Plate là headless: giữ canvas prompt giống một trang Notion và áp màu
+     bằng token của app để editor không lệch ở các theme sáng/tối. */
+  .plate-prompt-editor .slate-a {
+    @apply text-primary underline underline-offset-2;
+  }
+
+  .plate-prompt-editor .slate-blockquote {
+    @apply my-3 border-l-2 border-primary/35 pl-4 text-muted-foreground;
+  }
+
+  .plate-prompt-editor .slate-code {
+    @apply rounded bg-muted px-1.5 py-0.5 font-mono text-[0.9em];
+  }
+
+  .plate-prompt-editor .slate-code_block {
+    @apply my-3 rounded-lg bg-muted px-4 py-3 font-mono text-xs;
+  }
+
+  .plate-prompt-editor .slate-h1 {
+    @apply mt-7 mb-3 text-2xl font-bold tracking-tight;
+  }
+
+  .plate-prompt-editor .slate-h2 {
+    @apply mt-6 mb-2 text-xl font-semibold;
+  }
+
+  .plate-prompt-editor .slate-h3 {
+    @apply mt-5 mb-2 text-base font-semibold;
+  }
+
+  .plate-prompt-editor :is(.slate-h4, .slate-h5, .slate-h6) {
+    @apply mt-4 font-semibold;
+  }
+
+  .plate-prompt-editor .slate-hr {
+    @apply my-5;
+  }
+
+  .plate-prompt-editor .slate-p {
+    @apply my-1.5 min-h-6 leading-7;
+  }
+
+  .plate-prompt-editor .slate-p > :is(ol, ul) {
+    @apply pl-5;
+  }
+
+  .plate-prompt-editor .slate-table {
+    @apply my-4 w-full border-collapse;
+  }
+
+  .plate-prompt-editor :is(.slate-td, .slate-th) {
+    @apply border border-border px-3 py-2;
+  }
+
+  .plate-prompt-editor .slate-th {
+    @apply bg-muted/70 text-left font-semibold;
   }
 }

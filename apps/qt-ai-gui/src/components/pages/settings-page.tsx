@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FolderSearch } from "lucide-react";
 import { useEffect, type ComponentProps, type ReactNode } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type FieldPath, type FieldPathValue, type UseFormReturn } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -9,13 +9,20 @@ import { PalettePicker } from "@/components/palette-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { useReadingWidth } from "@/hooks/use-reading-width";
 import { useThemeActions } from "@/hooks/use-theme";
 import { agyStatus, appConfigSet, pickAgyFile, saveSettings, storySnapshot } from "@/lib/api";
+import { apiSettingsFromForm, engineFormFromConfig, engineFormSchema } from "@/lib/engine-form";
+import { READING_WIDTH_LABELS, READING_WIDTHS } from "@/lib/reading";
+import { DEFAULT_API_MODELS, OPENAI_REASONING_EFFORTS } from "@/lib/schema";
 import { THEME_MODE_LABELS, THEME_MODES } from "@/lib/theme";
+import { API_PROVIDER_LABELS, ENGINE_LABELS, type ApiProvider, type Engine } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useStoryStore } from "@/store/story";
 
-const settingsFormSchema = z.object({
+const settingsFormSchema = engineFormSchema.extend({
   agyPath: z.string(),
   model: z.string(),
   maxSessions: z.number().int().min(1).max(1000),
@@ -36,6 +43,137 @@ function Card({ title, description, children }: { title: string; description: st
   );
 }
 
+/** Ô chọn kiểu radio giống chọn chế độ sáng/tối. */
+function Choice<T extends string>({
+  label,
+  value,
+  options,
+  labels,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  value: T;
+  options: readonly T[];
+  labels: Record<T, string>;
+  onChange: (value: T) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div role="radiogroup" aria-label={label} className="inline-flex w-fit rounded-md border p-0.5">
+      {options.map((option) => (
+        <button
+          key={option}
+          type="button"
+          role="radio"
+          aria-checked={value === option}
+          disabled={disabled}
+          onClick={() => onChange(option)}
+          className={cn(
+            "rounded-[calc(var(--radius)-2px)] px-3 py-1.5 text-sm disabled:opacity-50",
+            value === option ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent",
+          )}
+        >
+          {labels[option]}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+const ENGINES: readonly Engine[] = ["agy", "api"];
+const API_PROVIDERS: readonly ApiProvider[] = ["gemini", "openai"];
+
+/**
+ * Card "Động cơ dịch": chọn agy hay API key; API thì key/model/base URL theo provider đang chọn
+ * (provider kia vẫn giữ giá trị trong form, đổi qua lại không mất key).
+ */
+function EngineCard({ form, running }: { form: UseFormReturn<SettingsForm>; running: boolean }) {
+  const engine = form.watch("engine");
+  const provider = form.watch("apiProvider");
+  const thinking = form.watch("thinking");
+  const reasoningEffort = form.watch("reasoningEffort");
+  const set = <K extends FieldPath<SettingsForm>>(name: K, value: FieldPathValue<SettingsForm, K>) =>
+    form.setValue(name, value, { shouldDirty: true });
+  const text = (
+    name: "geminiApiKey" | "geminiModel" | "geminiBaseUrl" | "openaiApiKey" | "openaiModel" | "openaiBaseUrl",
+    label: string,
+    hint: string,
+    props: ComponentProps<"input"> = {},
+  ) => (
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor={name}>{label}</Label>
+      <Input id={name} autoComplete="off" spellCheck={false} className="font-mono text-xs" {...props} {...form.register(name)} />
+      <p className="text-xs text-muted-foreground">{hint}</p>
+    </div>
+  );
+  return (
+    <Card
+      title="Động cơ dịch"
+      description="agy dùng quota Antigravity qua agent; API key gọi thẳng model bằng key của bạn, không cần cài agy."
+    >
+      <Choice label="Động cơ dịch" value={engine} options={ENGINES} labels={ENGINE_LABELS} onChange={(v) => set("engine", v)} disabled={running} />
+      {engine === "api" && (
+        <div className="flex flex-col gap-4 rounded-md border bg-muted/25 p-4">
+          <div className="flex flex-col gap-1.5">
+            <Label>Nhà cung cấp</Label>
+            <Choice
+              label="Nhà cung cấp API"
+              value={provider}
+              options={API_PROVIDERS}
+              labels={API_PROVIDER_LABELS}
+              onChange={(v) => set("apiProvider", v)}
+              disabled={running}
+            />
+          </div>
+          {provider === "gemini" ? (
+            <>
+              {text("geminiApiKey", "API key Google AI", "Chỉ lưu trong config.json của app trên máy này.", { type: "password" })}
+              {text("geminiModel", "Model", `Trống = ${DEFAULT_API_MODELS.gemini}.`, { placeholder: DEFAULT_API_MODELS.gemini })}
+              {text("geminiBaseUrl", "Base URL", "Trống = endpoint chính thức của Google; điền khi dùng relay Gemini.", {
+                placeholder: "https://generativelanguage.googleapis.com",
+              })}
+              <div className="flex items-center justify-between rounded-md bg-background/60 px-3 py-2">
+                <Label htmlFor="thinking" className="text-xs font-normal">
+                  Thinking (Gemini 3.x: high ↔ minimal)
+                </Label>
+                <Switch id="thinking" checked={thinking} onCheckedChange={(v) => set("thinking", v)} disabled={running} />
+              </div>
+            </>
+          ) : (
+            <>
+              {text("openaiApiKey", "API key", "Key OpenAI hoặc key của hub tương thích.", { type: "password" })}
+              {text("openaiModel", "Model", `Trống = ${DEFAULT_API_MODELS.openai}; dùng hub thì gõ model của hub (vd gemini-3.7-flash).`, {
+                placeholder: DEFAULT_API_MODELS.openai,
+              })}
+              {text("openaiBaseUrl", "Base URL", "Trống = https://api.openai.com/v1; hub riêng thì điền tới hết /v1.", {
+                placeholder: "https://api.openai.com/v1",
+              })}
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="reasoningEffort" className="text-xs font-normal">
+                  Mức nghĩ (reasoning_effort)
+                </Label>
+                <Select value={reasoningEffort} onValueChange={(v) => set("reasoningEffort", v as SettingsForm["reasoningEffort"])} disabled={running}>
+                  <SelectTrigger id="reasoningEffort" className="w-40" aria-label="Mức reasoning OpenAI">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {OPENAI_REASONING_EFFORTS.map((effort) => (
+                      <SelectItem key={effort} value={effort}>
+                        {effort}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 export function SettingsPage() {
   const root = useStoryStore((s) => s.root);
   const config = useStoryStore((s) => s.config);
@@ -46,11 +184,13 @@ export function SettingsPage() {
   const setAgy = useStoryStore((s) => s.setAgy);
   const setSnapshot = useStoryStore((s) => s.setSnapshot);
   const theme = useThemeActions();
+  const reading = useReadingWidth();
   const form = useForm<SettingsForm>({ resolver: zodResolver(settingsFormSchema) });
 
   useEffect(() => {
     if (config && settings) {
       form.reset({
+        ...engineFormFromConfig(config),
         agyPath: config.agyPath ?? "",
         model: config.model ?? "",
         maxSessions: config.maxSessions,
@@ -66,6 +206,8 @@ export function SettingsPage() {
     try {
       const next = await appConfigSet({
         ...config,
+        engine: values.engine,
+        api: apiSettingsFromForm(values),
         agyPath: values.agyPath.trim() || null,
         model: values.model.trim() || null,
         maxSessions: values.maxSessions,
@@ -135,9 +277,21 @@ export function SettingsPage() {
               ))}
             </div>
           </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>Chiều ngang văn bản đọc</Label>
+            <Choice
+              label="Chiều ngang văn bản đọc"
+              value={reading.width}
+              options={READING_WIDTHS}
+              labels={READING_WIDTH_LABELS}
+              onChange={(v) => void reading.setWidth(v)}
+            />
+            <p className="text-xs text-muted-foreground">Cũng đổi được ngay trên thanh tab của trang đọc.</p>
+          </div>
         </Card>
         <form onSubmit={(e) => void submit(e)} className="flex flex-col gap-6">
-          <Card title="App" description="Antigravity CLI và giới hạn phiên.">
+          <EngineCard form={form} running={running} />
+          <Card title="App" description="Antigravity CLI và giới hạn phiên (chỉ dùng khi động cơ là agy).">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="agyPath">Đường dẫn agy</Label>
               <div className="flex gap-1">

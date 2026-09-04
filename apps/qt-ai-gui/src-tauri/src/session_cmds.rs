@@ -1,7 +1,10 @@
+use crate::app_config::{ApiSettings, Engine};
 use crate::error::{CmdResult, CommandError};
 use crate::AppState;
 use qt_ai_core::agy::find_agy;
-use qt_ai_core::session::{run_once, start_session, SessionConfig, SessionEvent, Sink};
+use qt_ai_core::api::{ApiConfig, HttpModel};
+use qt_ai_core::api_session::{start_api_session, ApiSessionConfig};
+use qt_ai_core::session::{run_once, start_session, SessionConfig, SessionEvent, SessionHandle, Sink};
 use qt_ai_core::story::StoryConfig;
 use qt_ai_core::story_fs::{load_story_config, save_story_config, story_paths};
 use serde::Serialize;
@@ -30,6 +33,22 @@ pub fn session_config(root: &Path, agy: PathBuf, model: Option<String>, max_sess
     SessionConfig { root: root.to_path_buf(), agy, model, max_sessions, poll_interval: Duration::from_secs(2) }
 }
 
+/// Động cơ API: thiếu key là lỗi cấu hình rõ ràng trước khi đụng tới folder truyện.
+pub fn resolve_api(api: &ApiSettings) -> CmdResult<ApiConfig> {
+    let config = api.resolve();
+    if config.api_key.is_empty() {
+        return Err(CommandError::new(
+            "api_key_missing",
+            format!("Chưa nhập API key {} — vào Cài đặt → Động cơ dịch.", config.provider.label()),
+        ));
+    }
+    Ok(config)
+}
+
+pub fn api_session_config(root: &Path) -> ApiSessionConfig {
+    ApiSessionConfig { root: root.to_path_buf(), retry_delay: Duration::from_secs(5) }
+}
+
 fn status(state: &State<'_, AppState>) -> SessionStatus {
     SessionStatus { running: state.session.lock().unwrap().as_ref().is_some_and(|h| h.is_running()) }
 }
@@ -44,7 +63,8 @@ pub fn session_state(state: State<'_, AppState>) -> CmdResult<SessionStatus> {
     Ok(status(&state))
 }
 
-/// Bắt đầu vòng phiên; event phát lên UI qua `session-event`. Đang chạy rồi thì từ chối.
+/// Bắt đầu vòng phiên theo động cơ trong config (agy hoặc API key); event phát lên UI qua
+/// `session-event`. Đang chạy rồi thì từ chối. `model` chỉ áp dụng cho agy.
 #[tauri::command]
 pub fn session_start(
     app: AppHandle,
@@ -55,13 +75,23 @@ pub fn session_start(
     if status(&state).running {
         return Err(CommandError::new("session_locked", "Đang có phiên dịch chạy — bấm Dừng trước."));
     }
-    let agy = resolve_agy(&state)?;
-    let max_sessions = state.config.lock().unwrap().max_sessions;
-    let config = session_config(Path::new(&root), agy, model, max_sessions);
+    let (engine, api, max_sessions) = {
+        let config = state.config.lock().unwrap();
+        (config.engine, config.api.clone(), config.max_sessions)
+    };
     let sink: Sink = Arc::new(move |event: SessionEvent| {
         let _ = app.emit(SESSION_EVENT, &event);
     });
-    let handle = start_session(config, sink)?;
+    let handle: SessionHandle = match engine {
+        Engine::Agy => {
+            let agy = resolve_agy(&state)?;
+            start_session(session_config(Path::new(&root), agy, model, max_sessions), sink)?
+        }
+        Engine::Api => {
+            let model = Arc::new(HttpModel::new(resolve_api(&api)?));
+            start_api_session(api_session_config(Path::new(&root)), model, sink)?
+        }
+    };
     *state.session.lock().unwrap() = Some(handle);
     Ok(status(&state))
 }
@@ -139,6 +169,18 @@ mod tests {
         assert!(prompt.contains("setup-story.md") && prompt.contains("KHÔNG cần tìm kiếm"));
         assert!(prompt.contains("Kỳ Chiêu Nguyệt") && prompt.contains("https://x/y"));
         assert!(prompt.contains("KHÔNG hỏi lại") && prompt.contains("story.json"));
+    }
+
+    #[test]
+    fn resolve_api_thieu_key_bao_api_key_missing_co_ten_provider() {
+        let mut api = ApiSettings::default();
+        let error = resolve_api(&api).unwrap_err();
+        assert_eq!(error.kind, "api_key_missing");
+        assert!(error.message.contains("Gemini"));
+        api.gemini.api_key = "AIza".into();
+        let config = resolve_api(&api).unwrap();
+        assert_eq!(config.model, "gemini-3.7-flash");
+        assert_eq!(api_session_config(Path::new("D:\\truyen")).retry_delay, Duration::from_secs(5));
     }
 
     #[test]

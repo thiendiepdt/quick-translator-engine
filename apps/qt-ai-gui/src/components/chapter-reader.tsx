@@ -14,7 +14,9 @@ import { LogPanel } from "@/components/log-panel";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useReadingWidth } from "@/hooks/use-reading-width";
 import {
   chapterForceAccept,
   chapterRetry,
@@ -23,6 +25,7 @@ import {
   revealFolder,
   storySnapshot,
 } from "@/lib/api";
+import { isReadingWidth, READING_WIDTH_LABELS, READING_WIDTHS } from "@/lib/reading";
 import { STATUS_LABELS, type ChapterRow, type ChapterStatus, type ChapterView } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useStoryStore } from "@/store/story";
@@ -47,6 +50,7 @@ interface Props {
 export function ChapterReader({ root, row, hasPrev, hasNext, onPrev, onNext }: Props) {
   const running = useStoryStore((s) => s.session.status === "running");
   const setSnapshot = useStoryStore((s) => s.setSnapshot);
+  const { width, setWidth } = useReadingWidth();
   // View gắn key theo (chương, trạng thái, vòng soát): đổi chương → key lệch → hiện "Đang đọc…"
   // mà không cần reset state đồng bộ trong effect.
   const viewKey = `${root}|${row.id}|${row.status}|${row.reviewRound}`;
@@ -85,6 +89,15 @@ export function ChapterReader({ root, row, hasPrev, hasNext, onPrev, onNext }: P
   return (
     <div className="flex h-full flex-col">
       <div className="flex flex-wrap items-center gap-2 border-b px-5 py-3">
+        {/* Chuyển chương luôn nằm trên đầu, không phải cuộn xuống cuối bài. */}
+        <div className="flex items-center gap-0.5">
+          <Button size="icon-sm" variant="ghost" aria-label="Chương trước" title="Chương trước" disabled={!hasPrev} onClick={onPrev}>
+            <ChevronLeft />
+          </Button>
+          <Button size="icon-sm" variant="ghost" aria-label="Chương sau" title="Chương sau" disabled={!hasNext} onClick={onNext}>
+            <ChevronRight />
+          </Button>
+        </div>
         <span className="font-mono text-sm font-medium">{row.id}</span>
         <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", STATUS_TONE[row.status])}>
           {STATUS_LABELS[row.status]}
@@ -133,22 +146,36 @@ export function ChapterReader({ root, row, hasPrev, hasNext, onPrev, onNext }: P
         defaultValue={defaultTab}
         className="flex min-h-0 flex-1 flex-col gap-0"
       >
-        <TabsList variant="line" className="mx-5 mt-2 border-b">
-          <TabsTrigger value="output" disabled={!view?.output}>
-            Bản dịch
-          </TabsTrigger>
-          <TabsTrigger value="draft" disabled={!view?.draft}>
-            Nháp
-          </TabsTrigger>
-          <TabsTrigger value="review" disabled={!view?.review}>
-            Yêu cầu sửa
-          </TabsTrigger>
-          <TabsTrigger value="raw">Gốc</TabsTrigger>
-          <TabsTrigger value="log">Log</TabsTrigger>
-        </TabsList>
+        <div className="mx-5 mt-2 flex items-end justify-between gap-2 border-b">
+          <TabsList variant="line" className="border-b-0">
+            <TabsTrigger value="output" disabled={!view?.output}>
+              Bản dịch
+            </TabsTrigger>
+            <TabsTrigger value="draft" disabled={!view?.draft}>
+              Nháp
+            </TabsTrigger>
+            <TabsTrigger value="review" disabled={!view?.review}>
+              Yêu cầu sửa
+            </TabsTrigger>
+            <TabsTrigger value="raw">Gốc</TabsTrigger>
+            <TabsTrigger value="log">Log</TabsTrigger>
+          </TabsList>
+          <Select value={width} onValueChange={(v) => isReadingWidth(v) && void setWidth(v)}>
+            <SelectTrigger size="sm" className="mb-1 w-32" aria-label="Chiều ngang văn bản">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {READING_WIDTHS.map((item) => (
+                <SelectItem key={item} value={item}>
+                  {READING_WIDTH_LABELS[item]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         {(["output", "draft", "review", "raw"] as const).map((key) => (
           <TabsContent key={key} value={key} className="fine-scrollbar min-h-0 flex-1 overflow-y-auto">
-            <article className="reading mx-auto px-6 py-8">
+            <article className="reading mx-auto px-6 py-8" data-width={width}>
               <pre className="font-[inherit] whitespace-pre-wrap">
                 {view ? (key === "raw" ? view.raw : (view[key] ?? "")) : "Đang đọc…"}
               </pre>

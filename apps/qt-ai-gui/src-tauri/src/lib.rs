@@ -46,6 +46,7 @@ pub fn run() {
             story_cmds::export_chapters,
             story_cmds::reveal_folder,
             story_cmds::recent_summaries,
+            story_cmds::story_defaults,
             session_cmds::session_state,
             session_cmds::session_start,
             session_cmds::session_stop,

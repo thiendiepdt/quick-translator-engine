@@ -1,10 +1,11 @@
-import { Play, Square } from "lucide-react";
+import { KeyRound, Play, Square } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { sessionStart, sessionStop, storySnapshot } from "@/lib/api";
+import { engineLabel } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useStoryStore } from "@/store/story";
 
@@ -25,6 +26,7 @@ export function TranslateToolbar() {
   const agy = useStoryStore((s) => s.agy);
   const config = useStoryStore((s) => s.config);
   const setSnapshot = useStoryStore((s) => s.setSnapshot);
+  const setPage = useStoryStore((s) => s.setPage);
   const [model, setModel] = useState<string | undefined>(config?.model ?? undefined);
   const [busy, setBusy] = useState(false);
 
@@ -68,18 +70,31 @@ export function TranslateToolbar() {
             </>
           )}
         </div>
-        <Select value={model ?? ""} onValueChange={(value) => setModel(value || undefined)} disabled={running}>
-          <SelectTrigger className="h-9 w-56" aria-label="Model">
-            <SelectValue placeholder="Model mặc định của agy" />
-          </SelectTrigger>
-          <SelectContent>
-            {(agy?.models ?? []).map((item) => (
-              <SelectItem key={item} value={item}>
-                {item}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {config?.engine === "api" ? (
+          <Button
+            type="button"
+            variant="outline"
+            className="h-9 max-w-72 font-mono text-xs"
+            title="Động cơ API — đổi model/key trong Cài đặt"
+            disabled={running}
+            onClick={() => setPage("settings")}
+          >
+            <KeyRound /> <span className="truncate">{engineLabel(config)}</span>
+          </Button>
+        ) : (
+          <Select value={model ?? ""} onValueChange={(value) => setModel(value || undefined)} disabled={running}>
+            <SelectTrigger className="h-9 w-56" aria-label="Model">
+              <SelectValue placeholder="Model mặc định của agy" />
+            </SelectTrigger>
+            <SelectContent>
+              {(agy?.models ?? []).map((item) => (
+                <SelectItem key={item} value={item}>
+                  {item}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
         <Button
           size="lg"
           variant={running ? "destructive" : "default"}

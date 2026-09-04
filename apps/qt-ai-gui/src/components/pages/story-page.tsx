@@ -7,11 +7,13 @@ import { toast } from "sonner";
 import { AiFillDialog } from "@/components/ai-fill-dialog";
 import { CheckRulesEditor } from "@/components/check-rules-editor";
 import { GlossaryEditor } from "@/components/glossary-editor";
+import { PromptEditor } from "@/components/prompt-editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useStoryDefaults } from "@/hooks/use-story-defaults";
 import { saveStory, storySnapshot } from "@/lib/api";
 import { storyConfigSchema } from "@/lib/schema";
 import { fromFormValues, storyFormSchema, toFormValues, type StoryFormValues } from "@/lib/story-form";
@@ -26,6 +28,7 @@ const SECTIONS = [
   { id: "rules", label: "Rule kiểm tra" },
   { id: "prompt", label: "Prompt" },
 ] as const;
+type SectionId = (typeof SECTIONS)[number]["id"];
 
 function Field({ id, label, hint, children }: { id: string; label: string; hint?: string; children: ReactNode }) {
   return (
@@ -37,9 +40,11 @@ function Field({ id, label, hint, children }: { id: string; label: string; hint?
   );
 }
 
-function Section({ id, title, children }: { id: string; title: string; children: ReactNode }) {
+/** Mỗi mục là một tab: chỉ mục đang chọn được render — glossary + rule + prompt cùng lúc là quá dài và lag. */
+function Section({ id, active, title, children }: { id: SectionId; active: SectionId; title: string; children: ReactNode }) {
+  if (id !== active) return null;
   return (
-    <section id={`sec-${id}`} className="scroll-mt-4">
+    <section id={`sec-${id}`} role="tabpanel" aria-label={title}>
       <h2 className="mb-3 text-lg font-semibold tracking-tight">{title}</h2>
       <div className="flex flex-col gap-4">{children}</div>
     </section>
@@ -56,8 +61,9 @@ export function StoryPage() {
     defaultValues: story ? toFormValues(story) : undefined,
   });
   const autoGlossary = useWatch({ control: form.control, name: "autoGlossary" });
+  const defaults = useStoryDefaults();
   const [fillOpen, setFillOpen] = useState(false);
-  const [active, setActive] = useState<string>("info");
+  const [active, setActive] = useState<SectionId>("info");
   const fileInput = useRef<HTMLInputElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
 
@@ -105,9 +111,9 @@ export function StoryPage() {
     }
   }
 
-  function jumpTo(id: string) {
+  function jumpTo(id: SectionId) {
     setActive(id);
-    scroller.current?.querySelector(`#sec-${id}`)?.scrollIntoView({ block: "start", behavior: "smooth" });
+    if (scroller.current) scroller.current.scrollTop = 0;
   }
 
   const dirty = form.formState.isDirty;
@@ -118,11 +124,13 @@ export function StoryPage() {
         <div className="grid min-h-0 flex-1 grid-cols-[200px_1fr]">
           <nav className="border-r bg-card/50 p-4">
             <p className="mb-3 text-xs font-medium tracking-widest text-muted-foreground uppercase">Hồ sơ truyện</p>
-            <ul className="flex flex-col gap-0.5">
+            <ul className="flex flex-col gap-0.5" role="tablist" aria-label="Mục hồ sơ truyện">
               {SECTIONS.map((section) => (
                 <li key={section.id}>
                   <button
                     type="button"
+                    role="tab"
+                    aria-selected={active === section.id}
                     onClick={() => jumpTo(section.id)}
                     className={cn(
                       "w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent",
@@ -137,7 +145,8 @@ export function StoryPage() {
           </nav>
           <div ref={scroller} className="fine-scrollbar min-h-0 overflow-y-auto">
             <div className="mx-auto flex max-w-3xl flex-col gap-10 px-8 py-8">
-              <Section id="info" title="Thông tin">
+              {/* Phần thông tin form ở mục khác vẫn nằm trong react-hook-form dù không render. */}
+              <Section id="info" active={active} title="Thông tin">
                 <div className="grid grid-cols-2 gap-4">
                   <Field id="name" label="Tên truyện">
                     <Input id="name" {...form.register("name")} />
@@ -183,7 +192,7 @@ export function StoryPage() {
                   <Sparkles /> AI điền từ tên + link
                 </Button>
               </Section>
-              <Section id="style" title="Style">
+              <Section id="style" active={active} title="Style">
                 <Field id="voice" label="Giọng kể / voice">
                   <Input id="voice" {...form.register("voice")} />
                 </Field>
@@ -195,23 +204,16 @@ export function StoryPage() {
                 </Field>
                 <GlossaryEditor name="signaturePhrases" label="Cụm từ đặc trưng (style)" />
               </Section>
-              <Section id="glossary" title="Glossary">
+              <Section id="glossary" active={active} title="Glossary">
                 {GLOSSARY_KEYS.map((key) => (
                   <GlossaryEditor key={key} name={`glossary.${key}`} label={GLOSSARY_LABELS[key]} />
                 ))}
               </Section>
-              <Section id="rules" title="Rule kiểm tra">
-                <CheckRulesEditor />
+              <Section id="rules" active={active} title="Rule kiểm tra">
+                <CheckRulesEditor defaults={defaults} />
               </Section>
-              <Section id="prompt" title="Prompt">
-                <Field id="customPrompt" label="Custom prompt" hint="Trống = prompt mặc định của hệ.">
-                  <Textarea
-                    id="customPrompt"
-                    rows={10}
-                    className="font-mono text-xs"
-                    {...form.register("customPrompt")}
-                  />
-                </Field>
+              <Section id="prompt" active={active} title="Prompt">
+                <PromptEditor defaults={defaults} />
               </Section>
             </div>
           </div>
