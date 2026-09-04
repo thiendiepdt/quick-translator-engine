@@ -1,0 +1,345 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: var(--font-ui);
+  --font-serif: var(--font-reading);
+  --font-mono: var(--font-code);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-status-done: var(--status-done);
+  --color-status-error: var(--status-error);
+  --color-status-warning: var(--status-warning);
+  --color-status-queued: var(--status-queued);
+  --color-status-translating: var(--status-translating);
+  --color-log: var(--log-bg);
+  --color-log-foreground: var(--log-fg);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* Font chung cho mọi bộ; --font-reading đổi theo bộ màu. */
+:root {
+  --font-ui: "Inter Variable", "Segoe UI", system-ui, sans-serif;
+  --font-code: "JetBrains Mono Variable", Consolas, ui-monospace, monospace;
+  --reading-size: 1rem;
+}
+
+/* ============ EDITORIAL ============ */
+/* palette: editorial light */
+:root,
+:root[data-palette="editorial"] {
+  --radius: 0.375rem;
+  --font-reading: "Noto Serif Variable", Georgia, serif;
+  --background: oklch(0.975 0.012 85);
+  --foreground: oklch(0.27 0.02 60);
+  --card: oklch(0.99 0.008 85);
+  --card-foreground: oklch(0.27 0.02 60);
+  --popover: oklch(0.99 0.008 85);
+  --popover-foreground: oklch(0.27 0.02 60);
+  --primary: oklch(0.47 0.13 40);
+  --primary-foreground: oklch(0.98 0.01 85);
+  --secondary: oklch(0.93 0.02 85);
+  --secondary-foreground: oklch(0.32 0.02 60);
+  --muted: oklch(0.94 0.015 85);
+  --muted-foreground: oklch(0.46 0.02 65);
+  --accent: oklch(0.91 0.03 80);
+  --accent-foreground: oklch(0.3 0.03 50);
+  --destructive: oklch(0.52 0.19 28);
+  --border: oklch(0.88 0.02 85);
+  --input: oklch(0.88 0.02 85);
+  --ring: oklch(0.6 0.12 40);
+  --status-done: oklch(0.55 0.12 145);
+  --status-error: oklch(0.55 0.19 28);
+  --status-warning: oklch(0.68 0.15 75);
+  --status-queued: oklch(0.72 0.02 85);
+  --status-translating: oklch(0.58 0.12 250);
+  --log-bg: oklch(0.22 0.012 60);
+  --log-fg: oklch(0.9 0.02 85);
+}
+
+/* palette: editorial dark */
+.dark,
+.dark[data-palette="editorial"] {
+  --background: oklch(0.2 0.012 60);
+  --foreground: oklch(0.92 0.02 85);
+  --card: oklch(0.24 0.014 60);
+  --card-foreground: oklch(0.92 0.02 85);
+  --popover: oklch(0.24 0.014 60);
+  --popover-foreground: oklch(0.92 0.02 85);
+  --primary: oklch(0.74 0.13 45);
+  --primary-foreground: oklch(0.2 0.02 50);
+  --secondary: oklch(0.29 0.015 60);
+  --secondary-foreground: oklch(0.9 0.02 85);
+  --muted: oklch(0.27 0.012 60);
+  --muted-foreground: oklch(0.72 0.02 75);
+  --accent: oklch(0.32 0.03 55);
+  --accent-foreground: oklch(0.94 0.02 85);
+  --destructive: oklch(0.66 0.17 28);
+  --border: oklch(0.32 0.015 60);
+  --input: oklch(0.32 0.015 60);
+  --ring: oklch(0.74 0.12 45);
+  --status-done: oklch(0.72 0.13 145);
+  --status-error: oklch(0.68 0.18 28);
+  --status-warning: oklch(0.78 0.14 80);
+  --status-queued: oklch(0.45 0.015 60);
+  --status-translating: oklch(0.72 0.12 250);
+  --log-bg: oklch(0.15 0.01 60);
+  --log-fg: oklch(0.88 0.02 85);
+}
+
+/* ============ STUDIO ============ */
+/* palette: studio light */
+:root[data-palette="studio"] {
+  --radius: 0.25rem;
+  --font-reading: var(--font-ui);
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.2 0.02 255);
+  --card: oklch(0.985 0.003 250);
+  --card-foreground: oklch(0.2 0.02 255);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.2 0.02 255);
+  --primary: oklch(0.46 0.09 185);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.95 0.006 250);
+  --secondary-foreground: oklch(0.3 0.02 255);
+  --muted: oklch(0.96 0.005 250);
+  --muted-foreground: oklch(0.46 0.02 255);
+  --accent: oklch(0.94 0.02 185);
+  --accent-foreground: oklch(0.28 0.05 190);
+  --destructive: oklch(0.55 0.2 25);
+  --border: oklch(0.9 0.008 250);
+  --input: oklch(0.9 0.008 250);
+  --ring: oklch(0.6 0.1 185);
+  --status-done: oklch(0.55 0.14 150);
+  --status-error: oklch(0.55 0.2 25);
+  --status-warning: oklch(0.7 0.15 70);
+  --status-queued: oklch(0.75 0.01 250);
+  --status-translating: oklch(0.55 0.15 250);
+  --log-bg: oklch(0.17 0.012 255);
+  --log-fg: oklch(0.9 0.01 250);
+}
+
+/* palette: studio dark */
+.dark[data-palette="studio"] {
+  --background: oklch(0.15 0.012 255);
+  --foreground: oklch(0.93 0.01 250);
+  --card: oklch(0.19 0.014 255);
+  --card-foreground: oklch(0.93 0.01 250);
+  --popover: oklch(0.19 0.014 255);
+  --popover-foreground: oklch(0.93 0.01 250);
+  --primary: oklch(0.8 0.12 185);
+  --primary-foreground: oklch(0.17 0.03 190);
+  --secondary: oklch(0.25 0.014 255);
+  --secondary-foreground: oklch(0.9 0.01 250);
+  --muted: oklch(0.23 0.012 255);
+  --muted-foreground: oklch(0.7 0.015 250);
+  --accent: oklch(0.28 0.03 190);
+  --accent-foreground: oklch(0.93 0.01 250);
+  --destructive: oklch(0.68 0.18 25);
+  --border: oklch(0.28 0.014 255);
+  --input: oklch(0.28 0.014 255);
+  --ring: oklch(0.8 0.12 185);
+  --status-done: oklch(0.75 0.15 150);
+  --status-error: oklch(0.7 0.18 25);
+  --status-warning: oklch(0.8 0.14 80);
+  --status-queued: oklch(0.45 0.012 255);
+  --status-translating: oklch(0.72 0.14 250);
+  --log-bg: oklch(0.11 0.01 255);
+  --log-fg: oklch(0.9 0.01 250);
+}
+
+/* ============ SOFT ============ */
+/* palette: soft light */
+:root[data-palette="soft"] {
+  --radius: 0.75rem;
+  --font-reading: var(--font-ui);
+  --background: oklch(0.99 0.004 300);
+  --foreground: oklch(0.22 0.03 290);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.22 0.03 290);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.22 0.03 290);
+  --primary: oklch(0.48 0.2 295);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.95 0.02 295);
+  --secondary-foreground: oklch(0.35 0.06 295);
+  --muted: oklch(0.96 0.012 295);
+  --muted-foreground: oklch(0.47 0.03 290);
+  --accent: oklch(0.93 0.04 300);
+  --accent-foreground: oklch(0.35 0.1 295);
+  --destructive: oklch(0.58 0.2 15);
+  --border: oklch(0.92 0.015 295);
+  --input: oklch(0.92 0.015 295);
+  --ring: oklch(0.65 0.18 295);
+  --status-done: oklch(0.58 0.13 150);
+  --status-error: oklch(0.58 0.2 15);
+  --status-warning: oklch(0.72 0.14 70);
+  --status-queued: oklch(0.78 0.01 295);
+  --status-translating: oklch(0.6 0.15 260);
+  --log-bg: oklch(0.2 0.02 290);
+  --log-fg: oklch(0.92 0.01 300);
+}
+
+/* palette: soft dark */
+.dark[data-palette="soft"] {
+  --background: oklch(0.17 0.02 290);
+  --foreground: oklch(0.94 0.01 300);
+  --card: oklch(0.21 0.025 290);
+  --card-foreground: oklch(0.94 0.01 300);
+  --popover: oklch(0.21 0.025 290);
+  --popover-foreground: oklch(0.94 0.01 300);
+  --primary: oklch(0.78 0.13 300);
+  --primary-foreground: oklch(0.18 0.04 295);
+  --secondary: oklch(0.27 0.03 290);
+  --secondary-foreground: oklch(0.92 0.01 300);
+  --muted: oklch(0.25 0.025 290);
+  --muted-foreground: oklch(0.72 0.03 295);
+  --accent: oklch(0.3 0.05 295);
+  --accent-foreground: oklch(0.95 0.01 300);
+  --destructive: oklch(0.7 0.17 15);
+  --border: oklch(0.3 0.03 290);
+  --input: oklch(0.3 0.03 290);
+  --ring: oklch(0.78 0.13 300);
+  --status-done: oklch(0.75 0.13 150);
+  --status-error: oklch(0.72 0.17 15);
+  --status-warning: oklch(0.8 0.13 80);
+  --status-queued: oklch(0.45 0.02 290);
+  --status-translating: oklch(0.74 0.13 260);
+  --log-bg: oklch(0.13 0.015 290);
+  --log-fg: oklch(0.92 0.01 300);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    margin: 0;
+    overflow: hidden;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+
+  ::selection {
+    background: color-mix(in oklch, var(--primary) 25%, transparent);
+  }
+}
+
+@layer components {
+  /* Vùng đọc bản dịch: cột hẹp, chữ to, giãn dòng. */
+  .reading {
+    font-family: var(--font-reading);
+    font-size: var(--reading-size);
+    line-height: 1.75;
+    max-width: 78ch;
+  }
+  /* Chiều ngang vùng đọc do người dùng chọn (config.readingWidth). */
+  .reading[data-width="narrow"] {
+    max-width: 62ch;
+  }
+  .reading[data-width="wide"] {
+    max-width: 100ch;
+  }
+  .reading[data-width="full"] {
+    max-width: none;
+  }
+
+  .fine-scrollbar {
+    scrollbar-color: color-mix(in oklch, var(--foreground) 25%, transparent) transparent;
+    scrollbar-width: thin;
+  }
+
+  .reading-font {
+    font-family: var(--font-reading);
+  }
+
+  /* Plate là headless: giữ canvas prompt giống một trang Notion và áp màu
+     bằng token của app để editor không lệch ở các theme sáng/tối. */
+  .plate-prompt-editor .slate-a {
+    @apply text-primary underline underline-offset-2;
+  }
+
+  .plate-prompt-editor .slate-blockquote {
+    @apply my-3 border-l-2 border-primary/35 pl-4 text-muted-foreground;
+  }
+
+  .plate-prompt-editor .slate-code {
+    @apply rounded bg-muted px-1.5 py-0.5 font-mono text-[0.9em];
+  }
+
+  .plate-prompt-editor .slate-code_block {
+    @apply my-3 rounded-lg bg-muted px-4 py-3 font-mono text-xs;
+  }
+
+  .plate-prompt-editor .slate-h1 {
+    @apply mt-7 mb-3 text-2xl font-bold tracking-tight;
+  }
+
+  .plate-prompt-editor .slate-h2 {
+    @apply mt-6 mb-2 text-xl font-semibold;
+  }
+
+  .plate-prompt-editor .slate-h3 {
+    @apply mt-5 mb-2 text-base font-semibold;
+  }
+
+  .plate-prompt-editor :is(.slate-h4, .slate-h5, .slate-h6) {
+    @apply mt-4 font-semibold;
+  }
+
+  .plate-prompt-editor .slate-hr {
+    @apply my-5;
+  }
+
+  .plate-prompt-editor .slate-p {
+    @apply my-1.5 min-h-6 leading-7;
+  }
+
+  .plate-prompt-editor .slate-p > :is(ol, ul) {
+    @apply pl-5;
+  }
+
+  .plate-prompt-editor .slate-table {
+    @apply my-4 w-full border-collapse;
+  }
+
+  .plate-prompt-editor :is(.slate-td, .slate-th) {
+    @apply border border-border px-3 py-2;
+  }
+
+  .plate-prompt-editor .slate-th {
+    @apply bg-muted/70 text-left font-semibold;
+  }
+}

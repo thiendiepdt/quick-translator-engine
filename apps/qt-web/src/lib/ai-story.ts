@@ -20,6 +20,48 @@ export interface StoryStyle {
   avoid: string[];
 }
 
+export const GENRE_SETTINGS = ["ancient", "modern", "mixed"] as const;
+export const GENRE_NAMES = ["han", "foreign", "mixed"] as const;
+export type GenreSetting = (typeof GENRE_SETTINGS)[number];
+export type GenreNames = (typeof GENRE_NAMES)[number];
+
+/** Hai trục độc lập: bối cảnh quyết xưng hô/thán từ/thuật ngữ; tên riêng quyết cách phiên. */
+export interface StoryGenre {
+  setting: GenreSetting;
+  names: GenreNames;
+}
+
+export const GENRE_SETTING_LABELS: Record<GenreSetting, { label: string; hint: string }> = {
+  ancient: { label: "Cổ đại / tiên hiệp", hint: "ta/ngươi/hắn/nàng, thán từ A?/Ân, cấm vợ/chồng" },
+  modern: { label: "Hiện đại", hint: "anh/cô/tôi theo quan hệ, từ đời thường, thán từ hiện đại" },
+  mixed: { label: "Hỗn hợp / xuyên qua lại", hint: "Chọn xưng hô theo cảnh; không bắt lỗi xưng hô" },
+};
+export const GENRE_NAMES_LABELS: Record<GenreNames, { label: string; hint: string }> = {
+  han: { label: "Hán-Việt", hint: "Kế Duyên, Bắc Kinh" },
+  foreign: { label: "Gốc nước ngoài", hint: "Emily, New York, Naruto" },
+  mixed: { label: "Hỗn hợp", hint: "Họ Hán → Hán-Việt, tên phiên âm → gốc" },
+};
+
+export function defaultStoryGenre(): StoryGenre {
+  return { setting: "ancient", names: "han" };
+}
+
+function isGenreSetting(value: unknown): value is GenreSetting {
+  return typeof value === "string" && (GENRE_SETTINGS as readonly string[]).includes(value);
+}
+function isGenreNames(value: unknown): value is GenreNames {
+  return typeof value === "string" && (GENRE_NAMES as readonly string[]).includes(value);
+}
+
+/** Thiếu hoặc sai → mặc định cổ đại/Hán-Việt: truyện đang dịch không đổi hành vi. */
+export function normalizeStoryGenre(value: unknown): StoryGenre {
+  const record = typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
+  return {
+    setting: isGenreSetting(record.setting) ? record.setting : "ancient",
+    names: isGenreNames(record.names) ? record.names : "han",
+  };
+}
+
 export interface AiCheckRule {
   pattern: string;
   flags?: string;
@@ -39,6 +81,7 @@ export interface AiStoryConfig {
   sourceUrl: string;
   protagonist: string;
   summary: string;
+  genre: StoryGenre;
   glossary: StoryGlossary;
   style: StoryStyle;
   /** Trống nghĩa là dùng prompt mặc định được port từ Novel Translator. */
@@ -85,6 +128,7 @@ export function emptyAiStoryConfig(): AiStoryConfig {
     sourceUrl: "",
     protagonist: "",
     summary: "",
+    genre: defaultStoryGenre(),
     glossary: emptyStoryGlossary(),
     style: {
       voice: "",
@@ -162,6 +206,7 @@ export function normalizeAiStoryConfig(value: unknown): AiStoryConfig {
     sourceUrl: stringValue(source.sourceUrl),
     protagonist: stringValue(source.protagonist),
     summary: stringValue(source.summary),
+    genre: normalizeStoryGenre(source.genre),
     glossary,
     style: {
       voice: stringValue(styleValue.voice),

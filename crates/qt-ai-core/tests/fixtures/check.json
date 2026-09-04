@@ -1,0 +1,972 @@
+{
+  "defaultRules": {
+    "ancient": [
+      {
+        "pattern": "[，。、；：？！]",
+        "message": "Dấu câu tiếng Trung còn sót → dùng dấu câu thường"
+      },
+      {
+        "pattern": "(^|[.!?]\\s+|[【(])[\"“']?(?:but|and|so|the|in|on|at|from|with)\\b",
+        "flags": "i",
+        "message": "Từ nối tiếng Anh lọt vào bản dịch → dịch sang tiếng Việt hoặc chỉ giữ khi có căn cứ"
+      },
+      {
+        "pattern": "(?<!\\p{L})(?:vợ|chồng)(?!\\p{L})",
+        "flags": "iu",
+        "message": "Dùng vợ/chồng → thay bằng thê tử/phu quân"
+      },
+      {
+        "pattern": "\\banh ấy\\b|\\banh ta\\b|\\bcô ấy\\b|\\bchị ấy\\b",
+        "flags": "i",
+        "message": "Đại từ sai → dùng hắn/nàng"
+      },
+      {
+        "pattern": "(^|[“\"']|,\\s+)(?:mình|tôi)(?:\\s|[,.!?…])",
+        "flags": "i",
+        "message": "Dùng mình/tôi làm đại từ → thay bằng ta trong style mặc định"
+      },
+      {
+        "pattern": "Miêu Ảnh Vô Tông",
+        "message": "Sai âm tên riêng → dùng Miêu Ảnh Vô Tung"
+      },
+      {
+        "pattern": "một tấc vuông",
+        "message": "方寸 là không gian hệ thống → dùng Phương Thốn"
+      },
+      {
+        "pattern": "tinh thần đại chấn",
+        "message": "精神大振 → dùng tinh thần phấn chấn hẳn lên"
+      },
+      {
+        "pattern": "mơ hồ nghiệm ra|mùi vị không bình thường",
+        "message": "品出意味 → dùng nhận ra/nhận thấy điều bất thường"
+      },
+      {
+        "pattern": "bình loạn bắt sống",
+        "message": "平叛生擒 → dùng dẹp loạn, bắt sống"
+      },
+      {
+        "pattern": "không có rèm che chuyên biệt",
+        "message": "四面无帷 → dùng không rèm che bốn phía"
+      },
+      {
+        "pattern": "nóng bóng",
+        "message": "Lỗi chính tả → nóng bỏng"
+      },
+      {
+        "pattern": "ta vất vả một chút",
+        "message": "我辛苦点 → dùng ta chịu khó một chút"
+      },
+      {
+        "pattern": "đẳng tước vị quân công",
+        "message": "二十等军功爵 → dùng hai mươi bậc tước quân công"
+      },
+      {
+        "pattern": "vệt đỏ đắc ý",
+        "message": "一抹得意的红晕 → dùng vệt ửng đỏ vì đắc ý"
+      },
+      {
+        "pattern": "toàn bộ người nghênh đón có mặt đều",
+        "message": "Tránh chồng chủ thể/lượng từ"
+      },
+      {
+        "pattern": "đã thưởng Minh chủ",
+        "message": "感谢 X 打赏的盟主 → dùng cảm ơn minh chủ X đã thưởng/ủng hộ"
+      },
+      {
+        "pattern": "não hải",
+        "message": "não hải → đầu óc / tâm trí"
+      },
+      {
+        "pattern": "(?<!\\p{L})(?:Hừm|Ừm)(?!\\p{L})",
+        "flags": "iu",
+        "message": "Hừm/Ừm → Ân"
+      },
+      {
+        "pattern": "Ơ\\s*[?!,.…]",
+        "message": "Thán từ Ơ → dùng A trong bối cảnh cổ đại/huyền huyễn"
+      },
+      {
+        "pattern": "\\bthập phần\\b",
+        "message": "thập phần → vô cùng / hết sức"
+      },
+      {
+        "pattern": "\\bsong doanh\\b",
+        "message": "song doanh → đôi bên cùng có lợi"
+      },
+      {
+        "pattern": "còn đừng nói",
+        "flags": "i",
+        "message": "还别说 → Mà phải nói / Không ngờ thật"
+      },
+      {
+        "pattern": "phụ thân (ở|vào|lên|trong)",
+        "message": "附身 → nương thân/bám vào"
+      },
+      {
+        "pattern": "nhận dạng",
+        "message": "nhận dạng → kiểm trắc"
+      },
+      {
+        "pattern": "kho tàng|kho báu",
+        "message": "kho tàng/báu → bảo khố"
+      },
+      {
+        "pattern": "xao động",
+        "message": "xao động → rung động"
+      },
+      {
+        "pattern": "phát xạ",
+        "message": "phát xạ → phóng ra"
+      },
+      {
+        "pattern": "thích dụng",
+        "message": "thích dụng → áp dụng"
+      },
+      {
+        "pattern": "thúc động",
+        "message": "thúc động → thôi động"
+      },
+      {
+        "pattern": "tiền xa",
+        "message": "tiền xa → vết xe đổ"
+      },
+      {
+        "pattern": "lãnh tình",
+        "message": "lãnh tình → cảm kích"
+      },
+      {
+        "pattern": "đợi lát nữa",
+        "message": "đợi lát nữa → chờ một hồi"
+      },
+      {
+        "pattern": "đại động can qua",
+        "message": "đại động can qua → làm to chuyện"
+      },
+      {
+        "pattern": "nước thu\\b",
+        "message": "nước thu → thu thủy"
+      },
+      {
+        "pattern": "là tính là",
+        "message": "là tính là → xem như"
+      },
+      {
+        "pattern": "\\bthê tử danh nghĩa\\b",
+        "message": "Sai vị trí → trên danh nghĩa thê tử"
+      },
+      {
+        "pattern": "(?<!\\p{L})đặc ý(?!\\p{L})",
+        "flags": "iu",
+        "message": "đặc ý → cố ý"
+      },
+      {
+        "pattern": "\\bvô ý trung\\b",
+        "message": "vô ý trung → trong lúc vô tình"
+      },
+      {
+        "pattern": "(?<!\\p{L})bi thê(?!\\p{L})",
+        "flags": "iu",
+        "message": "bi thê → bi thương"
+      },
+      {
+        "pattern": "(?<!\\p{L})u thê(?!\\p{L})",
+        "flags": "iu",
+        "message": "u thê → u sầu"
+      },
+      {
+        "pattern": "\\bnhức óc\\b",
+        "message": "nhức óc → đau đầu"
+      },
+      {
+        "pattern": "(?<!\\p{L})thôi thì(?!\\p{L})",
+        "flags": "iu",
+        "message": "thôi thì → vậy thì / đã vậy"
+      },
+      {
+        "pattern": "(?<!\\p{L})vô ngữ(?!\\p{L})",
+        "flags": "iu",
+        "message": "vô ngữ → bó tay"
+      },
+      {
+        "pattern": "(?<!\\p{L})địch phương(?!\\p{L})",
+        "flags": "iu",
+        "message": "địch phương → quân địch"
+      },
+      {
+        "pattern": "\\bhữu phương\\b|\\bhữu quân\\b",
+        "message": "hữu phương/quân → phe bạn"
+      },
+      {
+        "pattern": "quả thực đúng là",
+        "message": "quả thực đúng là → chọn quả thực hoặc đúng là"
+      },
+      {
+        "pattern": "cư nhiên",
+        "message": "cư nhiên → lại / dám / không ngờ"
+      },
+      {
+        "pattern": "\\bkhấp huyết\\b",
+        "flags": "i",
+        "message": "泣血 → nhuộm máu / đẫm máu"
+      },
+      {
+        "pattern": "\\bma diệt\\b",
+        "flags": "i",
+        "message": "抹杀 → xóa sổ / mạt sát"
+      },
+      {
+        "pattern": "lãnh di[êễ]m",
+        "flags": "i",
+        "message": "冷艳 → lạnh lùng sắc sảo / lạnh lùng kiêu sa"
+      },
+      {
+        "pattern": "\\bthị phạm\\b",
+        "flags": "i",
+        "message": "示范 → làm mẫu"
+      },
+      {
+        "pattern": "\\bchồng cộng\\b",
+        "flags": "i",
+        "message": "叠加 → chồng lên nhau / kết hợp"
+      },
+      {
+        "pattern": "nửa xẻ",
+        "flags": "i",
+        "message": "衣衫半解 → y phục bán khai / xiêm y cởi dở"
+      },
+      {
+        "pattern": "vỏ dao|rút dao|thanh dao\\b",
+        "flags": "i",
+        "message": "刀 là đao → vỏ đao / rút đao / thanh đao"
+      },
+      {
+        "pattern": "bom khói",
+        "flags": "i",
+        "message": "烟雾弹 trong bối cảnh cổ → màn khói / hỏa mù"
+      },
+      {
+        "pattern": "đông cứng thành",
+        "flags": "i",
+        "message": "凝成 → ngưng tụ thành"
+      },
+      {
+        "pattern": "phụ lòng tạo hóa",
+        "flags": "i",
+        "message": "暴殄天物 → phí phạm của quý"
+      },
+      {
+        "pattern": "nhìn theo bụi",
+        "flags": "i",
+        "message": "望尘莫及 → không sao theo kịp / tự thẹn không bằng"
+      },
+      {
+        "pattern": "đẹp đến nghẹt thở",
+        "flags": "i",
+        "message": "惊心动魄 → đẹp đến kinh tâm động phách"
+      },
+      {
+        "pattern": "ngón.{0,20}mảnh khảnh",
+        "flags": "i",
+        "message": "mảnh khảnh chỉ tả người → ngón tay dùng thon / thon dài"
+      },
+      {
+        "pattern": "trời sinh [A-Z]",
+        "message": "Danh xưng lai nửa Việt nửa Hán → dùng Hán-Việt cả cụm (Thiên Sinh ...)"
+      },
+      {
+        "pattern": "…",
+        "message": "Còn ký tự … → chuẩn hóa thành dấu chấm ASCII, giữ số lượng (… → ..., …… → ......)"
+      }
+    ],
+    "modern": [
+      {
+        "pattern": "[，。、；：？！]",
+        "message": "Dấu câu tiếng Trung còn sót → dùng dấu câu thường"
+      },
+      {
+        "pattern": "(^|[.!?]\\s+|[【(])[\"“']?(?:but|and|so|the|in|on|at|from|with)\\b",
+        "flags": "i",
+        "message": "Từ nối tiếng Anh lọt vào bản dịch → dịch sang tiếng Việt hoặc chỉ giữ khi có căn cứ"
+      },
+      {
+        "pattern": "tinh thần đại chấn",
+        "message": "精神大振 → dùng tinh thần phấn chấn hẳn lên"
+      },
+      {
+        "pattern": "mơ hồ nghiệm ra|mùi vị không bình thường",
+        "message": "品出意味 → dùng nhận ra/nhận thấy điều bất thường"
+      },
+      {
+        "pattern": "bình loạn bắt sống",
+        "message": "平叛生擒 → dùng dẹp loạn, bắt sống"
+      },
+      {
+        "pattern": "không có rèm che chuyên biệt",
+        "message": "四面无帷 → dùng không rèm che bốn phía"
+      },
+      {
+        "pattern": "nóng bóng",
+        "message": "Lỗi chính tả → nóng bỏng"
+      },
+      {
+        "pattern": "ta vất vả một chút",
+        "message": "我辛苦点 → dùng ta chịu khó một chút"
+      },
+      {
+        "pattern": "đẳng tước vị quân công",
+        "message": "二十等军功爵 → dùng hai mươi bậc tước quân công"
+      },
+      {
+        "pattern": "vệt đỏ đắc ý",
+        "message": "一抹得意的红晕 → dùng vệt ửng đỏ vì đắc ý"
+      },
+      {
+        "pattern": "toàn bộ người nghênh đón có mặt đều",
+        "message": "Tránh chồng chủ thể/lượng từ"
+      },
+      {
+        "pattern": "đã thưởng Minh chủ",
+        "message": "感谢 X 打赏的盟主 → dùng cảm ơn minh chủ X đã thưởng/ủng hộ"
+      },
+      {
+        "pattern": "não hải",
+        "message": "não hải → đầu óc / tâm trí"
+      },
+      {
+        "pattern": "\\bthập phần\\b",
+        "message": "thập phần → vô cùng / hết sức"
+      },
+      {
+        "pattern": "\\bsong doanh\\b",
+        "message": "song doanh → đôi bên cùng có lợi"
+      },
+      {
+        "pattern": "còn đừng nói",
+        "flags": "i",
+        "message": "还别说 → Mà phải nói / Không ngờ thật"
+      },
+      {
+        "pattern": "phụ thân (ở|vào|lên|trong)",
+        "message": "附身 → nương thân/bám vào"
+      },
+      {
+        "pattern": "nhận dạng",
+        "message": "nhận dạng → kiểm trắc"
+      },
+      {
+        "pattern": "xao động",
+        "message": "xao động → rung động"
+      },
+      {
+        "pattern": "phát xạ",
+        "message": "phát xạ → phóng ra"
+      },
+      {
+        "pattern": "thích dụng",
+        "message": "thích dụng → áp dụng"
+      },
+      {
+        "pattern": "thúc động",
+        "message": "thúc động → thôi động"
+      },
+      {
+        "pattern": "tiền xa",
+        "message": "tiền xa → vết xe đổ"
+      },
+      {
+        "pattern": "lãnh tình",
+        "message": "lãnh tình → cảm kích"
+      },
+      {
+        "pattern": "đợi lát nữa",
+        "message": "đợi lát nữa → chờ một hồi"
+      },
+      {
+        "pattern": "đại động can qua",
+        "message": "đại động can qua → làm to chuyện"
+      },
+      {
+        "pattern": "nước thu\\b",
+        "message": "nước thu → thu thủy"
+      },
+      {
+        "pattern": "là tính là",
+        "message": "là tính là → xem như"
+      },
+      {
+        "pattern": "(?<!\\p{L})đặc ý(?!\\p{L})",
+        "flags": "iu",
+        "message": "đặc ý → cố ý"
+      },
+      {
+        "pattern": "\\bvô ý trung\\b",
+        "message": "vô ý trung → trong lúc vô tình"
+      },
+      {
+        "pattern": "(?<!\\p{L})bi thê(?!\\p{L})",
+        "flags": "iu",
+        "message": "bi thê → bi thương"
+      },
+      {
+        "pattern": "(?<!\\p{L})u thê(?!\\p{L})",
+        "flags": "iu",
+        "message": "u thê → u sầu"
+      },
+      {
+        "pattern": "\\bnhức óc\\b",
+        "message": "nhức óc → đau đầu"
+      },
+      {
+        "pattern": "(?<!\\p{L})thôi thì(?!\\p{L})",
+        "flags": "iu",
+        "message": "thôi thì → vậy thì / đã vậy"
+      },
+      {
+        "pattern": "(?<!\\p{L})vô ngữ(?!\\p{L})",
+        "flags": "iu",
+        "message": "vô ngữ → bó tay"
+      },
+      {
+        "pattern": "(?<!\\p{L})địch phương(?!\\p{L})",
+        "flags": "iu",
+        "message": "địch phương → quân địch"
+      },
+      {
+        "pattern": "\\bhữu phương\\b|\\bhữu quân\\b",
+        "message": "hữu phương/quân → phe bạn"
+      },
+      {
+        "pattern": "quả thực đúng là",
+        "message": "quả thực đúng là → chọn quả thực hoặc đúng là"
+      },
+      {
+        "pattern": "cư nhiên",
+        "message": "cư nhiên → lại / dám / không ngờ"
+      },
+      {
+        "pattern": "\\bkhấp huyết\\b",
+        "flags": "i",
+        "message": "泣血 → nhuộm máu / đẫm máu"
+      },
+      {
+        "pattern": "\\bma diệt\\b",
+        "flags": "i",
+        "message": "抹杀 → xóa sổ / mạt sát"
+      },
+      {
+        "pattern": "lãnh di[êễ]m",
+        "flags": "i",
+        "message": "冷艳 → lạnh lùng sắc sảo / lạnh lùng kiêu sa"
+      },
+      {
+        "pattern": "\\bthị phạm\\b",
+        "flags": "i",
+        "message": "示范 → làm mẫu"
+      },
+      {
+        "pattern": "\\bchồng cộng\\b",
+        "flags": "i",
+        "message": "叠加 → chồng lên nhau / kết hợp"
+      },
+      {
+        "pattern": "nửa xẻ",
+        "flags": "i",
+        "message": "衣衫半解 → y phục bán khai / xiêm y cởi dở"
+      },
+      {
+        "pattern": "đông cứng thành",
+        "flags": "i",
+        "message": "凝成 → ngưng tụ thành"
+      },
+      {
+        "pattern": "phụ lòng tạo hóa",
+        "flags": "i",
+        "message": "暴殄天物 → phí phạm của quý"
+      },
+      {
+        "pattern": "nhìn theo bụi",
+        "flags": "i",
+        "message": "望尘莫及 → không sao theo kịp / tự thẹn không bằng"
+      },
+      {
+        "pattern": "đẹp đến nghẹt thở",
+        "flags": "i",
+        "message": "惊心动魄 → đẹp đến kinh tâm động phách"
+      },
+      {
+        "pattern": "ngón.{0,20}mảnh khảnh",
+        "flags": "i",
+        "message": "mảnh khảnh chỉ tả người → ngón tay dùng thon / thon dài"
+      },
+      {
+        "pattern": "trời sinh [A-Z]",
+        "message": "Danh xưng lai nửa Việt nửa Hán → dùng Hán-Việt cả cụm (Thiên Sinh ...)"
+      },
+      {
+        "pattern": "…",
+        "message": "Còn ký tự … → chuẩn hóa thành dấu chấm ASCII, giữ số lượng (… → ..., …… → ......)"
+      },
+      {
+        "pattern": "(?<!\\p{L})(?:ngươi|nàng|bọn ta|các ngươi)(?!\\p{L})",
+        "flags": "iu",
+        "message": "Xưng hô cổ trang trong truyện hiện đại → anh/cô/tôi theo quan hệ"
+      },
+      {
+        "pattern": "(?<!\\p{L})(?:thê tử|phu quân|lang quân|phụ thân|mẫu thân)(?!\\p{L})",
+        "flags": "iu",
+        "message": "Từ gia đình cổ trang → vợ/chồng/bố/mẹ"
+      },
+      {
+        "pattern": "(?<!\\p{L})tổng tài(?!\\p{L})",
+        "flags": "iu",
+        "message": "tổng tài → tổng giám đốc"
+      },
+      {
+        "pattern": "nói đạo",
+        "flags": "i",
+        "message": "说道 → nói / đáp, không \"nói đạo\""
+      }
+    ],
+    "mixed": [
+      {
+        "pattern": "[，。、；：？！]",
+        "message": "Dấu câu tiếng Trung còn sót → dùng dấu câu thường"
+      },
+      {
+        "pattern": "(^|[.!?]\\s+|[【(])[\"“']?(?:but|and|so|the|in|on|at|from|with)\\b",
+        "flags": "i",
+        "message": "Từ nối tiếng Anh lọt vào bản dịch → dịch sang tiếng Việt hoặc chỉ giữ khi có căn cứ"
+      },
+      {
+        "pattern": "tinh thần đại chấn",
+        "message": "精神大振 → dùng tinh thần phấn chấn hẳn lên"
+      },
+      {
+        "pattern": "mơ hồ nghiệm ra|mùi vị không bình thường",
+        "message": "品出意味 → dùng nhận ra/nhận thấy điều bất thường"
+      },
+      {
+        "pattern": "bình loạn bắt sống",
+        "message": "平叛生擒 → dùng dẹp loạn, bắt sống"
+      },
+      {
+        "pattern": "không có rèm che chuyên biệt",
+        "message": "四面无帷 → dùng không rèm che bốn phía"
+      },
+      {
+        "pattern": "nóng bóng",
+        "message": "Lỗi chính tả → nóng bỏng"
+      },
+      {
+        "pattern": "ta vất vả một chút",
+        "message": "我辛苦点 → dùng ta chịu khó một chút"
+      },
+      {
+        "pattern": "đẳng tước vị quân công",
+        "message": "二十等军功爵 → dùng hai mươi bậc tước quân công"
+      },
+      {
+        "pattern": "vệt đỏ đắc ý",
+        "message": "一抹得意的红晕 → dùng vệt ửng đỏ vì đắc ý"
+      },
+      {
+        "pattern": "toàn bộ người nghênh đón có mặt đều",
+        "message": "Tránh chồng chủ thể/lượng từ"
+      },
+      {
+        "pattern": "đã thưởng Minh chủ",
+        "message": "感谢 X 打赏的盟主 → dùng cảm ơn minh chủ X đã thưởng/ủng hộ"
+      },
+      {
+        "pattern": "não hải",
+        "message": "não hải → đầu óc / tâm trí"
+      },
+      {
+        "pattern": "\\bthập phần\\b",
+        "message": "thập phần → vô cùng / hết sức"
+      },
+      {
+        "pattern": "\\bsong doanh\\b",
+        "message": "song doanh → đôi bên cùng có lợi"
+      },
+      {
+        "pattern": "còn đừng nói",
+        "flags": "i",
+        "message": "还别说 → Mà phải nói / Không ngờ thật"
+      },
+      {
+        "pattern": "phụ thân (ở|vào|lên|trong)",
+        "message": "附身 → nương thân/bám vào"
+      },
+      {
+        "pattern": "nhận dạng",
+        "message": "nhận dạng → kiểm trắc"
+      },
+      {
+        "pattern": "xao động",
+        "message": "xao động → rung động"
+      },
+      {
+        "pattern": "phát xạ",
+        "message": "phát xạ → phóng ra"
+      },
+      {
+        "pattern": "thích dụng",
+        "message": "thích dụng → áp dụng"
+      },
+      {
+        "pattern": "thúc động",
+        "message": "thúc động → thôi động"
+      },
+      {
+        "pattern": "tiền xa",
+        "message": "tiền xa → vết xe đổ"
+      },
+      {
+        "pattern": "lãnh tình",
+        "message": "lãnh tình → cảm kích"
+      },
+      {
+        "pattern": "đợi lát nữa",
+        "message": "đợi lát nữa → chờ một hồi"
+      },
+      {
+        "pattern": "đại động can qua",
+        "message": "đại động can qua → làm to chuyện"
+      },
+      {
+        "pattern": "nước thu\\b",
+        "message": "nước thu → thu thủy"
+      },
+      {
+        "pattern": "là tính là",
+        "message": "là tính là → xem như"
+      },
+      {
+        "pattern": "(?<!\\p{L})đặc ý(?!\\p{L})",
+        "flags": "iu",
+        "message": "đặc ý → cố ý"
+      },
+      {
+        "pattern": "\\bvô ý trung\\b",
+        "message": "vô ý trung → trong lúc vô tình"
+      },
+      {
+        "pattern": "(?<!\\p{L})bi thê(?!\\p{L})",
+        "flags": "iu",
+        "message": "bi thê → bi thương"
+      },
+      {
+        "pattern": "(?<!\\p{L})u thê(?!\\p{L})",
+        "flags": "iu",
+        "message": "u thê → u sầu"
+      },
+      {
+        "pattern": "\\bnhức óc\\b",
+        "message": "nhức óc → đau đầu"
+      },
+      {
+        "pattern": "(?<!\\p{L})thôi thì(?!\\p{L})",
+        "flags": "iu",
+        "message": "thôi thì → vậy thì / đã vậy"
+      },
+      {
+        "pattern": "(?<!\\p{L})vô ngữ(?!\\p{L})",
+        "flags": "iu",
+        "message": "vô ngữ → bó tay"
+      },
+      {
+        "pattern": "(?<!\\p{L})địch phương(?!\\p{L})",
+        "flags": "iu",
+        "message": "địch phương → quân địch"
+      },
+      {
+        "pattern": "\\bhữu phương\\b|\\bhữu quân\\b",
+        "message": "hữu phương/quân → phe bạn"
+      },
+      {
+        "pattern": "quả thực đúng là",
+        "message": "quả thực đúng là → chọn quả thực hoặc đúng là"
+      },
+      {
+        "pattern": "cư nhiên",
+        "message": "cư nhiên → lại / dám / không ngờ"
+      },
+      {
+        "pattern": "\\bkhấp huyết\\b",
+        "flags": "i",
+        "message": "泣血 → nhuộm máu / đẫm máu"
+      },
+      {
+        "pattern": "\\bma diệt\\b",
+        "flags": "i",
+        "message": "抹杀 → xóa sổ / mạt sát"
+      },
+      {
+        "pattern": "lãnh di[êễ]m",
+        "flags": "i",
+        "message": "冷艳 → lạnh lùng sắc sảo / lạnh lùng kiêu sa"
+      },
+      {
+        "pattern": "\\bthị phạm\\b",
+        "flags": "i",
+        "message": "示范 → làm mẫu"
+      },
+      {
+        "pattern": "\\bchồng cộng\\b",
+        "flags": "i",
+        "message": "叠加 → chồng lên nhau / kết hợp"
+      },
+      {
+        "pattern": "nửa xẻ",
+        "flags": "i",
+        "message": "衣衫半解 → y phục bán khai / xiêm y cởi dở"
+      },
+      {
+        "pattern": "đông cứng thành",
+        "flags": "i",
+        "message": "凝成 → ngưng tụ thành"
+      },
+      {
+        "pattern": "phụ lòng tạo hóa",
+        "flags": "i",
+        "message": "暴殄天物 → phí phạm của quý"
+      },
+      {
+        "pattern": "nhìn theo bụi",
+        "flags": "i",
+        "message": "望尘莫及 → không sao theo kịp / tự thẹn không bằng"
+      },
+      {
+        "pattern": "đẹp đến nghẹt thở",
+        "flags": "i",
+        "message": "惊心动魄 → đẹp đến kinh tâm động phách"
+      },
+      {
+        "pattern": "ngón.{0,20}mảnh khảnh",
+        "flags": "i",
+        "message": "mảnh khảnh chỉ tả người → ngón tay dùng thon / thon dài"
+      },
+      {
+        "pattern": "trời sinh [A-Z]",
+        "message": "Danh xưng lai nửa Việt nửa Hán → dùng Hán-Việt cả cụm (Thiên Sinh ...)"
+      },
+      {
+        "pattern": "…",
+        "message": "Còn ký tự … → chuẩn hóa thành dấu chấm ASCII, giữ số lượng (… → ..., …… → ......)"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "default",
+      "text": "Triệu Tĩnh Văn ngẩng đầu，nhìn tòa 高塔 nơi xa.\nBut nàng im lặng. Vợ của hắn và anh ấy đều biết.\n\"Mình không đi,\" nàng nói. Hừm. Ơ? Thập phần kỳ lạ…\nNão hải hắn KHẤP HUYẾT, cư nhiên Cư Nhiên. Lãnh diễm.\nDòng sạch không vi phạm gì cả.\n",
+      "rules": null,
+      "setting": "ancient",
+      "violations": [
+        {
+          "line": 1,
+          "message": "Dấu câu tiếng Trung còn sót → dùng dấu câu thường",
+          "text": "Triệu Tĩnh Văn ngẩng đầu，nhìn tòa 高塔 nơi xa."
+        },
+        {
+          "line": 1,
+          "message": "CJK còn sót (chưa dịch hết!)",
+          "text": "Triệu Tĩnh Văn ngẩng đầu，nhìn tòa 高塔 nơi xa."
+        },
+        {
+          "line": 2,
+          "message": "Từ nối tiếng Anh lọt vào bản dịch → dịch sang tiếng Việt hoặc chỉ giữ khi có căn cứ",
+          "text": "But nàng im lặng. Vợ của hắn và anh ấy đều biết."
+        },
+        {
+          "line": 2,
+          "message": "Dùng vợ/chồng → thay bằng thê tử/phu quân",
+          "text": "But nàng im lặng. Vợ của hắn và anh ấy đều biết."
+        },
+        {
+          "line": 2,
+          "message": "Đại từ sai → dùng hắn/nàng",
+          "text": "But nàng im lặng. Vợ của hắn và anh ấy đều biết."
+        },
+        {
+          "line": 3,
+          "message": "Dùng mình/tôi làm đại từ → thay bằng ta trong style mặc định",
+          "text": "\"Mình không đi,\" nàng nói. Hừm. Ơ? Thập phần kỳ lạ…"
+        },
+        {
+          "line": 3,
+          "message": "Hừm/Ừm → Ân",
+          "text": "\"Mình không đi,\" nàng nói. Hừm. Ơ? Thập phần kỳ lạ…"
+        },
+        {
+          "line": 3,
+          "message": "Thán từ Ơ → dùng A trong bối cảnh cổ đại/huyền huyễn",
+          "text": "\"Mình không đi,\" nàng nói. Hừm. Ơ? Thập phần kỳ lạ…"
+        },
+        {
+          "line": 3,
+          "message": "Còn ký tự … → chuẩn hóa thành dấu chấm ASCII, giữ số lượng (… → ..., …… → ......)",
+          "text": "\"Mình không đi,\" nàng nói. Hừm. Ơ? Thập phần kỳ lạ…"
+        },
+        {
+          "line": 4,
+          "message": "cư nhiên → lại / dám / không ngờ",
+          "text": "Não hải hắn KHẤP HUYẾT, cư nhiên Cư Nhiên. Lãnh diễm."
+        },
+        {
+          "line": 4,
+          "message": "泣血 → nhuộm máu / đẫm máu",
+          "text": "Não hải hắn KHẤP HUYẾT, cư nhiên Cư Nhiên. Lãnh diễm."
+        },
+        {
+          "line": 4,
+          "message": "冷艳 → lạnh lùng sắc sảo / lạnh lùng kiêu sa",
+          "text": "Não hải hắn KHẤP HUYẾT, cư nhiên Cư Nhiên. Lãnh diễm."
+        }
+      ]
+    },
+    {
+      "name": "crlf",
+      "text": "a…\r\nb，",
+      "rules": null,
+      "setting": "ancient",
+      "violations": [
+        {
+          "line": 1,
+          "message": "Còn ký tự … → chuẩn hóa thành dấu chấm ASCII, giữ số lượng (… → ..., …… → ......)",
+          "text": "a…"
+        },
+        {
+          "line": 2,
+          "message": "Dấu câu tiếng Trung còn sót → dùng dấu câu thường",
+          "text": "b，"
+        }
+      ]
+    },
+    {
+      "name": "story-rules",
+      "text": "có từ cấm và 漢 và Vợ",
+      "rules": [
+        {
+          "pattern": "cấm",
+          "message": "Từ cấm"
+        },
+        {
+          "pattern": "(",
+          "message": "regex hỏng — phải bị bỏ qua"
+        },
+        {
+          "pattern": "\\p{Script=Han}",
+          "flags": "u",
+          "message": "CJK riêng của truyện (đè rule bắt buộc)"
+        }
+      ],
+      "setting": "ancient",
+      "violations": [
+        {
+          "line": 1,
+          "message": "Từ cấm",
+          "text": "có từ cấm và 漢 và Vợ"
+        },
+        {
+          "line": 1,
+          "message": "CJK riêng của truyện (đè rule bắt buộc)",
+          "text": "có từ cấm và 漢 và Vợ"
+        }
+      ]
+    },
+    {
+      "name": "story-rules-no-han-override",
+      "text": "漢 sót",
+      "rules": [
+        {
+          "pattern": "x",
+          "message": "m"
+        }
+      ],
+      "setting": "ancient",
+      "violations": [
+        {
+          "line": 1,
+          "message": "CJK còn sót (chưa dịch hết!)",
+          "text": "漢 sót"
+        }
+      ]
+    },
+    {
+      "name": "long-line-cut-120",
+      "text": "não hải não hải não hải não hải não hải não hải não hải não hải não hải não hải não hải não hải não hải não hải não hải não hải não hải não hải não hải não hải não hải não hải não hải não hải não hải não hải não hải não hải não hải não hải ",
+      "rules": null,
+      "setting": "ancient",
+      "violations": [
+        {
+          "line": 1,
+          "message": "não hải → đầu óc / tâm trí",
+          "text": "não hải não hải não hải não hải não hải não hải não hải não hải não hải não hải não hải não hải não hải não hải não hải "
+        }
+      ]
+    },
+    {
+      "name": "modern-default",
+      "text": "Vợ anh đang đợi ở công ty.\nNgươi dám nói vậy sao?\nThê tử của tổng tài Lâm, ừm.",
+      "rules": null,
+      "setting": "modern",
+      "violations": [
+        {
+          "line": 2,
+          "message": "Xưng hô cổ trang trong truyện hiện đại → anh/cô/tôi theo quan hệ",
+          "text": "Ngươi dám nói vậy sao?"
+        },
+        {
+          "line": 3,
+          "message": "Từ gia đình cổ trang → vợ/chồng/bố/mẹ",
+          "text": "Thê tử của tổng tài Lâm, ừm."
+        },
+        {
+          "line": 3,
+          "message": "tổng tài → tổng giám đốc",
+          "text": "Thê tử của tổng tài Lâm, ừm."
+        }
+      ]
+    },
+    {
+      "name": "modern-story-rules-ignore-setting",
+      "text": "Vợ anh đang đợi ở công ty.\nNgươi dám nói vậy sao?\nThê tử của tổng tài Lâm, ừm.",
+      "rules": [
+        {
+          "pattern": "x",
+          "message": "m"
+        }
+      ],
+      "setting": "modern",
+      "violations": []
+    },
+    {
+      "name": "ancient-on-modern-text",
+      "text": "Vợ anh đang đợi ở công ty.\nNgươi dám nói vậy sao?\nThê tử của tổng tài Lâm, ừm.",
+      "rules": null,
+      "setting": "ancient",
+      "violations": [
+        {
+          "line": 1,
+          "message": "Dùng vợ/chồng → thay bằng thê tử/phu quân",
+          "text": "Vợ anh đang đợi ở công ty."
+        },
+        {
+          "line": 3,
+          "message": "Hừm/Ừm → Ân",
+          "text": "Thê tử của tổng tài Lâm, ừm."
+        }
+      ]
+    },
+    {
+      "name": "mixed-default",
+      "text": "Vợ anh đang đợi ở công ty.\nNgươi dám nói vậy sao?\nThê tử của tổng tài Lâm, ừm.",
+      "rules": null,
+      "setting": "mixed",
+      "violations": []
+    }
+  ]
+}

@@ -228,6 +228,7 @@ describe("AI translation workspace", () => {
               deepseek: "deepseek-translate",
             },
             thinking: false,
+            openaiReasoningEffort: "high",
             grokFallback: false,
             autoGlossary: true,
           },
@@ -254,6 +255,42 @@ describe("AI translation workspace", () => {
     };
     expect(body.model).toBe("deepseek-translate");
     expect(body.thinking.type).toBe("disabled");
+  });
+
+  it("sends the configured OpenAI reasoning effort to an OpenAI-compatible hub", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        `data: ${JSON.stringify({ choices: [{ delta: { content: "Tiêu Viêm bước tới." } }] })}\n\ndata: [DONE]\n\n`,
+      ),
+    );
+    const user = userEvent.setup();
+    render(
+      <AiTranslationWorkspace
+        aiSettings={{
+          ...defaultAiSettings,
+          openai: { apiKey: "sk-hub-x", model: "", baseUrl: "http://192.0.2.10/v1" },
+          translation: {
+            ...defaultAiSettings.translation,
+            provider: "openai",
+            models: { ...defaultAiSettings.translation.models, openai: "gemini-3.7-flash" },
+            openaiReasoningEffort: "high",
+          },
+        }}
+        onOpenSettings={vi.fn()}
+      />,
+    );
+
+    await user.type(screen.getByPlaceholderText(/Dán nguyên văn tiếng Trung/), "萧炎走来。 ");
+    await user.click(screen.getByRole("button", { name: /^Dịch AI/ }));
+
+    await waitFor(() => {
+      expect(useWorkspaceStore.getState().aiTranslationOutput).toBe("Tiêu Viêm bước tới.\n");
+    });
+    const [url, init] = fetchSpy.mock.calls[0];
+    expect(url).toBe("http://192.0.2.10/v1/chat/completions");
+    const body = JSON.parse(init?.body as string) as { model: string; reasoning_effort: string };
+    expect(body.model).toBe("gemini-3.7-flash");
+    expect(body.reasoning_effort).toBe("high");
   });
 });
 

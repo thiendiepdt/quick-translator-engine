@@ -17,3 +17,6 @@ apps/qt-gui/src-tauri/gen/schemas/
 .env.*
 !.env.example
 _tools/
+apps/qt-ai-gui/src-tauri/gen/schemas/
+apps/qt-ai-gui/src-tauri/binaries/
+.superpowers/

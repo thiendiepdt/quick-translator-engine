@@ -1,0 +1,95 @@
+{
+  "paragraphsOf": [
+    {
+      "text": "赵静文抬头看向远方的高塔。\n\n她沉默了很久没有说话。",
+      "result": [
+        "赵静文抬头看向远方的高塔。",
+        "她沉默了很久没有说话。"
+      ]
+    },
+    {
+      "text": "第二天早上，赵静文和他们一起出发了。\r\n  慕容雪羽也来了。\r\n",
+      "result": [
+        "第二天早上，赵静文和他们一起出发了。",
+        "慕容雪羽也来了。"
+      ]
+    },
+    {
+      "text": "  \n\n",
+      "result": []
+    }
+  ],
+  "sourcePayload": [
+    {
+      "paragraphs": [
+        "赵静文抬头看向远方的高塔。",
+        "她沉默了很久没有说话。"
+      ],
+      "payload": "Nguyên văn gồm 2 đoạn, mỗi đoạn mở đầu bằng nhãn dạng [[n]].\nBản dịch BẮT BUỘC giữ đúng định dạng đó: mỗi đoạn dịch mở đầu bằng nhãn [[n]] của đoạn nguyên văn tương ứng,\nđủ và đúng thứ tự từ [[1]] đến [[2]]; mỗi nhãn xuất hiện đúng một lần; không gộp, không tách, không thêm hay bỏ đoạn.\nNgoài nhãn, không thêm chú thích hay lời dẫn nào khác.\n\n[[1]] 赵静文抬头看向远方的高塔。\n\n[[2]] 她沉默了很久没有说话。"
+    },
+    {
+      "paragraphs": [],
+      "payload": "Nguyên văn gồm 0 đoạn, mỗi đoạn mở đầu bằng nhãn dạng [[n]].\nBản dịch BẮT BUỘC giữ đúng định dạng đó: mỗi đoạn dịch mở đầu bằng nhãn [[n]] của đoạn nguyên văn tương ứng,\nđủ và đúng thứ tự từ [[1]] đến [[0]]; mỗi nhãn xuất hiện đúng một lần; không gộp, không tách, không thêm hay bỏ đoạn.\nNgoài nhãn, không thêm chú thích hay lời dẫn nào khác.\n\n"
+    }
+  ],
+  "repairPayload": [
+    {
+      "paragraphs": [
+        "赵静文抬头看向远方的高塔。",
+        "她沉默了很久没有说话。"
+      ],
+      "missing": [
+        1
+      ],
+      "payload": "Bản dịch trước bị thiếu các đoạn dưới đây (trích từ cùng chương, giữ nguyên nhãn [[n]] gốc).\nDịch bổ sung đúng các đoạn này theo toàn bộ quy tắc đã cho: mỗi đoạn dịch mở đầu bằng nhãn [[n]] tương ứng,\nkhông gộp, không bỏ, không thêm chú thích.\n\n[[2]] 她沉默了很久没有说话。"
+    }
+  ],
+  "parse": [
+    {
+      "output": "[[1]] A\n\n[[2]] B",
+      "count": 2,
+      "result": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "output": "[[2]]  B dòng 1\n   dòng 2 \n[[1]] A [[1]] lặp [[9]] ngoài [[0]] không",
+      "count": 2,
+      "result": [
+        "A",
+        "B dòng 1 dòng 2"
+      ]
+    },
+    {
+      "output": "không nhãn",
+      "count": 2,
+      "result": null
+    },
+    {
+      "output": "[[1]]   \n[[2]] chỉ 2",
+      "count": 3,
+      "result": [
+        null,
+        "chỉ 2",
+        null
+      ]
+    }
+  ],
+  "strip": [
+    {
+      "input": "[[1]] A [[12]]B[[3]]",
+      "output": "A B"
+    }
+  ],
+  "format": [
+    {
+      "input": "a  \r\n\r\n\r\nb\nc\n\n",
+      "output": "a\n\nb\nc\n"
+    },
+    {
+      "input": "\n \n",
+      "output": ""
+    }
+  ]
+}

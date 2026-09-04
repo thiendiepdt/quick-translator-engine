@@ -99,10 +99,17 @@ describe("baseUrlProblem", () => {
     expect(baseUrlProblem("http://127.0.0.1:8080")).toBeNull();
   });
 
-  it("rejects http on remote hosts and malformed values", () => {
-    expect(baseUrlProblem("http://proxy.example.com")).toContain("https");
-    expect(baseUrlProblem("ftp://example.com")).toContain("https");
-    expect(baseUrlProblem("not a url")).toContain("không hợp lệ");
+  it("rejects http on remote hosts and malformed values when the page is https", () => {
+    expect(baseUrlProblem("http://proxy.example.com", "https:")).toContain("https");
+    expect(baseUrlProblem("http://192.0.2.10/v1", "https:")).toContain("https");
+    expect(baseUrlProblem("ftp://example.com", "https:")).toContain("https");
+    expect(baseUrlProblem("not a url", "https:")).toContain("không hợp lệ");
+  });
+
+  // Trang dev chạy http thì không có mixed-content, hub http://IP dùng được.
+  it("allows http on any host when the page itself is served over http", () => {
+    expect(baseUrlProblem("http://192.0.2.10/v1", "http:")).toBeNull();
+    expect(baseUrlProblem("ftp://example.com", "http:")).toContain("https");
   });
 });
 
@@ -479,5 +486,56 @@ describe("glm call routing", () => {
     );
     const init = fetchSpy.mock.calls[0][1] as RequestInit;
     expect(new Headers(init.headers).get("authorization")).toBe("Bearer zai-key");
+  });
+});
+
+describe("openai call routing", () => {
+  it("defaults to the official OpenAI endpoint and model", () => {
+    const resolved = resolveAiCall("openai", { apiKey: " sk-key ", model: "", baseUrl: "" });
+    expect(resolved).toEqual({
+      provider: "openai",
+      apiKey: "sk-key",
+      model: "gpt-5.6-sol",
+      baseUrl: "https://api.openai.com/v1",
+    });
+  });
+
+  it("keeps a custom hub base URL", () => {
+    const resolved = resolveAiCall("openai", {
+      apiKey: "sk-hub-x",
+      model: "gemini-3.7-flash",
+      baseUrl: "http://192.0.2.10/v1/",
+    });
+    expect(resolved.baseUrl).toBe("http://192.0.2.10/v1");
+    expect(resolved.model).toBe("gemini-3.7-flash");
+  });
+
+  // GPT-5/o-series từ chối temperature khác mặc định — JSON call không gửi.
+  it("extracts glossary via chat/completions without a temperature override", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json({
+        choices: [{ message: { content: JSON.stringify({ entries: [] }) } }],
+      }),
+    );
+    await extractStoryGlossaryWithAi(
+      {
+        provider: "openai",
+        apiKey: "sk-hub-x",
+        model: "gemini-3.7-flash",
+        baseUrl: "http://192.0.2.10/v1",
+      },
+      "raw",
+      "dịch",
+      [],
+    );
+    expect(requestUrlOf(fetchSpy.mock.calls[0][0])).toBe(
+      "http://192.0.2.10/v1/chat/completions",
+    );
+    const init = fetchSpy.mock.calls[0][1] as RequestInit;
+    expect(new Headers(init.headers).get("authorization")).toBe("Bearer sk-hub-x");
+    const body = JSON.parse(init.body as string) as Record<string, unknown>;
+    expect(body.model).toBe("gemini-3.7-flash");
+    expect(body.response_format).toEqual({ type: "json_object" });
+    expect("temperature" in body).toBe(false);
   });
 });

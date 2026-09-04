@@ -52,6 +52,10 @@ TUYỆT ĐỐI không bịa tên, nhân vật hay tóm tắt. Trả về đúng 
   "name": "tên tiếng Việt (Hán-Việt hoặc dịch nghĩa)",
   "protagonist": "tên nhân vật chính phiên âm Hán-Việt",
   "summary": "tóm tắt 1-2 câu tiếng Việt",
+  "genre": {
+    "setting": "ancient | modern — ancient nếu cổ đại/tiên hiệp/huyền huyễn/cung đấu, modern nếu đô thị/hiện đại/vô hạn lưu",
+    "names": "han | foreign | mixed — han nếu nhân vật Trung Quốc, foreign nếu bối cảnh phương Tây/Nhật/Hàn, mixed nếu lẫn"
+  },
   "style": {
     "voice": "mô tả ngắn tính cách/giọng văn nhân vật chính",
     "tone_rules": ["quy tắc tone khi dịch"],
@@ -87,6 +91,7 @@ Giữ null hoặc rỗng nếu không chắc. Không giải thích, không markd
     name: stringValue(json.name) || current.name,
     protagonist: stringValue(json.protagonist) || current.protagonist,
     summary: stringValue(json.summary) || current.summary,
+    genre: isRecord(json.genre) ? json.genre : current.genre,
     style: isRecord(json.style) ? json.style : current.style,
     glossary: isRecord(json.glossary) ? json.glossary : current.glossary,
   });
@@ -95,6 +100,7 @@ Giữ null hoặc rỗng nếu không chắc. Không giải thích, không markd
       name: normalized.name,
       protagonist: normalized.protagonist,
       summary: normalized.summary,
+      genre: normalized.genre,
       style: normalized.style,
       glossary: normalized.glossary,
     },

@@ -26,6 +26,52 @@ function renderDialog(onSave = vi.fn()) {
   return onSave;
 }
 
+describe("story genre", () => {
+  it("lưu bối cảnh và tên riêng đã chọn", async () => {
+    const onSave = renderDialog();
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("combobox", { name: "Bối cảnh" }));
+    await user.click(await screen.findByRole("option", { name: /Hiện đại/ }));
+    await user.click(screen.getByRole("combobox", { name: "Tên riêng" }));
+    await user.click(await screen.findByRole("option", { name: /Gốc nước ngoài/ }));
+    await user.click(screen.getByRole("button", { name: "Lưu cấu hình" }));
+
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({ genre: { setting: "modern", names: "foreign" } }),
+    );
+  });
+
+  it("tab Kiểm tra hiện bộ rule theo bối cảnh khi chưa có rule riêng", async () => {
+    renderDialog();
+    const user = userEvent.setup();
+    const hasSpouseRule = () =>
+      screen
+        .getAllByLabelText(/^Mô tả rule/)
+        .some((el) => (el as HTMLInputElement).value.includes("thê tử/phu quân"));
+
+    await user.click(screen.getByRole("tab", { name: /Kiểm tra/ }));
+    expect(hasSpouseRule()).toBe(true);
+
+    await user.click(screen.getByRole("tab", { name: /Thông tin/ }));
+    await user.click(screen.getByRole("combobox", { name: "Bối cảnh" }));
+    await user.click(await screen.findByRole("option", { name: /Hiện đại/ }));
+    await user.click(screen.getByRole("tab", { name: /Kiểm tra/ }));
+    expect(hasSpouseRule()).toBe(false);
+  });
+
+  it("Hỗn hợp: tab Kiểm tra không có rule xưng hô của cả hai bối cảnh", async () => {
+    renderDialog();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("combobox", { name: "Bối cảnh" }));
+    await user.click(await screen.findByRole("option", { name: /Hỗn hợp/ }));
+    await user.click(screen.getByRole("tab", { name: /Kiểm tra/ }));
+    const messages = screen.getAllByLabelText(/^Mô tả rule/).map((el) => (el as HTMLInputElement).value);
+    expect(messages.some((m) => m.includes("thê tử/phu quân"))).toBe(false);
+    expect(messages.some((m) => m.includes("Xưng hô cổ trang"))).toBe(false);
+  });
+});
+
 describe("story config export/import", () => {
   it("imports a JSON file into the draft and saves it", async () => {
     const onSave = renderDialog();
