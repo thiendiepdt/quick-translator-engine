@@ -6,7 +6,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { NOVEL_TRANSLATOR_BASE_PROMPT } from "@/lib/ai-translation-prompt";
+import { composeBasePrompt, genreKey, PROMPT_GENRE_COMBOS } from "@/lib/ai-translation-prompt";
 import {
   defaultAiCheckRules, buildAiTranslationSystemPrompt, checkAiTranslationViolations,
   filterTranslationGlossaryForSource, formatAiTranslation, glossaryEntryMatchesSource,
@@ -16,7 +16,7 @@ import {
   parseLabeledAiTranslation, stripAiParagraphMarkers,
 } from "@/lib/ai-paragraphs";
 import { appendAutoGlossary, collectGlossaryKeys, sanitizeExtractedGlossary } from "@/lib/ai-glossary";
-import { emptyAiStoryConfig, naturalChapterCompare, normalizeAiStoryConfig } from "@/lib/ai-story";
+import { emptyAiStoryConfig, naturalChapterCompare, normalizeAiStoryConfig, type StoryGenre } from "@/lib/ai-story";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const CORE = resolve(HERE, "../../../crates/qt-ai-core");
@@ -57,9 +57,27 @@ function storyOnlyStyle() {
   return story;
 }
 
+function storyGenre(genre: StoryGenre) {
+  const story = emptyAiStoryConfig();
+  story.name = "Truyện thử genre";
+  story.summary = "Một câu.";
+  story.genre = genre;
+  return story;
+}
+function storyGenreCustomPrompt() {
+  const story = storyGenre({ setting: "modern", names: "foreign" });
+  story.customPrompt = "Prompt riêng thắng genre.";
+  return story;
+}
+
+// Rust không port logic ghép: xuất sẵn 6 base theo key `setting/names` để tra bảng.
 const prompts = (() => {
   const noStory = buildAiTranslationSystemPrompt({});
-  return { base: NOVEL_TRANSLATOR_BASE_PROMPT, suffix: noStory.slice(NOVEL_TRANSLATOR_BASE_PROMPT.length) };
+  const legacy = composeBasePrompt({ setting: "ancient", names: "han" });
+  return {
+    bases: Object.fromEntries(PROMPT_GENRE_COMBOS.map((g) => [genreKey(g), composeBasePrompt(g)])),
+    suffix: noStory.slice(legacy.length),
+  };
 })();
 
 const story = {
@@ -75,6 +93,7 @@ const story = {
       },
       output: null as unknown,
     },
+    { input: { genre: { setting: "modern", names: "sai" } }, output: null as unknown },
   ],
   sort: {
     input: ["chuong-0010", "chuong-0002", "0001", "10", "2", "Chuong-0001", "chuong-0002b"],
@@ -82,6 +101,7 @@ const story = {
   },
 };
 story.normalize[1]!.output = normalizeAiStoryConfig(story.normalize[1]!.input);
+story.normalize[2]!.output = normalizeAiStoryConfig(story.normalize[2]!.input);
 story.sort.sorted = [...story.sort.input].sort(naturalChapterCompare);
 
 const p1 = aiParagraphsOf(CH1);
@@ -115,6 +135,8 @@ const promptCases = [
   { name: "custom-prompt", story: storyCustomPrompt(), source: CH2 },
   { name: "only-style", story: storyOnlyStyle(), source: CH1 },
   { name: "rules", story: storyRules(), source: CH1 },
+  ...PROMPT_GENRE_COMBOS.map((g) => ({ name: `genre-${genreKey(g)}`, story: storyGenre(g), source: CH1 })),
+  { name: "genre-custom-prompt", story: storyGenreCustomPrompt(), source: CH1 },
 ].map((c) => ({
   ...c,
   prompt: buildAiTranslationSystemPrompt({}, c.story ?? undefined, c.source ?? undefined),
@@ -129,14 +151,18 @@ const CHECK_TEXT = [
   "",
 ].join("\n");
 const SIMPLE_RULES = [{ pattern: "x", message: "m" }];
+const MODERN_TEXT = "Vợ anh đang đợi ở công ty.\nNgươi dám nói vậy sao?\nThê tử của tổng tài Lâm, ừm.";
 const check = {
-  defaultRules: defaultAiCheckRules("ancient"),
+  defaultRules: { ancient: defaultAiCheckRules("ancient"), modern: defaultAiCheckRules("modern") },
   cases: [
-    { name: "default", text: CHECK_TEXT, rules: null, violations: checkAiTranslationViolations(CHECK_TEXT) },
-    { name: "crlf", text: "a…\r\nb，", rules: null, violations: checkAiTranslationViolations("a…\r\nb，") },
-    { name: "story-rules", text: "có từ cấm và 漢 và Vợ", rules: storyRules().checkRules, violations: checkAiTranslationViolations("có từ cấm và 漢 và Vợ", storyRules().checkRules) },
-    { name: "story-rules-no-han-override", text: "漢 sót", rules: SIMPLE_RULES, violations: checkAiTranslationViolations("漢 sót", SIMPLE_RULES) },
-    { name: "long-line-cut-120", text: "não hải ".repeat(30), rules: null, violations: checkAiTranslationViolations("não hải ".repeat(30)) },
+    { name: "default", text: CHECK_TEXT, rules: null, setting: "ancient", violations: checkAiTranslationViolations(CHECK_TEXT) },
+    { name: "crlf", text: "a…\r\nb，", rules: null, setting: "ancient", violations: checkAiTranslationViolations("a…\r\nb，") },
+    { name: "story-rules", text: "có từ cấm và 漢 và Vợ", rules: storyRules().checkRules, setting: "ancient", violations: checkAiTranslationViolations("có từ cấm và 漢 và Vợ", storyRules().checkRules) },
+    { name: "story-rules-no-han-override", text: "漢 sót", rules: SIMPLE_RULES, setting: "ancient", violations: checkAiTranslationViolations("漢 sót", SIMPLE_RULES) },
+    { name: "long-line-cut-120", text: "não hải ".repeat(30), rules: null, setting: "ancient", violations: checkAiTranslationViolations("não hải ".repeat(30)) },
+    { name: "modern-default", text: MODERN_TEXT, rules: null, setting: "modern", violations: checkAiTranslationViolations(MODERN_TEXT, undefined, "modern") },
+    { name: "modern-story-rules-ignore-setting", text: MODERN_TEXT, rules: SIMPLE_RULES, setting: "modern", violations: checkAiTranslationViolations(MODERN_TEXT, SIMPLE_RULES, "modern") },
+    { name: "ancient-on-modern-text", text: MODERN_TEXT, rules: null, setting: "ancient", violations: checkAiTranslationViolations(MODERN_TEXT) },
   ],
 };
 

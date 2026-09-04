@@ -7,6 +7,10 @@
         "sourceUrl": "",
         "protagonist": "",
         "summary": "",
+        "genre": {
+          "setting": "ancient",
+          "names": "han"
+        },
         "glossary": {
           "names": {},
           "places": {},
@@ -89,6 +93,10 @@
         "sourceUrl": "",
         "protagonist": "",
         "summary": "",
+        "genre": {
+          "setting": "ancient",
+          "names": "han"
+        },
         "glossary": {
           "names": {
             "赵静文": "Triệu Tĩnh Văn"
@@ -131,6 +139,43 @@
           }
         ],
         "autoGlossary": "off"
+      }
+    },
+    {
+      "input": {
+        "genre": {
+          "setting": "modern",
+          "names": "sai"
+        }
+      },
+      "output": {
+        "name": "",
+        "sourceUrl": "",
+        "protagonist": "",
+        "summary": "",
+        "genre": {
+          "setting": "modern",
+          "names": "han"
+        },
+        "glossary": {
+          "names": {},
+          "places": {},
+          "items": {},
+          "creatures": {},
+          "skills": {},
+          "common": {},
+          "signature_phrases": {}
+        },
+        "style": {
+          "voice": "",
+          "toneRules": [],
+          "signaturePhrases": {},
+          "avoid": []
+        },
+        "customPrompt": "",
+        "checkRules": [],
+        "autoGlossaryLog": [],
+        "autoGlossary": "inherit"
       }
     }
   ],

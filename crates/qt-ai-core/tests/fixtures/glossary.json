@@ -142,6 +142,10 @@
         "sourceUrl": "",
         "protagonist": "Triệu Tĩnh Văn",
         "summary": "Tóm tắt 1 câu.",
+        "genre": {
+          "setting": "ancient",
+          "names": "han"
+        },
         "glossary": {
           "names": {
             "赵静文": "Triệu Tĩnh Văn",
@@ -195,6 +199,10 @@
         "sourceUrl": "",
         "protagonist": "Triệu Tĩnh Văn",
         "summary": "Tóm tắt 1 câu.",
+        "genre": {
+          "setting": "ancient",
+          "names": "han"
+        },
         "glossary": {
           "names": {
             "赵静文": "Triệu Tĩnh Văn",
