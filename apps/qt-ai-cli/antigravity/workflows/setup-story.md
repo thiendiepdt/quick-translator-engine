@@ -19,8 +19,9 @@ Các bước:
 3. Đọc 2–3 chương đầu trong `raw/` (chỉ để nắm giọng văn, không dịch).
 4. Mở `story.json`, điền bằng tiếng Việt (gộp kết quả tra web + cảm nhận từ chương đã đọc):
    - `name`: tên người dùng đưa; `sourceUrl`: link người dùng đưa.
-   - `genre.setting`: `ancient` (cổ đại, tiên hiệp, huyền huyễn, cung đấu, lịch sử) hoặc `modern`
-     (đô thị, hiện đại, vô hạn lưu, hệ thống thời nay). `genre.names`: `han` nếu nhân vật Trung Quốc,
+   - `genre.setting`: `ancient` (cổ đại, tiên hiệp, huyền huyễn, cung đấu, lịch sử), `modern`
+     (đô thị, hiện đại, vô hạn lưu, hệ thống thời nay) hoặc `mixed` (xuyên qua lại cổ đại ↔ hiện đại,
+     đô thị tu tiên — prompt chọn xưng hô theo cảnh, không bắt lỗi xưng hô). `genre.names`: `han` nếu nhân vật Trung Quốc,
      `foreign` nếu bối cảnh phương Tây / Nhật / Hàn (tên trả về Emily, Naruto), `mixed` nếu lẫn.
      Suy từ thể loại tra được và 2–3 chương đã đọc; không chắc thì giữ `ancient`/`han` và ghi chú khi trình.
    - `protagonist`: tên nhân vật chính (Hán-Việt với `names: han`, dạng gốc với `foreign`).

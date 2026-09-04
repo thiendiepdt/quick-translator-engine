@@ -60,7 +60,7 @@ Ba bộ màu (Editorial / Studio / Soft) × sáng / tối / theo hệ thống, c
 
 ## Thể loại
 
-`story.json` có `genre: { setting: "ancient" | "modern", names: "han" | "foreign" | "mixed" }`; chọn ở trang Hồ sơ truyện, mục Thể loại. Bối cảnh quyết xưng hô, thán từ, từ gia đình, bảng thuật ngữ và bộ rule kiểm tra mặc định; tên riêng quyết phiên Hán-Việt hay trả về dạng gốc. Truyện cũ thiếu `genre` chạy như cổ đại/Hán-Việt. Prompt riêng hoặc rule riêng vẫn thắng. Chữ prompt nằm ở qt-web (`src/lib/ai-translation-prompt.ts`), Rust đọc 6 bản ghép sẵn trong `crates/qt-ai-core/prompts/prompts.json` qua golden.
+`story.json` có `genre: { setting: "ancient" | "modern" | "mixed", names: "han" | "foreign" | "mixed" }`; chọn ở trang Hồ sơ truyện, mục Thể loại. Bối cảnh quyết xưng hô, thán từ, từ gia đình, bảng thuật ngữ và bộ rule kiểm tra mặc định; `mixed` (xuyên qua lại, đô thị tu tiên) đưa cả hai bộ xưng hô vào prompt để chọn theo cảnh và chỉ chạy rule trung lập. Tên riêng quyết phiên Hán-Việt hay trả về dạng gốc. Truyện cũ thiếu `genre` chạy như cổ đại/Hán-Việt. Prompt riêng hoặc rule riêng vẫn thắng. Chữ prompt nằm ở qt-web (`src/lib/ai-translation-prompt.ts`), Rust đọc 6 bản ghép sẵn trong `crates/qt-ai-core/prompts/prompts.json` qua golden.
 
 ## Drift với qt-web
 

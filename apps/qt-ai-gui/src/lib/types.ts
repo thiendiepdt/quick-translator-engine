@@ -35,6 +35,7 @@ export type StoryDefaults = z.infer<typeof storyDefaultsSchema>;
 export const GENRE_SETTING_LABELS: Record<GenreSetting, { label: string; hint: string }> = {
   ancient: { label: "Cổ đại / tiên hiệp", hint: "ta/ngươi/hắn/nàng, thán từ A?/Ân, cấm vợ/chồng" },
   modern: { label: "Hiện đại", hint: "anh/cô/tôi theo quan hệ, từ đời thường, thán từ hiện đại" },
+  mixed: { label: "Hỗn hợp / xuyên qua lại", hint: "Chọn xưng hô theo cảnh; không bắt lỗi xưng hô" },
 };
 export const GENRE_NAMES_LABELS: Record<GenreNames, { label: string; hint: string }> = {
   han: { label: "Hán-Việt", hint: "Kế Duyên, Bắc Kinh" },

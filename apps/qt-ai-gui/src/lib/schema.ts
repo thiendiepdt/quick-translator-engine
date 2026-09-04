@@ -8,7 +8,7 @@ export const autoGlossarySchema = z.enum(["inherit", "on", "off"]);
 
 export const checkRuleSchema = z.object({ pattern: z.string(), flags: z.string().optional(), message: z.string() });
 
-export const GENRE_SETTINGS = ["ancient", "modern"] as const;
+export const GENRE_SETTINGS = ["ancient", "modern", "mixed"] as const;
 export const GENRE_NAMES = ["han", "foreign", "mixed"] as const;
 /** Hai trục thể loại (port `StoryGenre` của qt-web): bối cảnh quyết xưng hô/rule, tên riêng quyết cách phiên. */
 export const storyGenreSchema = z.object({ setting: z.enum(GENRE_SETTINGS), names: z.enum(GENRE_NAMES) });

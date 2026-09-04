@@ -78,4 +78,14 @@ describe("StoryPage", () => {
     const { storyDefaults } = await import("@/lib/api");
     expect(storyDefaults).toHaveBeenCalledWith({ setting: "modern", names: "han" });
   });
+
+  it("chọn Hỗn hợp gọi defaults với setting mixed", async () => {
+    const user = userEvent.setup();
+    render(<StoryPage />);
+    await user.click(screen.getByRole("tab", { name: "Thể loại" }));
+    await user.click(screen.getByRole("combobox", { name: "Bối cảnh" }));
+    await user.click(await screen.findByRole("option", { name: /Hỗn hợp/ }));
+    const { storyDefaults } = await import("@/lib/api");
+    expect(storyDefaults).toHaveBeenCalledWith({ setting: "mixed", names: "han" });
+  });
 });

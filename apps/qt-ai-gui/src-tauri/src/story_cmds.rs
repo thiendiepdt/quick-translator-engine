@@ -319,6 +319,9 @@ mod tests {
         let m = defaults(&StoryGenre { setting: GenreSetting::Modern, names: GenreNames::Foreign });
         assert!(m.base_prompt.contains("Emily"));
         assert!(!m.check_rules.iter().any(|r| r.message.contains("thê tử/phu quân")));
+        let x = defaults(&StoryGenre { setting: GenreSetting::Mixed, names: GenreNames::Han });
+        assert!(x.base_prompt.contains("theo cảnh"));
+        assert!(!x.check_rules.iter().any(|r| r.message.contains("thê tử/phu quân") || r.message.contains("Xưng hô cổ trang")));
         let json = serde_json::to_value(&d).unwrap();
         assert!(json["checkRules"][0]["pattern"].is_string());
         assert!(json["basePrompt"].is_string());
