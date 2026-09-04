@@ -6,7 +6,7 @@ import type { GenreNames, GenreSetting, StoryGenre } from "@/lib/ai-story";
  * vào các slot cố định. Hai danh sách đánh số được lưu không số và đánh lại lúc ghép.
  */
 
-// FNV-1a 64 của NOVEL_TRANSLATOR_BASE_PROMPT trước khi tách (xem ai-translation-prompt.test.ts).
+// FNV-1a 64 của prompt cổ đại/Hán-Việt trước khi tách module (xem ai-translation-prompt.test.ts).
 export const LEGACY_BASE_PROMPT_FNV1A64 = "acf7f966bef34883";
 
 const CORE_HEAD: string[] = [
@@ -703,6 +703,3 @@ export function composeBasePrompt(genre: StoryGenre): string {
     ...numbered([...CORE_EDIT_A, ...setting.editing, ...CORE_EDIT_B]),
   ].join("\n");
 }
-
-/** @deprecated prompt cổ đại/Hán-Việt — còn dùng tới khi mọi nơi nhận genre. */
-export const NOVEL_TRANSLATOR_BASE_PROMPT = composeBasePrompt({ setting: "ancient", names: "han" });

@@ -11,8 +11,8 @@ import {
   glossaryEntryMatchesSource,
   wordCount,
 } from "@/lib/ai-translation";
-import { NOVEL_TRANSLATOR_BASE_PROMPT } from "@/lib/ai-translation-prompt";
-import { emptyAiStoryConfig } from "@/lib/ai-story";
+import { composeBasePrompt } from "@/lib/ai-translation-prompt";
+import { defaultStoryGenre, emptyAiStoryConfig } from "@/lib/ai-story";
 import { dictionaryUpdateKeys, type LocalDictionaryEntries } from "@/lib/types";
 
 function emptyEntries(): LocalDictionaryEntries {
@@ -23,8 +23,9 @@ function emptyEntries(): LocalDictionaryEntries {
 
 describe("AI translation prompt", () => {
   it("stores the ported prompt with real Markdown line breaks", () => {
-    expect(NOVEL_TRANSLATOR_BASE_PROMPT).toContain("\n# Ngữ cảnh tác vụ chuyển ngữ\n");
-    expect(NOVEL_TRANSLATOR_BASE_PROMPT).not.toContain("\\n# Ngữ cảnh tác vụ chuyển ngữ");
+    const base = composeBasePrompt(defaultStoryGenre());
+    expect(base).toContain("\n# Ngữ cảnh tác vụ chuyển ngữ\n");
+    expect(base).not.toContain("\\n# Ngữ cảnh tác vụ chuyển ngữ");
   });
 
   it("uses only compact workspace entries and accepted names as its glossary", () => {
