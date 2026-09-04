@@ -289,6 +289,7 @@ export function AiTranslationWorkspace({
     let streamedThinking = "";
     const options = {
       thinking: aiSettings.translation.thinking,
+      reasoningEffort: aiSettings.translation.openaiReasoningEffort,
       signal,
       onChunk(kind: "thinking" | "text", chunk: string) {
         if (workspaceChanged()) return;

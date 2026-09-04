@@ -21,6 +21,8 @@ import {
 import {
   activeAiProviderConfig,
   isAiProvider,
+  isOpenAiReasoningEffort,
+  OPENAI_REASONING_EFFORTS,
   type AiProviderConfig,
   type AiSettings,
 } from "@/lib/ai-settings";
@@ -173,6 +175,7 @@ function AiCredentialsFields({
             <SelectItem value="gemini">Gemini</SelectItem>
             <SelectItem value="grok">Grok</SelectItem>
             <SelectItem value="glm">GLM</SelectItem>
+            <SelectItem value="openai">OpenAI</SelectItem>
           </SelectContent>
         </Select>
         <Input
@@ -189,6 +192,7 @@ function AiCredentialsFields({
               deepseek: "API key DeepSeek",
               grok: "API key xAI",
               glm: "API key Z.ai",
+              openai: "API key OpenAI (hoặc key của hub tương thích)",
             }[aiSettings.provider]
           }
         />
@@ -206,6 +210,7 @@ function AiCredentialsFields({
             deepseek: "Model lọc tên (mặc định deepseek-v4-flash)",
             grok: "Model lọc tên (mặc định grok-4.6)",
             glm: "Model lọc tên (mặc định glm-5.3-flash)",
+            openai: "Model lọc tên (mặc định gpt-5.6-sol)",
           }[aiSettings.provider]
         }
       />
@@ -216,15 +221,23 @@ function AiCredentialsFields({
         className="font-mono text-xs"
         value={active.baseUrl}
         onChange={(event) => updateActive({ baseUrl: event.target.value })}
-        placeholder="Base URL proxy (tùy chọn — trống là endpoint chính thức)"
+        placeholder={
+          aiSettings.provider === "openai"
+            ? "Base URL hub OpenAI-compatible (trống là https://api.openai.com/v1)"
+            : "Base URL proxy (tùy chọn — trống là endpoint chính thức)"
+        }
       />
       <p className="text-xs text-muted-foreground">
         Key và proxy này cũng được Dịch AI dùng lại; model dịch được cấu hình riêng bên dưới.
         Key chỉ lưu trên trình duyệt này, tách riêng theo từng nhà cung cấp. Trình duyệt gọi
         thẳng{" "}
-        {({ gemini: "Google AI", deepseek: "DeepSeek", grok: "xAI", glm: "Z.ai" })[
-          aiSettings.provider
-        ]}{" "}
+        {({
+          gemini: "Google AI",
+          deepseek: "DeepSeek",
+          grok: "xAI",
+          glm: "Z.ai",
+          openai: "OpenAI",
+        })[aiSettings.provider]}{" "}
         (hoặc proxy của
         bạn — endpoint cần cho phép CORS, hỗ trợ cả http://localhost); key không đi qua
         server của app. Chi phí tính vào tài khoản của bạn.
@@ -274,6 +287,7 @@ function AiTranslationFields({
             <SelectItem value="gemini">Gemini</SelectItem>
             <SelectItem value="grok">Grok</SelectItem>
             <SelectItem value="glm">GLM</SelectItem>
+            <SelectItem value="openai">OpenAI</SelectItem>
           </SelectContent>
         </Select>
         <Input
@@ -300,10 +314,43 @@ function AiTranslationFields({
               deepseek: "deepseek-v4-flash",
               grok: "grok-4.6",
               glm: "glm-5.3-flash",
+              openai: "gpt-5.6-sol",
             }[provider]
           }
         />
       </div>
+      {provider === "openai" && (
+        <div className="flex items-center justify-between gap-2">
+          <Label htmlFor="ai-translation-reasoning" className="text-xs font-normal">
+            Mức nghĩ (reasoning_effort)
+          </Label>
+          <Select
+            value={aiSettings.translation.openaiReasoningEffort}
+            onValueChange={(value) => {
+              if (!isOpenAiReasoningEffort(value)) return;
+              onAiSettingsChange({
+                ...aiSettings,
+                translation: { ...aiSettings.translation, openaiReasoningEffort: value },
+              });
+            }}
+          >
+            <SelectTrigger
+              id="ai-translation-reasoning"
+              className="w-40 shrink-0"
+              aria-label="Mức reasoning OpenAI"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {OPENAI_REASONING_EFFORTS.map((effort) => (
+                <SelectItem key={effort} value={effort}>
+                  {effort}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
       <div className="mt-1 grid gap-1.5">
         <div className="flex items-center justify-between rounded-md bg-background/60 px-3 py-2">
           <Label htmlFor="ai-translation-thinking" className="text-xs font-normal">
@@ -355,6 +402,8 @@ function AiTranslationFields({
         Thinking chỉ áp dụng cho Dịch AI: DeepSeek và Gemini 2.5 có thể tắt hẳn;
         Gemini 3.x và GLM 5.3 không tắt hẳn được, tắt công tắc là hạ xuống mức
         nghĩ thấp nhất (GLM bật rất chậm, mỗi chương có thể mất hàng chục phút).
+        OpenAI không dùng công tắc này mà dùng ô Mức nghĩ ở trên (none…max,
+        mặc định high), gửi thẳng reasoning_effort cho cả model qua hub tương thích.
       </p>
     </div>
   );

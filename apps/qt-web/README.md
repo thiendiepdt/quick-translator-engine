@@ -134,12 +134,15 @@ npm run check
 - Tab **Tên** gọi `POST /names/filter`, hỗ trợ QT/hybrid, bật AI trích/duyệt tùy chọn, search,
   sửa tên Việt inline, duyệt/loại từng record và duyệt nhanh candidate ≥85%.
 - Tính năng AI chạy ngay trong trình duyệt (`src/lib/ai-client.ts`): trình duyệt gọi
-  thẳng DeepSeek/Gemini bằng key của chính người dùng — key không bao giờ đi qua server
+  thẳng DeepSeek/Gemini/Grok/GLM/OpenAI bằng key của chính người dùng — key không bao giờ đi qua server
   của app. Lọc tên chỉ gửi entity đã trích qua field `aiEntities`; dịch/tra nghĩa từ điển
   chỉ cập nhật UI local. Chọn provider, nhập
   key/model và Base URL proxy (tùy chọn) trong dialog Cài đặt. Base URL cho phép dùng
   endpoint trung gian OpenAI-compatible/relay Gemini, kể cả proxy chạy local
-  (`http://localhost` được miễn trừ mixed-content); endpoint phải cho phép CORS. Cấu
+  (`http://localhost` được miễn trừ mixed-content; khi chạy dev `http://` thì hub
+  `http://IP` trong LAN cũng dùng được); endpoint phải cho phép CORS. Provider
+  **OpenAI** mặc định trỏ `https://api.openai.com/v1`, đổi Base URL là dùng được hub
+  OpenAI-compatible bất kỳ với model của hub (ví dụ `gemini-3.7-flash`). Cấu
   hình lưu ở localStorage tách riêng theo từng provider — đổi provider là đổi sang bộ
   key của provider đó, không bao giờ gửi key của công ty này sang endpoint công ty kia.
 - Name được duyệt tự append/update vào draft `Names2`, nên request dịch tiếp theo sử dụng

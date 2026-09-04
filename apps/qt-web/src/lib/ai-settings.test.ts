@@ -24,7 +24,7 @@ describe("AI credentials preference", () => {
     localStorage.setItem(aiSettingsStorageKey, "not json");
     expect(readStoredAiSettings()).toEqual(defaultAiSettings);
 
-    localStorage.setItem(aiSettingsStorageKey, JSON.stringify({ provider: "openai" }));
+    localStorage.setItem(aiSettingsStorageKey, JSON.stringify({ provider: "claude" }));
     expect(readStoredAiSettings().provider).toBe("gemini");
   });
 
@@ -105,16 +105,19 @@ describe("AI credentials preference", () => {
         models: {
           grok: "grok-4.6",
           glm: "glm-5.3-flash",
+          openai: "gpt-5.6-sol",
           deepseek: "deepseek-translate",
           gemini: "gemini-translate",
         },
         thinking: false,
+        openaiReasoningEffort: "low",
         grokFallback: false,
         autoGlossary: true,
       },
     });
 
     const restored = readStoredAiSettings();
+    expect(restored.translation.openaiReasoningEffort).toBe("low");
     expect(activeAiProviderConfig(restored)).toMatchObject({
       apiKey: "sk-shared",
       model: "deepseek-name-filter",
@@ -145,8 +148,10 @@ describe("AI credentials preference", () => {
         gemini: DEFAULT_AI_TRANSLATION_GEMINI_MODEL,
         grok: "grok-4.6",
         glm: "glm-5.3-flash",
+        openai: "gpt-5.6-sol",
       },
       thinking: true,
+      openaiReasoningEffort: "high",
       grokFallback: true,
       autoGlossary: true,
     });
@@ -239,5 +244,46 @@ describe("grok fallback opt-out", () => {
       translation: { ...defaultAiSettings.translation, grokFallback: false },
     });
     expect(readStoredAiSettings().translation.grokFallback).toBe(false);
+  });
+});
+
+describe("openai provider settings", () => {
+  it("ships an OpenAI config with the official model defaults", () => {
+    expect(defaultAiSettings.openai).toEqual({ apiKey: "", model: "gpt-5.6-sol", baseUrl: "" });
+    expect(defaultAiSettings.translation.models.openai).toBe("gpt-5.6-sol");
+    expect(defaultAiSettings.translation.openaiReasoningEffort).toBe("high");
+  });
+
+  it("round-trips the OpenAI reasoning effort and drops unknown levels", () => {
+    storeAiSettings({
+      ...defaultAiSettings,
+      translation: { ...defaultAiSettings.translation, openaiReasoningEffort: "xhigh" },
+    });
+    expect(readStoredAiSettings().translation.openaiReasoningEffort).toBe("xhigh");
+
+    localStorage.setItem(
+      aiSettingsStorageKey,
+      JSON.stringify({ translation: { openaiReasoningEffort: "ultra" } }),
+    );
+    expect(readStoredAiSettings().translation.openaiReasoningEffort).toBe("high");
+  });
+
+  it("round-trips a custom OpenAI-compatible hub for translation", () => {
+    storeAiSettings({
+      ...defaultAiSettings,
+      openai: { apiKey: "sk-hub-x", model: "", baseUrl: "http://192.0.2.10/v1" },
+      translation: {
+        ...defaultAiSettings.translation,
+        provider: "openai",
+        models: { ...defaultAiSettings.translation.models, openai: "gemini-3.7-flash" },
+      },
+    });
+    const restored = readStoredAiSettings();
+    expect(restored.openai.model).toBe("gpt-5.6-sol");
+    expect(activeAiTranslationProviderConfig(restored)).toEqual({
+      apiKey: "sk-hub-x",
+      model: "gemini-3.7-flash",
+      baseUrl: "http://192.0.2.10/v1",
+    });
   });
 });
