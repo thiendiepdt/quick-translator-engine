@@ -207,6 +207,7 @@ reference/        Source C# decompile dùng để đối chiếu hành vi
 - [HTTP API](docs/api.md)
 - [Deploy lên AWS Lambda](deploy/aws-lambda/README.md)
 - [Cloudflare gateway cho Lambda](deploy/cloudflare-worker/README.md)
+- [Cloudflare reverse proxy cho hub AI OpenAI-compatible](deploy/cloudflare-ai-proxy/README.md)
 - [Web app](apps/qt-web/README.md)
 - [Desktop app](apps/qt-gui/README.md)
 - [QT AI Translator — dịch AI bằng Antigravity CLI](apps/qt-ai-gui/README.md)

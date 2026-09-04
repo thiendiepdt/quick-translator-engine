@@ -142,7 +142,9 @@ npm run check
   (`http://localhost` được miễn trừ mixed-content; khi chạy dev `http://` thì hub
   `http://IP` trong LAN cũng dùng được); endpoint phải cho phép CORS. Provider
   **OpenAI** mặc định trỏ `https://api.openai.com/v1`, đổi Base URL là dùng được hub
-  OpenAI-compatible bất kỳ với model của hub (ví dụ `gemini-3.7-flash`). Cấu
+  OpenAI-compatible bất kỳ với model của hub (ví dụ `gemini-3.7-flash`); hub chỉ có
+  `http://` thì đặt worker [deploy/cloudflare-ai-proxy](../../deploy/cloudflare-ai-proxy/README.md)
+  phía trước để bản deploy https gọi được. Cấu
   hình lưu ở localStorage tách riêng theo từng provider — đổi provider là đổi sang bộ
   key của provider đó, không bao giờ gửi key của công ty này sang endpoint công ty kia.
 - Name được duyệt tự append/update vào draft `Names2`, nên request dịch tiếp theo sử dụng

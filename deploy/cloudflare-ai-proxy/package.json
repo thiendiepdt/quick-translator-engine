@@ -1,0 +1,34 @@
+{
+  "name": "quick-translator-cloudflare-ai-proxy",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "deploy:dry-run": "wrangler deploy --dry-run",
+    "types": "wrangler types --include-runtime=false",
+    "types:check": "wrangler types --include-runtime=false --check",
+    "typecheck": "tsc --noEmit && tsc --project test/tsconfig.json --noEmit",
+    "lint": "eslint src test vitest.config.ts",
+    "test": "vitest run",
+    "check": "npm run types:check && npm run typecheck && npm run lint && npm test && npm run deploy:dry-run"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20260722.1",
+    "@cloudflare/vitest-pool-workers": "^0.18.7",
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.1.1",
+    "eslint": "^10.7.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.65.0",
+    "vitest": "^4.1.10",
+    "wrangler": "^4.113.0"
+  },
+  "overrides": {
+    "sharp": "^0.35.3"
+  }
+}
