@@ -100,7 +100,7 @@ const CHECK_RULES: Array<[RegExp, string, GenreSetting?]> = [
   [/trời sinh [A-Z]/, "Danh xưng lai nửa Việt nửa Hán → dùng Hán-Việt cả cụm (Thiên Sinh ...)"],
   [/…/, "Còn ký tự … → chuẩn hóa thành dấu chấm ASCII, giữ số lượng (… → ..., …… → ......)"],
   // Rule riêng cho truyện hiện đại: bắt giọng cổ trang lọt vào đô thị.
-  [/(?<!\p{L})(?:ngươi|nàng|bọn ta|các ngươi)(?!\p{L})/iu, "Xưng hô cổ trang trong truyện hiện đại → anh/cô/tôi theo quan hệ", "modern"],
+  [/(?<!\p{L})(?:ngươi|nàng|bọn ta|các ngươi)(?!\p{L})/iu, "Xưng hô cổ trang trong truyện hiện đại → hắn/cô trong lời kể, tôi/anh/em trong thoại", "modern"],
   [/(?<!\p{L})(?:thê tử|phu quân|lang quân|phụ thân|mẫu thân)(?!\p{L})/iu, "Từ gia đình cổ trang → vợ/chồng/bố/mẹ", "modern"],
   [/(?<!\p{L})tổng tài(?!\p{L})/iu, "tổng tài → tổng giám đốc", "modern"],
   [/nói đạo/i, "说道 → nói / đáp, không \"nói đạo\"", "modern"],

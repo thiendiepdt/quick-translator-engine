@@ -42,7 +42,9 @@ describe("composeBasePrompt", () => {
 
   it("modern bỏ xưng hô cổ, cho vợ/chồng; foreign trả tên về gốc", () => {
     const modern = composeBasePrompt({ setting: "modern", names: "han" });
-    expect(modern).toContain("| 他          | **anh** / **anh ta** / **hắn**");
+    expect(modern).toContain("| 他          | **hắn** (lời kể ngôi ba, mọi nhân vật)");
+    expect(modern).toContain("lời kể ngôi ba dùng `hắn` cho nhân vật nam và `cô` cho nhân vật nữ");
+    expect(modern).not.toContain("hắn chỉ cho nhân vật lạnh");
     expect(modern).not.toContain('KHÔNG dùng "vợ", "chồng"');
     expect(modern).not.toContain("### Tu tiên / Xianxia");
     expect(modern).toContain("Kế Duyên");
@@ -57,7 +59,8 @@ describe("composeBasePrompt", () => {
   it("mixed có cả hai bộ xưng hô, hai bảng thuật ngữ", () => {
     const mixed = composeBasePrompt({ setting: "mixed", names: "han" });
     expect(mixed).toContain("| 我          | **ta**");
-    expect(mixed).toContain("| 他          | **anh** / **anh ta** / **hắn**");
+    expect(mixed).toContain("| 他          | **hắn** (lời kể ngôi ba, mọi nhân vật)");
+    expect(mixed).toContain("lời kể `hắn`/`cô`, trong thoại `tôi`/`anh`/`em`/`cậu`");
     expect(mixed).toContain("### Tu tiên / Xianxia");
     expect(mixed).toContain("### Đô thị / Hiện đại");
     expect(mixed).toContain("theo cảnh");

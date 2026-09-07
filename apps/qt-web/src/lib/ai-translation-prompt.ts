@@ -532,7 +532,7 @@ const ancient: SettingModule = {
 
 const modern: SettingModule = {
   constraints: [
-    "Trong style mặc định của truyện hiện đại, `我` trong lời kể ngôi thứ nhất dùng `tôi`; trong lời thoại chọn cặp xưng hô theo quan hệ và tuổi (anh–em, tớ–cậu, tao–mày, cháu–bác, con–bố/mẹ), chốt cho từng cặp nhân vật trong phần suy nghĩ rồi giữ nhất quán cả chương. Không dùng `ta`, `ngươi`, `nàng`, `bọn ta` trừ khi nhân vật cố tình nói giọng cổ hoặc style của truyện quy định.",
+    "Trong style mặc định của truyện hiện đại, lời kể ngôi ba dùng `hắn` cho nhân vật nam và `cô` cho nhân vật nữ — kể cả nhân vật chính, nhân vật hiền lành hay trẻ tuổi; KHÔNG dùng `anh`, `anh ấy`, `anh ta`, `cô ấy` làm đại từ kể. Chỉ đổi sang `anh`/`cô ấy` khi style của truyện quy định rõ hoặc glossary yêu cầu. `我` trong lời kể ngôi thứ nhất dùng `tôi`; trong lời thoại chọn cặp xưng hô theo quan hệ và tuổi (anh–em, tớ–cậu, tao–mày, cháu–bác, con–bố/mẹ), chốt cho từng cặp nhân vật trong phần suy nghĩ rồi giữ nhất quán cả chương. Không dùng `ta`, `ngươi`, `nàng`, `bọn ta` trừ khi nhân vật cố tình nói giọng cổ hoặc style của truyện quy định.",
     "Thán từ theo khẩu ngữ hiện đại: `嗯` → `Ừ` / `Ừm`, `咦?` → `Ơ?`, `哦` → `À` / `Ồ`, `哎呀` → `Ôi` / `Trời ơi`, `卧槽` → `vãi` / `chết tiệt`, `妈的` → `mẹ kiếp` / `mẹ nó`. Không dùng `A?` / `Ân` kiểu cổ trang.",
   ],
   pronouns: [
@@ -540,8 +540,8 @@ const modern: SettingModule = {
     "",
     "| Tiếng Trung | Dùng                             | KHÔNG dùng     |",
     "| ----------- | -------------------------------- | -------------- |",
-    "| 他          | **anh** / **anh ta** / **hắn** (hắn chỉ cho nhân vật lạnh, phản diện hoặc khi style quy định) | y, gã (trừ khi giọng kể mỉa) |",
-    "| 她          | **cô** / **cô ta** / **chị** (theo tuổi và quan hệ) | nàng |",
+    "| 他          | **hắn** (lời kể ngôi ba, mọi nhân vật); trong thoại theo quan hệ (anh ta, cậu ta, ông ta) | anh, anh ấy, anh ta (trong lời kể); y, gã (trừ khi giọng kể mỉa) |",
+    "| 她          | **cô** (lời kể ngôi ba); trong thoại theo quan hệ (cô ta, chị ta, bà ta) | nàng; cô ấy, chị ấy (trong lời kể) |",
     "| 我          | **tôi** (lời kể ngôi một); trong thoại theo quan hệ | ta |",
     "| 你          | **anh / em / cậu / ông / mày / bác** theo quan hệ và tuổi | ngươi |",
     "| 我们        | **chúng tôi** / **chúng ta** / **bọn tôi** | bọn ta |",
@@ -551,7 +551,7 @@ const modern: SettingModule = {
     "",
     "> **Chốt xưng hô theo cặp:** Với mỗi cặp nhân vật đối thoại, chọn một cặp xưng hô (ví dụ Lâm Phong–Tô Vũ: anh–em) ngay trong phần suy nghĩ và dùng nhất quán cả chương. Chỉ đổi khi raw cho thấy quan hệ thay đổi (thân lên, cãi nhau, xưng tên) và đổi cho cả hai chiều.",
     "",
-    "> **Lời kể gián tiếp:** Ngoài ngoặc kép, `自己` chỉ nhân vật đang được kể phải theo ngôi ba (`anh`, `chính anh`, `bản thân cô`), kể cả khi cả câu là ý nghĩ của nhân vật đó. Chỉ dùng `tôi` bên trong ngoặc kép hoặc khi truyện kể ở ngôi thứ nhất suốt.",
+    "> **Lời kể gián tiếp:** Ngoài ngoặc kép, `自己` chỉ nhân vật đang được kể phải theo ngôi ba (`hắn`, `chính hắn`, `bản thân cô`), kể cả khi cả câu là ý nghĩ của nhân vật đó. Chỉ dùng `tôi` bên trong ngoặc kép hoặc khi truyện kể ở ngôi thứ nhất suốt. Cặp xưng hô anh–em, tớ–cậu… chỉ sống trong ngoặc kép; ra ngoài ngoặc kép, nhân vật trở lại `hắn`/`cô`.",
     "",
     "---",
     "",
@@ -596,7 +596,7 @@ const modern: SettingModule = {
     "",
   ],
   editing: [
-    "Soát lại xưng hô và hành động: không dùng `ta/ngươi/nàng/bọn ta`, không lọt phụ thân/mẫu thân/thê tử/phu quân; mỗi cặp nhân vật giữ đúng cặp xưng hô đã chốt; không tự thêm hành động như `gật đầu`, `thở dài`, `mỉm cười` nếu raw không có.",
+    "Soát lại xưng hô và hành động: lời kể ngôi ba dùng `hắn`/`cô`, không để `anh`, `anh ấy`, `cô ấy` làm đại từ kể ngoài ngoặc kép (trừ khi style truyện quy định); không dùng `ta/ngươi/nàng/bọn ta`, không lọt phụ thân/mẫu thân/thê tử/phu quân; mỗi cặp nhân vật giữ đúng cặp xưng hô đã chốt trong thoại; không tự thêm hành động như `gật đầu`, `thở dài`, `mỉm cười` nếu raw không có.",
   ],
 };
 
@@ -606,7 +606,7 @@ const stripSection = (lines: string[]) => lines.slice(2, lines.lastIndexOf("---"
 /** Xuyên qua lại cổ đại ↔ hiện đại, đô thị tu tiên: cả hai bộ xưng hô, chọn theo cảnh; rule chỉ trung lập. */
 const mixedSetting: SettingModule = {
   constraints: [
-    "Truyện đổi bối cảnh theo cảnh hoặc chương (xuyên không qua lại, đô thị có tu luyện). Trước mỗi đoạn, xác định cảnh đang ở thời nào qua tín hiệu trong raw: điện thoại, xe, công ty, trường học, mạng → hiện đại; cung điện, tu vi, đan dược, tước vị, kiệu ngựa → cổ đại. Cảnh cổ đại dùng bộ xưng hô cổ (`ta`/`ngươi`/`hắn`/`nàng`), cảnh hiện đại dùng bộ hiện đại (`tôi`/`anh`/`cô` theo quan hệ); chốt cho từng cặp nhân vật trong từng cảnh, đổi cảnh thì đổi cả bộ, tuyệt đối không lai hai bộ trong cùng một câu. Nhân vật xuyên không giữ thói quen xưng hô cũ nếu raw thể hiện vậy.",
+    "Truyện đổi bối cảnh theo cảnh hoặc chương (xuyên không qua lại, đô thị có tu luyện). Trước mỗi đoạn, xác định cảnh đang ở thời nào qua tín hiệu trong raw: điện thoại, xe, công ty, trường học, mạng → hiện đại; cung điện, tu vi, đan dược, tước vị, kiệu ngựa → cổ đại. Cảnh cổ đại dùng bộ xưng hô cổ (`ta`/`ngươi`/`hắn`/`nàng`), cảnh hiện đại dùng bộ hiện đại (lời kể `hắn`/`cô`, trong thoại `tôi`/`anh`/`em`/`cậu` theo quan hệ); chốt cho từng cặp nhân vật trong từng cảnh, đổi cảnh thì đổi cả bộ, tuyệt đối không lai hai bộ trong cùng một câu. Nhân vật xuyên không giữ thói quen xưng hô cũ nếu raw thể hiện vậy.",
     "Thán từ theo cảnh: cảnh cổ đại dùng `A?` / `Ân`; cảnh hiện đại dùng `Ừ` / `Ừm` / `Ơ?` / `À` / `Ôi`. Không đem thán từ hiện đại vào cảnh cổ và ngược lại.",
   ],
   pronouns: [
@@ -635,7 +635,7 @@ const mixedSetting: SettingModule = {
     "",
   ],
   editing: [
-    "Soát lại xưng hô theo cảnh: mỗi cảnh chỉ dùng một bộ (cổ: ta/ngươi/hắn/nàng; hiện đại: tôi/anh/cô), không lẫn `ngươi` vào cảnh hiện đại hay `anh/tôi` vào cảnh cổ; không tự thêm hành động raw không có.",
+    "Soát lại xưng hô theo cảnh: mỗi cảnh chỉ dùng một bộ (cổ: ta/ngươi/hắn/nàng; hiện đại: hắn/cô trong lời kể, tôi/anh/em trong thoại), không lẫn `ngươi`/`nàng` vào cảnh hiện đại hay `anh/tôi` vào cảnh cổ; không tự thêm hành động raw không có.",
   ],
 };
 

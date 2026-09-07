@@ -185,10 +185,10 @@ describe("AI translation post-processing", () => {
     expect(ancient.map((r) => r.message)).toContain("Dùng vợ/chồng → thay bằng thê tử/phu quân");
     expect(modern.map((r) => r.message)).not.toContain("Dùng vợ/chồng → thay bằng thê tử/phu quân");
     expect(modern.map((r) => r.message)).toContain(
-      "Xưng hô cổ trang trong truyện hiện đại → anh/cô/tôi theo quan hệ",
+      "Xưng hô cổ trang trong truyện hiện đại → hắn/cô trong lời kể, tôi/anh/em trong thoại",
     );
     expect(ancient.map((r) => r.message)).not.toContain(
-      "Xưng hô cổ trang trong truyện hiện đại → anh/cô/tôi theo quan hệ",
+      "Xưng hô cổ trang trong truyện hiện đại → hắn/cô trong lời kể, tôi/anh/em trong thoại",
     );
   });
 
@@ -202,8 +202,8 @@ describe("AI translation post-processing", () => {
     ].join("\n");
     const modern = checkAiTranslationViolations(text, undefined, "modern");
     expect(modern.map((v) => `${v.line}:${v.message}`)).toEqual([
-      "2:Xưng hô cổ trang trong truyện hiện đại → anh/cô/tôi theo quan hệ",
-      "3:Xưng hô cổ trang trong truyện hiện đại → anh/cô/tôi theo quan hệ",
+      "2:Xưng hô cổ trang trong truyện hiện đại → hắn/cô trong lời kể, tôi/anh/em trong thoại",
+      "3:Xưng hô cổ trang trong truyện hiện đại → hắn/cô trong lời kể, tôi/anh/em trong thoại",
       "4:Từ gia đình cổ trang → vợ/chồng/bố/mẹ",
       "4:tổng tài → tổng giám đốc",
     ]);
@@ -215,7 +215,7 @@ describe("AI translation post-processing", () => {
   it("mixed chỉ chạy rule trung lập: vợ, ngươi, Ừm qua; dấu câu Trung vẫn bắt", () => {
     const messages = defaultAiCheckRules("mixed").map((r) => r.message);
     expect(messages).not.toContain("Dùng vợ/chồng → thay bằng thê tử/phu quân");
-    expect(messages).not.toContain("Xưng hô cổ trang trong truyện hiện đại → anh/cô/tôi theo quan hệ");
+    expect(messages).not.toContain("Xưng hô cổ trang trong truyện hiện đại → hắn/cô trong lời kể, tôi/anh/em trong thoại");
     const text = "Vợ anh nói: Ngươi dám? Ừm，được.";
     expect(checkAiTranslationViolations(text, undefined, "mixed").map((v) => v.message)).toEqual([
       "Dấu câu tiếng Trung còn sót → dùng dấu câu thường",

@@ -126,7 +126,7 @@ pub const DEFAULT_RULES: &[(&str, &str, &str, Option<&str>)] = &[
     (r"ngón.{0,20}mảnh khảnh", "i", "mảnh khảnh chỉ tả người → ngón tay dùng thon / thon dài", None),
     (r"trời sinh [A-Z]", "", "Danh xưng lai nửa Việt nửa Hán → dùng Hán-Việt cả cụm (Thiên Sinh ...)", None),
     (r"…", "", "Còn ký tự … → chuẩn hóa thành dấu chấm ASCII, giữ số lượng (… → ..., …… → ......)", None),
-    (r"(?<!\p{L})(?:ngươi|nàng|bọn ta|các ngươi)(?!\p{L})", "iu", "Xưng hô cổ trang trong truyện hiện đại → anh/cô/tôi theo quan hệ", Some("modern")),
+    (r"(?<!\p{L})(?:ngươi|nàng|bọn ta|các ngươi)(?!\p{L})", "iu", "Xưng hô cổ trang trong truyện hiện đại → hắn/cô trong lời kể, tôi/anh/em trong thoại", Some("modern")),
     (r"(?<!\p{L})(?:thê tử|phu quân|lang quân|phụ thân|mẫu thân)(?!\p{L})", "iu", "Từ gia đình cổ trang → vợ/chồng/bố/mẹ", Some("modern")),
     (r"(?<!\p{L})tổng tài(?!\p{L})", "iu", "tổng tài → tổng giám đốc", Some("modern")),
     (r"nói đạo", "i", "说道 → nói / đáp, không \"nói đạo\"", Some("modern")),

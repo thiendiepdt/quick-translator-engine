@@ -510,7 +510,7 @@
       {
         "pattern": "(?<!\\p{L})(?:ngươi|nàng|bọn ta|các ngươi)(?!\\p{L})",
         "flags": "iu",
-        "message": "Xưng hô cổ trang trong truyện hiện đại → anh/cô/tôi theo quan hệ"
+        "message": "Xưng hô cổ trang trong truyện hiện đại → hắn/cô trong lời kể, tôi/anh/em trong thoại"
       },
       {
         "pattern": "(?<!\\p{L})(?:thê tử|phu quân|lang quân|phụ thân|mẫu thân)(?!\\p{L})",
@@ -916,7 +916,7 @@
       "violations": [
         {
           "line": 2,
-          "message": "Xưng hô cổ trang trong truyện hiện đại → anh/cô/tôi theo quan hệ",
+          "message": "Xưng hô cổ trang trong truyện hiện đại → hắn/cô trong lời kể, tôi/anh/em trong thoại",
           "text": "Ngươi dám nói vậy sao?"
         },
         {
