@@ -192,6 +192,18 @@ describe("AI translation post-processing", () => {
     );
   });
 
+  it("bối cảnh cổ bắt đàn ông/đàn bà/phụ nữ, hiện đại và hỗn hợp cho qua", () => {
+    const text = [
+      "Đối diện nàng truyền đến giọng của một người đàn ông.",
+      "Người phụ nữ ấy lặng im, đàn bà trong thôn đều vậy.",
+      "Nam nhân khoác hắc bào chậm rãi thêm củi.",
+    ].join("\n");
+    const message = "Từ chỉ người đời thường trong bối cảnh cổ → nam nhân/nữ nhân (nam tử/nữ tử)";
+    expect(checkAiTranslationViolations(text).map((v) => `${v.line}:${v.message}`)).toEqual([`1:${message}`, `2:${message}`]);
+    expect(checkAiTranslationViolations(text, undefined, "modern").map((v) => v.message)).not.toContain(message);
+    expect(checkAiTranslationViolations(text, undefined, "mixed").map((v) => v.message)).not.toContain(message);
+  });
+
   it("checks theo setting: modern cho vợ/chồng qua, bắt ngươi/nàng/thê tử/tổng tài", () => {
     const text = [
       "Vợ anh đang đợi ở công ty.",

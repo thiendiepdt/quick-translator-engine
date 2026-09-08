@@ -45,6 +45,10 @@ describe("composeBasePrompt", () => {
     expect(modern).toContain("| 他          | **hắn** (lời kể ngôi ba, mọi nhân vật)");
     expect(modern).toContain("lời kể ngôi ba dùng `hắn` cho nhân vật nam và `cô` cho nhân vật nữ");
     expect(modern).not.toContain("hắn chỉ cho nhân vật lạnh");
+    expect(modern).not.toContain("| 男人 / 男子 / 男的 | nam nhân / nam tử");
+    const ancientHan = composeBasePrompt({ setting: "ancient", names: "han" });
+    expect(ancientHan).toContain("| 男人 / 男子 / 男的 | nam nhân / nam tử");
+    expect(ancientHan).toContain("`Nam nhân khoác hắc bào`");
     expect(modern).not.toContain('KHÔNG dùng "vợ", "chồng"');
     expect(modern).not.toContain("### Tu tiên / Xianxia");
     expect(modern).toContain("Kế Duyên");

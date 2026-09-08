@@ -66,6 +66,7 @@ pub const DEFAULT_RULES: &[(&str, &str, &str, Option<&str>)] = &[
     (r"[，。、；：？！]", "", "Dấu câu tiếng Trung còn sót → dùng dấu câu thường", None),
     (r#"(^|[.!?]\s+|[【(])["“']?(?:but|and|so|the|in|on|at|from|with)\b"#, "i", "Từ nối tiếng Anh lọt vào bản dịch → dịch sang tiếng Việt hoặc chỉ giữ khi có căn cứ", None),
     (r"(?<!\p{L})(?:vợ|chồng)(?!\p{L})", "iu", "Dùng vợ/chồng → thay bằng thê tử/phu quân", Some("ancient")),
+    (r"(?<!\p{L})(?:đàn ông|đàn bà|phụ nữ)(?!\p{L})", "iu", "Từ chỉ người đời thường trong bối cảnh cổ → nam nhân/nữ nhân (nam tử/nữ tử)", Some("ancient")),
     (r"\banh ấy\b|\banh ta\b|\bcô ấy\b|\bchị ấy\b", "i", "Đại từ sai → dùng hắn/nàng", Some("ancient")),
     (r#"(^|[“"']|,\s+)(?:mình|tôi)(?:\s|[,.!?…])"#, "i", "Dùng mình/tôi làm đại từ → thay bằng ta trong style mặc định", Some("ancient")),
     (r"Miêu Ảnh Vô Tông", "", "Sai âm tên riêng → dùng Miêu Ảnh Vô Tung", Some("ancient")),

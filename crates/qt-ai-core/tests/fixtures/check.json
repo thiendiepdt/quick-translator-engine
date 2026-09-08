@@ -16,6 +16,11 @@
         "message": "Dùng vợ/chồng → thay bằng thê tử/phu quân"
       },
       {
+        "pattern": "(?<!\\p{L})(?:đàn ông|đàn bà|phụ nữ)(?!\\p{L})",
+        "flags": "iu",
+        "message": "Từ chỉ người đời thường trong bối cảnh cổ → nam nhân/nữ nhân (nam tử/nữ tử)"
+      },
+      {
         "pattern": "\\banh ấy\\b|\\banh ta\\b|\\bcô ấy\\b|\\bchị ấy\\b",
         "flags": "i",
         "message": "Đại từ sai → dùng hắn/nàng"

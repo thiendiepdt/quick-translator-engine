@@ -7,7 +7,8 @@ import type { GenreNames, GenreSetting, StoryGenre } from "@/lib/ai-story";
  */
 
 // FNV-1a 64 của prompt cổ đại/Hán-Việt trước khi tách module (xem ai-translation-prompt.test.ts).
-export const LEGACY_BASE_PROMPT_FNV1A64 = "acf7f966bef34883";
+// Đổi hash này chỉ khi cố ý sửa prompt ancient/han (lần gần nhất: thêm bảng từ chỉ người nam nhân/nữ nhân).
+export const LEGACY_BASE_PROMPT_FNV1A64 = "90ed361acd5bbd1d";
 
 const CORE_HEAD: string[] = [
   "Bạn là dịch giả tiểu thuyết Trung Quốc sang tiếng Việt. Nhiệm vụ của bạn là chuyển ngữ trung thành, không phải sáng tác lại hay biên tập nâng giọng.",
@@ -523,6 +524,22 @@ const ancient: SettingModule = {
     "### TUYỆT ĐỐI CẤM",
     "",
     "KHÔNG dùng \"vợ\", \"chồng\", \"người vợ\", \"người chồng\". Thay bằng: thê tử, phu nhân, phu quân, lang quân, phu thê.",
+    "",
+    "### Từ chỉ người theo register cổ phong",
+    "",
+    "Lời kể gọi người theo giới và tuổi bằng danh từ Hán-Việt, không dùng từ đời thường:",
+    "",
+    "| Raw | Dùng | KHÔNG dùng |",
+    "| --- | --- | --- |",
+    "| 男人 / 男子 / 男的 | nam nhân / nam tử (`một nam tử`, `gã nam nhân` khi giọng kể mỉa) | người đàn ông, đàn ông |",
+    "| 女人 / 女子 / 女的 | nữ nhân / nữ tử | người phụ nữ, phụ nữ, đàn bà |",
+    "| 少年 / 少女 | thiếu niên / thiếu nữ | cậu thiếu niên trẻ, cô gái trẻ |",
+    "| 老人 / 老者 / 老头 | lão nhân / lão giả / lão đầu | ông già, ông lão (trừ giọng kể thân mật) |",
+    "| 妇人 / 少妇 | phụ nhân / thiếu phụ | người đàn bà |",
+    "| 姑娘 / 小姐 / 公子 / 少爷 | cô nương / tiểu thư / công tử / thiếu gia | cô gái, cô chủ, cậu chủ |",
+    "| 大汉 / 汉子 | đại hán / hán tử | gã to con, người đàn ông vạm vỡ |",
+    "",
+    "`Người đàn ông khoác hắc bào` → `Nam nhân khoác hắc bào`; `giọng của một người đàn ông` → `giọng của một nam nhân`.",
     "",
   ],
   editing: [
