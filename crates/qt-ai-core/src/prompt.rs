@@ -173,6 +173,8 @@ mod tests {
         assert_eq!(seen.len(), 9);
         assert!(base_prompt(&StoryGenre::default()).contains("| 我          | **ta**"));
         let modern = StoryGenre { setting: GenreSetting::Modern, names: GenreNames::Han };
-        assert!(!base_prompt(&modern).contains("| 我          | **ta**"));
+        // Hiện đại: người kể ngôi một vẫn tự xưng `ta`, chỉ khác cổ đại ở phần thoại theo quan hệ.
+        assert!(base_prompt(&modern).contains("| 我          | **ta** (lời kể ngôi một)"));
+        assert!(!base_prompt(&modern).contains("| 我          | **tôi**"));
     }
 }

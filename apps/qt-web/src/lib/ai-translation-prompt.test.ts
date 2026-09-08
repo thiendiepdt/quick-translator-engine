@@ -45,6 +45,10 @@ describe("composeBasePrompt", () => {
     expect(modern).toContain("| 他          | **hắn** (lời kể ngôi ba, mọi nhân vật)");
     expect(modern).toContain("lời kể ngôi ba dùng `hắn` cho nhân vật nam và `cô` cho nhân vật nữ");
     expect(modern).not.toContain("hắn chỉ cho nhân vật lạnh");
+    // Người kể ngôi một tự xưng `ta` như convert; `tôi` chỉ trong thoại theo quan hệ.
+    expect(modern).toContain("| 我          | **ta** (lời kể ngôi một)");
+    expect(modern).not.toContain("| 我          | **tôi**");
+    expect(modern).toContain("`我` trong lời kể ngôi thứ nhất dùng `ta`");
     expect(modern).not.toContain("| 男人 / 男子 / 男的 | nam nhân / nam tử");
     const ancientHan = composeBasePrompt({ setting: "ancient", names: "han" });
     expect(ancientHan).toContain("| 男人 / 男子 / 男的 | nam nhân / nam tử");
@@ -64,7 +68,7 @@ describe("composeBasePrompt", () => {
     const mixed = composeBasePrompt({ setting: "mixed", names: "han" });
     expect(mixed).toContain("| 我          | **ta**");
     expect(mixed).toContain("| 他          | **hắn** (lời kể ngôi ba, mọi nhân vật)");
-    expect(mixed).toContain("lời kể `hắn`/`cô`, trong thoại `tôi`/`anh`/`em`/`cậu`");
+    expect(mixed).toContain("lời kể `hắn`/`cô`, người kể ngôi một `ta`, trong thoại `tôi`/`anh`/`em`/`cậu`");
     expect(mixed).toContain("### Tu tiên / Xianxia");
     expect(mixed).toContain("### Đô thị / Hiện đại");
     expect(mixed).toContain("theo cảnh");

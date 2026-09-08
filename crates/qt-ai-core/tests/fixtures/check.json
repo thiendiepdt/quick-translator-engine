@@ -531,6 +531,11 @@
         "pattern": "nói đạo",
         "flags": "i",
         "message": "说道 → nói / đáp, không \"nói đạo\""
+      },
+      {
+        "pattern": "^[^\"“”]*(?<!\\p{L})tôi(?!\\p{L})[^\"“”]*$",
+        "flags": "iu",
+        "message": "Lời kể ngôi một dùng tôi → ta (tôi chỉ trong thoại theo quan hệ)"
       }
     ],
     "mixed": [

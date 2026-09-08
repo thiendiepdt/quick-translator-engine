@@ -105,6 +105,8 @@ const CHECK_RULES: Array<[RegExp, string, GenreSetting?]> = [
   [/(?<!\p{L})(?:thê tử|phu quân|lang quân|phụ thân|mẫu thân)(?!\p{L})/iu, "Từ gia đình cổ trang → vợ/chồng/bố/mẹ", "modern"],
   [/(?<!\p{L})tổng tài(?!\p{L})/iu, "tổng tài → tổng giám đốc", "modern"],
   [/nói đạo/i, "说道 → nói / đáp, không \"nói đạo\"", "modern"],
+  // Dòng kể (không có ngoặc kép) mà có `tôi`: người kể ngôi một phải tự xưng `ta`. Dòng có thoại bỏ qua.
+  [/^[^"“”]*(?<!\p{L})tôi(?!\p{L})[^"“”]*$/iu, "Lời kể ngôi một dùng tôi → ta (tôi chỉ trong thoại theo quan hệ)", "modern"],
 ];
 
 function rulesForSetting(setting: GenreSetting): Array<[RegExp, string]> {

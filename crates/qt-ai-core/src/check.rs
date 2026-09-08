@@ -131,6 +131,7 @@ pub const DEFAULT_RULES: &[(&str, &str, &str, Option<&str>)] = &[
     (r"(?<!\p{L})(?:thê tử|phu quân|lang quân|phụ thân|mẫu thân)(?!\p{L})", "iu", "Từ gia đình cổ trang → vợ/chồng/bố/mẹ", Some("modern")),
     (r"(?<!\p{L})tổng tài(?!\p{L})", "iu", "tổng tài → tổng giám đốc", Some("modern")),
     (r"nói đạo", "i", "说道 → nói / đáp, không \"nói đạo\"", Some("modern")),
+    (r#"^[^"“”]*(?<!\p{L})tôi(?!\p{L})[^"“”]*$"#, "iu", "Lời kể ngôi một dùng tôi → ta (tôi chỉ trong thoại theo quan hệ)", Some("modern")),
 ];
 
 type RuleSpec = (&'static str, &'static str, &'static str, Option<&'static str>);

@@ -218,10 +218,23 @@ describe("AI translation post-processing", () => {
       "3:Xưng hô cổ trang trong truyện hiện đại → hắn/cô trong lời kể, tôi/anh/em trong thoại",
       "4:Từ gia đình cổ trang → vợ/chồng/bố/mẹ",
       "4:tổng tài → tổng giám đốc",
+      "5:Lời kể ngôi một dùng tôi → ta (tôi chỉ trong thoại theo quan hệ)",
     ]);
     const ancient = checkAiTranslationViolations(text);
     expect(ancient.map((v) => v.message)).toContain("Dùng vợ/chồng → thay bằng thê tử/phu quân");
     expect(ancient.map((v) => v.message)).toContain("Hừm/Ừm → Ân");
+  });
+
+  it("modern: tôi ở dòng kể (không ngoặc kép) bị bắt, tôi trong thoại thì không", () => {
+    const text = [
+      "Tôi lắc đầu.",
+      "Sáu năm trước, tôi vì Cao Kiện mà đâm người trọng thương.",
+      "Hứa Như Vân cố tình cao giọng: \"Tôi cố tình đấy thì sao, em gái tôi muốn đến ở thì anh không cho.\"",
+      "\"Ban ngày anh đi làm, chỉ có một mình tôi ở nhà.\"",
+      "Ta lắc đầu.",
+    ].join("\n");
+    expect(checkAiTranslationViolations(text, undefined, "modern").map((v) => v.line)).toEqual([1, 2]);
+    expect(checkAiTranslationViolations(text, undefined, "mixed")).toEqual([]);
   });
 
   it("mixed chỉ chạy rule trung lập: vợ, ngươi, Ừm qua; dấu câu Trung vẫn bắt", () => {
