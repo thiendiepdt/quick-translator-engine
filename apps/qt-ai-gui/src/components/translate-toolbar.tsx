@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { rescanStory, sessionStart, sessionStop, storySnapshot } from "@/lib/api";
 import { engineLabel } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { useStoryStore } from "@/store/story";
+import { selectCurrentProgress, selectCurrentSession, useStoryStore } from "@/store/story";
 
 function Stat({ label, value, tone }: { label: string; value: number; tone: string }) {
   return (
@@ -21,8 +21,8 @@ function Stat({ label, value, tone }: { label: string; value: number; tone: stri
 export function TranslateToolbar() {
   const root = useStoryStore((s) => s.root);
   const snapshot = useStoryStore((s) => s.snapshot);
-  const session = useStoryStore((s) => s.session);
-  const progress = useStoryStore((s) => s.progress);
+  const session = useStoryStore(selectCurrentSession);
+  const progress = useStoryStore(selectCurrentProgress);
   const agy = useStoryStore((s) => s.agy);
   const config = useStoryStore((s) => s.config);
   const setSnapshot = useStoryStore((s) => s.setSnapshot);
@@ -59,7 +59,7 @@ export function TranslateToolbar() {
     setBusy(true);
     try {
       if (running) {
-        await sessionStop();
+        await sessionStop(root);
         setSnapshot(await storySnapshot(root));
       } else {
         await sessionStart(root, model);

@@ -42,7 +42,7 @@ const snapshot = storySnapshotSchema.parse({
 
 describe("StoryPage", () => {
   beforeEach(() => {
-    useStoryStore.setState({ root: snapshot.root, snapshot, session: { status: "idle" } });
+    useStoryStore.setState({ root: snapshot.root, snapshot, sessions: {} });
   });
 
   it("mỗi mục là một tab, chỉ mục đang chọn được render; giá trị mục khác vẫn giữ", async () => {

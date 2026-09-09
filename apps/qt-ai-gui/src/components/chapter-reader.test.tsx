@@ -23,7 +23,7 @@ const row = { id: "0002", status: "done" as const, reviewRound: 0, reason: null,
 
 describe("ChapterReader", () => {
   beforeEach(() => {
-    useStoryStore.setState({ config, session: { status: "idle" } });
+    useStoryStore.setState({ config, sessions: {} });
   });
 
   it("nút chương trước/sau nằm trên đầu trang, theo hasPrev/hasNext; vùng đọc theo readingWidth", async () => {

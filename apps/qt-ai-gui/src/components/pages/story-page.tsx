@@ -26,7 +26,7 @@ import {
   type StoryGenre,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { useStoryStore } from "@/store/story";
+import { selectCurrentRunning, useStoryStore } from "@/store/story";
 
 const SECTIONS = [
   { id: "info", label: "Thông tin" },
@@ -62,7 +62,7 @@ function Section({ id, active, title, children }: { id: SectionId; active: Secti
 export function StoryPage() {
   const root = useStoryStore((s) => s.root);
   const story = useStoryStore((s) => s.snapshot?.story);
-  const running = useStoryStore((s) => s.session.status === "running");
+  const running = useStoryStore(selectCurrentRunning);
   const setSnapshot = useStoryStore((s) => s.setSnapshot);
   const form = useForm<StoryFormValues>({
     resolver: zodResolver(storyFormSchema),

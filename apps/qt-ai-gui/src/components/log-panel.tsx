@@ -3,11 +3,15 @@ import { useEffect, useRef } from "react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useStoryStore } from "@/store/story";
+import { selectCurrentLogs, useStoryStore } from "@/store/story";
 
 export function LogPanel() {
-  const logs = useStoryStore((s) => s.logs);
-  const clear = useStoryStore((s) => s.clearLogs);
+  const root = useStoryStore((s) => s.root);
+  const logs = useStoryStore(selectCurrentLogs);
+  const clearLogs = useStoryStore((s) => s.clearLogs);
+  const clear = () => {
+    if (root) clearLogs(root);
+  };
   const engine = useStoryStore((s) => s.config?.engine ?? "agy");
   const source = engine === "api" ? "API" : "agy";
   const bottom = useRef<HTMLDivElement>(null);

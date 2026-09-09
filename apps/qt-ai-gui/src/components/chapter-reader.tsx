@@ -28,7 +28,7 @@ import {
 import { isReadingWidth, READING_WIDTH_LABELS, READING_WIDTHS } from "@/lib/reading";
 import { STATUS_LABELS, type ChapterRow, type ChapterStatus, type ChapterView } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { useStoryStore } from "@/store/story";
+import { selectCurrentRunning, useStoryStore } from "@/store/story";
 
 const STATUS_TONE: Record<ChapterStatus, string> = {
   queued: "bg-status-queued/30 text-foreground",
@@ -48,7 +48,7 @@ interface Props {
 }
 
 export function ChapterReader({ root, row, hasPrev, hasNext, onPrev, onNext }: Props) {
-  const running = useStoryStore((s) => s.session.status === "running");
+  const running = useStoryStore(selectCurrentRunning);
   const setSnapshot = useStoryStore((s) => s.setSnapshot);
   const { width, setWidth } = useReadingWidth();
   // View gắn key theo (chương, trạng thái, vòng soát): đổi chương → key lệch → hiện "Đang đọc…"

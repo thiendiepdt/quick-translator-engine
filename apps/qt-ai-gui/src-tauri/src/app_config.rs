@@ -73,6 +73,8 @@ pub struct AppConfig {
     pub agy_path: Option<String>,
     pub model: Option<String>,
     pub max_sessions: u32,
+    /// Số truyện được dịch song song (mỗi truyện một phiên). API hub dễ trả 429 nếu để cao.
+    pub max_parallel: u32,
     /// Folder truyện mở gần đây, mới nhất đứng đầu.
     pub recent: Vec<String>,
     /// Thư viện: folder cha chứa mọi truyện (tạo truyện mới vào đây, picker liệt kê con trực tiếp).
@@ -93,6 +95,7 @@ impl Default for AppConfig {
             agy_path: None,
             model: None,
             max_sessions: 50,
+            max_parallel: 2,
             recent: vec![],
             library_root: None,
             palette: "editorial".to_string(),
@@ -161,6 +164,7 @@ mod tests {
         assert_eq!(json["readingWidth"], "normal");
         assert_eq!(old.reading_width, "normal");
         assert_eq!(old.library_root, None);
+        assert_eq!(old.max_parallel, 2);
         assert!(json["libraryRoot"].is_null());
     }
 

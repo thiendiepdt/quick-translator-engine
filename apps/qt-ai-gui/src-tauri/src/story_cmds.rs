@@ -209,8 +209,8 @@ pub fn save_settings_inner(root: &Path, settings: HarnessSettings) -> CmdResult<
     Ok(settings)
 }
 
-fn session_running(state: &State<'_, AppState>) -> bool {
-    state.session.lock().unwrap().as_ref().is_some_and(|handle| handle.is_running())
+fn session_running(state: &State<'_, AppState>, root: &str) -> bool {
+    state.sessions.lock().unwrap().is_running(root)
 }
 
 /// Mở truyện đã init: quét raw/ lấy chương mới vào hàng đợi trước (run_init idempotent), rồi snapshot.
@@ -221,7 +221,7 @@ pub fn open_story(state: State<'_, AppState>, root: String) -> CmdResult<StorySn
     if story_paths(path).state_json.is_file() {
         run_init(path, &qt_ai_command())?;
     }
-    let snap = snapshot(path, session_running(&state))?;
+    let snap = snapshot(path, session_running(&state, &root))?;
     let mut config = state.config.lock().unwrap();
     config.touch_recent(&root);
     config.save(&state.config_path)?;
@@ -236,7 +236,7 @@ pub fn init_story(state: State<'_, AppState>, root: String) -> CmdResult<StorySn
 
 #[tauri::command]
 pub fn story_snapshot(state: State<'_, AppState>, root: String) -> CmdResult<StorySnapshot> {
-    snapshot(Path::new(&root), session_running(&state))
+    snapshot(Path::new(&root), session_running(&state, &root))
 }
 
 #[tauri::command]

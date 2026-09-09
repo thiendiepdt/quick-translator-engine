@@ -53,7 +53,6 @@ function RailButton({
 export function AppRail() {
   const page = useStoryStore((s) => s.page);
   const setPage = useStoryStore((s) => s.setPage);
-  const running = useStoryStore((s) => s.session.status === "running");
   const closeStory = useStoryStore((s) => s.closeStory);
   const { mode, toggleMode } = useThemeActions();
   return (
@@ -73,11 +72,7 @@ export function AppRail() {
       <RailButton label={mode === "dark" ? "Chuyển sang sáng" : "Chuyển sang tối"} onClick={() => void toggleMode()}>
         {mode === "dark" ? <Sun className="size-5" /> : <Moon className="size-5" />}
       </RailButton>
-      <RailButton
-        label={running ? "Dừng phiên trước khi đổi truyện" : "Về danh sách truyện"}
-        disabled={running}
-        onClick={closeStory}
-      >
+      <RailButton label="Về danh sách truyện" onClick={closeStory}>
         <LibraryBig className="size-5" />
       </RailButton>
     </nav>

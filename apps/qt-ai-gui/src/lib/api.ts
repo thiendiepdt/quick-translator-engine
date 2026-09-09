@@ -81,7 +81,7 @@ export const recentSummaries = () =>
   call("recent_summaries", undefined, (v) => z.array(recentSummarySchema).parse(v));
 export const sessionStart = (root: string, model?: string) =>
   call("session_start", { root, model: model ?? null }, (v) => sessionStatusSchema.parse(v));
-export const sessionStop = () => call("session_stop", undefined, (v) => sessionStatusSchema.parse(v));
+export const sessionStop = (root: string) => call("session_stop", { root }, (v) => sessionStatusSchema.parse(v));
 export const sessionState = () => call("session_state", undefined, (v) => sessionStatusSchema.parse(v));
 export const aiFillStory = (root: string, name: string, sourceUrl: string) =>
   call("ai_fill_story", { root, name, sourceUrl }, (v) => aiFillResultSchema.parse(v));

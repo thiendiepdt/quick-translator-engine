@@ -41,7 +41,7 @@ const config = appConfigSchema.parse({ agyPath: null, model: null, maxSessions: 
 
 describe("SettingsPage · Động cơ dịch", () => {
   beforeEach(() => {
-    useStoryStore.setState({ root: snapshot.root, snapshot, config, session: { status: "idle" } });
+    useStoryStore.setState({ root: snapshot.root, snapshot, config, sessions: {} });
   });
 
   it("mặc định API key (người mới không cần agy); chọn agy ẩn ô key; đổi provider đổi bộ ô tương ứng", async () => {

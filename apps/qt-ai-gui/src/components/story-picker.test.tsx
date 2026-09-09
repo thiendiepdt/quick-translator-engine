@@ -23,6 +23,7 @@ vi.mock("@/lib/api", () => ({
   openStory: vi.fn(),
   pickFolder: vi.fn(),
   recentSummaries: vi.fn(() => Promise.resolve([])),
+  sessionStop: vi.fn(() => Promise.resolve({ running: [] })),
   slugifyName: vi.fn((name: string) => Promise.resolve(name.toLowerCase())),
 }));
 
@@ -41,7 +42,7 @@ describe("StoryPicker · Mở gần đây", () => {
       { root: "D:\\truyen-a", name: "Truyện A", done: 2, total: 10 },
       { root: "D:\\truyen-hong", name: null, done: null, total: null },
     ]);
-    useStoryStore.setState({ screen: "picker", config, session: { status: "idle" } });
+    useStoryStore.setState({ screen: "picker", config, sessions: {}, roots: {}, progress: {} });
   });
 
   it("bấm X bỏ truyện khỏi danh sách: chỉ ghi config.recent, không gọi gì xoá file", async () => {
@@ -135,6 +136,33 @@ describe("StoryPicker · Thư viện", () => {
     await waitFor(() => expect(useStoryStore.getState().config?.libraryRoot).toBe("D:\\bookshelf\\fanqie"));
     expect(screen.queryByText("Khởi tạo folder truyện?")).not.toBeInTheDocument();
     expect(await screen.findByText("A")).toBeInTheDocument();
+  });
+
+  it("truyện đang dịch hiện nhãn + tiến độ live + nút Dừng gọi session_stop đúng root", async () => {
+    useStoryStore.setState({
+      screen: "picker",
+      config: { ...config, libraryRoot: "D:\\lib", recent: [], maxParallel: 2 },
+      sessions: { "d:\\lib\\a": { status: "running", sessionNo: 1 } },
+      roots: { "d:\\lib\\a": "D:\\lib\\a" },
+      progress: {
+        "d:\\lib\\a": { done: 7, queued: 3, translating: 1, error: 0, skipped: 0, warnings_count: 0, current: "0008" },
+      },
+    });
+    vi.mocked(libraryList).mockResolvedValue([
+      { root: "D:\\lib\\a", name: "A", done: 2, total: 10 },
+      { root: "D:\\lib\\b", name: "B", done: 0, total: 5 },
+    ]);
+    const { sessionStop } = await import("@/lib/api");
+    const user = userEvent.setup();
+    render(<StoryPicker />);
+    expect(await screen.findByText("A")).toBeInTheDocument();
+    expect(screen.getByText("Đang dịch 1/2 truyện")).toBeInTheDocument();
+    expect(screen.getByText("Đang dịch · 0008")).toBeInTheDocument();
+    expect(screen.getByText("7/10")).toBeInTheDocument(); // tiến độ live đè số đọc từ đĩa (2/10)
+    expect(screen.getAllByRole("button", { name: /Dừng dịch/ })).toHaveLength(1);
+    await user.click(screen.getByRole("button", { name: "Dừng dịch D:\\lib\\a" }));
+    await waitFor(() => expect(sessionStop).toHaveBeenCalledWith("D:\\lib\\a"));
+    await waitFor(() => expect(screen.queryByText(/Đang dịch 1\/2/)).not.toBeInTheDocument());
   });
 
   it("samePath bỏ qua hoa thường và dấu gạch cuối", () => {

@@ -20,18 +20,25 @@ import { DEFAULT_API_MODELS, OPENAI_REASONING_EFFORTS } from "@/lib/schema";
 import { THEME_MODE_LABELS, THEME_MODES } from "@/lib/theme";
 import { API_PROVIDER_LABELS, ENGINE_LABELS, type ApiProvider, type Engine } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { useStoryStore } from "@/store/story";
+import { selectCurrentRunning, useStoryStore } from "@/store/story";
 
 const settingsFormSchema = engineFormSchema.extend({
   agyPath: z.string(),
   model: z.string(),
   maxSessions: z.number().int().min(1).max(1000),
+  maxParallel: z.number().int().min(1).max(5),
   chaptersPerSession: z.number().int().min(1).max(100),
   maxReviewRounds: z.number().int().min(0).max(10),
   minLengthRatio: z.number().min(0.1).max(3),
 });
 type SettingsForm = z.infer<typeof settingsFormSchema>;
-const NUMERIC = new Set<keyof SettingsForm>(["maxSessions", "chaptersPerSession", "maxReviewRounds", "minLengthRatio"]);
+const NUMERIC = new Set<keyof SettingsForm>([
+  "maxSessions",
+  "maxParallel",
+  "chaptersPerSession",
+  "maxReviewRounds",
+  "minLengthRatio",
+]);
 
 function Card({ title, description, children }: { title: string; description: string; children: ReactNode }) {
   return (
@@ -179,7 +186,7 @@ export function SettingsPage() {
   const config = useStoryStore((s) => s.config);
   const settings = useStoryStore((s) => s.snapshot?.settings);
   const agy = useStoryStore((s) => s.agy);
-  const running = useStoryStore((s) => s.session.status === "running");
+  const running = useStoryStore(selectCurrentRunning);
   const setConfig = useStoryStore((s) => s.setConfig);
   const setAgy = useStoryStore((s) => s.setAgy);
   const setSnapshot = useStoryStore((s) => s.setSnapshot);
@@ -194,6 +201,7 @@ export function SettingsPage() {
         agyPath: config.agyPath ?? "",
         model: config.model ?? "",
         maxSessions: config.maxSessions,
+        maxParallel: config.maxParallel,
         chaptersPerSession: settings.chaptersPerSession,
         maxReviewRounds: settings.maxReviewRounds,
         minLengthRatio: settings.minLengthRatio,
@@ -211,6 +219,7 @@ export function SettingsPage() {
         agyPath: values.agyPath.trim() || null,
         model: values.model.trim() || null,
         maxSessions: values.maxSessions,
+        maxParallel: values.maxParallel,
       });
       setConfig(next);
       if (next.engine === "agy") setAgy(await agyStatus(next.agyPath ?? undefined));
@@ -326,7 +335,12 @@ export function SettingsPage() {
         </Card>
         <form onSubmit={(e) => void submit(e)} className="flex flex-col gap-6">
           <EngineCard form={form} running={running} />
-          <Card title="App" description="Antigravity CLI và giới hạn phiên (chỉ dùng khi động cơ là agy).">
+          <Card title="App" description="Giới hạn phiên chung; đường dẫn agy và model chỉ dùng khi động cơ là agy.">
+            {field("maxParallel", "Số truyện dịch song song", "Mỗi truyện một phiên; API hub dễ trả 429 nếu để cao. Mặc định 2.", {
+              type: "number",
+              min: 1,
+              max: 5,
+            })}
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="agyPath">Đường dẫn agy</Label>
               <div className="flex gap-1">

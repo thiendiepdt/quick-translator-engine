@@ -4,10 +4,11 @@ mod error;
 mod library_cmds;
 mod sidecar;
 mod session_cmds;
+mod session_registry;
 mod story_cmds;
 
 use app_config::AppConfig;
-use qt_ai_core::session::SessionHandle;
+use session_registry::SessionRegistry;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri::Manager;
@@ -15,7 +16,8 @@ use tauri::Manager;
 pub struct AppState {
     pub config_path: PathBuf,
     pub config: Mutex<AppConfig>,
-    pub session: Mutex<Option<SessionHandle>>,
+    /// Phiên dịch theo folder truyện — nhiều truyện chạy song song (xem session_registry).
+    pub sessions: Mutex<SessionRegistry>,
 }
 
 /// Bản portable: có file đánh dấu `portable` cạnh exe → config.json nằm cạnh exe, copy folder là mang
@@ -34,7 +36,11 @@ pub fn run() {
             let exe_dir = std::env::current_exe().ok().and_then(|exe| exe.parent().map(Path::to_path_buf));
             let config_path = resolve_config_path(exe_dir.as_deref(), app.path().app_config_dir().ok());
             let config = AppConfig::load(&config_path);
-            app.manage(AppState { config_path, config: Mutex::new(config), session: Mutex::new(None) });
+            app.manage(AppState {
+                config_path,
+                config: Mutex::new(config),
+                sessions: Mutex::new(SessionRegistry::new()),
+            });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

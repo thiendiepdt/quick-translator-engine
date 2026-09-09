@@ -16,9 +16,19 @@ use tauri::{AppHandle, Emitter, State};
 
 pub const SESSION_EVENT: &str = "session-event";
 
+/// Root (đúng chữ lúc start) của mọi truyện đang có phiên chạy.
 #[derive(Debug, Clone, Serialize)]
 pub struct SessionStatus {
-    pub running: bool,
+    pub running: Vec<String>,
+}
+
+/// Event phiên phát lên UI kèm root để store tách tiến độ/log theo truyện:
+/// `{root, type: "progress", ...}`.
+#[derive(Debug, Clone, Serialize)]
+struct RootedEvent {
+    root: String,
+    #[serde(flatten)]
+    event: SessionEvent,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -51,7 +61,11 @@ pub fn api_session_config(root: &Path) -> ApiSessionConfig {
 }
 
 fn status(state: &State<'_, AppState>) -> SessionStatus {
-    SessionStatus { running: state.session.lock().unwrap().as_ref().is_some_and(|h| h.is_running()) }
+    SessionStatus { running: state.sessions.lock().unwrap().running_roots() }
+}
+
+fn session_running(state: &State<'_, AppState>, root: &str) -> bool {
+    state.sessions.lock().unwrap().is_running(root)
 }
 
 fn resolve_agy(state: &State<'_, AppState>) -> CmdResult<PathBuf> {
@@ -64,8 +78,9 @@ pub fn session_state(state: State<'_, AppState>) -> CmdResult<SessionStatus> {
     Ok(status(&state))
 }
 
-/// Bắt đầu vòng phiên theo động cơ trong config (agy hoặc API key); event phát lên UI qua
-/// `session-event`. Đang chạy rồi thì từ chối. `model` chỉ áp dụng cho agy.
+/// Bắt đầu vòng phiên cho một truyện theo động cơ trong config (agy hoặc API key); event phát lên UI
+/// qua `session-event` kèm root. Truyện đang chạy hoặc đã đủ `max_parallel` truyện thì từ chối.
+/// `model` chỉ áp dụng cho agy.
 #[tauri::command]
 pub fn session_start(
     app: AppHandle,
@@ -73,15 +88,14 @@ pub fn session_start(
     root: String,
     model: Option<String>,
 ) -> CmdResult<SessionStatus> {
-    if status(&state).running {
-        return Err(CommandError::new("session_locked", "Đang có phiên dịch chạy — bấm Dừng trước."));
-    }
-    let (engine, api, max_sessions) = {
+    let (engine, api, max_sessions, max_parallel) = {
         let config = state.config.lock().unwrap();
-        (config.engine, config.api.clone(), config.max_sessions)
+        (config.engine, config.api.clone(), config.max_sessions, config.max_parallel as usize)
     };
+    state.sessions.lock().unwrap().check_can_start(&root, max_parallel)?;
+    let event_root = root.clone();
     let sink: Sink = Arc::new(move |event: SessionEvent| {
-        let _ = app.emit(SESSION_EVENT, &event);
+        let _ = app.emit(SESSION_EVENT, &RootedEvent { root: event_root.clone(), event });
     });
     let handle: SessionHandle = match engine {
         Engine::Agy => {
@@ -93,14 +107,15 @@ pub fn session_start(
             start_api_session(api_session_config(Path::new(&root)), model, sink)?
         }
     };
-    *state.session.lock().unwrap() = Some(handle);
+    state.sessions.lock().unwrap().insert(&root, Box::new(handle));
     Ok(status(&state))
 }
 
-/// Dừng: cancel (core giết process tree agy) rồi đợi thread runner kết thúc.
+/// Dừng phiên của một truyện: cancel (core giết process tree agy) rồi đợi thread runner kết thúc,
+/// ngoài lock để truyện khác không bị chặn.
 #[tauri::command]
-pub fn session_stop(state: State<'_, AppState>) -> CmdResult<SessionStatus> {
-    let handle = state.session.lock().unwrap().take();
+pub fn session_stop(state: State<'_, AppState>, root: String) -> CmdResult<SessionStatus> {
+    let handle = state.sessions.lock().unwrap().take(&root);
     if let Some(handle) = handle {
         handle.cancel();
         let _ = handle.join();
@@ -129,10 +144,10 @@ pub fn ai_fill_story(
     name: String,
     source_url: String,
 ) -> CmdResult<AiFillResult> {
-    if status(&state).running {
+    if session_running(&state, &root) {
         return Err(CommandError::new(
             "session_locked",
-            "Đang có phiên dịch chạy — bấm Dừng trước khi AI điền hồ sơ.",
+            "Truyện này đang có phiên dịch chạy — bấm Dừng trước khi AI điền hồ sơ.",
         ));
     }
     let (engine, api) = {

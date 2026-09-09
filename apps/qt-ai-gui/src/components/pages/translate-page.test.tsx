@@ -67,7 +67,10 @@ describe("TranslatePage · chưa có chương, Quét lại, kéo thả", () => {
       root: emptySnapshot.root,
       snapshot: emptySnapshot,
       config,
-      session: { status: "idle" },
+      sessions: {},
+      progress: {},
+      logs: {},
+      roots: {},
       selectedId: undefined,
     });
   });
@@ -104,7 +107,7 @@ describe("TranslatePage · chưa có chương, Quét lại, kéo thả", () => {
   });
 
   it("đang chạy phiên thì Quét lại bị khoá", () => {
-    useStoryStore.setState({ session: { status: "running", sessionNo: 1 } });
+    useStoryStore.setState({ sessions: { "d:\\lib\\t": { status: "running", sessionNo: 1 } } });
     render(<TranslatePage />);
     expect(screen.getByRole("button", { name: "Quét lại" })).toBeDisabled();
   });

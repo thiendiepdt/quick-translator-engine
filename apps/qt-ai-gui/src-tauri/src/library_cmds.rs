@@ -193,8 +193,8 @@ pub fn import_chapters_inner(root: &Path, sources: &[PathBuf], qt_ai: &str) -> C
     Ok(counts)
 }
 
-fn session_running(state: &State<'_, AppState>) -> bool {
-    state.session.lock().unwrap().as_ref().is_some_and(|handle| handle.is_running())
+fn session_running(state: &State<'_, AppState>, root: &str) -> bool {
+    state.sessions.lock().unwrap().is_running(root)
 }
 
 #[tauri::command]
@@ -225,7 +225,7 @@ pub fn create_story(
         .ok_or_else(|| CommandError::new("invalid_state", "Chưa chọn thư viện (folder cha chứa truyện)."))?;
     let root = create_story_inner(Path::new(&library), &name, &slug, &source_url, &qt_ai_command())?;
     let root_text = root.display().to_string();
-    let snap = snapshot(&root, session_running(&state))?;
+    let snap = snapshot(&root, session_running(&state, &root_text))?;
     let mut config = state.config.lock().unwrap();
     config.touch_recent(&root_text);
     config.save(&state.config_path)?;
@@ -237,7 +237,7 @@ pub fn create_story(
 pub fn rescan_story(state: State<'_, AppState>, root: String) -> CmdResult<StorySnapshot> {
     let path = Path::new(&root);
     run_init(path, &qt_ai_command())?;
-    snapshot(path, session_running(&state))
+    snapshot(path, session_running(&state, &root))
 }
 
 #[tauri::command]
@@ -249,7 +249,7 @@ pub fn import_chapters(state: State<'_, AppState>, root: String, paths: Vec<Stri
         added: counts.added,
         skipped_existing: counts.skipped_existing,
         ignored: counts.ignored,
-        snapshot: snapshot(path, session_running(&state))?,
+        snapshot: snapshot(path, session_running(&state, &root))?,
     })
 }
 

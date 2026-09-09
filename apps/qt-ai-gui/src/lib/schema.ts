@@ -130,6 +130,8 @@ export const appConfigSchema = z.object({
   agyPath: z.string().nullable(),
   model: z.string().nullable(),
   maxSessions: z.number().int().min(1).max(1000),
+  /** Số truyện dịch song song (mỗi truyện một phiên). */
+  maxParallel: z.number().int().min(1).max(5).default(2),
   recent: z.array(z.string()),
   /** Thư viện: folder cha chứa mọi truyện; null = chưa chọn. */
   libraryRoot: z.string().nullable().default(null),
@@ -192,7 +194,10 @@ export const sessionEventSchema = z.union([
   stoppedEventSchema,
 ]);
 
-export const sessionStatusSchema = z.object({ running: z.boolean() });
+/** Root của mọi truyện đang có phiên chạy. */
+export const sessionStatusSchema = z.object({ running: z.array(z.string()) });
+/** Event phiên từ Rust kèm root: `{root, type, ...}`; phần event parse riêng bằng sessionEventSchema. */
+export const rootedSessionEventSchema = z.object({ root: z.string() });
 /** Kết quả kéo thả chương vào raw/ (Rust `import_chapters`). */
 export const importOutcomeSchema = z.object({
   added: z.array(z.string()),

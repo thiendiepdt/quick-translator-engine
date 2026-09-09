@@ -1,5 +1,5 @@
-import { FolderOpen, FolderPlus, LibraryBig, Sparkles, X } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { FolderOpen, FolderPlus, LibraryBig, Sparkles, Square, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { CreateStoryDialog } from "@/components/create-story-dialog";
@@ -12,24 +12,40 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ApiError, appConfigSet, initStory, libraryList, openStory, pickFolder, recentSummaries } from "@/lib/api";
-import { samePath } from "@/lib/paths";
-import type { RecentSummary } from "@/lib/types";
+import {
+  ApiError,
+  appConfigSet,
+  initStory,
+  libraryList,
+  openStory,
+  pickFolder,
+  recentSummaries,
+  sessionStop,
+} from "@/lib/api";
+import { pathKey, samePath } from "@/lib/paths";
+import type { Progress, RecentSummary } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { useStoryStore } from "@/store/story";
+import { runningRoots, useStoryStore } from "@/store/story";
 
 function StoryRow({
   item,
   busy,
+  live,
   onOpen,
   onForget,
+  onStop,
 }: {
   item: RecentSummary;
   busy: boolean;
+  /** Tiến độ live từ phiên đang chạy (đè lên số đọc từ đĩa). */
+  live?: Progress;
   onOpen: () => void;
   onForget?: () => void;
+  /** Có = truyện đang dịch, hiện nhãn + nút Dừng. */
+  onStop?: () => void;
 }) {
-  const percent = item.total ? Math.round(((item.done ?? 0) / item.total) * 100) : 0;
+  const done = live?.done ?? item.done ?? 0;
+  const percent = item.total ? Math.round((done / item.total) * 100) : 0;
   const uninitialized = item.total === null;
   return (
     <li className="flex min-w-0 items-stretch gap-1">
@@ -42,7 +58,14 @@ function StoryRow({
         <div className="min-w-0 flex-1">
           {item.name ? (
             <>
-              <p className="truncate font-medium">{item.name}</p>
+              <p className="flex items-center gap-2 truncate font-medium">
+                <span className="truncate">{item.name}</span>
+                {onStop && (
+                  <span className="shrink-0 rounded-full bg-status-translating/15 px-2 py-0.5 text-[11px] font-medium text-status-translating">
+                    Đang dịch{live?.current ? ` · ${live.current}` : ""}
+                  </span>
+                )}
+              </p>
               <p className="truncate font-mono text-xs text-muted-foreground">{item.root}</p>
             </>
           ) : (
@@ -57,7 +80,7 @@ function StoryRow({
         {!uninitialized && (
           <div className="w-32 shrink-0 text-right">
             <p className="text-sm tabular-nums">
-              {item.done}/{item.total}
+              {done}/{item.total}
             </p>
             <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
               <div className="h-full bg-status-done" style={{ width: `${percent}%` }} />
@@ -65,6 +88,19 @@ function StoryRow({
           </div>
         )}
       </button>
+      {onStop && (
+        <Button
+          variant="ghost"
+          size="icon"
+          disabled={busy}
+          aria-label={`Dừng dịch ${item.root}`}
+          title="Dừng phiên dịch của truyện này"
+          onClick={onStop}
+          className="h-auto shrink-0 self-stretch text-status-error hover:text-status-error"
+        >
+          <Square />
+        </Button>
+      )}
       {onForget && (
         <Button
           variant="ghost"
@@ -87,6 +123,16 @@ export function StoryPicker() {
   const libraryRoot = useStoryStore((s) => s.config?.libraryRoot ?? null);
   const open = useStoryStore((s) => s.openStory);
   const setConfig = useStoryStore((s) => s.setConfig);
+  const sessions = useStoryStore((s) => s.sessions);
+  const sessionRoots = useStoryStore((s) => s.roots);
+  const progress = useStoryStore((s) => s.progress);
+  const maxParallel = useStoryStore((s) => s.config?.maxParallel ?? 2);
+  const applySessionEvent = useStoryStore((s) => s.applySessionEvent);
+  const running = useMemo(
+    () => runningRoots({ sessions, roots: sessionRoots, progress, logs: {} }),
+    [sessions, sessionRoots, progress],
+  );
+  const isRunning = (root: string) => running.some((r) => samePath(r, root));
   const [summaries, setSummaries] = useState<RecentSummary[]>([]);
   const [library, setLibrary] = useState<RecentSummary[]>([]);
   const [libraryVersion, setLibraryVersion] = useState(0);
@@ -169,6 +215,24 @@ export function StoryPicker() {
     if (root) await tryOpen(root);
   }
 
+  /** Dừng phiên của một truyện ngay tại dòng; store sẽ nhận event stopped từ Rust. */
+  async function stop(root: string) {
+    setBusy(true);
+    try {
+      await sessionStop(root);
+      applySessionEvent(root, { type: "stopped", kind: "user_cancelled" });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Không dừng được phiên");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const rowProps = (item: RecentSummary) =>
+    isRunning(item.root)
+      ? { live: progress[pathKey(item.root)], onStop: () => void stop(item.root) }
+      : {};
+
   const saveLibrary = useCallback(
     async (root: string) => {
       const config = useStoryStore.getState().config;
@@ -197,7 +261,14 @@ export function StoryPicker() {
       <div className="w-full max-w-2xl">
         <header className="mb-6">
           <p className="text-xs font-medium tracking-widest text-primary uppercase">QT AI Translator</p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight">Chọn truyện để dịch</h1>
+          <h1 className="mt-1 flex items-center gap-3 text-3xl font-semibold tracking-tight">
+            Chọn truyện để dịch
+            {running.length > 0 && (
+              <span className="rounded-full bg-status-translating/15 px-2.5 py-1 text-xs font-medium text-status-translating">
+                Đang dịch {running.length}/{maxParallel} truyện
+              </span>
+            )}
+          </h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Tạo truyện mới trong thư viện rồi thả file chương <code className="font-mono">.txt</code> vào app, hoặc mở
             một folder truyện có sẵn <code className="font-mono">raw/</code>. Folder mới sẽ được khởi tạo.
@@ -239,7 +310,13 @@ export function StoryPicker() {
             ) : (
               <ul className="grid grid-cols-[minmax(0,1fr)] gap-2">
                 {libraryRows.map((item) => (
-                  <StoryRow key={item.root} item={item} busy={busy} onOpen={() => void tryOpen(item.root)} />
+                  <StoryRow
+                    key={item.root}
+                    item={item}
+                    busy={busy}
+                    onOpen={() => void tryOpen(item.root)}
+                    {...rowProps(item)}
+                  />
                 ))}
               </ul>
             )
@@ -272,6 +349,7 @@ export function StoryPicker() {
                   busy={busy}
                   onOpen={() => void tryOpen(item.root)}
                   onForget={() => void forget(item.root)}
+                  {...rowProps(item)}
                 />
               ))}
             </ul>

@@ -13,6 +13,13 @@ App desktop dịch truyện Trung → Việt hàng loạt: điều khiển Antig
   trên trang Dịch; mở lại truyện cũng tự quét.
 - "Mở folder truyện" thủ công vẫn còn.
 
+## Dịch nhiều truyện song song
+
+Mỗi truyện một phiên, tối đa `maxParallel` truyện cùng lúc (Cài đặt → App → "Số truyện dịch song song", mặc định 2;
+API hub dễ trả 429 nếu để cao). Bấm Bắt đầu dịch ở một truyện rồi "Về danh sách truyện" mở truyện khác và bấm tiếp;
+màn chọn truyện hiện "Đang dịch N/M truyện", dòng đang dịch có tiến độ live và nút Dừng. Tiến độ/log tách theo truyện
+(`session-event` từ Rust mang `root`). Lock `work/.session.lock` vẫn chặn hai bản app dịch trùng một truyện.
+
 ## Hai động cơ dịch
 
 Chọn ở Cài đặt → **Động cơ dịch** (lưu trong `config.json` của app):

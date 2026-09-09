@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 import type { ChapterFilter } from "@/lib/chapters";
+import { pathKey } from "@/lib/paths";
 import type { AgyStatus, AppConfig, Progress, SessionEvent, StopReason, StorySnapshot } from "@/lib/types";
 
 export type Page = "translate" | "story" | "export" | "settings";
@@ -21,12 +22,23 @@ const MAX_LOGS = 2000;
 const MAX_RECENT = 10;
 let logSeq = 0;
 
+const IDLE: SessionState = { status: "idle" };
+const NO_LOGS: LogLine[] = [];
+
 /** Bản sao `AppConfig::touch_recent` của Rust: root mới lên đầu, khử trùng, cắt còn 10. */
 export function touchRecent(recent: string[], root: string): string[] {
   return [root, ...recent.filter((item) => item !== root)].slice(0, MAX_RECENT);
 }
 
-interface StoryState {
+/** Phiên/tiến độ/log tách theo truyện, khoá bằng `pathKey(root)`; `roots` giữ root đúng chữ để hiện. */
+interface PerStory {
+  sessions: Record<string, SessionState>;
+  progress: Record<string, Progress>;
+  logs: Record<string, LogLine[]>;
+  roots: Record<string, string>;
+}
+
+interface StoryState extends PerStory {
   screen: "picker" | "workbench";
   page: Page;
   root?: string;
@@ -34,9 +46,6 @@ interface StoryState {
   selectedId?: string;
   statusFilter: ChapterFilter;
   searchQuery: string;
-  session: SessionState;
-  progress?: Progress;
-  logs: LogLine[];
   agy?: AgyStatus;
   config?: AppConfig;
   openStory: (snapshot: StorySnapshot) => void;
@@ -46,68 +55,101 @@ interface StoryState {
   select: (id?: string) => void;
   setStatusFilter: (filter: ChapterFilter) => void;
   setSearchQuery: (query: string) => void;
-  applySessionEvent: (event: SessionEvent) => void;
-  clearLogs: () => void;
+  applySessionEvent: (root: string, event: SessionEvent) => void;
+  clearLogs: (root: string) => void;
   setAgy: (agy: AgyStatus) => void;
   setConfig: (config: AppConfig) => void;
 }
 
-/** Reducer thuần: event từ runner → thay đổi state. */
-export function applySessionEventPure(
-  state: Pick<StoryState, "session" | "progress" | "logs">,
-  event: SessionEvent,
-): Partial<Pick<StoryState, "session" | "progress" | "logs">> {
+/** Reducer thuần: event của một truyện → thay đổi các map theo truyện. */
+export function applySessionEventPure(state: PerStory, root: string, event: SessionEvent): Partial<PerStory> {
+  const key = pathKey(root);
+  const roots = state.roots[key] === root ? state.roots : { ...state.roots, [key]: root };
   switch (event.type) {
     case "started":
-      return { session: { status: "running", sessionNo: event.session_no } };
+      return { roots, sessions: { ...state.sessions, [key]: { status: "running", sessionNo: event.session_no } } };
     case "progress": {
       const { type: _type, ...progress } = event;
-      return { progress };
+      return { roots, progress: { ...state.progress, [key]: progress } };
     }
     case "agy_log": {
       logSeq += 1;
-      const logs = [...state.logs, { seq: logSeq, line: event.line, stream: event.stream }];
-      return { logs: logs.length > MAX_LOGS ? logs.slice(logs.length - MAX_LOGS) : logs };
+      const lines = [...(state.logs[key] ?? NO_LOGS), { seq: logSeq, line: event.line, stream: event.stream }];
+      return { roots, logs: { ...state.logs, [key]: lines.length > MAX_LOGS ? lines.slice(lines.length - MAX_LOGS) : lines } };
     }
     case "stopped": {
       const { type: _type, ...reason } = event;
-      return { session: { status: "stopped", reason } };
+      return { roots, sessions: { ...state.sessions, [key]: { status: "stopped", reason } } };
     }
   }
 }
+
+/** Phiên của truyện `root` (idle nếu chưa từng chạy). */
+export function sessionOf(state: PerStory, root: string | undefined): SessionState {
+  return root ? (state.sessions[pathKey(root)] ?? IDLE) : IDLE;
+}
+
+export function isRunning(state: PerStory, root: string | undefined): boolean {
+  return sessionOf(state, root).status === "running";
+}
+
+/** Root (đúng chữ) của mọi truyện đang chạy, sắp theo tên. Trả mảng mới — dùng trong useMemo, không làm selector. */
+export function runningRoots(state: PerStory): string[] {
+  return Object.entries(state.sessions)
+    .filter(([, session]) => session.status === "running")
+    .map(([key]) => state.roots[key] ?? key)
+    .sort();
+}
+
+export const selectCurrentSession = (s: StoryState): SessionState => sessionOf(s, s.root);
+export const selectCurrentRunning = (s: StoryState): boolean => isRunning(s, s.root);
+export const selectCurrentProgress = (s: StoryState): Progress | undefined =>
+  s.root ? s.progress[pathKey(s.root)] : undefined;
+export const selectCurrentLogs = (s: StoryState): LogLine[] => (s.root ? (s.logs[pathKey(s.root)] ?? NO_LOGS) : NO_LOGS);
 
 export const useStoryStore = create<StoryState>()((set) => ({
   screen: "picker",
   page: "translate",
   statusFilter: "all",
   searchQuery: "",
-  session: { status: "idle" },
-  logs: [],
+  sessions: {},
+  progress: {},
+  logs: {},
+  roots: {},
   // Rust open_story đã touch_recent và ghi đĩa; store phải làm y hệt, nếu không picker hiện danh sách cũ
   // và lần appConfigSet kế tiếp (đổi theme, settings…) đẩy recent cũ đè lên đĩa, mất truyện vừa mở.
+  // Phiên/tiến độ/log của truyện khác giữ nguyên — nhiều truyện chạy song song.
   openStory: (snapshot) =>
-    set((state) => ({
-      config: state.config && { ...state.config, recent: touchRecent(state.config.recent, snapshot.root) },
-      screen: "workbench",
-      page: "translate",
-      root: snapshot.root,
-      snapshot,
-      selectedId: undefined,
-      statusFilter: "all",
-      searchQuery: "",
-      progress: undefined,
-      logs: [],
-      session: snapshot.sessionRunning ? { status: "running", sessionNo: 0 } : { status: "idle" },
-    })),
-  closeStory: () =>
-    set({ screen: "picker", root: undefined, snapshot: undefined, selectedId: undefined, progress: undefined }),
+    set((state) => {
+      const key = pathKey(snapshot.root);
+      const current = state.sessions[key] ?? IDLE;
+      let sessions = state.sessions;
+      if (snapshot.sessionRunning && current.status !== "running") {
+        sessions = { ...state.sessions, [key]: { status: "running", sessionNo: 0 } };
+      } else if (!snapshot.sessionRunning && current.status === "running") {
+        sessions = { ...state.sessions, [key]: IDLE };
+      }
+      return {
+        config: state.config && { ...state.config, recent: touchRecent(state.config.recent, snapshot.root) },
+        screen: "workbench",
+        page: "translate",
+        root: snapshot.root,
+        snapshot,
+        selectedId: undefined,
+        statusFilter: "all",
+        searchQuery: "",
+        sessions,
+        roots: state.roots[key] === snapshot.root ? state.roots : { ...state.roots, [key]: snapshot.root },
+      };
+    }),
+  closeStory: () => set({ screen: "picker", root: undefined, snapshot: undefined, selectedId: undefined }),
   setPage: (page) => set({ page }),
   setSnapshot: (snapshot) => set({ snapshot }),
   select: (id) => set({ selectedId: id }),
   setStatusFilter: (statusFilter) => set({ statusFilter }),
   setSearchQuery: (searchQuery) => set({ searchQuery }),
-  applySessionEvent: (event) => set((state) => applySessionEventPure(state, event)),
-  clearLogs: () => set({ logs: [] }),
+  applySessionEvent: (root, event) => set((state) => applySessionEventPure(state, root, event)),
+  clearLogs: (root) => set((state) => ({ logs: { ...state.logs, [pathKey(root)]: NO_LOGS } })),
   setAgy: (agy) => set({ agy }),
   setConfig: (config) => set({ config }),
 }));
