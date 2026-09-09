@@ -11,5 +11,6 @@ pub mod agy;
 pub mod session;
 pub mod api;
 pub mod api_session;
+pub mod api_fill;
 
 pub use error::{CoreError, Result};

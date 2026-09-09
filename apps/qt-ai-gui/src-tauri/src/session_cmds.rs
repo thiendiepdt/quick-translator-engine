@@ -2,7 +2,8 @@ use crate::app_config::{ApiSettings, Engine};
 use crate::error::{CmdResult, CommandError};
 use crate::AppState;
 use qt_ai_core::agy::find_agy;
-use qt_ai_core::api::{ApiConfig, HttpModel};
+use qt_ai_core::api::{ApiConfig, HttpModel, TextModel};
+use qt_ai_core::api_fill::{fill_story, sample_chapters, SAMPLE_CHAPTERS};
 use qt_ai_core::api_session::{start_api_session, ApiSessionConfig};
 use qt_ai_core::session::{run_once, start_session, SessionConfig, SessionEvent, SessionHandle, Sink};
 use qt_ai_core::story::StoryConfig;
@@ -118,8 +119,9 @@ pub fn build_setup_prompt(root: &Path, name: &str, source_url: &str) -> String {
     )
 }
 
-/// Chạy agy một lượt để điền story.json, rồi KHÔI PHỤC bản trước: UI hiện diff, người dùng Áp dụng
-/// bằng `save_story(after)`. Tên + link được ghi tạm vào story.json để agent thấy.
+/// AI điền hồ sơ theo động cơ đang chọn. agy: chạy một lượt để agent điền story.json rồi KHÔI PHỤC
+/// bản trước; API key: model đọc 3 chương đầu, không đụng đĩa. Cả hai chỉ trả before/after — UI hiện
+/// diff, người dùng Áp dụng bằng `save_story(after)`.
 #[tauri::command]
 pub fn ai_fill_story(
     state: State<'_, AppState>,
@@ -133,20 +135,51 @@ pub fn ai_fill_story(
             "Đang có phiên dịch chạy — bấm Dừng trước khi AI điền hồ sơ.",
         ));
     }
-    let root_path = Path::new(&root);
+    let (engine, api) = {
+        let config = state.config.lock().unwrap();
+        (config.engine, config.api.clone())
+    };
+    match engine {
+        Engine::Api => fill_story_via_api(Path::new(&root), &HttpModel::new(resolve_api(&api)?), &name, &source_url),
+        Engine::Agy => fill_story_via_agy(&state, Path::new(&root), &name, &source_url),
+    }
+}
+
+/// Đường API: đọc `SAMPLE_CHAPTERS` chương đầu, một lượt `complete_json`, merge vào hồ sơ hiện tại.
+pub fn fill_story_via_api(root: &Path, model: &dyn TextModel, name: &str, source_url: &str) -> CmdResult<AiFillResult> {
+    let paths = story_paths(root);
+    let before = load_story_config(&paths)?;
+    let samples = sample_chapters(&paths)?;
+    let mut log = vec![format!(
+        "Đọc {} chương đầu trong raw/ ({}), gửi {}…",
+        samples.len(),
+        samples.iter().map(|s| s.id.as_str()).collect::<Vec<_>>().join(", "),
+        model.label()
+    )];
+    if samples.is_empty() {
+        log.push(format!("raw/ chưa có chương nào — model chỉ có tên + link (tối đa {SAMPLE_CHAPTERS} chương được đọc)."));
+    }
+    let after = fill_story(model, &before, name, source_url, &samples)
+        .map_err(|error| CommandError::new("api_failed", error.to_string()))?;
+    log.push("Model đã trả hồ sơ. Không tra web — kiểm tra lại tên nhân vật và tóm tắt trước khi Áp dụng.".to_string());
+    Ok(AiFillResult { before, after, exit_code: 0, log })
+}
+
+/// Đường agy: tên + link ghi tạm vào story.json để agent thấy, chạy xong trả file về bản trước.
+fn fill_story_via_agy(state: &State<'_, AppState>, root_path: &Path, name: &str, source_url: &str) -> CmdResult<AiFillResult> {
     let paths = story_paths(root_path);
     let before = load_story_config(&paths)?;
     let mut seeded = before.clone();
-    seeded.name = name.clone();
-    seeded.source_url = source_url.clone();
+    seeded.name = name.to_string();
+    seeded.source_url = source_url.to_string();
     save_story_config(&paths, &seeded)?;
 
-    let agy = resolve_agy(&state)?;
+    let agy = resolve_agy(state)?;
     let model = state.config.lock().unwrap().model.clone();
     let config = session_config(root_path, agy, model, 1);
     let log = Arc::new(Mutex::new(Vec::<String>::new()));
     let log_sink = log.clone();
-    let outcome = run_once(&config, &build_setup_prompt(root_path, &name, &source_url), &move |event| {
+    let outcome = run_once(&config, &build_setup_prompt(root_path, name, source_url), &move |event| {
         if let SessionEvent::AgyLog { line, .. } = event {
             log_sink.lock().unwrap().push(line);
         }
@@ -169,6 +202,48 @@ mod tests {
         assert!(prompt.contains("setup-story.md") && prompt.contains("KHÔNG cần tìm kiếm"));
         assert!(prompt.contains("Kỳ Chiêu Nguyệt") && prompt.contains("https://x/y"));
         assert!(prompt.contains("KHÔNG hỏi lại") && prompt.contains("story.json"));
+    }
+
+    struct FakeModel(String);
+
+    impl TextModel for FakeModel {
+        fn label(&self) -> String {
+            "Fake".into()
+        }
+        fn generate(
+            &self,
+            _: &str,
+            _: &str,
+            _: &std::sync::atomic::AtomicBool,
+            _: &mut dyn FnMut(usize),
+        ) -> Result<String, qt_ai_core::api::ApiError> {
+            unreachable!()
+        }
+        fn complete_json(&self, _: &str, user: &str) -> Result<String, qt_ai_core::api::ApiError> {
+            assert!(user.contains("第一章"), "prompt phải kèm chương raw");
+            Ok(self.0.clone())
+        }
+    }
+
+    #[test]
+    fn fill_via_api_khong_ghi_dia_tra_before_after_va_log() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("raw")).unwrap();
+        std::fs::write(dir.path().join("raw").join("0001.txt"), "第一章 赵静文").unwrap();
+        qt_ai_core::commands::init::run_init(dir.path(), "qt-ai").unwrap();
+        let model = FakeModel(r#"{"protagonist":"Triệu Tĩnh Văn","genre":{"setting":"modern","names":"han"}}"#.into());
+        let result = fill_story_via_api(dir.path(), &model, "Tên", "https://src").unwrap();
+        assert_eq!(result.exit_code, 0);
+        assert_eq!(result.before.protagonist, "");
+        assert_eq!(result.after.protagonist, "Triệu Tĩnh Văn");
+        assert_eq!(result.after.name, "Tên");
+        assert!(result.log[0].contains("0001") && result.log[0].contains("Fake"));
+        // story.json trên đĩa vẫn là bản trước — người dùng phải bấm Áp dụng.
+        let on_disk = load_story_config(&story_paths(dir.path())).unwrap();
+        assert_eq!(on_disk, result.before);
+        let bad = FakeModel("không phải json".into());
+        let error = fill_story_via_api(dir.path(), &bad, "Tên", "").unwrap_err();
+        assert_eq!(error.kind, "api_failed");
     }
 
     #[test]

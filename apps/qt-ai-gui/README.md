@@ -16,7 +16,9 @@ Chọn ở Cài đặt → **Động cơ dịch** (lưu trong `config.json` củ
 
 Cùng folder truyện, cùng `state.json`; đổi động cơ giữa chừng vẫn tiếp được. Ở chế độ API, chương
 model từ chối được skip kèm lý do; lỗi mạng/HTTP thử lại một lần rồi skip chương, hai chương liên
-tiếp lỗi thì dừng phiên (`api_failed`). "AI điền hồ sơ" vẫn chỉ chạy bằng agy.
+tiếp lỗi thì dừng phiên (`api_failed`). "AI điền hồ sơ" đi theo động cơ đang chọn: agy tra web + đọc
+chương đầu qua workflow `setup-story.md`; API key cho model đọc 3 chương đầu trong `raw/` (không tra web)
+rồi đề xuất hồ sơ — cả hai chỉ hiện diff, không ghi gì cho tới khi bấm Áp dụng.
 
 ## Yêu cầu máy người dùng
 

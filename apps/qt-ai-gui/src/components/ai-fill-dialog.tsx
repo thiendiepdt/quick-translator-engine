@@ -16,7 +16,8 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { aiFillStory } from "@/lib/api";
 import { diffStoryConfig, type DiffLine } from "@/lib/story-form";
-import type { AiFillResult, StoryConfig } from "@/lib/types";
+import { engineLabel, type AiFillResult, type StoryConfig } from "@/lib/types";
+import { useStoryStore } from "@/store/story";
 
 interface Props {
   root: string;
@@ -28,6 +29,8 @@ interface Props {
 }
 
 export function AiFillDialog({ root, initialName, initialUrl, open, onOpenChange, onApply }: Props) {
+  const config = useStoryStore((s) => s.config);
+  const viaApi = config?.engine === "api";
   const [name, setName] = useState(initialName);
   const [url, setUrl] = useState(initialUrl);
   const [running, setRunning] = useState(false);
@@ -41,7 +44,7 @@ export function AiFillDialog({ root, initialName, initialUrl, open, onOpenChange
       const outcome = await aiFillStory(root, name.trim(), url.trim());
       setResult(outcome);
       setDiff(diffStoryConfig(outcome.before, outcome.after));
-      if (outcome.exitCode !== 0) toast.error(`agy thoát mã ${outcome.exitCode} — xem log bên dưới`);
+      if (!viaApi && outcome.exitCode !== 0) toast.error(`agy thoát mã ${outcome.exitCode} — xem log bên dưới`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "AI điền thất bại");
     } finally {
@@ -60,8 +63,10 @@ export function AiFillDialog({ root, initialName, initialUrl, open, onOpenChange
         <DialogHeader>
           <DialogTitle>AI điền hồ sơ truyện</DialogTitle>
           <DialogDescription>
-            agy sẽ tra web theo tên + link, đọc vài chương đầu rồi đề xuất hồ sơ. Không ghi gì cho tới khi bạn bấm
-            Áp dụng.
+            {viaApi
+              ? `${engineLabel(config)} sẽ đọc 3 chương đầu trong raw/ rồi đề xuất hồ sơ (không tra web). `
+              : "agy sẽ tra web theo tên + link, đọc vài chương đầu rồi đề xuất hồ sơ. "}
+            Không ghi gì cho tới khi bạn bấm Áp dụng.
           </DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-3">
@@ -118,7 +123,7 @@ export function AiFillDialog({ root, initialName, initialUrl, open, onOpenChange
           <Button variant="secondary" disabled={running || !name.trim()} onClick={() => void run()}>
             {running ? (
               <>
-                <LoaderCircle className="animate-spin" /> Đang chạy agy…
+                <LoaderCircle className="animate-spin" /> {viaApi ? "Đang hỏi model…" : "Đang chạy agy…"}
               </>
             ) : (
               <>
