@@ -213,9 +213,15 @@ fn session_running(state: &State<'_, AppState>) -> bool {
     state.session.lock().unwrap().as_ref().is_some_and(|handle| handle.is_running())
 }
 
+/// Mở truyện đã init: quét raw/ lấy chương mới vào hàng đợi trước (run_init idempotent), rồi snapshot.
+/// Folder chưa có state.json vẫn trả story_not_found để UI hỏi "Khởi tạo?".
 #[tauri::command]
 pub fn open_story(state: State<'_, AppState>, root: String) -> CmdResult<StorySnapshot> {
-    let snap = snapshot(Path::new(&root), session_running(&state))?;
+    let path = Path::new(&root);
+    if story_paths(path).state_json.is_file() {
+        run_init(path, &qt_ai_command())?;
+    }
+    let snap = snapshot(path, session_running(&state))?;
     let mut config = state.config.lock().unwrap();
     config.touch_recent(&root);
     config.save(&state.config_path)?;
@@ -325,6 +331,20 @@ mod tests {
         let json = serde_json::to_value(&d).unwrap();
         assert!(json["checkRules"][0]["pattern"].is_string());
         assert!(json["basePrompt"].is_string());
+    }
+
+    #[test]
+    fn open_story_quet_chuong_moi_khi_da_init_nhung_khong_init_folder_la() {
+        // Không có State<AppState> trong unit test — kiểm phần logic quét bằng cùng điều kiện open_story dùng.
+        let dir = story();
+        fs::write(dir.path().join("raw").join("0003.txt"), "第三章").unwrap();
+        let paths = story_paths(dir.path());
+        assert!(paths.state_json.is_file());
+        run_init(dir.path(), "qt-ai").unwrap();
+        assert_eq!(snapshot(dir.path(), false).unwrap().counts.total, 3);
+        let fresh = tempfile::tempdir().unwrap();
+        assert!(!story_paths(fresh.path()).state_json.is_file());
+        assert_eq!(snapshot(fresh.path(), false).unwrap_err().kind, "story_not_found");
     }
 
     #[test]

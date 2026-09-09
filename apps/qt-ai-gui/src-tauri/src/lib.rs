@@ -1,6 +1,7 @@
 mod agy_cmds;
 mod app_config;
 mod error;
+mod library_cmds;
 mod sidecar;
 mod session_cmds;
 mod story_cmds;
@@ -57,6 +58,11 @@ pub fn run() {
             session_cmds::session_start,
             session_cmds::session_stop,
             session_cmds::ai_fill_story,
+            library_cmds::slugify_name,
+            library_cmds::library_list,
+            library_cmds::create_story,
+            library_cmds::rescan_story,
+            library_cmds::import_chapters,
         ])
         .run(tauri::generate_context!())
         .expect("không khởi động được QT AI Translator");

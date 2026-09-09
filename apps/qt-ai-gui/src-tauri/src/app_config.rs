@@ -75,6 +75,8 @@ pub struct AppConfig {
     pub max_sessions: u32,
     /// Folder truyện mở gần đây, mới nhất đứng đầu.
     pub recent: Vec<String>,
+    /// Thư viện: folder cha chứa mọi truyện (tạo truyện mới vào đây, picker liệt kê con trực tiếp).
+    pub library_root: Option<String>,
     /// Bộ màu: editorial | studio | soft (UI kiểm tra giá trị, Rust chỉ lưu).
     pub palette: String,
     /// light | dark | system.
@@ -92,6 +94,7 @@ impl Default for AppConfig {
             model: None,
             max_sessions: 50,
             recent: vec![],
+            library_root: None,
             palette: "editorial".to_string(),
             theme_mode: "system".to_string(),
             reading_width: "normal".to_string(),
@@ -157,6 +160,8 @@ mod tests {
         assert_eq!(json["themeMode"], "system");
         assert_eq!(json["readingWidth"], "normal");
         assert_eq!(old.reading_width, "normal");
+        assert_eq!(old.library_root, None);
+        assert!(json["libraryRoot"].is_null());
     }
 
     #[test]
