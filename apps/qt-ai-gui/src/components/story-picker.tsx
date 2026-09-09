@@ -91,6 +91,8 @@ export function StoryPicker() {
   const [library, setLibrary] = useState<RecentSummary[]>([]);
   const [libraryVersion, setLibraryVersion] = useState(0);
   const [pendingInit, setPendingInit] = useState<string | undefined>();
+  /** Folder mở thủ công không phải truyện nhưng chứa truyện con → hỏi đặt làm thư viện thay vì init nhầm. */
+  const [pendingLibrary, setPendingLibrary] = useState<{ root: string; count: number } | undefined>();
   const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -125,8 +127,12 @@ export function StoryPicker() {
     try {
       open(await openStory(root));
     } catch (error) {
-      if (error instanceof ApiError && error.kind === "story_not_found") setPendingInit(root);
-      else toast.error(error instanceof Error ? error.message : "Không mở được truyện");
+      if (error instanceof ApiError && error.kind === "story_not_found") {
+        const inside = await libraryList(root).catch(() => []);
+        const count = inside.filter((item) => item.total !== null).length;
+        if (count > 0) setPendingLibrary({ root, count });
+        else setPendingInit(root);
+      } else toast.error(error instanceof Error ? error.message : "Không mở được truyện");
     } finally {
       setBusy(false);
     }
@@ -163,16 +169,23 @@ export function StoryPicker() {
     if (root) await tryOpen(root);
   }
 
+  const saveLibrary = useCallback(
+    async (root: string) => {
+      const config = useStoryStore.getState().config;
+      if (!config) return;
+      try {
+        setConfig(await appConfigSet({ ...config, libraryRoot: root }));
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Không lưu được cấu hình");
+      }
+    },
+    [setConfig],
+  );
+
   const chooseLibrary = useCallback(async () => {
     const root = await pickFolder("Chọn thư viện (folder cha chứa truyện)");
-    const config = useStoryStore.getState().config;
-    if (!root || !config) return;
-    try {
-      setConfig(await appConfigSet({ ...config, libraryRoot: root }));
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Không lưu được cấu hình");
-    }
-  }, [setConfig]);
+    if (root) await saveLibrary(root);
+  }, [saveLibrary]);
 
   const libraryRows = libraryRoot ? library : [];
   const recentRows: RecentSummary[] = recent
@@ -277,6 +290,46 @@ export function StoryPicker() {
           }}
         />
       )}
+      <Dialog
+        open={pendingLibrary !== undefined}
+        onOpenChange={(value) => {
+          if (!value) setPendingLibrary(undefined);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Đây là thư viện?</DialogTitle>
+            <DialogDescription>
+              <code className="font-mono">{pendingLibrary?.root}</code> không phải folder truyện nhưng chứa{" "}
+              {pendingLibrary?.count} truyện đã khởi tạo. Đặt làm thư viện để liệt kê và tạo truyện mới vào đây; hay
+              vẫn khởi tạo chính folder này thành một truyện?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingLibrary(undefined)}>
+              Bỏ
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setPendingInit(pendingLibrary?.root);
+                setPendingLibrary(undefined);
+              }}
+            >
+              Vẫn khởi tạo
+            </Button>
+            <Button
+              onClick={() => {
+                const root = pendingLibrary?.root;
+                setPendingLibrary(undefined);
+                if (root) void saveLibrary(root);
+              }}
+            >
+              <LibraryBig /> Đặt làm thư viện
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog
         open={pendingInit !== undefined}
         onOpenChange={(value) => {

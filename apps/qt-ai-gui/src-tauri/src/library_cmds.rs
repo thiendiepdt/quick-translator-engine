@@ -202,9 +202,10 @@ pub fn slugify_name(name: String) -> String {
     slugify(&name)
 }
 
+/// `root` = None → thư viện trong config; Some → dò folder bất kỳ (picker hỏi "đặt làm thư viện?").
 #[tauri::command]
-pub fn library_list(state: State<'_, AppState>) -> CmdResult<Vec<RecentSummary>> {
-    let library = state.config.lock().unwrap().library_root.clone();
+pub fn library_list(state: State<'_, AppState>, root: Option<String>) -> CmdResult<Vec<RecentSummary>> {
+    let library = root.or_else(|| state.config.lock().unwrap().library_root.clone());
     Ok(list_library(library.as_deref().map(Path::new)))
 }
 

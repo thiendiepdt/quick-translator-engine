@@ -9,7 +9,13 @@ import { appConfigSchema } from "@/lib/schema";
 import { useStoryStore } from "@/store/story";
 
 vi.mock("@/lib/api", () => ({
-  ApiError: class ApiError extends Error {},
+  ApiError: class ApiError extends Error {
+    kind: string;
+    constructor(kind: string, message: string) {
+      super(message);
+      this.kind = kind;
+    }
+  },
   appConfigSet: vi.fn((config: unknown) => Promise.resolve(config)),
   createStory: vi.fn(),
   initStory: vi.fn(),
@@ -100,6 +106,35 @@ describe("StoryPicker · Thư viện", () => {
     expect(screen.getByText("D:\\lib\\chua-init")).toHaveAttribute("title", expect.stringContaining("Chưa khởi tạo"));
     expect(await screen.findByText("Ngoài")).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: /Bỏ .* khỏi danh sách/ })).toHaveLength(1);
+  });
+
+  it("mở thủ công một folder chứa truyện con thì hỏi đặt làm thư viện thay vì khởi tạo nhầm", async () => {
+    useStoryStore.setState({ screen: "picker", config: { ...config, recent: [] } });
+    vi.mocked(pickFolder).mockResolvedValue("D:\\bookshelf\\fanqie");
+    const { openStory } = await import("@/lib/api");
+    const { ApiError } = await import("@/lib/api");
+    const notFound = new ApiError("story_not_found", "chưa có state.json");
+    vi.mocked(openStory).mockRejectedValue(notFound);
+    vi.mocked(libraryList).mockImplementation((root?: string) =>
+      Promise.resolve(
+        // Dò folder cụ thể, hoặc (sau khi đặt) thư viện trong config → cùng danh sách.
+        root === undefined || root === "D:\\bookshelf\\fanqie"
+          ? [
+              { root: "D:\\bookshelf\\fanqie\\a", name: "A", done: 1, total: 2 },
+              { root: "D:\\bookshelf\\fanqie\\rac", name: null, done: null, total: null },
+            ]
+          : [],
+      ),
+    );
+    const user = userEvent.setup();
+    render(<StoryPicker />);
+    await user.click(screen.getByRole("button", { name: "Mở folder truyện" }));
+    expect(await screen.findByText("Đây là thư viện?")).toBeInTheDocument();
+    expect(screen.getByText(/chứa 1 truyện đã khởi tạo/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Đặt làm thư viện" }));
+    await waitFor(() => expect(useStoryStore.getState().config?.libraryRoot).toBe("D:\\bookshelf\\fanqie"));
+    expect(screen.queryByText("Khởi tạo folder truyện?")).not.toBeInTheDocument();
+    expect(await screen.findByText("A")).toBeInTheDocument();
   });
 
   it("samePath bỏ qua hoa thường và dấu gạch cuối", () => {

@@ -86,7 +86,9 @@ export const sessionState = () => call("session_state", undefined, (v) => sessio
 export const aiFillStory = (root: string, name: string, sourceUrl: string) =>
   call("ai_fill_story", { root, name, sourceUrl }, (v) => aiFillResultSchema.parse(v));
 export const slugifyName = (name: string) => call("slugify_name", { name }, (v) => z.string().parse(v));
-export const libraryList = () => call("library_list", undefined, (v) => z.array(recentSummarySchema).parse(v));
+/** Không truyền root → thư viện trong config; truyền root → liệt kê folder bất kỳ (dò "có phải thư viện?"). */
+export const libraryList = (root?: string) =>
+  call("library_list", { root: root ?? null }, (v) => z.array(recentSummarySchema).parse(v));
 export const createStory = (name: string, slug: string, sourceUrl: string) =>
   call("create_story", { name, slug, sourceUrl }, (v) => storySnapshotSchema.parse(v));
 export const rescanStory = (root: string) => call("rescan_story", { root }, (v) => storySnapshotSchema.parse(v));

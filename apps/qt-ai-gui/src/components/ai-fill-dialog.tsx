@@ -59,7 +59,7 @@ export function AiFillDialog({ root, initialName, initialUrl, open, onOpenChange
         if (!running) onOpenChange(value);
       }}
     >
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="w-[min(96vw,48rem)]">
         <DialogHeader>
           <DialogTitle>AI điền hồ sơ truyện</DialogTitle>
           <DialogDescription>
