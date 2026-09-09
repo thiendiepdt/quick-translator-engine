@@ -28,15 +28,17 @@ export default function App() {
   const setAgy = useStoryStore((s) => s.setAgy);
   const setConfig = useStoryStore((s) => s.setConfig);
   const setPage = useStoryStore((s) => s.setPage);
-  const engine = useStoryStore((s) => s.config?.engine ?? "agy");
+  const config = useStoryStore((s) => s.config);
+  const engine = config?.engine ?? "api";
   useSessionEvents();
   useThemeSync();
 
+  // Chỉ dò agy khi động cơ là agy: người dùng API key không phải chờ, không bị màn "Chưa thấy agy".
   const probe = useCallback(async () => {
     try {
       const config = await appConfigGet();
       setConfig(config);
-      setAgy(await agyStatus(config.agyPath ?? undefined));
+      if (config.engine === "agy") setAgy(await agyStatus(config.agyPath ?? undefined));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Không đọc được cấu hình");
     }
@@ -45,6 +47,11 @@ export default function App() {
   useEffect(() => {
     void probe();
   }, [probe]);
+
+  // Đổi sang agy giữa chừng (Cài đặt) mà chưa dò lần nào thì dò lúc đó.
+  useEffect(() => {
+    if (engine === "agy" && !agy && config) void probe();
+  }, [engine, agy, config, probe]);
 
   async function pickAgy() {
     const path = await pickAgyFile();
@@ -55,10 +62,10 @@ export default function App() {
     await probe();
   }
 
-  if (!agy) {
+  if (!config || (engine === "agy" && !agy)) {
     return (
       <main className="flex h-full items-center justify-center text-sm text-muted-foreground">
-        <LoaderCircle className="mr-2 animate-spin" /> Đang kiểm tra agy…
+        <LoaderCircle className="mr-2 animate-spin" /> {config ? "Đang kiểm tra agy…" : "Đang đọc cấu hình…"}
       </main>
     );
   }
@@ -74,7 +81,7 @@ export default function App() {
   }
 
   // Thiếu agy chỉ chặn khi động cơ là agy; API key chạy được mà không cần agy.
-  if (!agy.found && engine === "agy") {
+  if (engine === "agy" && agy && !agy.found) {
     return (
       <AgyMissing
         status={agy}

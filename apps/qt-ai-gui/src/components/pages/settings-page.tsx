@@ -213,7 +213,7 @@ export function SettingsPage() {
         maxSessions: values.maxSessions,
       });
       setConfig(next);
-      setAgy(await agyStatus(next.agyPath ?? undefined));
+      if (next.engine === "agy") setAgy(await agyStatus(next.agyPath ?? undefined));
       await saveSettings(root, {
         chaptersPerSession: values.chaptersPerSession,
         maxReviewRounds: values.maxReviewRounds,

@@ -117,7 +117,7 @@ export const apiSettingsSchema = z.object({
 });
 
 export const appConfigSchema = z.object({
-  engine: engineSchema.default("agy"),
+  engine: engineSchema.default("api"),
   api: apiSettingsSchema.default({
     provider: "gemini",
     gemini: { apiKey: "", model: DEFAULT_API_MODELS.gemini, baseUrl: "" },

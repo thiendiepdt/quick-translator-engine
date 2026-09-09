@@ -9,8 +9,9 @@ const MAX_RECENT: usize = 10;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Engine {
-    #[default]
     Agy,
+    /// Mặc định cho người dùng mới: không bắt cài agy mới dùng được app.
+    #[default]
     Api,
 }
 
@@ -85,7 +86,7 @@ pub struct AppConfig {
 impl Default for AppConfig {
     fn default() -> Self {
         AppConfig {
-            engine: Engine::Agy,
+            engine: Engine::Api,
             api: ApiSettings::default(),
             agy_path: None,
             model: None,
@@ -159,15 +160,16 @@ mod tests {
     }
 
     #[test]
-    fn config_cu_thieu_engine_api_ra_agy_va_api_mac_dinh() {
+    fn config_thieu_engine_ra_api_va_api_mac_dinh() {
         let old: AppConfig = serde_json::from_str(r#"{"agyPath":null,"model":null,"maxSessions":7,"recent":[]}"#).unwrap();
-        assert_eq!(old.engine, Engine::Agy);
+        assert_eq!(old.engine, Engine::Api); // người dùng mới không phải cài agy
+        assert_eq!(AppConfig::default().engine, Engine::Api);
         assert_eq!(old.api, ApiSettings::default());
         assert_eq!(old.api.gemini.model, "gemini-3.7-flash");
         assert_eq!(old.api.openai.model, "gpt-5.6-sol");
         assert_eq!(old.api.reasoning_effort, "high");
         let json = serde_json::to_value(&old).unwrap();
-        assert_eq!(json["engine"], "agy");
+        assert_eq!(json["engine"], "api");
         assert_eq!(json["api"]["provider"], "gemini");
         assert_eq!(json["api"]["gemini"]["apiKey"], "");
     }

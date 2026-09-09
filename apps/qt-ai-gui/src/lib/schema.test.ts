@@ -45,9 +45,9 @@ describe("schema", () => {
     expect(parsed.readingWidth).toBe("normal");
   });
 
-  it("appConfig cũ thiếu engine/api ra agy và api mặc định; engine api giữ key theo provider", () => {
+  it("appConfig thiếu engine/api ra api (người mới không cần agy) và api mặc định; engine api giữ key theo provider", () => {
     const parsed = appConfigSchema.parse({ agyPath: null, model: null, maxSessions: 50, recent: [] });
-    expect(parsed.engine).toBe("agy");
+    expect(parsed.engine).toBe("api");
     expect(parsed.api).toEqual({
       provider: "gemini",
       gemini: { apiKey: "", model: "gemini-3.7-flash", baseUrl: "" },

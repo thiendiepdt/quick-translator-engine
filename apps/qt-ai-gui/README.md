@@ -6,10 +6,10 @@ App desktop dịch truyện Trung → Việt hàng loạt: điều khiển Antig
 
 Chọn ở Cài đặt → **Động cơ dịch** (lưu trong `config.json` của app):
 
-- **Antigravity CLI (agy)** — mặc định: agent chạy trong `agy -p` theo vòng phiên, tự dịch/check/accept
-  bằng quota Antigravity. Cần cài agy.
-- **API key** — app tự gọi model qua HTTP bằng key của bạn rồi chạy cùng vòng next → dịch → check →
-  accept trong `qt-ai-core` (`api_session`). Không cần agy. Provider: **Gemini** chính chủ, hoặc
+- **Antigravity CLI (agy)** — agent chạy trong `agy -p` theo vòng phiên, tự dịch/check/accept
+  bằng quota Antigravity. Cần cài agy; app chỉ dò agy khi bạn chọn động cơ này.
+- **API key** — mặc định cho người dùng mới: app tự gọi model qua HTTP bằng key của bạn rồi chạy cùng
+  vòng next → dịch → check → accept trong `qt-ai-core` (`api_session`). Không cần agy. Provider: **Gemini** chính chủ, hoặc
   **OpenAI-compatible** (OpenAI, hay hub riêng qua Base URL, ví dụ `http://192.0.2.10/v1` với model
   `gemini-3.7-flash`). Gemini có công tắc Thinking; OpenAI có Mức nghĩ `reasoning_effort`
   (none…max, mặc định high). Key lưu plain trong `config.json`.

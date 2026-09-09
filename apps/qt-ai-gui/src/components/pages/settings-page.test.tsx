@@ -43,11 +43,14 @@ describe("SettingsPage · Động cơ dịch", () => {
     useStoryStore.setState({ root: snapshot.root, snapshot, config, session: { status: "idle" } });
   });
 
-  it("mặc định agy, chọn API key mới hiện ô key; đổi provider đổi bộ ô tương ứng", async () => {
+  it("mặc định API key (người mới không cần agy); chọn agy ẩn ô key; đổi provider đổi bộ ô tương ứng", async () => {
     const user = userEvent.setup();
     render(<SettingsPage />);
     const engine = screen.getByRole("radiogroup", { name: "Động cơ dịch" });
-    expect(engine.querySelector('[aria-checked="true"]')).toHaveTextContent("Antigravity CLI (agy)");
+    expect(engine.querySelector('[aria-checked="true"]')).toHaveTextContent("API key");
+    expect(screen.getByLabelText("API key Google AI")).toHaveAttribute("type", "password");
+
+    await user.click(screen.getByRole("radio", { name: "Antigravity CLI (agy)" }));
     expect(screen.queryByLabelText("API key Google AI")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("radio", { name: "API key" }));
