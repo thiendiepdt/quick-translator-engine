@@ -100,4 +100,55 @@ describe("applySessionEvent", () => {
     expect(useStoryStore.getState().page).toBe("translate");
     expect(useStoryStore.getState().searchQuery).toBe("");
   });
+
+  it("openStory đẩy root lên đầu config.recent như touch_recent bên Rust (khử trùng, tối đa 10)", () => {
+    const snapshot = {
+      root: "D:\\moi",
+      chapters: [],
+      counts: { total: 0, queued: 0, translating: 0, done: 0, error: 0, skipped: 0, withWarnings: 0 },
+      settings: { minLengthRatio: 0.75, maxReviewRounds: 3, chaptersPerSession: 10 },
+      story: {
+        name: "",
+        sourceUrl: "",
+        protagonist: "",
+        summary: "",
+        genre: { setting: "ancient" as const, names: "han" as const },
+        glossary: { names: {}, places: {}, items: {}, creatures: {}, skills: {}, common: {}, signature_phrases: {} },
+        style: { voice: "", toneRules: [], signaturePhrases: {}, avoid: [] },
+        customPrompt: "",
+        checkRules: [],
+        autoGlossaryLog: [],
+        autoGlossary: "inherit" as const,
+      },
+      sessionRunning: false,
+    };
+    const config = {
+      engine: "agy" as const,
+      api: {
+        provider: "gemini" as const,
+        gemini: { apiKey: "", model: "", baseUrl: "" },
+        openai: { apiKey: "", model: "", baseUrl: "" },
+        thinking: true,
+        reasoningEffort: "high" as const,
+      },
+      agyPath: null,
+      model: null,
+      maxSessions: 50,
+      recent: ["D:\\a", "D:\\moi", ...Array.from({ length: 9 }, (_, i) => `D:\\cu${i}`)],
+      palette: "editorial",
+      themeMode: "system",
+      readingWidth: "normal",
+    };
+    useStoryStore.getState().setConfig(config);
+    useStoryStore.getState().openStory(snapshot);
+    const recent = useStoryStore.getState().config?.recent ?? [];
+    expect(recent[0]).toBe("D:\\moi");
+    expect(recent.filter((r) => r === "D:\\moi")).toHaveLength(1);
+    expect(recent).toHaveLength(10);
+    expect(recent[1]).toBe("D:\\a");
+    // Chưa nạp config (probe chưa xong) thì không được tự bịa config.
+    useStoryStore.setState({ config: undefined });
+    useStoryStore.getState().openStory(snapshot);
+    expect(useStoryStore.getState().config).toBeUndefined();
+  });
 });

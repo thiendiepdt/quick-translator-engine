@@ -17,7 +17,14 @@ export interface LogLine {
 }
 
 const MAX_LOGS = 2000;
+/** Khớp MAX_RECENT bên Rust app_config.rs. */
+const MAX_RECENT = 10;
 let logSeq = 0;
+
+/** Bản sao `AppConfig::touch_recent` của Rust: root mới lên đầu, khử trùng, cắt còn 10. */
+export function touchRecent(recent: string[], root: string): string[] {
+  return [root, ...recent.filter((item) => item !== root)].slice(0, MAX_RECENT);
+}
 
 interface StoryState {
   screen: "picker" | "workbench";
@@ -76,8 +83,11 @@ export const useStoryStore = create<StoryState>()((set) => ({
   searchQuery: "",
   session: { status: "idle" },
   logs: [],
+  // Rust open_story đã touch_recent và ghi đĩa; store phải làm y hệt, nếu không picker hiện danh sách cũ
+  // và lần appConfigSet kế tiếp (đổi theme, settings…) đẩy recent cũ đè lên đĩa, mất truyện vừa mở.
   openStory: (snapshot) =>
-    set({
+    set((state) => ({
+      config: state.config && { ...state.config, recent: touchRecent(state.config.recent, snapshot.root) },
       screen: "workbench",
       page: "translate",
       root: snapshot.root,
@@ -88,7 +98,7 @@ export const useStoryStore = create<StoryState>()((set) => ({
       progress: undefined,
       logs: [],
       session: snapshot.sessionRunning ? { status: "running", sessionNo: 0 } : { status: "idle" },
-    }),
+    })),
   closeStory: () =>
     set({ screen: "picker", root: undefined, snapshot: undefined, selectedId: undefined, progress: undefined }),
   setPage: (page) => set({ page }),
