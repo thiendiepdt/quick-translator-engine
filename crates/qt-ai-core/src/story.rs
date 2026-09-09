@@ -5,8 +5,16 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::cmp::Ordering;
 
-pub const GLOSSARY_CATEGORIES: [&str; 7] =
-    ["names", "places", "items", "creatures", "skills", "common", "signature_phrases"];
+pub const GLOSSARY_CATEGORIES: [&str; 8] =
+    ["names", "places", "items", "creatures", "skills", "common", "signature_phrases", "addressing"];
+
+/// Mũi tên trong key xưng hô `甲→乙` (nhóm `addressing`).
+pub const ADDRESSING_ARROW: &str = "→";
+
+/// Hai vế của key xưng hô; key không có mũi tên coi như một vế.
+pub fn addressing_sides(key: &str) -> Vec<&str> {
+    key.split(ADDRESSING_ARROW).map(str::trim).filter(|side| !side.is_empty()).collect()
+}
 
 pub type StringMap = IndexMap<String, String>;
 pub type Glossary = IndexMap<String, StringMap>;

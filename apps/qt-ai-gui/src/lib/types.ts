@@ -66,6 +66,7 @@ export const GLOSSARY_LABELS: Record<GlossaryKey, string> = {
   skills: "Kỹ năng / công pháp",
   common: "Từ thông dụng",
   signature_phrases: "Cụm từ đặc trưng",
+  addressing: "Xưng hô theo cặp",
 };
 
 export const ENGINE_LABELS: Record<Engine, string> = { agy: "Antigravity CLI (agy)", api: "API key" };

@@ -30,7 +30,7 @@ const snapshot = storySnapshotSchema.parse({
     protagonist: "",
     summary: "",
     genre: { setting: "ancient", names: "han" },
-    glossary: { names: { 赵静文: "Triệu Tĩnh Văn" }, places: {}, items: {}, creatures: {}, skills: {}, common: {}, signature_phrases: {} },
+    glossary: { names: { 赵静文: "Triệu Tĩnh Văn" }, places: {}, items: {}, creatures: {}, skills: {}, common: {}, signature_phrases: {}, addressing: {} },
     style: { voice: "", toneRules: [], signaturePhrases: {}, avoid: [] },
     customPrompt: "",
     checkRules: [],

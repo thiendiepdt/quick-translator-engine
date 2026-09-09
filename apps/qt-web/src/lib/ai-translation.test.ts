@@ -349,4 +349,19 @@ describe("glossary filtering in the system prompt", () => {
     });
     expect(prompt).toContain("萧炎");
   });
+
+  it("addressing đi vào prompt khi chương có một bên của cặp, kèm ghi chú cách đọc", () => {
+    const glossary = {
+      names: { 林枫: "Lâm Phong", 苏雨: "Tô Vũ" },
+      addressing: { "林枫→苏雨": "anh–em", "王五→赵六": "tôi–cậu" },
+    };
+    const kept = filterTranslationGlossaryForSource(glossary, "林枫走了进来。");
+    expect(kept.addressing).toEqual({ "林枫→苏雨": "anh–em" });
+    expect(glossaryEntryMatchesSource("林枫→苏雨", "苏雨来了")).toBe(true);
+    const story = { ...emptyAiStoryConfig(), glossary: { ...emptyAiStoryConfig().glossary, addressing: { "林枫→苏雨": "anh–em" } } };
+    const prompt = buildAiTranslationSystemPrompt({}, story, "林枫走了进来。");
+    expect(prompt).toContain('"林枫→苏雨": "anh–em"');
+    expect(prompt).toContain("Nhóm `addressing`: `甲→乙: X–Y`");
+    expect(buildAiTranslationSystemPrompt({}, story, "无人。")).not.toContain("Nhóm `addressing`");
+  });
 });

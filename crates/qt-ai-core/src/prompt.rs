@@ -68,6 +68,11 @@ pub fn glossary_entry_matches_source(source: &str, text: &str) -> bool {
     if text.contains(source) {
         return true;
     }
+    // Cặp xưng hô `甲→乙`: chương chạm tới khi có mặt ít nhất một bên.
+    let sides = crate::story::addressing_sides(source);
+    if sides.len() > 1 {
+        return sides.iter().any(|side| glossary_entry_matches_source(side, text));
+    }
     if !HAN_PERSON_NAME.is_match(source) {
         return false;
     }
@@ -107,11 +112,16 @@ pub fn build_system_prompt(
         Some(source) => filter_glossary_for_source(&merged, source),
         None => merged,
     };
+    let addressing_note = if glossary.get("addressing").is_some_and(|group| !group.is_empty()) {
+        "\nNhóm `addressing`: `甲→乙: X–Y` nghĩa là trong thoại 甲 tự xưng X và gọi 乙 là Y (đã chốt ở chương trước, giữ y hệt; cặp ngược `乙→甲` có mục riêng).\n"
+    } else {
+        ""
+    };
     let glossary_section = if glossary.is_empty() {
         String::new()
     } else {
         format!(
-            "\n# Từ điển riêng của truyện\n\nCác mục này được ưu tiên và phải dùng nhất quán:\n\n{}\n",
+            "\n# Từ điển riêng của truyện\n\nCác mục này được ưu tiên và phải dùng nhất quán:\n\n{}\n{addressing_note}",
             json_pretty(&glossary)
         )
     };

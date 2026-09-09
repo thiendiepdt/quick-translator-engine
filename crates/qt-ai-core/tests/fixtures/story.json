@@ -18,7 +18,8 @@
           "creatures": {},
           "skills": {},
           "common": {},
-          "signature_phrases": {}
+          "signature_phrases": {},
+          "addressing": {}
         },
         "style": {
           "voice": "",
@@ -106,7 +107,8 @@
           "creatures": {},
           "skills": {},
           "common": {},
-          "signature_phrases": {}
+          "signature_phrases": {},
+          "addressing": {}
         },
         "style": {
           "voice": "v",
@@ -164,7 +166,8 @@
           "creatures": {},
           "skills": {},
           "common": {},
-          "signature_phrases": {}
+          "signature_phrases": {},
+          "addressing": {}
         },
         "style": {
           "voice": "",
@@ -201,7 +204,8 @@
           "creatures": {},
           "skills": {},
           "common": {},
-          "signature_phrases": {}
+          "signature_phrases": {},
+          "addressing": {}
         },
         "style": {
           "voice": "",

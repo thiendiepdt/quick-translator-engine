@@ -34,6 +34,7 @@ function storyFull() {
   story.glossary.names = { "赵静文": "Triệu Tĩnh Văn", "慕容雪羽": "Mộ Dung Tuyết Vũ", "不出现": "Không Xuất Hiện" };
   story.glossary.places = { "高塔": "Cao Tháp" };
   story.glossary.signature_phrases = { "哼": "Hừ" };
+  story.glossary.addressing = { "赵静文→慕容雪羽": "ta–ngươi", "李四→王五": "tôi–cậu" };
   story.style = { voice: "lạnh, kiệm lời", toneRules: ["ta/ngươi", "không dùng mình/tôi"], signaturePhrases: { "方寸": "Phương Thốn" }, avoid: ["anh ấy"] };
   return story;
 }
@@ -183,6 +184,9 @@ const glossaryEntries: unknown[] = [
   { source: "沉默", target: "im lặng", category: "common" },             // trùng → loại
   { source: "抬头", target: "ngẩng đầu", category: "kỳ lạ" },           // category lạ → names
   { source: "不在raw", target: "ngẩng", category: "names" },             // không có trong raw → loại
+  { source: "赵静文 -> 高塔", target: "ta / ngươi", category: "addressing" }, // cặp xưng hô hợp lệ, chuẩn hoá → và –
+  { source: "赵静文→慕容雪羽", target: "anh–em", category: "addressing" },   // đã có → loại
+  { source: "赵静文→不在", target: "anh–em", category: "addressing" },       // một bên không có trong raw → loại
   "rác", null, { source: 1, target: "x" },
 ];
 const translation = "Triệu Tĩnh Văn ngẩng đầu nhìn về phía tòa tháp cao nơi xa.\n\nNàng im lặng hồi lâu không nói lời nào.\n";

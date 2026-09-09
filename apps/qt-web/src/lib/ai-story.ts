@@ -8,7 +8,16 @@ export const storyGlossaryCategories = [
   { key: "skills", label: "Kỹ năng / công pháp" },
   { key: "common", label: "Từ thông dụng" },
   { key: "signature_phrases", label: "Cụm từ đặc trưng" },
+  /** `甲→乙: X–Y` — trong thoại 甲 tự xưng X và gọi 乙 là Y; giữ cặp xưng hô nhất quán xuyên chương. */
+  { key: "addressing", label: "Xưng hô theo cặp" },
 ] as const;
+
+export const ADDRESSING_ARROW = "→";
+
+/** Hai vế của key xưng hô `甲→乙`; key không có mũi tên coi như một vế. */
+export function addressingSides(key: string): string[] {
+  return key.split(ADDRESSING_ARROW).map((side) => side.trim()).filter(Boolean);
+}
 
 export type StoryGlossaryKey = (typeof storyGlossaryCategories)[number]["key"];
 export type StoryGlossary = Record<StoryGlossaryKey, Record<string, string>>;

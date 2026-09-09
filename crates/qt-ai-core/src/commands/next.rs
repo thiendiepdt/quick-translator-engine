@@ -22,7 +22,8 @@ fn agent_instructions(id: &str) -> String {
         "2. Ghi đề xuất TÊN RIÊNG mới (nhân vật, địa danh, đồ vật/vũ khí, sinh vật, công pháp/kỹ năng)".to_string(),
         format!("   xuất hiện trong raw nhưng chưa có trong từ điển của prompt vào work/{id}.glossary.json, dạng:"),
         r#"   {"entries": [{"source": "chữ Hán trong raw", "target": "chép nguyên văn từ bản dịch", "category": "names|places|items|creatures|skills"}]}"#.to_string(),
-        r#"   Bỏ qua từ chung, chức danh, đại từ. Không có tên mới thì ghi {"entries": []}."#.to_string(),
+        r#"   Thêm cặp xưng hô mới trong thoại: {"source": "甲→乙", "target": "X–Y", "category": "addressing"} (甲 tự xưng X, gọi 乙 là Y; mỗi chiều một mục)."#.to_string(),
+        r#"   Bỏ qua từ chung, chức danh, đại từ. Không có gì mới thì ghi {"entries": []}."#.to_string(),
         format!("3. Chạy: qt-ai check {id} (xem AGENTS.md để biết lệnh đầy đủ)."),
     ]
     .join("\n")

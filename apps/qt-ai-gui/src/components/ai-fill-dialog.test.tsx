@@ -17,7 +17,7 @@ const before = storyConfigSchema.parse({
   protagonist: "",
   summary: "",
   genre: { setting: "ancient", names: "han" },
-  glossary: { names: {}, places: {}, items: {}, creatures: {}, skills: {}, common: {}, signature_phrases: {} },
+  glossary: { names: {}, places: {}, items: {}, creatures: {}, skills: {}, common: {}, signature_phrases: {}, addressing: {} },
   style: { voice: "", toneRules: [], signaturePhrases: {}, avoid: [] },
   customPrompt: "",
   checkRules: [],

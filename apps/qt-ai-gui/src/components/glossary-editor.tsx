@@ -41,6 +41,8 @@ export function GlossaryEditor({ name, label }: Props) {
     });
   const visible = matching.slice(0, limit);
   const editingText = text !== undefined;
+  const addressing = name === "glossary.addressing";
+  const placeholders = addressing ? ["甲→乙 (hai tên Hán)", "X–Y (甲 tự xưng X, gọi 乙 là Y)"] : ["Hán tự", "Tiếng Việt"];
 
   return (
     <fieldset className="rounded-lg border bg-card p-4">
@@ -107,7 +109,7 @@ export function GlossaryEditor({ name, label }: Props) {
             aria-label={`${label} dạng văn bản`}
             rows={Math.min(24, Math.max(6, fields.length + 2))}
             className="font-mono text-xs"
-            placeholder="赵静文=Triệu Tĩnh Văn"
+            placeholder={addressing ? "林枫→苏雨=anh–em" : "赵静文=Triệu Tĩnh Văn"}
             spellCheck={false}
           />
           <div className="flex items-center gap-2">
@@ -139,13 +141,13 @@ export function GlossaryEditor({ name, label }: Props) {
             <div key={field.id} className="grid grid-cols-[1fr_1fr_auto] gap-1">
               <Input
                 {...register(`${name}.${index}.source`)}
-                placeholder="Hán tự"
+                placeholder={placeholders[0]}
                 aria-label={`${label} CN ${index + 1}`}
                 className="h-8 font-mono"
               />
               <Input
                 {...register(`${name}.${index}.target`)}
-                placeholder="Tiếng Việt"
+                placeholder={placeholders[1]}
                 aria-label={`${label} VN ${index + 1}`}
                 className="h-8"
               />

@@ -17,6 +17,8 @@ hợp split workspace của direction B với typography/output reader của dir
 Nội dung chương và toàn bộ raw dictionary **không** được persist vào `localStorage`.
 Các workspace dùng IndexedDB (`qt-web` / `key-value`): Dịch AI lưu metadata truyện,
 prompt, glossary, style, check rules, hàng đợi chương và kết quả để phục hồi sau reload.
+  Glossary có nhóm `addressing` (xưng hô theo cặp, key `甲→乙`, value `X–Y`: 甲 tự xưng X, gọi
+  乙 là Y); sau mỗi chương AI trích thêm cặp mới để chương sau giữ nguyên cách xưng hô.
 Raw dictionary mặc định từ server vẫn không bị nhân bản; chỉ override và entry đã sửa
 được lưu. API key/model/theme tiếp tục là preference nhỏ trong `localStorage`.
 

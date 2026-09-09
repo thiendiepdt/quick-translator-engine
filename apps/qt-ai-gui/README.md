@@ -55,7 +55,9 @@ Ba bộ màu (Editorial / Studio / Soft) × sáng / tối / theo hệ thống, c
   Cài đặt → Giao diện; lưu `readingWidth` trong `config.json`. Nút chương trước / sau nằm cố định ở
   đầu trang, cặp nút cuối bài vẫn giữ.
 - Glossary: nhóm dài thu gọn sẵn, bảng hiện theo khúc 50 dòng; nút **Sửa dạng văn bản** mở textarea
-  mỗi dòng `Hán=Việt` để sửa hàng loạt rồi Áp dụng một lần.
+  mỗi dòng `Hán=Việt` để sửa hàng loạt rồi Áp dụng một lần. Nhóm **Xưng hô theo cặp** (`addressing`)
+  dùng key `甲→乙`, value `X–Y` (甲 tự xưng X, gọi 乙 là Y); cả agent lẫn động cơ API trích thêm cặp
+  mới sau mỗi chương để chương sau giữ nguyên cách xưng hô.
 - Prompt và rule kiểm tra: lệnh `story_defaults` trả prompt gốc + bộ rule mặc định của hệ. Ô prompt
   luôn hiện nội dung đang dùng (sửa trên bản mặc định là thành prompt riêng, **Về mặc định** lưu
   trống); rule trống hiện bộ mặc định chỉ đọc, **Sửa bộ mặc định** sao chép ra để chỉnh.

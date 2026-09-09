@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const GLOSSARY_KEYS = ["names", "places", "items", "creatures", "skills", "common", "signature_phrases"] as const;
+export const GLOSSARY_KEYS = ["names", "places", "items", "creatures", "skills", "common", "signature_phrases", "addressing"] as const;
 const stringRecord = z.record(z.string(), z.string());
 
 export const chapterStatusSchema = z.enum(["queued", "translating", "done", "error", "skipped"]);
@@ -27,6 +27,8 @@ export const storyConfigSchema = z.object({
     skills: stringRecord,
     common: stringRecord,
     signature_phrases: stringRecord,
+    /** `甲→乙: X–Y` xưng hô theo cặp; story.json cũ thiếu nhóm này. */
+    addressing: stringRecord.default({}),
   }),
   style: z.object({
     voice: z.string(),

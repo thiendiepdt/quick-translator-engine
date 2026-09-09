@@ -11,7 +11,7 @@ let latest: StoryFormValues | undefined;
 function Harness({ names }: { names: Pair[] }) {
   const form = useForm<StoryFormValues>({
     defaultValues: {
-      glossary: { names, places: [], items: [], creatures: [], skills: [], common: [], signature_phrases: [] },
+      glossary: { names, places: [], items: [], creatures: [], skills: [], common: [], signature_phrases: [], addressing: [] },
       signaturePhrases: [],
       checkRules: [],
     } as unknown as StoryFormValues,

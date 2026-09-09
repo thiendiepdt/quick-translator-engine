@@ -26,6 +26,7 @@ export const storyFormSchema = z.object({
     skills: z.array(pairSchema),
     common: z.array(pairSchema),
     signature_phrases: z.array(pairSchema),
+    addressing: z.array(pairSchema),
   }),
   checkRules: z.array(ruleSchema),
   autoGlossary: z.enum(["inherit", "on", "off"]),
@@ -68,6 +69,7 @@ export function toFormValues(config: StoryConfig): StoryFormValues {
       skills: toPairs(config.glossary.skills),
       common: toPairs(config.glossary.common),
       signature_phrases: toPairs(config.glossary.signature_phrases),
+      addressing: toPairs(config.glossary.addressing),
     },
     checkRules: config.checkRules.map((rule) => ({
       pattern: rule.pattern,
@@ -94,6 +96,7 @@ export function fromFormValues(values: StoryFormValues, base: StoryConfig): Stor
       skills: fromPairs(values.glossary.skills),
       common: fromPairs(values.glossary.common),
       signature_phrases: fromPairs(values.glossary.signature_phrases),
+      addressing: fromPairs(values.glossary.addressing),
     },
     style: {
       voice: values.voice,

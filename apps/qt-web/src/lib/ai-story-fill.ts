@@ -65,7 +65,7 @@ TUYỆT ĐỐI không bịa tên, nhân vật hay tóm tắt. Trả về đúng 
   "glossary": {
     "names": {"Hán tự": "Phiên âm"},
     "places": {}, "items": {}, "creatures": {}, "skills": {},
-    "common": {}, "signature_phrases": {}
+    "common": {}, "signature_phrases": {}, "addressing": {}
   }
 }
 Giữ null hoặc rỗng nếu không chắc. Không giải thích, không markdown.`;

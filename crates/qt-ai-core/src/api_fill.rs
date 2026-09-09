@@ -64,7 +64,7 @@ tên, nhân vật hay tóm tắt. Trả về đúng một JSON theo mẫu:\n\
   \"glossary\": {{\n\
     \"names\": {{\"Hán tự\": \"Hán-Việt\"}},\n\
     \"places\": {{}}, \"items\": {{}}, \"creatures\": {{}}, \"skills\": {{}},\n\
-    \"common\": {{}}, \"signature_phrases\": {{}}\n\
+    \"common\": {{}}, \"signature_phrases\": {{}}, \"addressing\": {{}}\n\
   }}\n\
 }}\n\
 Glossary chỉ seed tên riêng thật sự xuất hiện trong các chương (source chữ Hán, target Hán-Việt hoặc dạng gốc). \

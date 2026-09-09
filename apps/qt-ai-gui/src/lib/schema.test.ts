@@ -16,6 +16,7 @@ const story = {
     skills: {},
     common: {},
     signature_phrases: {},
+    addressing: {},
   },
   style: { voice: "", toneRules: [], signaturePhrases: {}, avoid: [] },
   customPrompt: "",
@@ -78,6 +79,12 @@ describe("schema", () => {
       kind: "api_failed",
       message: "401",
     });
+  });
+
+  it("story.json cũ thiếu glossary.addressing vẫn parse với {}", () => {
+    const { addressing: _dropped, ...legacyGlossary } = story.glossary;
+    const parsed = storyConfigSchema.parse({ ...story, glossary: legacyGlossary });
+    expect(parsed.glossary.addressing).toEqual({});
   });
 
   it("từ chối status lạ", () => {

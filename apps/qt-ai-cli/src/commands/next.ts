@@ -16,7 +16,8 @@ function agentInstructions(id: string): string {
     `2. Ghi đề xuất TÊN RIÊNG mới (nhân vật, địa danh, đồ vật/vũ khí, sinh vật, công pháp/kỹ năng)`,
     `   xuất hiện trong raw nhưng chưa có trong từ điển của prompt vào work/${id}.glossary.json, dạng:`,
     `   {"entries": [{"source": "chữ Hán trong raw", "target": "chép nguyên văn từ bản dịch", "category": "names|places|items|creatures|skills"}]}`,
-    `   Bỏ qua từ chung, chức danh, đại từ. Không có tên mới thì ghi {"entries": []}.`,
+    `   Thêm cặp xưng hô mới trong thoại: {"source": "甲→乙", "target": "X–Y", "category": "addressing"} (甲 tự xưng X, gọi 乙 là Y; mỗi chiều một mục).`,
+    `   Bỏ qua từ chung, chức danh, đại từ. Không có gì mới thì ghi {"entries": []}.`,
     `3. Chạy: qt-ai check ${id} (xem AGENTS.md để biết lệnh đầy đủ).`,
   ].join("\n");
 }

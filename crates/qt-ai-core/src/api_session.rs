@@ -10,7 +10,7 @@ use crate::commands::check::run_check;
 use crate::commands::next::run_next;
 use crate::commands::skip::run_skip;
 use crate::error::{CoreError, Result};
-use crate::glossary::collect_glossary_keys;
+use crate::glossary::{collect_glossary_keys, glossary_key_touches_source};
 use crate::paragraphs::{labeled_repair_payload, labeled_source_payload, paragraphs_of, parse_labeled_translation};
 use crate::prompt::{build_system_prompt, TranslationGlossary};
 use crate::session::{read_progress, spawn_runner, LogStream, SessionEvent, SessionHandle, Sink, StopReason};
@@ -31,7 +31,11 @@ Liệt kê các TÊN RIÊNG (nhân vật, địa danh, đồ vật/vũ khí, sin
 xuất hiện trong raw nhưng CHƯA có trong danh sách loại trừ, kèm đúng cách bản dịch đã phiên âm chúng. \
 target phải chép nguyên văn từ bản dịch, không tự nghĩ phương án khác. \
 category chỉ được là một trong: \"names\", \"places\", \"items\", \"creatures\", \"skills\". \
-Bỏ qua từ chung, chức danh, đại từ. Không có tên mới thì trả entries rỗng. \
+Bỏ qua từ chung, chức danh, đại từ. \
+Thêm các CẶP XƯNG HÔ mới trong thoại với category \"addressing\": source là \"甲→乙\" (hai tên Hán như trong raw), \
+target là \"X–Y\" với X là cách 甲 tự xưng và Y là cách 甲 gọi 乙 trong bản dịch (ví dụ \"anh–em\", \"ta–ngươi\", \"tôi–cậu\"); \
+mỗi chiều một mục, chỉ ghi cặp chưa có trong danh sách loại trừ. \
+Không có gì mới thì trả entries rỗng. \
 Chỉ xuất JSON dạng {\"entries\": [{\"source\": \"...\", \"target\": \"...\", \"category\": \"...\"}]}.";
 
 /// Port system prompt của `buildAiTranslationReviewPrompt`, thêm yêu cầu giữ nhãn.
@@ -164,8 +168,11 @@ fn translate_full(chapter: &Chapter) -> std::result::Result<Vec<String>, ApiErro
 /// Trích tên riêng mới → work/<id>.glossary.json. Bước phụ: mọi lỗi nuốt, ghi entries rỗng.
 fn harvest_glossary(chapter: &Chapter, paths: &StoryPaths, raw: &str, draft: &[String]) -> Result<()> {
     let (id, log) = (chapter.id, chapter.log);
-    let mut exclude: Vec<String> =
-        collect_glossary_keys(&TranslationGlossary::new(), &chapter.story.glossary).into_iter().collect();
+    // Chỉ gửi key chương này chạm tới — sanitize vốn chặn đề xuất không có trong raw, gửi cả glossary là phí token.
+    let mut exclude: Vec<String> = collect_glossary_keys(&TranslationGlossary::new(), &chapter.story.glossary)
+        .into_iter()
+        .filter(|key| glossary_key_touches_source(key, raw))
+        .collect();
     exclude.sort();
     let user = json!({ "exclude": exclude, "raw": raw, "translation": final_text(draft) }).to_string();
     let entries = match chapter.model.complete_json(GLOSSARY_EXTRACT_SYSTEM_PROMPT, &user) {

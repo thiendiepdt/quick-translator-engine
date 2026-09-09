@@ -48,6 +48,10 @@
         "common": {},
         "signature_phrases": {
           "哼": "Hừ"
+        },
+        "addressing": {
+          "赵静文→慕容雪羽": "ta–ngươi",
+          "李四→王五": "tôi–cậu"
         }
       },
       "source": "第二天早上，赵静文和他们一起出发了。\r\n  慕容雪羽也来了。\r\n",
@@ -58,6 +62,9 @@
         },
         "signature_phrases": {
           "哼": "Hừ"
+        },
+        "addressing": {
+          "赵静文→慕容雪羽": "ta–ngươi"
         }
       }
     }
@@ -105,6 +112,21 @@
           "target": "ngẩng",
           "category": "names"
         },
+        {
+          "source": "赵静文 -> 高塔",
+          "target": "ta / ngươi",
+          "category": "addressing"
+        },
+        {
+          "source": "赵静文→慕容雪羽",
+          "target": "anh–em",
+          "category": "addressing"
+        },
+        {
+          "source": "赵静文→不在",
+          "target": "anh–em",
+          "category": "addressing"
+        },
         "rác",
         null,
         {
@@ -118,7 +140,9 @@
         "不出现",
         "哼",
         "慕容雪羽",
+        "李四→王五",
         "赵静文",
+        "赵静文→慕容雪羽",
         "高塔"
       ],
       "result": [
@@ -131,6 +155,11 @@
           "source": "抬头",
           "target": "ngẩng đầu",
           "category": "names"
+        },
+        {
+          "source": "赵静文→高塔",
+          "target": "ta–ngươi",
+          "category": "addressing"
         }
       ]
     }
@@ -161,6 +190,10 @@
           "common": {},
           "signature_phrases": {
             "哼": "Hừ"
+          },
+          "addressing": {
+            "赵静文→慕容雪羽": "ta–ngươi",
+            "李四→王五": "tôi–cậu"
           }
         },
         "style": {
@@ -191,6 +224,11 @@
           "source": "抬头",
           "target": "ngẩng đầu",
           "category": "names"
+        },
+        {
+          "source": "赵静文→高塔",
+          "target": "ta–ngươi",
+          "category": "addressing"
         }
       ],
       "chapter": "0001",
@@ -221,6 +259,11 @@
           },
           "signature_phrases": {
             "哼": "Hừ"
+          },
+          "addressing": {
+            "赵静文→慕容雪羽": "ta–ngươi",
+            "李四→王五": "tôi–cậu",
+            "赵静文→高塔": "ta–ngươi"
           }
         },
         "style": {
@@ -249,6 +292,12 @@
             "source": "抬头",
             "target": "ngẩng đầu",
             "category": "names",
+            "chapter": "0001"
+          },
+          {
+            "source": "赵静文→高塔",
+            "target": "ta–ngươi",
+            "category": "addressing",
             "chapter": "0001"
           }
         ],

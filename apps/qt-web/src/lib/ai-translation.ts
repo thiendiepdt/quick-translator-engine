@@ -1,5 +1,11 @@
 import { composeBasePrompt } from "@/lib/ai-translation-prompt";
-import { defaultStoryGenre, type AiCheckRule, type AiStoryConfig, type GenreSetting } from "@/lib/ai-story";
+import {
+  addressingSides,
+  defaultStoryGenre,
+  type AiCheckRule,
+  type AiStoryConfig,
+  type GenreSetting,
+} from "@/lib/ai-story";
 import type { LocalDictionaryEntries } from "@/lib/types";
 
 export interface TranslationViolation {
@@ -189,6 +195,9 @@ const HAN_PERSON_NAME = /^\p{Script=Han}{3,4}$/u;
 
 export function glossaryEntryMatchesSource(source: string, text: string): boolean {
   if (text.includes(source)) return true;
+  // Cặp xưng hô `甲→乙`: chương chạm tới khi có mặt ít nhất một bên.
+  const sides = addressingSides(source);
+  if (sides.length > 1) return sides.some((side) => glossaryEntryMatchesSource(side, text));
   if (!HAN_PERSON_NAME.test(source)) return false;
   if (text.includes(source.slice(1))) return true;
   return source.length === 4 && text.includes(source.slice(2));
@@ -225,9 +234,13 @@ export function buildAiTranslationSystemPrompt(
   const glossary = sourceText
     ? filterTranslationGlossaryForSource(merged, sourceText)
     : merged;
+  const addressingNote =
+    Object.keys(glossary.addressing ?? {}).length > 0
+      ? "\nNhóm `addressing`: `甲→乙: X–Y` nghĩa là trong thoại 甲 tự xưng X và gọi 乙 là Y (đã chốt ở chương trước, giữ y hệt; cặp ngược `乙→甲` có mục riêng).\n"
+      : "";
   const glossarySection =
     Object.keys(glossary).length > 0
-      ? `\n# Từ điển riêng của truyện\n\nCác mục này được ưu tiên và phải dùng nhất quán:\n\n${JSON.stringify(glossary, null, 2)}\n`
+      ? `\n# Từ điển riêng của truyện\n\nCác mục này được ưu tiên và phải dùng nhất quán:\n\n${JSON.stringify(glossary, null, 2)}\n${addressingNote}`
       : "";
   const storyContext = story && (story.name || story.protagonist || story.summary)
     ? `\n# Thông tin truyện\n\n${JSON.stringify({

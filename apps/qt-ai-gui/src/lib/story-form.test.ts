@@ -9,7 +9,7 @@ const base = storyConfigSchema.parse({
   protagonist: "",
   summary: "",
   genre: { setting: "modern", names: "mixed" },
-  glossary: { names: {}, places: {}, items: {}, creatures: {}, skills: {}, common: {}, signature_phrases: {} },
+  glossary: { names: {}, places: {}, items: {}, creatures: {}, skills: {}, common: {}, signature_phrases: {}, addressing: {} },
   style: { voice: "", toneRules: [], signaturePhrases: {}, avoid: [] },
   customPrompt: "",
   checkRules: [],

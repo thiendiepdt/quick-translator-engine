@@ -45,6 +45,7 @@ import {
 } from "@/lib/ai-settings";
 import { baseUrlProblem, extractStoryGlossaryWithAi, resolveAiCall } from "@/lib/ai-client";
 import {
+  glossaryKeyTouchesSource,
   appendAutoGlossary,
   collectGlossaryKeys,
   resolveAutoGlossaryEnabled,
@@ -557,7 +558,7 @@ export function AiTranslationWorkspace({
         translated,
         // Exclude chỉ cần các key chương này chạm tới — sanitize vốn đã chặn
         // mọi đề xuất không có trong raw, gửi cả glossary là phí token.
-        [...existingKeys].filter((key) => sourceText.includes(key)),
+        [...existingKeys].filter((key) => glossaryKeyTouchesSource(key, sourceText)),
       );
       if (workspaceChanged() || controller.signal.aborted) return;
       const pairs = sanitizeExtractedGlossary(suggestions, sourceText, translated, existingKeys);

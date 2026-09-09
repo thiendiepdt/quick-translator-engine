@@ -659,7 +659,11 @@ const GLOSSARY_EXTRACT_SYSTEM_PROMPT =
   "xuất hiện trong raw nhưng CHƯA có trong danh sách loại trừ, kèm đúng cách bản dịch đã phiên âm chúng. " +
   "target phải chép nguyên văn từ bản dịch, không tự nghĩ phương án khác. " +
   'category chỉ được là một trong: "names", "places", "items", "creatures", "skills". ' +
-  "Bỏ qua từ chung, chức danh, đại từ. Không có tên mới thì trả entries rỗng. " +
+  "Bỏ qua từ chung, chức danh, đại từ. " +
+  'Thêm các CẶP XƯNG HÔ mới trong thoại với category "addressing": source là "甲→乙" (hai tên Hán như trong raw), ' +
+  'target là "X–Y" với X là cách 甲 tự xưng và Y là cách 甲 gọi 乙 trong bản dịch (ví dụ "anh–em", "ta–ngươi", "tôi–cậu"); ' +
+  "mỗi chiều một mục, chỉ ghi cặp chưa có trong danh sách loại trừ. " +
+  "Không có gì mới thì trả entries rỗng. " +
   'Chỉ xuất JSON dạng {"entries": [{"source": "...", "target": "...", "category": "..."}]}.';
 
 const GLOSSARY_EXTRACT_SCHEMA = {
@@ -674,7 +678,7 @@ const GLOSSARY_EXTRACT_SCHEMA = {
           target: { type: "string" },
           category: {
             type: "string",
-            enum: ["names", "places", "items", "creatures", "skills"],
+            enum: ["names", "places", "items", "creatures", "skills", "addressing"],
           },
         },
         required: ["source", "target"],

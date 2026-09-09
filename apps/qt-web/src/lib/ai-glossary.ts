@@ -6,6 +6,8 @@
  */
 
 import {
+  ADDRESSING_ARROW,
+  addressingSides,
   storyGlossaryCategories,
   type AiStoryConfig,
   type AutoGlossaryEntry,
@@ -38,6 +40,27 @@ export function collectGlossaryKeys(
 
 const CATEGORY_KEYS = new Set<string>(storyGlossaryCategories.map(({ key }) => key));
 
+/** Key glossary có mặt trong chương: tên thường thì nguyên văn; cặp `甲→乙` thì cả hai bên đều có. */
+export function glossaryKeyTouchesSource(key: string, text: string): boolean {
+  const sides = addressingSides(key);
+  return sides.length > 1 ? sides.every((side) => text.includes(side)) : text.includes(key);
+}
+
+/**
+ * Cặp xưng hô do model đề xuất: `甲→乙` với hai tên Hán đều có trong raw, target dạng `X–Y`
+ * (nhận cả `-`, `—`, `/` rồi chuẩn về `–`). Không đòi target nằm nguyên văn trong bản dịch —
+ * `anh–em` là hai từ rời.
+ */
+function sanitizeAddressing(source: string, target: string, raw: string): [string, string] | undefined {
+  const sides = source.split(/→|->|=>/).map((side) => side.trim());
+  if (sides.length !== 2 || sides.some((side) => !side || !/\p{Script=Han}/u.test(side) || !raw.includes(side))) {
+    return undefined;
+  }
+  const parts = target.split(/\s*[–—\-/]\s*/).map((part) => part.trim()).filter(Boolean);
+  if (parts.length !== 2) return undefined;
+  return [sides.join(ADDRESSING_ARROW), parts.join("–")];
+}
+
 /**
  * Model chỉ được đề xuất; quyền quyết ở đây: source phải là Hán tự có mặt
  * trong raw, target phải xuất hiện nguyên văn trong bản dịch, key chưa tồn
@@ -58,6 +81,13 @@ export function sanitizeExtractedGlossary(
     const source = typeof record.source === "string" ? record.source.trim() : "";
     const target = typeof record.target === "string" ? record.target.trim() : "";
     if (!source || !target) continue;
+    if (record.category === "addressing") {
+      const pair = sanitizeAddressing(source, target, raw);
+      if (!pair || seen.has(pair[0]) || existingKeys.has(pair[0])) continue;
+      seen.add(pair[0]);
+      pairs.push({ source: pair[0], target: pair[1], category: "addressing" });
+      continue;
+    }
     // Tối thiểu 2 chữ Hán: chữ đơn (雷, 炎…) đa nghĩa quá — vừa dễ ghim sai
     // vào văn tả cảnh, vừa match mọi chương nên không bao giờ được lọc bớt.
     if ((source.match(/\p{Script=Han}/gu) ?? []).length < 2) continue;
