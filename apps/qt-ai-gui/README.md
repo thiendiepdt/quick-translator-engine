@@ -41,6 +41,10 @@ cargo test -p qt-ai-gui   # Tauri commands
 
 `npm run tauri build` → `src-tauri/target/release/bundle/{nsis,msi}/`. Sidecar `qt-ai.exe` được đặt cạnh app exe; AGENTS.md trong folder truyện trỏ tới nó.
 
+`npm run build:portable` → `dist-portable/QT-AI-Translator-<version>-portable/` (+ `.zip` trên Windows): `qt-ai-gui.exe`,
+`qt-ai.exe` và file đánh dấu `portable`. Có file này cạnh exe thì app đọc/ghi `config.json` ngay cạnh exe thay vì
+`%APPDATA%\io.quicktranslator.ai-gui\` — copy folder đi đâu cũng mang theo cấu hình. Máy đích vẫn cần WebView2.
+
 ## Folder truyện
 
 Cùng format với `apps/qt-ai-cli` và Antigravity IDE: `raw/`, `out/`, `work/`, `story.json`, `state.json`, `AGENTS.md`, `.agent/workflows/`. Mở truyện đang dịch dở bằng bản nào cũng tiếp được.

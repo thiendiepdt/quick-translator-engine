@@ -7,7 +7,7 @@ mod story_cmds;
 
 use app_config::AppConfig;
 use qt_ai_core::session::SessionHandle;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri::Manager;
 
@@ -17,15 +17,21 @@ pub struct AppState {
     pub session: Mutex<Option<SessionHandle>>,
 }
 
+/// Bản portable: có file đánh dấu `portable` cạnh exe → config.json nằm cạnh exe, copy folder là mang
+/// theo cấu hình. Không có thì dùng thư mục config của app (%APPDATA%/io.quicktranslator.ai-gui).
+pub fn resolve_config_path(exe_dir: Option<&Path>, app_config_dir: Option<PathBuf>) -> PathBuf {
+    if let Some(dir) = exe_dir.filter(|dir| dir.join("portable").is_file()) {
+        return dir.join("config.json");
+    }
+    app_config_dir.map(|dir| dir.join("config.json")).unwrap_or_else(|| PathBuf::from("config.json"))
+}
+
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
-            let config_path = app
-                .path()
-                .app_config_dir()
-                .map(|dir| dir.join("config.json"))
-                .unwrap_or_else(|_| PathBuf::from("config.json"));
+            let exe_dir = std::env::current_exe().ok().and_then(|exe| exe.parent().map(Path::to_path_buf));
+            let config_path = resolve_config_path(exe_dir.as_deref(), app.path().app_config_dir().ok());
             let config = AppConfig::load(&config_path);
             app.manage(AppState { config_path, config: Mutex::new(config), session: Mutex::new(None) });
             Ok(())
@@ -54,4 +60,19 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("không khởi động được QT AI Translator");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn config_canh_exe_khi_co_file_portable_con_lai_dung_app_config_dir() {
+        let dir = tempfile::tempdir().unwrap();
+        let app_dir = dir.path().join("appdata");
+        assert_eq!(resolve_config_path(Some(dir.path()), Some(app_dir.clone())), app_dir.join("config.json"));
+        std::fs::write(dir.path().join("portable"), "").unwrap();
+        assert_eq!(resolve_config_path(Some(dir.path()), Some(app_dir.clone())), dir.path().join("config.json"));
+        assert_eq!(resolve_config_path(None, None), PathBuf::from("config.json"));
+    }
 }
