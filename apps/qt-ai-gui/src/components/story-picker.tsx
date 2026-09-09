@@ -1,4 +1,4 @@
-import { FolderOpen, Sparkles } from "lucide-react";
+import { FolderOpen, Sparkles, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ApiError, initStory, openStory, pickFolder, recentSummaries } from "@/lib/api";
+import { ApiError, appConfigSet, initStory, openStory, pickFolder, recentSummaries } from "@/lib/api";
 import type { RecentSummary } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useStoryStore } from "@/store/story";
@@ -19,6 +19,7 @@ import { useStoryStore } from "@/store/story";
 export function StoryPicker() {
   const recent = useStoryStore((s) => s.config?.recent ?? []);
   const open = useStoryStore((s) => s.openStory);
+  const setConfig = useStoryStore((s) => s.setConfig);
   const [summaries, setSummaries] = useState<RecentSummary[]>([]);
   const [pendingInit, setPendingInit] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
@@ -62,6 +63,18 @@ export function StoryPicker() {
     }
   }
 
+  /** Chỉ bỏ khỏi danh sách gần đây; không đụng file nào trong folder truyện. */
+  async function forget(root: string) {
+    const config = useStoryStore.getState().config;
+    if (!config) return;
+    try {
+      setConfig(await appConfigSet({ ...config, recent: config.recent.filter((item) => item !== root) }));
+      toast.success("Đã bỏ khỏi danh sách, không xoá file");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Không lưu được cấu hình");
+    }
+  }
+
   async function pickAndOpen() {
     const root = await pickFolder("Chọn folder truyện");
     if (root) await tryOpen(root);
@@ -93,12 +106,12 @@ export function StoryPicker() {
                 const percent = item.total ? Math.round(((item.done ?? 0) / item.total) * 100) : 0;
                 const broken = item.total === null;
                 return (
-                  <li key={item.root} className="min-w-0">
+                  <li key={item.root} className="flex min-w-0 items-stretch gap-1">
                     <button
                       type="button"
                       disabled={busy}
                       onClick={() => void tryOpen(item.root)}
-                      className="flex w-full items-center gap-4 overflow-hidden rounded-lg border bg-card p-4 text-left transition-colors hover:bg-accent disabled:opacity-50"
+                      className="flex min-w-0 flex-1 items-center gap-4 overflow-hidden rounded-lg border bg-card p-4 text-left transition-colors hover:bg-accent disabled:opacity-50"
                     >
                       <div className="min-w-0 flex-1">
                         {item.name ? (
@@ -129,6 +142,17 @@ export function StoryPicker() {
                         </div>
                       )}
                     </button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      disabled={busy}
+                      aria-label={`Bỏ ${item.root} khỏi danh sách`}
+                      title="Bỏ khỏi danh sách (không xoá file)"
+                      onClick={() => void forget(item.root)}
+                      className="h-auto shrink-0 self-stretch text-muted-foreground hover:text-foreground"
+                    >
+                      <X />
+                    </Button>
                   </li>
                 );
               })}
