@@ -135,6 +135,7 @@ describe("applySessionEvent", () => {
       model: null,
       maxSessions: 50,
       recent: ["D:\\a", "D:\\moi", ...Array.from({ length: 9 }, (_, i) => `D:\\cu${i}`)],
+      libraryRoot: null,
       palette: "editorial",
       themeMode: "system",
       readingWidth: "normal",

@@ -11,6 +11,7 @@ vi.mock("@/lib/api", () => ({
   agyStatus: vi.fn(),
   appConfigSet: vi.fn((config: unknown) => Promise.resolve(config)),
   pickAgyFile: vi.fn(),
+  pickFolder: vi.fn(),
   saveSettings: vi.fn(),
   storySnapshot: vi.fn(),
 }));

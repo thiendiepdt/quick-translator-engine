@@ -131,6 +131,8 @@ export const appConfigSchema = z.object({
   model: z.string().nullable(),
   maxSessions: z.number().int().min(1).max(1000),
   recent: z.array(z.string()),
+  /** Thư viện: folder cha chứa mọi truyện; null = chưa chọn. */
+  libraryRoot: z.string().nullable().default(null),
   palette: z.string().default("editorial"),
   themeMode: z.string().default("system"),
   readingWidth: z.string().default("normal"),
@@ -191,6 +193,14 @@ export const sessionEventSchema = z.union([
 ]);
 
 export const sessionStatusSchema = z.object({ running: z.boolean() });
+/** Kết quả kéo thả chương vào raw/ (Rust `import_chapters`). */
+export const importOutcomeSchema = z.object({
+  added: z.array(z.string()),
+  skippedExisting: z.array(z.string()),
+  ignored: z.array(z.string()),
+  snapshot: storySnapshotSchema,
+});
+
 export const aiFillResultSchema = z.object({
   before: storyConfigSchema,
   after: storyConfigSchema,

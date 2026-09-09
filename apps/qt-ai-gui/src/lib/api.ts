@@ -9,6 +9,7 @@ import {
   chapterViewSchema,
   exportOutcomeSchema,
   harnessSettingsSchema,
+  importOutcomeSchema,
   recentSummarySchema,
   sessionStatusSchema,
   storyConfigSchema,
@@ -84,6 +85,13 @@ export const sessionStop = () => call("session_stop", undefined, (v) => sessionS
 export const sessionState = () => call("session_state", undefined, (v) => sessionStatusSchema.parse(v));
 export const aiFillStory = (root: string, name: string, sourceUrl: string) =>
   call("ai_fill_story", { root, name, sourceUrl }, (v) => aiFillResultSchema.parse(v));
+export const slugifyName = (name: string) => call("slugify_name", { name }, (v) => z.string().parse(v));
+export const libraryList = () => call("library_list", undefined, (v) => z.array(recentSummarySchema).parse(v));
+export const createStory = (name: string, slug: string, sourceUrl: string) =>
+  call("create_story", { name, slug, sourceUrl }, (v) => storySnapshotSchema.parse(v));
+export const rescanStory = (root: string) => call("rescan_story", { root }, (v) => storySnapshotSchema.parse(v));
+export const importChapters = (root: string, paths: string[]) =>
+  call("import_chapters", { root, paths }, (v) => importOutcomeSchema.parse(v));
 
 export async function pickFolder(title: string): Promise<string | undefined> {
   const selected = await open({ directory: true, multiple: false, title });

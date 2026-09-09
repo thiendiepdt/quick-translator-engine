@@ -1,7 +1,8 @@
-import { FolderOpen, Sparkles, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { FolderOpen, FolderPlus, LibraryBig, Sparkles, X } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { CreateStoryDialog } from "@/components/create-story-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,17 +12,86 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ApiError, appConfigSet, initStory, openStory, pickFolder, recentSummaries } from "@/lib/api";
+import { ApiError, appConfigSet, initStory, libraryList, openStory, pickFolder, recentSummaries } from "@/lib/api";
+import { samePath } from "@/lib/paths";
 import type { RecentSummary } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useStoryStore } from "@/store/story";
 
+function StoryRow({
+  item,
+  busy,
+  onOpen,
+  onForget,
+}: {
+  item: RecentSummary;
+  busy: boolean;
+  onOpen: () => void;
+  onForget?: () => void;
+}) {
+  const percent = item.total ? Math.round(((item.done ?? 0) / item.total) * 100) : 0;
+  const uninitialized = item.total === null;
+  return (
+    <li className="flex min-w-0 items-stretch gap-1">
+      <button
+        type="button"
+        disabled={busy}
+        onClick={onOpen}
+        className="flex min-w-0 flex-1 items-center gap-4 overflow-hidden rounded-lg border bg-card p-4 text-left transition-colors hover:bg-accent disabled:opacity-50"
+      >
+        <div className="min-w-0 flex-1">
+          {item.name ? (
+            <>
+              <p className="truncate font-medium">{item.name}</p>
+              <p className="truncate font-mono text-xs text-muted-foreground">{item.root}</p>
+            </>
+          ) : (
+            <p
+              className={cn("truncate font-mono text-sm", uninitialized ? "text-muted-foreground" : "text-foreground")}
+              title={uninitialized ? "Chưa khởi tạo hoặc không đọc được — bấm để khởi tạo" : undefined}
+            >
+              {item.root}
+            </p>
+          )}
+        </div>
+        {!uninitialized && (
+          <div className="w-32 shrink-0 text-right">
+            <p className="text-sm tabular-nums">
+              {item.done}/{item.total}
+            </p>
+            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
+              <div className="h-full bg-status-done" style={{ width: `${percent}%` }} />
+            </div>
+          </div>
+        )}
+      </button>
+      {onForget && (
+        <Button
+          variant="ghost"
+          size="icon"
+          disabled={busy}
+          aria-label={`Bỏ ${item.root} khỏi danh sách`}
+          title="Bỏ khỏi danh sách (không xoá file)"
+          onClick={onForget}
+          className="h-auto shrink-0 self-stretch text-muted-foreground hover:text-foreground"
+        >
+          <X />
+        </Button>
+      )}
+    </li>
+  );
+}
+
 export function StoryPicker() {
   const recent = useStoryStore((s) => s.config?.recent ?? []);
+  const libraryRoot = useStoryStore((s) => s.config?.libraryRoot ?? null);
   const open = useStoryStore((s) => s.openStory);
   const setConfig = useStoryStore((s) => s.setConfig);
   const [summaries, setSummaries] = useState<RecentSummary[]>([]);
+  const [library, setLibrary] = useState<RecentSummary[]>([]);
+  const [libraryVersion, setLibraryVersion] = useState(0);
   const [pendingInit, setPendingInit] = useState<string | undefined>();
+  const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -36,6 +106,19 @@ export function StoryPicker() {
       cancelled = true;
     };
   }, [recent]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!libraryRoot) return;
+    libraryList()
+      .then((list) => {
+        if (!cancelled) setLibrary(list);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [libraryRoot, libraryVersion]);
 
   async function tryOpen(root: string) {
     setBusy(true);
@@ -80,86 +163,120 @@ export function StoryPicker() {
     if (root) await tryOpen(root);
   }
 
-  const rows: RecentSummary[] = recent.map(
-    (root) => summaries.find((s) => s.root === root) ?? { root, name: null, done: null, total: null },
-  );
+  const chooseLibrary = useCallback(async () => {
+    const root = await pickFolder("Chọn thư viện (folder cha chứa truyện)");
+    const config = useStoryStore.getState().config;
+    if (!root || !config) return;
+    try {
+      setConfig(await appConfigSet({ ...config, libraryRoot: root }));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Không lưu được cấu hình");
+    }
+  }, [setConfig]);
+
+  const libraryRows = libraryRoot ? library : [];
+  const recentRows: RecentSummary[] = recent
+    .filter((root) => !libraryRows.some((item) => samePath(item.root, root)))
+    .map((root) => summaries.find((s) => s.root === root) ?? { root, name: null, done: null, total: null });
 
   return (
     <main className="fine-scrollbar flex h-full items-start justify-center overflow-auto p-8">
       <div className="w-full max-w-2xl">
-        <header className="mb-8">
+        <header className="mb-6">
           <p className="text-xs font-medium tracking-widest text-primary uppercase">QT AI Translator</p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight">Chọn truyện để dịch</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Folder truyện có thư mục <code className="font-mono">raw/</code> chứa các chương{" "}
-            <code className="font-mono">.txt</code>. Folder mới sẽ được khởi tạo.
+            Tạo truyện mới trong thư viện rồi thả file chương <code className="font-mono">.txt</code> vào app, hoặc mở
+            một folder truyện có sẵn <code className="font-mono">raw/</code>. Folder mới sẽ được khởi tạo.
           </p>
         </header>
-        <Button size="lg" disabled={busy} onClick={() => void pickAndOpen()}>
-          <FolderOpen /> Mở folder truyện
-        </Button>
-        {rows.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          <Button
+            size="lg"
+            disabled={busy || !libraryRoot}
+            title={libraryRoot ? undefined : "Chọn thư viện trước"}
+            onClick={() => setCreating(true)}
+          >
+            <FolderPlus /> Tạo truyện mới
+          </Button>
+          <Button size="lg" variant="outline" disabled={busy} onClick={() => void pickAndOpen()}>
+            <FolderOpen /> Mở folder truyện
+          </Button>
+        </div>
+
+        <section className="mt-8">
+          <div className="mb-2 flex items-center gap-2">
+            <h2 className="text-xs font-medium tracking-widest text-muted-foreground uppercase">Thư viện</h2>
+            {libraryRoot && (
+              <>
+                <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground" title={libraryRoot}>
+                  {libraryRoot}
+                </span>
+                <Button variant="ghost" size="sm" disabled={busy} onClick={() => void chooseLibrary()}>
+                  Đổi
+                </Button>
+              </>
+            )}
+          </div>
+          {libraryRoot ? (
+            libraryRows.length === 0 ? (
+              <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                Thư viện chưa có truyện nào — bấm Tạo truyện mới.
+              </p>
+            ) : (
+              <ul className="grid grid-cols-[minmax(0,1fr)] gap-2">
+                {libraryRows.map((item) => (
+                  <StoryRow key={item.root} item={item} busy={busy} onOpen={() => void tryOpen(item.root)} />
+                ))}
+              </ul>
+            )
+          ) : (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void chooseLibrary()}
+              className="flex w-full items-center gap-3 rounded-lg border border-dashed p-4 text-left text-sm transition-colors hover:bg-accent disabled:opacity-50"
+            >
+              <LibraryBig className="size-5 shrink-0 text-muted-foreground" />
+              <span>
+                <span className="font-medium">Chọn thư viện</span>
+                <span className="block text-xs text-muted-foreground">
+                  Một folder cha chứa mọi truyện. Truyện mới sẽ tạo vào đây và danh sách hiện ở chỗ này.
+                </span>
+              </span>
+            </button>
+          )}
+        </section>
+
+        {recentRows.length > 0 && (
           <section className="mt-8">
             <h2 className="mb-2 text-xs font-medium tracking-widest text-muted-foreground uppercase">Mở gần đây</h2>
             <ul className="grid grid-cols-[minmax(0,1fr)] gap-2">
-              {rows.map((item) => {
-                const percent = item.total ? Math.round(((item.done ?? 0) / item.total) * 100) : 0;
-                const broken = item.total === null;
-                return (
-                  <li key={item.root} className="flex min-w-0 items-stretch gap-1">
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => void tryOpen(item.root)}
-                      className="flex min-w-0 flex-1 items-center gap-4 overflow-hidden rounded-lg border bg-card p-4 text-left transition-colors hover:bg-accent disabled:opacity-50"
-                    >
-                      <div className="min-w-0 flex-1">
-                        {item.name ? (
-                          <>
-                            <p className="truncate font-medium">{item.name}</p>
-                            <p className="truncate font-mono text-xs text-muted-foreground">{item.root}</p>
-                          </>
-                        ) : (
-                          <p
-                            className={cn(
-                              "truncate font-mono text-sm",
-                              broken ? "text-muted-foreground" : "text-foreground",
-                            )}
-                            title={broken ? "Không đọc được folder này" : undefined}
-                          >
-                            {item.root}
-                          </p>
-                        )}
-                      </div>
-                      {!broken && (
-                        <div className="w-32 shrink-0 text-right">
-                          <p className="text-sm tabular-nums">
-                            {item.done}/{item.total}
-                          </p>
-                          <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
-                            <div className="h-full bg-status-done" style={{ width: `${percent}%` }} />
-                          </div>
-                        </div>
-                      )}
-                    </button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      disabled={busy}
-                      aria-label={`Bỏ ${item.root} khỏi danh sách`}
-                      title="Bỏ khỏi danh sách (không xoá file)"
-                      onClick={() => void forget(item.root)}
-                      className="h-auto shrink-0 self-stretch text-muted-foreground hover:text-foreground"
-                    >
-                      <X />
-                    </Button>
-                  </li>
-                );
-              })}
+              {recentRows.map((item) => (
+                <StoryRow
+                  key={item.root}
+                  item={item}
+                  busy={busy}
+                  onOpen={() => void tryOpen(item.root)}
+                  onForget={() => void forget(item.root)}
+                />
+              ))}
             </ul>
           </section>
         )}
       </div>
+      {libraryRoot && (
+        <CreateStoryDialog
+          libraryRoot={libraryRoot}
+          open={creating}
+          onOpenChange={setCreating}
+          onCreated={(snapshot) => {
+            setCreating(false);
+            setLibraryVersion((v) => v + 1);
+            open(snapshot);
+          }}
+        />
+      )}
       <Dialog
         open={pendingInit !== undefined}
         onOpenChange={(value) => {

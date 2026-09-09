@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { useReadingWidth } from "@/hooks/use-reading-width";
 import { useThemeActions } from "@/hooks/use-theme";
-import { agyStatus, appConfigSet, pickAgyFile, saveSettings, storySnapshot } from "@/lib/api";
+import { agyStatus, appConfigSet, pickAgyFile, pickFolder, saveSettings, storySnapshot } from "@/lib/api";
 import { apiSettingsFromForm, engineFormFromConfig, engineFormSchema } from "@/lib/engine-form";
 import { READING_WIDTH_LABELS, READING_WIDTHS } from "@/lib/reading";
 import { DEFAULT_API_MODELS, OPENAI_REASONING_EFFORTS } from "@/lib/schema";
@@ -231,6 +231,17 @@ export function SettingsPage() {
     if (path) form.setValue("agyPath", path, { shouldDirty: true });
   }
 
+  /** Thư viện lưu ngay (không qua form) như theme, để picker thấy tức thì. */
+  async function setLibrary(next: string | null) {
+    if (!config) return;
+    try {
+      setConfig(await appConfigSet({ ...config, libraryRoot: next }));
+      toast.success(next ? "Đã đổi thư viện" : "Đã bỏ thư viện");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Không lưu được cấu hình");
+    }
+  }
+
   const field = (name: keyof SettingsForm, label: string, hint: string, props: ComponentProps<"input"> = {}) => (
     <div className="flex flex-col gap-1.5">
       <Label htmlFor={name}>{label}</Label>
@@ -287,6 +298,30 @@ export function SettingsPage() {
               onChange={(v) => void reading.setWidth(v)}
             />
             <p className="text-xs text-muted-foreground">Cũng đổi được ngay trên thanh tab của trang đọc.</p>
+          </div>
+        </Card>
+        <Card title="Thư viện" description="Folder cha chứa mọi truyện: Tạo truyện mới ghi vào đây, màn chọn truyện liệt kê con trực tiếp.">
+          <div className="flex items-center gap-2">
+            <p className="min-w-0 flex-1 truncate font-mono text-xs" title={config?.libraryRoot ?? undefined}>
+              {config?.libraryRoot ?? <span className="text-muted-foreground">Chưa chọn</span>}
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                void pickFolder("Chọn thư viện (folder cha chứa truyện)").then((root) => {
+                  if (root) void setLibrary(root);
+                });
+              }}
+            >
+              <FolderSearch /> Chọn
+            </Button>
+            {config?.libraryRoot && (
+              <Button type="button" variant="ghost" size="sm" onClick={() => void setLibrary(null)}>
+                Bỏ
+              </Button>
+            )}
           </div>
         </Card>
         <form onSubmit={(e) => void submit(e)} className="flex flex-col gap-6">

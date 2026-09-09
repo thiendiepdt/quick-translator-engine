@@ -2,6 +2,17 @@
 
 App desktop dịch truyện Trung → Việt hàng loạt: điều khiển Antigravity CLI (`agy`) theo vòng phiên, hoặc gọi thẳng Gemini / API OpenAI-compatible bằng key của người dùng; logic dịch/kiểm tra/glossary nằm trong crate `qt-ai-core` (port 1-1 từ `apps/qt-ai-cli` + qt-web).
 
+## Thư viện, tạo truyện mới, kéo thả chương
+
+- **Thư viện** (`libraryRoot` trong config): một folder cha chứa mọi truyện. Chọn ở màn chọn truyện hoặc Cài đặt.
+  Màn chọn truyện liệt kê thư mục con trực tiếp (truyện đã init có tiến độ; folder lạ bấm vào sẽ hỏi khởi tạo).
+- **Tạo truyện mới**: tên tiếng Việt → tên folder tự sinh (`ta-tuyet-the-chi-dau`, sửa được) → tạo `<thư viện>/<slug>/raw/`,
+  init, ghi tên + link vào `story.json`, mở luôn. Chương thêm sau.
+- **Kéo thả**: đang mở truyện, thả file `.txt` (hoặc folder chứa `.txt`, không đệ quy) vào cửa sổ → copy vào `raw/`
+  (không ghi đè file trùng tên, đuôi hạ thường) rồi đưa chương mới vào hàng đợi. Copy tay vào `raw/` thì bấm **Quét lại**
+  trên trang Dịch; mở lại truyện cũng tự quét.
+- "Mở folder truyện" thủ công vẫn còn.
+
 ## Hai động cơ dịch
 
 Chọn ở Cài đặt → **Động cơ dịch** (lưu trong `config.json` của app):

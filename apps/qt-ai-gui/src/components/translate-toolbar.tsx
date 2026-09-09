@@ -1,10 +1,10 @@
-import { KeyRound, Play, Square } from "lucide-react";
+import { KeyRound, Play, RefreshCw, Square } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { sessionStart, sessionStop, storySnapshot } from "@/lib/api";
+import { rescanStory, sessionStart, sessionStop, storySnapshot } from "@/lib/api";
 import { engineLabel } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useStoryStore } from "@/store/story";
@@ -29,6 +29,24 @@ export function TranslateToolbar() {
   const setPage = useStoryStore((s) => s.setPage);
   const [model, setModel] = useState<string | undefined>(config?.model ?? undefined);
   const [busy, setBusy] = useState(false);
+  const [scanning, setScanning] = useState(false);
+
+  /** Quét raw/ lấy chương mới vào hàng đợi (copy tay vào raw/ xong bấm đây). */
+  async function rescan() {
+    if (!root) return;
+    setScanning(true);
+    try {
+      const before = snapshot?.counts.total ?? 0;
+      const next = await rescanStory(root);
+      setSnapshot(next);
+      const added = next.counts.total - before;
+      toast.message(added > 0 ? `Thêm ${added} chương mới vào hàng đợi` : "Không có chương mới trong raw/");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Không quét được raw/");
+    } finally {
+      setScanning(false);
+    }
+  }
 
   const counts = snapshot?.counts;
   const done = progress?.done ?? counts?.done ?? 0;
@@ -95,6 +113,16 @@ export function TranslateToolbar() {
             </SelectContent>
           </Select>
         )}
+        <Button
+          type="button"
+          variant="outline"
+          className="h-9"
+          title="Quét raw/ lấy chương mới vào hàng đợi"
+          disabled={running || scanning}
+          onClick={() => void rescan()}
+        >
+          <RefreshCw className={cn(scanning && "animate-spin")} /> Quét lại
+        </Button>
         <Button
           size="lg"
           variant={running ? "destructive" : "default"}
