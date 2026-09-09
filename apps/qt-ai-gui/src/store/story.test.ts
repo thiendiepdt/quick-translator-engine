@@ -116,6 +116,16 @@ describe("openStory/closeStory", () => {
     expect(sessionOf(useStoryStore.getState(), A)).toEqual({ status: "idle" });
   });
 
+  it("switchStory giữ trang đang xem và ghi tên truyện vào names", () => {
+    useStoryStore.getState().openStory({ ...snapshotFor(A), story: { ...snapshotFor(A).story, name: "Alpha" } });
+    useStoryStore.getState().setPage("story");
+    useStoryStore.getState().switchStory({ ...snapshotFor(B), story: { ...snapshotFor(B).story, name: "Bravo" } });
+    const state = useStoryStore.getState();
+    expect(state.root).toBe(B);
+    expect(state.page).toBe("story");
+    expect(state.names).toEqual({ "d:\\lib\\a": "Alpha", "d:\\lib\\b": "Bravo" });
+  });
+
   it("page mặc định translate, openStory reset về translate, setPage đổi", () => {
     useStoryStore.getState().setPage("settings");
     expect(useStoryStore.getState().page).toBe("settings");

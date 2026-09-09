@@ -36,6 +36,8 @@ interface PerStory {
   progress: Record<string, Progress>;
   logs: Record<string, LogLine[]>;
   roots: Record<string, string>;
+  /** Tên truyện (story.name) ghi lúc mở, để dock/dialog gọi tên truyện đang dịch dù đã đóng nó. */
+  names: Record<string, string>;
 }
 
 interface StoryState extends PerStory {
@@ -49,6 +51,8 @@ interface StoryState extends PerStory {
   agy?: AgyStatus;
   config?: AppConfig;
   openStory: (snapshot: StorySnapshot) => void;
+  /** Chuyển nhanh sang truyện khác từ dock/dialog: như openStory nhưng giữ trang đang xem. */
+  switchStory: (snapshot: StorySnapshot) => void;
   closeStory: () => void;
   setPage: (page: Page) => void;
   setSnapshot: (snapshot: StorySnapshot) => void;
@@ -94,7 +98,7 @@ export function isRunning(state: PerStory, root: string | undefined): boolean {
 }
 
 /** Root (đúng chữ) của mọi truyện đang chạy, sắp theo tên. Trả mảng mới — dùng trong useMemo, không làm selector. */
-export function runningRoots(state: PerStory): string[] {
+export function runningRoots(state: Pick<PerStory, "sessions" | "roots">): string[] {
   return Object.entries(state.sessions)
     .filter(([, session]) => session.status === "running")
     .map(([key]) => state.roots[key] ?? key)
@@ -107,6 +111,32 @@ export const selectCurrentProgress = (s: StoryState): Progress | undefined =>
   s.root ? s.progress[pathKey(s.root)] : undefined;
 export const selectCurrentLogs = (s: StoryState): LogLine[] => (s.root ? (s.logs[pathKey(s.root)] ?? NO_LOGS) : NO_LOGS);
 
+/** Vào một truyện: `page` là trang sẽ hiện (picker → translate; dock/dialog → giữ trang hiện tại). */
+function enterStory(state: StoryState, snapshot: StorySnapshot, page: Page): Partial<StoryState> {
+  const key = pathKey(snapshot.root);
+  const current = state.sessions[key] ?? IDLE;
+  let sessions = state.sessions;
+  if (snapshot.sessionRunning && current.status !== "running") {
+    sessions = { ...state.sessions, [key]: { status: "running", sessionNo: 0 } };
+  } else if (!snapshot.sessionRunning && current.status === "running") {
+    sessions = { ...state.sessions, [key]: IDLE };
+  }
+  const name = snapshot.story.name.trim();
+  return {
+    config: state.config && { ...state.config, recent: touchRecent(state.config.recent, snapshot.root) },
+    screen: "workbench",
+    page,
+    root: snapshot.root,
+    snapshot,
+    selectedId: undefined,
+    statusFilter: "all",
+    searchQuery: "",
+    sessions,
+    roots: state.roots[key] === snapshot.root ? state.roots : { ...state.roots, [key]: snapshot.root },
+    names: state.names[key] === name ? state.names : { ...state.names, [key]: name },
+  };
+}
+
 export const useStoryStore = create<StoryState>()((set) => ({
   screen: "picker",
   page: "translate",
@@ -116,32 +146,12 @@ export const useStoryStore = create<StoryState>()((set) => ({
   progress: {},
   logs: {},
   roots: {},
+  names: {},
   // Rust open_story đã touch_recent và ghi đĩa; store phải làm y hệt, nếu không picker hiện danh sách cũ
   // và lần appConfigSet kế tiếp (đổi theme, settings…) đẩy recent cũ đè lên đĩa, mất truyện vừa mở.
   // Phiên/tiến độ/log của truyện khác giữ nguyên — nhiều truyện chạy song song.
-  openStory: (snapshot) =>
-    set((state) => {
-      const key = pathKey(snapshot.root);
-      const current = state.sessions[key] ?? IDLE;
-      let sessions = state.sessions;
-      if (snapshot.sessionRunning && current.status !== "running") {
-        sessions = { ...state.sessions, [key]: { status: "running", sessionNo: 0 } };
-      } else if (!snapshot.sessionRunning && current.status === "running") {
-        sessions = { ...state.sessions, [key]: IDLE };
-      }
-      return {
-        config: state.config && { ...state.config, recent: touchRecent(state.config.recent, snapshot.root) },
-        screen: "workbench",
-        page: "translate",
-        root: snapshot.root,
-        snapshot,
-        selectedId: undefined,
-        statusFilter: "all",
-        searchQuery: "",
-        sessions,
-        roots: state.roots[key] === snapshot.root ? state.roots : { ...state.roots, [key]: snapshot.root },
-      };
-    }),
+  openStory: (snapshot) => set((state) => enterStory(state, snapshot, "translate")),
+  switchStory: (snapshot) => set((state) => enterStory(state, snapshot, state.page)),
   closeStory: () => set({ screen: "picker", root: undefined, snapshot: undefined, selectedId: undefined }),
   setPage: (page) => set({ page }),
   setSnapshot: (snapshot) => set({ snapshot }),

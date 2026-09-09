@@ -20,6 +20,11 @@ API hub dễ trả 429 nếu để cao). Bấm Bắt đầu dịch ở một tru
 màn chọn truyện hiện "Đang dịch N/M truyện", dòng đang dịch có tiến độ live và nút Dừng. Tiến độ/log tách theo truyện
 (`session-event` từ Rust mang `root`). Lock `work/.session.lock` vẫn chặn hai bản app dịch trùng một truyện.
 
+**Chuyển nhanh**: thanh trái có dock ô vuông (2 chữ cái đầu tên truyện) gồm truyện đang mở + các truyện đang dịch,
+kèm chấm nhấp nháy và vòng tiến độ; bấm ô để chuyển, giữ nguyên trang đang xem. Nút lưới (hoặc **Ctrl+K**) mở dialog
+"Chuyển truyện": tìm theo tên/folder, thẻ theo lưới (đang dịch → đang mở → thư viện → gần đây), "Xem thêm" 24 thẻ mỗi
+lần; folder chưa khởi tạo hiện mờ, mở từ màn chọn truyện.
+
 ## Hai động cơ dịch
 
 Chọn ở Cài đặt → **Động cơ dịch** (lưu trong `config.json` của app):
