@@ -40,8 +40,6 @@ const CHECK_RULES: Array<[RegExp, string, GenreSetting?]> = [
   [/(?<!\p{L})(?:đàn ông|đàn bà|phụ nữ)(?!\p{L})/iu, "Từ chỉ người đời thường trong bối cảnh cổ → nam nhân/nữ nhân (nam tử/nữ tử)", "ancient"],
   [/\banh ấy\b|\banh ta\b|\bcô ấy\b|\bchị ấy\b/i, "Đại từ sai → dùng hắn/nàng", "ancient"],
   [/(^|[“"']|,\s+)(?:mình|tôi)(?:\s|[,.!?…])/i, "Dùng mình/tôi làm đại từ → thay bằng ta trong style mặc định", "ancient"],
-  [/Miêu Ảnh Vô Tông/, "Sai âm tên riêng → dùng Miêu Ảnh Vô Tung", "ancient"],
-  [/một tấc vuông/, "方寸 là không gian hệ thống → dùng Phương Thốn", "ancient"],
   [/tinh thần đại chấn/, "精神大振 → dùng tinh thần phấn chấn hẳn lên"],
   [/mơ hồ nghiệm ra|mùi vị không bình thường/, "品出意味 → dùng nhận ra/nhận thấy điều bất thường"],
   [/bình loạn bắt sống/, "平叛生擒 → dùng dẹp loạn, bắt sống"],

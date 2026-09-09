@@ -64,6 +64,29 @@ describe("composeBasePrompt", () => {
     expect(mixed).toContain("Bách gia tính");
   });
 
+  it("không còn dấu vết truyện riêng; có kính ngữ, lóng mạng, văn bản ngoài truyện, tượng thanh", () => {
+    for (const genre of PROMPT_GENRE_COMBOS) {
+      const prompt = composeBasePrompt(genre);
+      expect(prompt, genreKey(genre)).not.toMatch(/方寸|Phương Thốn|猫影无踪|周寻真/);
+      expect(prompt, genreKey(genre)).toContain("### Kính ngữ và hậu tố tên");
+      expect(prompt, genreKey(genre)).toContain("**Văn bản ngoài truyện:**");
+      expect(prompt, genreKey(genre)).toContain("### Từ tượng thanh");
+      expect(prompt, genreKey(genre)).toContain("Ngoặc thoại `「」`");
+      // Ý cấm từ nối tiếng Anh chỉ còn hai chỗ: ràng buộc hệ thống và biên tập cuối.
+      expect(prompt.match(/`But`/g)?.length, genreKey(genre)).toBe(2);
+    }
+    const ancient = composeBasePrompt({ setting: "ancient", names: "han" });
+    expect(ancient).toContain("| X哥 / X姐 | X ca / X tỷ |");
+    expect(ancient).not.toContain("### Tiếng lóng mạng");
+    const modern = composeBasePrompt({ setting: "modern", names: "han" });
+    expect(modern).toContain("| X哥 / X姐 | anh X / chị X |");
+    expect(modern).toContain("| 吃瓜 | hóng chuyện / hóng drama |");
+    expect(modern).not.toContain("| X兄 / X弟 / X妹 |");
+    const mixed = composeBasePrompt({ setting: "mixed", names: "han" });
+    expect(mixed).toContain("| X哥 / X姐 | X ca / X tỷ |");
+    expect(mixed).toContain("| 吃瓜 |");
+  });
+
   it("mixed có cả hai bộ xưng hô, hai bảng thuật ngữ", () => {
     const mixed = composeBasePrompt({ setting: "mixed", names: "han" });
     expect(mixed).toContain("| 我          | **ta**");

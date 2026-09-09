@@ -31,14 +31,6 @@
         "message": "Dùng mình/tôi làm đại từ → thay bằng ta trong style mặc định"
       },
       {
-        "pattern": "Miêu Ảnh Vô Tông",
-        "message": "Sai âm tên riêng → dùng Miêu Ảnh Vô Tung"
-      },
-      {
-        "pattern": "một tấc vuông",
-        "message": "方寸 là không gian hệ thống → dùng Phương Thốn"
-      },
-      {
         "pattern": "tinh thần đại chấn",
         "message": "精神大振 → dùng tinh thần phấn chấn hẳn lên"
       },
