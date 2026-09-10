@@ -118,6 +118,108 @@ fn complete_json_openai_va_gemini() {
     assert_eq!(body["generationConfig"]["responseMimeType"], "application/json");
 }
 
+/// Nhận lần lượt N request (mỗi request một kết nối), trả theo thứ tự; ghi lại body từng request.
+fn serve_sequence(responses: Vec<(&'static str, &'static str, &'static str)>) -> (String, Arc<Mutex<Vec<serde_json::Value>>>) {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let bodies = Arc::new(Mutex::new(Vec::new()));
+    let slot = bodies.clone();
+    std::thread::spawn(move || {
+        for (status, content_type, body) in responses {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut buffer = Vec::new();
+            let mut chunk = [0u8; 4096];
+            let (head_end, content_length) = loop {
+                let read = stream.read(&mut chunk).unwrap();
+                assert!(read > 0, "client đóng sớm");
+                buffer.extend_from_slice(&chunk[..read]);
+                if let Some(index) = buffer.windows(4).position(|w| w == b"\r\n\r\n") {
+                    let head = String::from_utf8_lossy(&buffer[..index]).to_string();
+                    let length = head
+                        .lines()
+                        .find_map(|line| line.to_ascii_lowercase().strip_prefix("content-length:").map(|v| v.trim().parse::<usize>().unwrap()))
+                        .unwrap_or(0);
+                    break (index + 4, length);
+                }
+            };
+            while buffer.len() < head_end + content_length {
+                let read = stream.read(&mut chunk).unwrap();
+                buffer.extend_from_slice(&chunk[..read]);
+            }
+            let request_body = String::from_utf8_lossy(&buffer[head_end..head_end + content_length]).to_string();
+            slot.lock().unwrap().push(serde_json::from_str(&request_body).unwrap());
+            let response = format!(
+                "HTTP/1.1 {status}\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            );
+            stream.write_all(response.as_bytes()).unwrap();
+            stream.flush().unwrap();
+        }
+    });
+    (base, bodies)
+}
+
+#[test]
+fn complete_json_hub_tu_choi_json_mode_thi_fallback_text_thuong_va_boc_json() {
+    // Hub kiểu gemini-proxy: 400 khi có response_format → gọi lại stream thường, model bọc ```json.
+    let (base, bodies) = serve_sequence(vec![
+        ("400 Bad Request", "application/json", "{\"error\":{\"message\":\"response_format is not supported\"}}"),
+        (
+            "200 OK",
+            "text/event-stream",
+            "data: {\"choices\":[{\"delta\":{\"content\":\"Đây là kết quả:\\n```json\\n{\\\"entries\\\":[{\\\"source\\\":\\\"赵静文\\\"}]}\\n```\"}}]}\n\ndata: [DONE]\n\n",
+        ),
+    ]);
+    let model = HttpModel::new(ApiConfig::resolve(ApiProvider::OpenAi, "sk", "gemini-3.8-flash", &base, true, "high"));
+    let out = model.complete_json("Trích glossary", "U").unwrap();
+    assert_eq!(out, "{\"entries\":[{\"source\":\"赵静文\"}]}");
+    let bodies = bodies.lock().unwrap();
+    assert_eq!(bodies.len(), 2);
+    assert_eq!(bodies[0]["response_format"]["type"], "json_object");
+    assert!(bodies[1].get("response_format").is_none());
+    assert_eq!(bodies[1]["stream"], true);
+    assert!(bodies[1]["messages"][0]["content"].as_str().unwrap().contains("Chỉ trả về đúng một JSON object"));
+}
+
+#[test]
+fn complete_json_boc_rao_markdown_ngay_o_json_mode_va_content_dang_mang() {
+    let (base, _) = serve_once(
+        "200 OK",
+        "application/json",
+        "{\"choices\":[{\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"```json\\n{\\\"a\\\":1}\\n```\"}]}}]}",
+    );
+    let model = HttpModel::new(ApiConfig::resolve(ApiProvider::OpenAi, "sk", "m", &base, true, ""));
+    assert_eq!(model.complete_json("S", "U").unwrap(), "{\"a\":1}");
+
+    let (base, _) = serve_once(
+        "200 OK",
+        "application/json",
+        "{\"candidates\":[{\"content\":{\"parts\":[{\"thought\":true,\"text\":\"nghĩ đã\"},{\"text\":\"{\\\"b\\\":2}\"}]}}]}",
+    );
+    let model = HttpModel::new(ApiConfig::resolve(ApiProvider::Gemini, "AIza", "gemini-3.7-flash", &base, true, ""));
+    assert_eq!(model.complete_json("S", "U").unwrap(), "{\"b\":2}");
+}
+
+#[test]
+fn complete_json_loi_thoang_qua_hay_bi_chan_thi_khong_fallback() {
+    let (base, bodies) = serve_sequence(vec![("429 Too Many Requests", "application/json", "{\"error\":{\"message\":\"slow down\"}}")]);
+    let model = HttpModel::new(ApiConfig::resolve(ApiProvider::OpenAi, "sk", "m", &base, true, ""));
+    let error = model.complete_json("S", "U").unwrap_err();
+    assert!(error.is_transient(), "{error:?}");
+    std::thread::sleep(std::time::Duration::from_millis(50));
+    assert_eq!(bodies.lock().unwrap().len(), 1); // không gọi lần hai
+}
+
+#[test]
+fn extract_json_object_cac_truong_hop() {
+    use qt_ai_core::api::extract_json_object;
+    assert_eq!(extract_json_object("```json\n{\"a\":1}\n```").as_deref(), Some("{\"a\":1}"));
+    assert_eq!(extract_json_object("Kết quả: {\"a\":{\"b\":[1,2]}} xong").as_deref(), Some("{\"a\":{\"b\":[1,2]}}"));
+    assert_eq!(extract_json_object("không có gì"), None);
+    assert_eq!(extract_json_object("{hỏng"), None);
+    assert_eq!(extract_json_object("[1,2]"), None);
+}
+
 #[test]
 fn khong_ket_noi_duoc_la_network_error() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();

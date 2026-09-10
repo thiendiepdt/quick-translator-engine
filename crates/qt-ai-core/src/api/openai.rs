@@ -69,8 +69,16 @@ pub fn parse_stream<R: BufRead>(
     Ok(output)
 }
 
+/// `message.content` là chuỗi; vài hub trả mảng part `[{type:"text", text}]` — nối text lại.
 pub fn parse_json_response(payload: &Value) -> Option<String> {
-    payload.pointer("/choices/0/message/content")?.as_str().map(String::from)
+    match payload.pointer("/choices/0/message/content")? {
+        Value::String(text) => Some(text.clone()),
+        Value::Array(parts) => {
+            let text: String = parts.iter().filter_map(|part| part.get("text").and_then(Value::as_str)).collect();
+            (!text.is_empty()).then_some(text)
+        }
+        _ => None,
+    }
 }
 
 #[cfg(test)]

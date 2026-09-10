@@ -234,7 +234,24 @@ impl TextModel for HttpModel {
         }
     }
 
+    /// JSON mode trước; hub/model không nhận JSON mode (400/404/422, trả rỗng, không phải JSON…) thì
+    /// gọi lại bằng lượt text thường rồi bóc object JSON ra — glossary/AI điền không vì hub lạ mà câm.
     fn complete_json(&self, system: &str, user: &str) -> Result<String, ApiError> {
+        match self.complete_json_strict(system, user) {
+            Ok(text) => Ok(text),
+            Err(error) if error.is_transient() || matches!(error, ApiError::Blocked(_) | ApiError::Cancelled) => Err(error),
+            Err(error) => {
+                let system = format!("{system}\n\nChỉ trả về đúng một JSON object hợp lệ, không giải thích, không markdown.");
+                let text = self.generate(&system, user, &AtomicBool::new(false), &mut |_| {})?;
+                extract_json_object(&text)
+                    .ok_or_else(|| ApiError::BadOutput(format!("model không trả JSON (JSON mode lỗi: {error})")))
+            }
+        }
+    }
+}
+
+impl HttpModel {
+    fn complete_json_strict(&self, system: &str, user: &str) -> Result<String, ApiError> {
         let config = &self.config;
         let provider = config.provider.label();
         let (url, headers, body) = match config.provider {
@@ -253,8 +270,21 @@ impl TextModel for HttpModel {
             ApiProvider::Gemini => gemini::parse_json_response(&payload),
             ApiProvider::OpenAi => openai::parse_json_response(&payload),
         };
-        content.filter(|text| !text.trim().is_empty()).ok_or(ApiError::Empty(provider))
+        let text = content.filter(|text| !text.trim().is_empty()).ok_or(ApiError::Empty(provider))?;
+        // Một số hub bật JSON mode nhưng vẫn bọc ```json hoặc nói thêm một câu — bóc luôn cho chắc.
+        Ok(extract_json_object(&text).unwrap_or(text))
     }
+}
+
+/// Bóc object JSON đầu-cuối khỏi text model trả (chịu rào ```json và chữ thừa quanh). Phải parse được.
+pub fn extract_json_object(text: &str) -> Option<String> {
+    let start = text.find('{')?;
+    let end = text.rfind('}')?;
+    if end < start {
+        return None;
+    }
+    let candidate = &text[start..=end];
+    serde_json::from_str::<Value>(candidate).ok().filter(Value::is_object).map(|_| candidate.to_string())
 }
 
 #[cfg(test)]

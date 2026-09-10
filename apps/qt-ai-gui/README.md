@@ -38,6 +38,10 @@ Chọn ở Cài đặt → **Động cơ dịch** (lưu trong `config.json` củ
   `gemini-3.7-flash`). Gemini có công tắc Thinking; OpenAI có Mức nghĩ `reasoning_effort`
   (none…max, mặc định high). Key lưu plain trong `config.json`.
 
+Glossary tự động và AI điền dùng lượt "JSON mode" (`response_format`/`responseMimeType`); hub không nhận JSON mode
+(400/404/422, trả rỗng) thì app tự gọi lại bằng lượt text thường rồi bóc object JSON ra — log trang Dịch ghi
+"bỏ qua trích glossary — …" khi cả hai đường đều hỏng, và dòng "chốt (… +N glossary)" cho biết mỗi chương thêm bao nhiêu.
+
 Cùng folder truyện, cùng `state.json`; đổi động cơ giữa chừng vẫn tiếp được. Ở chế độ API, chương
 model từ chối được skip kèm lý do; lỗi mạng/HTTP thử lại một lần rồi skip chương, hai chương liên
 tiếp lỗi thì dừng phiên (`api_failed`). "AI điền hồ sơ" đi theo động cơ đang chọn: agy tra web + đọc

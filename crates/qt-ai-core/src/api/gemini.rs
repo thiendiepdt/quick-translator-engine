@@ -124,12 +124,16 @@ pub fn parse_stream<R: BufRead>(
     }
 }
 
+/// Nối mọi part text, bỏ part `thought` (model 3.x có thể trả suy nghĩ trước JSON khi bật includeThoughts).
 pub fn parse_json_response(payload: &Value) -> Option<String> {
-    payload
+    let text: String = payload
         .pointer("/candidates/0/content/parts")?
         .as_array()?
         .iter()
-        .find_map(|part| part.get("text").and_then(Value::as_str).map(String::from))
+        .filter(|part| part.get("thought").and_then(Value::as_bool) != Some(true))
+        .filter_map(|part| part.get("text").and_then(Value::as_str))
+        .collect();
+    (!text.is_empty()).then_some(text)
 }
 
 #[cfg(test)]
