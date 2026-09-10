@@ -74,6 +74,19 @@ describe("AiFillDialog · động cơ", () => {
     expect(onApply).toHaveBeenCalledWith(after);
   });
 
+  it("bảng diff nằm trong khung cuộn giới hạn cao, không bị Radix bọc display:table làm tràn ngang", async () => {
+    useStoryStore.setState({ config: apiConfig });
+    const user = userEvent.setup();
+    renderDialog();
+    await user.click(screen.getByRole("button", { name: "Chạy AI điền" }));
+    const table = (await screen.findByText("protagonist")).closest("table");
+    expect(table).toHaveClass("table-fixed");
+    const scroller = table?.parentElement;
+    expect(scroller).toHaveClass("overflow-auto");
+    expect(scroller?.className).toMatch(/max-h-/);
+    expect(scroller?.style.display).not.toBe("table");
+  });
+
   it("động cơ agy: mô tả giữ lời tra web", () => {
     useStoryStore.setState({ config: { ...base, engine: "agy" } });
     renderDialog();

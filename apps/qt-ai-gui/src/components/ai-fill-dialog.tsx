@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { aiFillStory } from "@/lib/api";
 import { diffStoryConfig, type DiffLine } from "@/lib/story-form";
 import { engineLabel, type AiFillResult, type StoryConfig } from "@/lib/types";
@@ -85,36 +84,38 @@ export function AiFillDialog({ root, initialName, initialUrl, open, onOpenChange
             />
           </div>
         </div>
+        {/* div cuộn thường thay ScrollArea: Radix bọc nội dung bằng display:table nên bảng
+            tràn ngang, và max-h trên root không khống chế được viewport h-full → tràn đè footer. */}
         {result && (
-          <ScrollArea className="max-h-80 rounded border">
+          <div className="fine-scrollbar max-h-[50dvh] overflow-auto rounded border">
             {diff.length === 0 ? (
               <p className="p-3 text-sm text-muted-foreground">Không có thay đổi nào.</p>
             ) : (
-              <table className="w-full text-xs">
+              <table className="w-full table-fixed text-xs">
                 <thead>
                   <tr className="bg-muted">
-                    <th className="p-2 text-left">Field</th>
-                    <th className="p-2 text-left">Trước</th>
+                    <th className="w-36 p-2 text-left">Field</th>
+                    <th className="w-[30%] p-2 text-left">Trước</th>
                     <th className="p-2 text-left">Sau</th>
                   </tr>
                 </thead>
                 <tbody>
                   {diff.map((line) => (
                     <tr key={line.field} className="border-t align-top">
-                      <td className="p-2 font-mono">{line.field}</td>
-                      <td className="p-2 whitespace-pre-wrap text-muted-foreground">{line.before}</td>
-                      <td className="p-2 whitespace-pre-wrap">{line.after}</td>
+                      <td className="p-2 font-mono break-words">{line.field}</td>
+                      <td className="p-2 break-words whitespace-pre-wrap text-muted-foreground">{line.before}</td>
+                      <td className="p-2 break-words whitespace-pre-wrap">{line.after}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             )}
             {result.log.length > 0 && (
-              <pre className="border-t bg-log p-2 font-mono text-[11px] text-log-foreground">
+              <pre className="border-t bg-log p-2 font-mono text-[11px] break-words whitespace-pre-wrap text-log-foreground">
                 {result.log.slice(-40).join("\n")}
               </pre>
             )}
-          </ScrollArea>
+          </div>
         )}
         <DialogFooter>
           <Button variant="outline" disabled={running} onClick={() => onOpenChange(false)}>
