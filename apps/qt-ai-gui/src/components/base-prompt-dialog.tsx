@@ -38,28 +38,30 @@ export function BasePromptDialog({ open, onOpenChange }: Props) {
   const bump = useStoryStore((s) => s.bumpBaseVersion);
   const [setting, setSetting] = useState<GenreSetting>("ancient");
   const [names, setNames] = useState<GenreNames>("han");
-  const [view, setView] = useState<BaseView | undefined>();
-  const [draft, setDraft] = useState<string | undefined>();
+  // State khoá theo genre đang chọn: đổi genre là view/draft cũ tự "biến mất" mà không cần reset trong effect.
+  const key = `${setting}/${names}`;
+  const [loaded, setLoaded] = useState<{ key: string; view: BaseView } | undefined>();
+  const [draftState, setDraftState] = useState<{ key: string; text: string } | undefined>();
   const [version, setVersion] = useState(0);
   const [busy, setBusy] = useState(false);
+  const view = loaded?.key === key ? loaded.view : undefined;
+  const draft = draftState?.key === key ? draftState.text : undefined;
   const dirty = draft !== undefined && draft !== view?.text;
 
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    setView(undefined);
-    setDraft(undefined);
     baseGet("prompt", setting, names)
       .then((next) => {
         if (cancelled) return;
-        setView(next);
+        setLoaded({ key, view: next });
         setVersion((v) => v + 1);
       })
       .catch((error: unknown) => toast.error(error instanceof Error ? error.message : "Không đọc được base prompt"));
     return () => {
       cancelled = true;
     };
-  }, [open, setting, names]);
+  }, [open, key, setting, names]);
 
   function pick<T>(apply: (value: T) => void) {
     return (value: T) => {
@@ -72,8 +74,8 @@ export function BasePromptDialog({ open, onOpenChange }: Props) {
     setBusy(true);
     try {
       const next = await action();
-      setView(next);
-      setDraft(undefined);
+      setLoaded({ key, view: next });
+      setDraftState(undefined);
       setVersion((v) => v + 1);
       bump();
       toast.success(done);
@@ -129,7 +131,7 @@ export function BasePromptDialog({ open, onOpenChange }: Props) {
         <div className="fine-scrollbar min-h-0 flex-1 overflow-y-auto">
           {view?.text !== undefined ? (
             <Suspense fallback={placeholder("Đang tải editor…")}>
-              <PlatePromptEditor key={version} initialValue={view.text} onChange={setDraft} />
+              <PlatePromptEditor key={version} initialValue={view.text} onChange={(text) => setDraftState({ key, text })} />
             </Suspense>
           ) : (
             placeholder("Đang tải…")
