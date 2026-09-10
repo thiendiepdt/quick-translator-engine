@@ -92,24 +92,26 @@ const ENGINES: readonly Engine[] = ["agy", "api"];
 const API_PROVIDERS: readonly ApiProvider[] = ["gemini", "openai"];
 
 /**
- * Thanh lưu dính đáy khung cuộn, chỉ hiện khi form có thay đổi: người dùng sửa ô nào cũng thấy nút Lưu
- * ngay trước mắt thay vì phải cuộn xuống cuối trang mới biết cần lưu.
+ * Thanh lưu dính đáy khung cuộn, luôn hiện: người dùng sửa ô nào cũng thấy nút Lưu ngay trước mắt
+ * thay vì phải cuộn xuống cuối trang mới biết cần lưu. Chưa sửa gì thì nút mờ, có sửa thì sáng lên.
  */
 function SaveBar({ dirty, running, saving, onReset }: { dirty: boolean; running: boolean; saving: boolean; onReset: () => void }) {
-  if (!dirty) return null;
+  const status = !dirty
+    ? "Giao diện và Thư viện tự lưu; ba mục dưới sửa xong bấm Lưu."
+    : running
+      ? "Có thay đổi chưa lưu. Dừng dịch rồi mới lưu được."
+      : "Có thay đổi chưa lưu.";
   return (
     <div
       data-testid="save-bar"
       className="sticky bottom-0 z-10 flex items-center justify-between gap-3 rounded-lg border bg-background/95 px-4 py-3 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-background/80"
     >
-      <p className="text-sm text-muted-foreground">
-        {running ? "Có thay đổi chưa lưu. Dừng dịch rồi mới lưu được." : "Có thay đổi chưa lưu."}
-      </p>
+      <p className={cn("text-sm", dirty ? "font-medium text-foreground" : "text-muted-foreground")}>{status}</p>
       <div className="flex shrink-0 gap-2">
-        <Button type="button" variant="ghost" size="sm" onClick={onReset} disabled={saving}>
+        <Button type="button" variant="ghost" size="sm" onClick={onReset} disabled={!dirty || saving}>
           Hoàn tác
         </Button>
-        <Button type="submit" size="sm" disabled={running || saving}>
+        <Button type="submit" size="sm" disabled={!dirty || running || saving}>
           Lưu App + Truyện này
         </Button>
       </div>
