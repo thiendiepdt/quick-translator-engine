@@ -99,7 +99,7 @@ export function stopReasonLabel(reason: StopReason): string {
     case "agy_failed":
       return `agy thoát lỗi (mã ${reason.code}) hai lần liên tiếp — kiểm tra đăng nhập/quota.`;
     case "api_failed":
-      return `Gọi API lỗi liên tiếp — đã dừng. ${reason.message}`;
+      return `Gọi API lỗi — đã dừng, chương đang dịch trả về hàng đợi. ${reason.message}`;
     case "user_cancelled":
       return "Đã dừng theo yêu cầu.";
     case "max_sessions":

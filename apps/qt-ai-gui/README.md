@@ -43,8 +43,9 @@ Glossary tự động và AI điền dùng lượt "JSON mode" (`response_format
 "bỏ qua trích glossary — …" khi cả hai đường đều hỏng, và dòng "chốt (… +N glossary)" cho biết mỗi chương thêm bao nhiêu.
 
 Cùng folder truyện, cùng `state.json`; đổi động cơ giữa chừng vẫn tiếp được. Ở chế độ API, chương
-model từ chối được skip kèm lý do; lỗi mạng/HTTP thử lại một lần rồi skip chương, hai chương liên
-tiếp lỗi thì dừng phiên (`api_failed`). "AI điền hồ sơ" đi theo động cơ đang chọn: agy tra web + đọc
+model từ chối được skip kèm lý do; lỗi mạng/429/5xx thử lại một lần rồi skip chương, hai chương liên
+tiếp lỗi thì dừng phiên (`api_failed`); lỗi cấu hình (400 model không có, 401/403 key sai) dừng ngay
+không skip. Phiên dừng vì lỗi thì chương đang dịch trả về hàng đợi, không kẹt "đang dịch". "AI điền hồ sơ" đi theo động cơ đang chọn: agy tra web + đọc
 chương đầu qua workflow `setup-story.md`; API key cho model đọc 3 chương đầu trong `raw/` (không tra web)
 rồi đề xuất hồ sơ — cả hai chỉ hiện diff, không ghi gì cho tới khi bấm Áp dụng.
 

@@ -3,7 +3,7 @@ use qt_ai_core::api::{ApiError, TextModel};
 use qt_ai_core::api_session::*;
 use qt_ai_core::commands::init::run_init;
 use qt_ai_core::session::{SessionEvent, StopReason};
-use qt_ai_core::story_fs::{load_state, load_story_config, story_paths, ChapterStatus};
+use qt_ai_core::story_fs::{load_state, load_story_config, story_paths, work_file, ChapterStatus, WorkKind};
 use std::collections::VecDeque;
 use std::fs;
 use std::path::Path;
@@ -206,11 +206,36 @@ fn loi_mang_thu_lai_mot_lan_roi_skip_hai_chuong_lien_tiep_thi_dung() {
     let state = load_state(&story_paths(dir.path())).unwrap();
     assert_eq!(state.chapters["0001"].status, ChapterStatus::Skipped);
     assert!(state.chapters["0001"].reason.as_deref().unwrap().starts_with("lỗi API: "));
-    // Chương thứ hai lỗi liên tiếp → dừng ngay, giữ translating để phiên sau làm tiếp.
-    assert_eq!(state.chapters["0002"].status, ChapterStatus::Translating);
+    // Chương thứ hai lỗi liên tiếp → dừng ngay, trả về hàng đợi chứ không kẹt translating.
+    assert_eq!(state.chapters["0002"].status, ChapterStatus::Queued);
     assert_eq!(state.chapters["0003"].status, ChapterStatus::Queued, "dừng trước khi đốt chương 3");
     assert_eq!(model.calls().len(), 4);
-    assert!(logs(&events.lock().unwrap()).iter().any(|l| l.contains("thử lại sau")));
+    let lines = logs(&events.lock().unwrap());
+    assert!(lines.iter().any(|l| l.contains("thử lại sau")));
+    assert!(lines.iter().any(|l| l.contains("0002: trả về hàng đợi")));
+}
+
+#[test]
+fn loi_cau_hinh_400_thi_dung_ngay_khong_thu_lai_khong_skip_chuong_ve_queued() {
+    let dir = story(2);
+    let model = FakeModel::new(vec![Err(ApiError::Http {
+        provider: "OpenAI",
+        status: 400,
+        message: "Model 'gpt-x' không khả dụng".into(),
+    })]);
+    let (sink, events) = collect();
+    let handle = start_api_session(config(dir.path()), model.clone(), sink).unwrap();
+    assert_eq!(
+        handle.join(),
+        StopReason::ApiFailed { message: "OpenAI trả 400: Model 'gpt-x' không khả dụng".into() }
+    );
+    let state = load_state(&story_paths(dir.path())).unwrap();
+    assert_eq!(state.chapters["0001"].status, ChapterStatus::Queued, "không skip, không kẹt translating");
+    assert!(state.chapters["0001"].reason.is_none());
+    assert_eq!(state.chapters["0002"].status, ChapterStatus::Queued);
+    assert_eq!(model.calls().len(), 1, "lỗi cấu hình không thử lại");
+    assert!(!work_file(&story_paths(dir.path()), "0001", WorkKind::Prompt).exists(), "dọn work/ khi trả về hàng đợi");
+    assert!(logs(&events.lock().unwrap()).iter().any(|l| l.contains("lỗi cấu hình API")));
 }
 
 #[test]

@@ -8,6 +8,7 @@ use crate::check::check_violations;
 use crate::commands::accept::run_accept;
 use crate::commands::check::run_check;
 use crate::commands::next::run_next;
+use crate::commands::retry::run_retry;
 use crate::commands::skip::run_skip;
 use crate::error::{CoreError, Result};
 use crate::glossary::{collect_glossary_keys, glossary_key_touches_source};
@@ -305,6 +306,21 @@ fn emit_progress(root: &Path, sink: &Sink) {
     }
 }
 
+/// Lỗi cấu hình (400 model không có, 401/403 key sai, 404 URL sai…): áp dụng cho mọi chương nên thử lại
+/// hay skip đều vô nghĩa — dừng ngay. Lỗi mạng/429/5xx/stream đứt/model trả xấu thì thử lại rồi skip.
+fn is_config_error(error: &ApiError) -> bool {
+    matches!(error, ApiError::Http { .. }) && !error.is_transient()
+}
+
+/// Phiên dừng giữa chừng thì chương đang dịch trả về hàng đợi, không để kẹt "translating" khi không
+/// có phiên nào chạy (huỷ tay thì giữ translating để phiên sau làm tiếp — xem `run_next`).
+fn requeue(root: &Path, id: &str, log: &dyn Fn(String)) {
+    match run_retry(root, id) {
+        Ok(()) => log(format!("{id}: trả về hàng đợi")),
+        Err(error) => log(format!("{id}: không trả về hàng đợi được — {error}")),
+    }
+}
+
 pub fn api_loop(config: &ApiSessionConfig, model: &dyn TextModel, sink: &Sink, cancel: &AtomicBool) -> StopReason {
     let root = config.root.as_path();
     let log = |line: String| sink(SessionEvent::AgyLog { line, stream: LogStream::Stdout });
@@ -328,6 +344,11 @@ pub fn api_loop(config: &ApiSessionConfig, model: &dyn TextModel, sink: &Sink, c
                 Ok(outcome) => break Ok(outcome),
                 Err(ChapterFailure::Api(ApiError::Cancelled)) => return StopReason::UserCancelled,
                 Err(ChapterFailure::Api(ApiError::Blocked(reason))) => break Err(format!("model từ chối: {reason}")),
+                Err(ChapterFailure::Api(error)) if is_config_error(&error) => {
+                    log(format!("{id}: {error} — lỗi cấu hình API, dừng phiên"));
+                    requeue(root, &id, &log);
+                    return StopReason::ApiFailed { message: error.to_string() };
+                }
                 Err(ChapterFailure::Api(error)) if attempt < 2 => {
                     log(format!("{id}: {error} — thử lại sau {} giây", config.retry_delay.as_secs()));
                     sleep_unless_cancelled(config.retry_delay, cancel);
@@ -338,6 +359,8 @@ pub fn api_loop(config: &ApiSessionConfig, model: &dyn TextModel, sink: &Sink, c
                 Err(ChapterFailure::Api(error)) => {
                     failed_chapters += 1;
                     if failed_chapters >= 2 {
+                        log(format!("{id}: {error} — hai chương lỗi liên tiếp, dừng phiên"));
+                        requeue(root, &id, &log);
                         return StopReason::ApiFailed { message: error.to_string() };
                     }
                     break Err(format!("lỗi API: {error}"));
