@@ -1,7 +1,6 @@
-// Bản portable: build release không installer rồi gom app exe + sidecar qt-ai + file đánh dấu `portable`
-// vào dist-portable/<tên>/ và nén zip (Windows dùng Compress-Archive). File `portable` cạnh exe khiến app
-// đọc/ghi config.json ngay cạnh exe thay vì %APPDATA% — copy folder đi đâu cũng mang theo cấu hình.
-// Máy đích vẫn cần WebView2 (Windows 10/11 cập nhật có sẵn).
+// Bản portable: build release không installer rồi gom app exe + sidecar qt-ai vào dist-portable/<tên>/
+// và nén zip (Windows dùng Compress-Archive). Config vẫn ở %APPDATA%\com.vn-converter.qt-ai-gui như bản
+// cài đặt — hai bản dùng chung cấu hình. Máy đích vẫn cần WebView2 (Windows 10/11 cập nhật có sẵn).
 import { execFileSync } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -28,13 +27,12 @@ const outDir = join(outRoot, name);
 rmSync(outDir, { recursive: true, force: true });
 mkdirSync(outDir, { recursive: true });
 for (const file of files) copyFileSync(join(release, file), join(outDir, file));
-writeFileSync(join(outDir, "portable"), "Xoá file này nếu muốn app lưu config vào %APPDATA% như bản cài đặt.\n");
 writeFileSync(
   join(outDir, "README.txt"),
   [
     "VNCVT AI Translator — bản portable",
     "",
-    "Chạy VNCVT-AI-Translator.exe. Không cần cài đặt; config.json được tạo ngay trong folder này.",
+    "Chạy VNCVT-AI-Translator.exe. Không cần cài đặt; cấu hình lưu ở %APPDATA%\\com.vn-converter.qt-ai-gui\\config.json.",
     "Cần WebView2 (Windows 10/11 cập nhật đã có sẵn; thiếu thì tải Evergreen Runtime của Microsoft).",
     "qt-ai.exe là công cụ dòng lệnh app dùng kèm — giữ cạnh VNCVT-AI-Translator.exe.",
     "",

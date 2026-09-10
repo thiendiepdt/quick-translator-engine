@@ -23,12 +23,9 @@ pub struct AppState {
 /// Identifier cũ (trước 2026-09-11) — thư mục config cũ trong %APPDATA% để migrate.
 const LEGACY_IDENTIFIER: &str = "io.quicktranslator.ai-gui";
 
-/// Bản portable: có file đánh dấu `portable` cạnh exe → config.json nằm cạnh exe, copy folder là mang
-/// theo cấu hình. Không có thì dùng thư mục config của app (%APPDATA%/com.vn-converter.qt-ai-gui).
-pub fn resolve_config_path(exe_dir: Option<&Path>, app_config_dir: Option<PathBuf>) -> PathBuf {
-    if let Some(dir) = exe_dir.filter(|dir| dir.join("portable").is_file()) {
-        return dir.join("config.json");
-    }
+/// config.json luôn nằm trong thư mục config của app (%APPDATA%/com.vn-converter.qt-ai-gui), kể cả bản
+/// portable — cài đặt hay portable dùng chung một cấu hình. Không lấy được thư mục thì rơi về cwd.
+pub fn resolve_config_path(app_config_dir: Option<PathBuf>) -> PathBuf {
     app_config_dir.map(|dir| dir.join("config.json")).unwrap_or_else(|| PathBuf::from("config.json"))
 }
 
@@ -56,8 +53,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
-            let exe_dir = std::env::current_exe().ok().and_then(|exe| exe.parent().map(Path::to_path_buf));
-            let config_path = resolve_config_path(exe_dir.as_deref(), app.path().app_config_dir().ok());
+            let config_path = resolve_config_path(app.path().app_config_dir().ok());
             migrate_legacy_config(&config_path);
             let config = AppConfig::load(&config_path);
             app.manage(AppState {
@@ -103,13 +99,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn config_canh_exe_khi_co_file_portable_con_lai_dung_app_config_dir() {
-        let dir = tempfile::tempdir().unwrap();
-        let app_dir = dir.path().join("appdata");
-        assert_eq!(resolve_config_path(Some(dir.path()), Some(app_dir.clone())), app_dir.join("config.json"));
-        std::fs::write(dir.path().join("portable"), "").unwrap();
-        assert_eq!(resolve_config_path(Some(dir.path()), Some(app_dir.clone())), dir.path().join("config.json"));
-        assert_eq!(resolve_config_path(None, None), PathBuf::from("config.json"));
+    fn config_luon_trong_app_config_dir() {
+        let app_dir = PathBuf::from("appdata");
+        assert_eq!(resolve_config_path(Some(app_dir.clone())), app_dir.join("config.json"));
+        assert_eq!(resolve_config_path(None), PathBuf::from("config.json"));
     }
 
     #[test]
