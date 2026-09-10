@@ -1,5 +1,6 @@
 mod agy_cmds;
 mod app_config;
+mod base_cmds;
 mod error;
 mod library_cmds;
 mod sidecar;
@@ -15,9 +16,18 @@ use tauri::Manager;
 
 pub struct AppState {
     pub config_path: PathBuf,
+    /// `<app_config_dir>/base` — bản mặc định sửa được (qt_ai_core::base). Cũng đặt vào env
+    /// QT_AI_BASE_DIR lúc khởi động để phiên API trong app và tiến trình agy con cùng thấy.
+    pub base_dir: PathBuf,
     pub config: Mutex<AppConfig>,
     /// Phiên dịch theo folder truyện — nhiều truyện chạy song song (xem session_registry).
     pub sessions: Mutex<SessionRegistry>,
+}
+
+impl AppState {
+    pub fn base_store(&self) -> qt_ai_core::base::BaseStore {
+        qt_ai_core::base::BaseStore::at(&self.base_dir)
+    }
 }
 
 /// Identifier cũ (trước 2026-09-11) — thư mục config cũ trong %APPDATA% để migrate.
@@ -55,9 +65,12 @@ pub fn run() {
         .setup(|app| {
             let config_path = resolve_config_path(app.path().app_config_dir().ok());
             migrate_legacy_config(&config_path);
+            let base_dir = config_path.parent().map(|dir| dir.join("base")).unwrap_or_else(|| PathBuf::from("base"));
+            std::env::set_var(qt_ai_core::base::BASE_DIR_ENV, &base_dir);
             let config = AppConfig::load(&config_path);
             app.manage(AppState {
                 config_path,
+                base_dir,
                 config: Mutex::new(config),
                 sessions: Mutex::new(SessionRegistry::new()),
             });
@@ -67,6 +80,9 @@ pub fn run() {
             agy_cmds::agy_status,
             agy_cmds::app_config_get,
             agy_cmds::app_config_set,
+            base_cmds::base_get,
+            base_cmds::base_save,
+            base_cmds::base_reset,
             story_cmds::open_story,
             story_cmds::init_story,
             story_cmds::story_snapshot,
@@ -132,6 +148,7 @@ mod tests {
     fn lenh_nang_phai_la_async_fn_boc_blocking() {
         let sources = [
             include_str!("agy_cmds.rs"),
+            include_str!("base_cmds.rs"),
             include_str!("library_cmds.rs"),
             include_str!("session_cmds.rs"),
             include_str!("story_cmds.rs"),
@@ -139,6 +156,9 @@ mod tests {
         .join("\n");
         let heavy = [
             "agy_status",
+            "base_get",
+            "base_save",
+            "base_reset",
             "library_list",
             "create_story",
             "rescan_story",
@@ -176,6 +196,7 @@ mod tests {
         let app = mock_builder()
             .manage(AppState {
                 config_path: config_path.clone(),
+                base_dir: dir.path().join("base"),
                 config: Mutex::new(AppConfig::load(&config_path)),
                 sessions: Mutex::new(SessionRegistry::new()),
             })

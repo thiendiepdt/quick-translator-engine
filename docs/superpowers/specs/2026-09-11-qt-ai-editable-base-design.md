@@ -58,8 +58,9 @@ base/
 - Tauri command mới (`base_cmds.rs`): `base_get(kind, key)` → `{ text | rules | glossary, source: "builtin" |
   "file" }`, `base_save(kind, key, payload)`, `base_reset(kind, key)`. `story_defaults(genre)` trả
   `base_prompt_for` / `base_rules_for` kèm `promptSource`, `rulesSource` để Hồ sơ truyện ghi nhãn.
-- Khi spawn agy (`session_config`) đặt env `QT_AI_BASE_DIR` = `<app_config_dir>/base` (Tauri `app_config_dir()`)
-  — bảo đảm phiên agy cùng thư mục với app dù core tính lệch. `SessionConfig.base_dir: Option<PathBuf>`.
+- Lúc khởi động, app đặt env `QT_AI_BASE_DIR` = `<app_config_dir>/base` (`AppState.base_dir`); tiến trình agy
+  con thừa hưởng env, phiên API và `story_defaults` trong app dùng `AppState.base_dir` — mọi bên cùng thư mục
+  dù core tự tính có lệch.
 - Trang Cài đặt: card **"Bản mặc định"** với ba nút mở ba dialog toàn màn (`w-[min(96vw,64rem)]`, nội dung cuộn):
   - **Prompt mặc định**: hai ô Bối cảnh + Tên riêng (dùng lại `Choice`/Select như tab Thông tin), nhãn "bản cứng"
     hay "đã sửa", editor Plate (`PlatePromptEditor`, lazy như prompt-editor), nút Lưu (ghi file) và Về mặc định
