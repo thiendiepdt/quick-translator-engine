@@ -48,6 +48,45 @@ const fromLines = (text: string) =>
     .map((l) => l.trim())
     .filter(Boolean);
 
+const EMPTY_GLOSSARY: StoryConfig["glossary"] = {
+  names: {},
+  places: {},
+  items: {},
+  creatures: {},
+  skills: {},
+  common: {},
+  signature_phrases: {},
+  addressing: {},
+};
+
+/** Glossary record (Rust) → mảng cặp cho GlossaryEditor; `undefined` = 8 nhóm rỗng. */
+export function glossaryToPairs(glossary: StoryConfig["glossary"] | undefined): StoryFormValues["glossary"] {
+  const g = glossary ?? EMPTY_GLOSSARY;
+  return {
+    names: toPairs(g.names),
+    places: toPairs(g.places),
+    items: toPairs(g.items),
+    creatures: toPairs(g.creatures),
+    skills: toPairs(g.skills),
+    common: toPairs(g.common),
+    signature_phrases: toPairs(g.signature_phrases),
+    addressing: toPairs(g.addressing),
+  };
+}
+
+export function pairsToGlossary(pairs: StoryFormValues["glossary"]): StoryConfig["glossary"] {
+  return {
+    names: fromPairs(pairs.names),
+    places: fromPairs(pairs.places),
+    items: fromPairs(pairs.items),
+    creatures: fromPairs(pairs.creatures),
+    skills: fromPairs(pairs.skills),
+    common: fromPairs(pairs.common),
+    signature_phrases: fromPairs(pairs.signature_phrases),
+    addressing: fromPairs(pairs.addressing),
+  };
+}
+
 export function toFormValues(config: StoryConfig): StoryFormValues {
   return {
     name: config.name,
@@ -61,16 +100,7 @@ export function toFormValues(config: StoryConfig): StoryFormValues {
     toneRules: lines(config.style.toneRules),
     avoid: lines(config.style.avoid),
     signaturePhrases: toPairs(config.style.signaturePhrases),
-    glossary: {
-      names: toPairs(config.glossary.names),
-      places: toPairs(config.glossary.places),
-      items: toPairs(config.glossary.items),
-      creatures: toPairs(config.glossary.creatures),
-      skills: toPairs(config.glossary.skills),
-      common: toPairs(config.glossary.common),
-      signature_phrases: toPairs(config.glossary.signature_phrases),
-      addressing: toPairs(config.glossary.addressing),
-    },
+    glossary: glossaryToPairs(config.glossary),
     checkRules: config.checkRules.map((rule) => ({
       pattern: rule.pattern,
       flags: rule.flags ?? "",
@@ -88,16 +118,7 @@ export function fromFormValues(values: StoryFormValues, base: StoryConfig): Stor
     protagonist: values.protagonist,
     summary: values.summary,
     genre: { setting: values.genreSetting, names: values.genreNames },
-    glossary: {
-      names: fromPairs(values.glossary.names),
-      places: fromPairs(values.glossary.places),
-      items: fromPairs(values.glossary.items),
-      creatures: fromPairs(values.glossary.creatures),
-      skills: fromPairs(values.glossary.skills),
-      common: fromPairs(values.glossary.common),
-      signature_phrases: fromPairs(values.glossary.signature_phrases),
-      addressing: fromPairs(values.glossary.addressing),
-    },
+    glossary: pairsToGlossary(values.glossary),
     style: {
       voice: values.voice,
       toneRules: fromLines(values.toneRules),
