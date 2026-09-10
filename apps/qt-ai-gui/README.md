@@ -68,7 +68,7 @@ cargo test -p qt-ai-gui   # Tauri commands
 
 ## Build
 
-`npm run tauri build` → `src-tauri/target/release/bundle/{nsis,msi}/`. Sidecar `qt-ai.exe` được đặt cạnh app exe; AGENTS.md trong folder truyện trỏ tới nó.
+`npm run tauri build` → `src-tauri/target/release/bundle/{nsis,msi}/`. Sidecar `qt-ai.exe` được đặt cạnh app exe. AGENTS.md và workflow trong folder truyện chỉ ghi lệnh `qt-ai` trần; app chèn folder sidecar vào PATH của agy khi chạy phiên, nên folder truyện init ở máy này mang sang máy khác vẫn dịch được. Mỗi lần mở truyện, file template nào chưa sửa tay còn chứa đường dẫn cũ sẽ được render lại.
 
 `npm run build:portable` → `dist-portable/QT-AI-Translator-<version>-portable/` (+ `.zip` trên Windows): `qt-ai-gui.exe`,
 `qt-ai.exe` và file đánh dấu `portable`. Có file này cạnh exe thì app đọc/ghi `config.json` ngay cạnh exe thay vì

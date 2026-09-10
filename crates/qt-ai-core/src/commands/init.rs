@@ -41,13 +41,15 @@ pub fn run_init(root: &Path, qt_ai_command: &str) -> Result<String> {
         added += 1;
     }
     save_state(&paths, &state)?;
-    copy_templates(&paths.root, qt_ai_command)?;
+    let written = copy_templates(&paths.root, qt_ai_command)?;
     let removed = if gone.is_empty() { String::new() } else { format!(", {} gỡ vì raw đã mất", gone.len()) };
+    let templates = if written.is_empty() { String::new() } else { format!(" Đã ghi {}.", written.join(", ")) };
     Ok(format!(
-        "Đã init {}: {} chương ({} mới thêm vào hàng đợi{}).",
+        "Đã init {}: {} chương ({} mới thêm vào hàng đợi{}).{}",
         paths.root.display(),
         state.chapters.len(),
         added,
-        removed
+        removed,
+        templates
     ))
 }

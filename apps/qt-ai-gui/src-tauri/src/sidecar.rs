@@ -1,7 +1,9 @@
-//! Đường dẫn binary `qt-ai` để render vào AGENTS.md cho agent gọi.
-//! Bundle: Tauri đặt sidecar cạnh app exe với tên `qt-ai.exe`. Dev: dùng bản build trong target/ của workspace.
+//! Binary `qt-ai` đi kèm app. AGENTS.md chỉ ghi tên lệnh trần (`qt-ai`), còn folder chứa binary được
+//! chèn vào PATH của agy lúc chạy phiên — nhờ vậy folder truyện init ở máy này mang sang máy khác
+//! (hoặc app dời chỗ) vẫn gọi được CLI, không còn đường dẫn tuyệt đối chết trong file.
+//! Bundle: Tauri đặt sidecar cạnh app exe với tên `qt-ai.exe` (dev: `qt-ai-<triple>.exe` hoặc target/).
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 fn candidates() -> Vec<PathBuf> {
     let exe_name = if cfg!(windows) { "qt-ai.exe" } else { "qt-ai" };
@@ -30,14 +32,21 @@ fn target_triple() -> &'static str {
     }
 }
 
-/// Lệnh chạy qt-ai, bọc ngoặc kép (đường dẫn Windows hay có khoảng trắng). Không tìm thấy → "qt-ai" trần.
+fn found() -> Option<PathBuf> {
+    candidates().into_iter().find(|path| path.is_file())
+}
+
+/// Folder chứa binary qt-ai (để chèn PATH). None nếu chưa build sidecar.
+pub fn qt_ai_dir() -> Option<PathBuf> {
+    found().and_then(|path| path.parent().map(Path::to_path_buf))
+}
+
+/// Tên lệnh render vào AGENTS.md: tên file binary không kèm folder (thường `qt-ai`; dev có thể là
+/// `qt-ai-<triple>`), chạy được nhờ `qt_ai_dir` nằm trong PATH của agy.
 pub fn qt_ai_command() -> String {
-    candidates()
-        .into_iter()
-        .find(|path| path.is_file())
-        .and_then(|path| path.canonicalize().ok())
-        .map(|path| format!("\"{}\"", path.display().to_string().trim_start_matches(r"\\?\")))
-        .unwrap_or_else(|| "\"qt-ai\"".to_string())
+    found()
+        .and_then(|path| path.file_stem().map(|stem| stem.to_string_lossy().into_owned()))
+        .unwrap_or_else(|| "qt-ai".to_string())
 }
 
 #[cfg(test)]
@@ -45,9 +54,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn lenh_boc_ngoac_kep_va_ket_thuc_bang_qt_ai() {
+    fn lenh_la_ten_tran_khong_co_folder_hay_ngoac_kep() {
         let command = qt_ai_command();
-        assert!(command.starts_with('"') && command.ends_with('"'));
-        assert!(command.to_lowercase().contains("qt-ai"));
+        assert!(command.starts_with("qt-ai"), "{command}");
+        assert!(!command.contains('"') && !command.contains('\\') && !command.contains('/'), "{command}");
+    }
+
+    #[test]
+    fn folder_neu_co_thi_chua_binary_ten_khop_lenh() {
+        if let Some(dir) = qt_ai_dir() {
+            let stem = qt_ai_command();
+            assert!(dir.join(&stem).is_file() || dir.join(format!("{stem}.exe")).is_file());
+        }
     }
 }

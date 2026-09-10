@@ -1,5 +1,6 @@
 use crate::app_config::{ApiSettings, Engine};
 use crate::error::{blocking, CmdResult, CommandError};
+use crate::sidecar::qt_ai_dir;
 use crate::AppState;
 use qt_ai_core::agy::find_agy;
 use qt_ai_core::api::{ApiConfig, HttpModel, TextModel};
@@ -41,7 +42,14 @@ pub struct AiFillResult {
 }
 
 pub fn session_config(root: &Path, agy: PathBuf, model: Option<String>, max_sessions: u32) -> SessionConfig {
-    SessionConfig { root: root.to_path_buf(), agy, model, max_sessions, poll_interval: Duration::from_secs(2) }
+    SessionConfig {
+        root: root.to_path_buf(),
+        agy,
+        model,
+        max_sessions,
+        poll_interval: Duration::from_secs(2),
+        extra_path: qt_ai_dir(),
+    }
 }
 
 /// Động cơ API: thiếu key là lỗi cấu hình rõ ràng trước khi đụng tới folder truyện.

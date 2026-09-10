@@ -87,6 +87,16 @@ pub struct SessionConfig {
     pub model: Option<String>,
     pub max_sessions: u32,
     pub poll_interval: Duration,
+    /// Folder chứa binary `qt-ai` — chèn đầu PATH của agy để AGENTS.md chỉ cần ghi `qt-ai` trần,
+    /// folder truyện mang sang máy khác vẫn chạy.
+    pub extra_path: Option<PathBuf>,
+}
+
+/// PATH hiện tại với `dir` chèn lên đầu.
+pub fn path_with(dir: &Path) -> std::ffi::OsString {
+    let current = std::env::var_os("PATH").unwrap_or_default();
+    let paths = std::iter::once(dir.to_path_buf()).chain(std::env::split_paths(&current));
+    std::env::join_paths(paths).unwrap_or(current)
 }
 
 pub type Sink = Arc<dyn Fn(SessionEvent) + Send + Sync>;
@@ -161,6 +171,9 @@ fn spawn_agy(config: &SessionConfig, prompt: &str) -> Result<Child> {
     command.arg("-p").arg(prompt).arg("--dangerously-skip-permissions");
     if let Some(model) = &config.model {
         command.arg("--model").arg(model);
+    }
+    if let Some(dir) = &config.extra_path {
+        command.env("PATH", path_with(dir));
     }
     command.current_dir(&config.root).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
     command.spawn().map_err(|_| CoreError::AgyMissing)
@@ -328,4 +341,19 @@ pub fn start_session(config: SessionConfig, sink: Sink) -> Result<SessionHandle>
     let root = config.root.clone();
     let loop_sink = sink.clone();
     spawn_runner(root, sink, move |cancel| session_loop(config, loop_sink, cancel))
+}
+
+#[cfg(test)]
+mod path_tests {
+    use super::*;
+
+    #[test]
+    fn path_with_chen_folder_len_dau_va_giu_phan_cu() {
+        let dir = std::env::temp_dir();
+        let joined = path_with(&dir);
+        let mut parts = std::env::split_paths(&joined);
+        assert_eq!(parts.next().as_deref(), Some(dir.as_path()));
+        let old: Vec<_> = std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default()).collect();
+        assert_eq!(parts.collect::<Vec<_>>(), old);
+    }
 }
