@@ -81,7 +81,7 @@ pub fn session_state(state: State<'_, AppState>) -> CmdResult<SessionStatus> {
 /// Bắt đầu vòng phiên cho một truyện theo động cơ trong config (agy hoặc API key); event phát lên UI
 /// qua `session-event` kèm root. Truyện đang chạy hoặc đã đủ `max_parallel` truyện thì từ chối.
 /// `model` chỉ áp dụng cho agy.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn session_start(
     app: AppHandle,
     state: State<'_, AppState>,
@@ -113,7 +113,7 @@ pub fn session_start(
 
 /// Dừng phiên của một truyện: cancel (core giết process tree agy) rồi đợi thread runner kết thúc,
 /// ngoài lock để truyện khác không bị chặn.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn session_stop(state: State<'_, AppState>, root: String) -> CmdResult<SessionStatus> {
     let handle = state.sessions.lock().unwrap().take(&root);
     if let Some(handle) = handle {
@@ -137,7 +137,7 @@ pub fn build_setup_prompt(root: &Path, name: &str, source_url: &str) -> String {
 /// AI điền hồ sơ theo động cơ đang chọn. agy: chạy một lượt để agent điền story.json rồi KHÔI PHỤC
 /// bản trước; API key: model đọc 3 chương đầu, không đụng đĩa. Cả hai chỉ trả before/after — UI hiện
 /// diff, người dùng Áp dụng bằng `save_story(after)`.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn ai_fill_story(
     state: State<'_, AppState>,
     root: String,

@@ -203,13 +203,13 @@ pub fn slugify_name(name: String) -> String {
 }
 
 /// `root` = None → thư viện trong config; Some → dò folder bất kỳ (picker hỏi "đặt làm thư viện?").
-#[tauri::command]
+#[tauri::command(async)]
 pub fn library_list(state: State<'_, AppState>, root: Option<String>) -> CmdResult<Vec<RecentSummary>> {
     let library = root.or_else(|| state.config.lock().unwrap().library_root.clone());
     Ok(list_library(library.as_deref().map(Path::new)))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn create_story(
     state: State<'_, AppState>,
     name: String,
@@ -233,14 +233,14 @@ pub fn create_story(
 }
 
 /// Quét raw/ lấy chương mới vào hàng đợi (run_init idempotent) rồi trả snapshot.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn rescan_story(state: State<'_, AppState>, root: String) -> CmdResult<StorySnapshot> {
     let path = Path::new(&root);
     run_init(path, &qt_ai_command())?;
     snapshot(path, session_running(&state, &root))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn import_chapters(state: State<'_, AppState>, root: String, paths: Vec<String>) -> CmdResult<ImportOutcome> {
     let path = Path::new(&root);
     let sources: Vec<PathBuf> = paths.iter().map(PathBuf::from).collect();

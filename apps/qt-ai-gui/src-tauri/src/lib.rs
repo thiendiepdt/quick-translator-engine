@@ -87,4 +87,38 @@ mod tests {
         assert_eq!(resolve_config_path(Some(dir.path()), Some(app_dir.clone())), dir.path().join("config.json"));
         assert_eq!(resolve_config_path(None, None), PathBuf::from("config.json"));
     }
+
+    /// Lệnh Tauri đồng bộ chạy ngay trên luồng nhận IPC — trên Linux là luồng GTK vẽ cửa sổ, nên lệnh
+    /// tốn thời gian (HTTP, spawn tiến trình, quét raw/) làm cả app đơ. Những lệnh này phải là
+    /// `#[tauri::command(async)]` để Tauri đẩy sang thread pool.
+    #[test]
+    fn lenh_nang_phai_la_command_async() {
+        let sources = [
+            include_str!("agy_cmds.rs"),
+            include_str!("library_cmds.rs"),
+            include_str!("session_cmds.rs"),
+            include_str!("story_cmds.rs"),
+        ]
+        .join("\n");
+        let heavy = [
+            "agy_status",
+            "library_list",
+            "create_story",
+            "rescan_story",
+            "import_chapters",
+            "session_start",
+            "session_stop",
+            "ai_fill_story",
+            "recent_summaries",
+            "open_story",
+            "init_story",
+            "chapter_force_accept",
+            "export_chapters",
+            "reveal_folder",
+        ];
+        for name in heavy {
+            let marker = format!("#[tauri::command(async)]\npub fn {name}(");
+            assert!(sources.contains(&marker), "{name} phải là #[tauri::command(async)]");
+        }
+    }
 }

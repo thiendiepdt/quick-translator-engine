@@ -127,7 +127,7 @@ pub fn story_defaults(genre: StoryGenre) -> CmdResult<StoryDefaults> {
     Ok(defaults(&genre))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn recent_summaries(state: State<'_, AppState>) -> CmdResult<Vec<RecentSummary>> {
     let roots = state.config.lock().unwrap().recent.clone();
     Ok(summarize_recent(&roots))
@@ -215,7 +215,7 @@ fn session_running(state: &State<'_, AppState>, root: &str) -> bool {
 
 /// Mở truyện đã init: quét raw/ lấy chương mới vào hàng đợi trước (run_init idempotent), rồi snapshot.
 /// Folder chưa có state.json vẫn trả story_not_found để UI hỏi "Khởi tạo?".
-#[tauri::command]
+#[tauri::command(async)]
 pub fn open_story(state: State<'_, AppState>, root: String) -> CmdResult<StorySnapshot> {
     let path = Path::new(&root);
     if story_paths(path).state_json.is_file() {
@@ -228,7 +228,7 @@ pub fn open_story(state: State<'_, AppState>, root: String) -> CmdResult<StorySn
     Ok(snap)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn init_story(state: State<'_, AppState>, root: String) -> CmdResult<StorySnapshot> {
     run_init(Path::new(&root), &qt_ai_command())?;
     open_story(state, root)
@@ -265,12 +265,12 @@ pub fn chapter_skip(root: String, id: String, reason: String) -> CmdResult<()> {
 }
 
 /// Chốt bằng --force; trả danh sách cảnh báo đã ghi vào state.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn chapter_force_accept(root: String, id: String) -> CmdResult<Vec<String>> {
     Ok(run_accept(Path::new(&root), &id, true)?.warnings)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn export_chapters(
     root: String,
     from: Option<String>,
@@ -282,7 +282,7 @@ pub fn export_chapters(
 }
 
 /// Mở folder/file trong trình quản lý file của hệ.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn reveal_folder(path: String) -> CmdResult<()> {
     let program = if cfg!(windows) {
         "explorer"

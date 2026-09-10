@@ -29,7 +29,7 @@ pub fn probe_agy(configured: Option<&Path>) -> AgyStatus {
 }
 
 /// Không truyền `configured` thì dùng agy_path trong config app.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn agy_status(state: State<'_, AppState>, configured: Option<String>) -> CmdResult<AgyStatus> {
     let from_config = state.config.lock().unwrap().agy_path.clone();
     let chosen = configured.or(from_config);
