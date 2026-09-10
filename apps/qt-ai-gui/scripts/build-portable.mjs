@@ -17,7 +17,7 @@ const version = JSON.parse(readFileSync(join(app, "package.json"), "utf8")).vers
 execFileSync("npx", ["tauri", "build", "--no-bundle"], { cwd: app, stdio: "inherit", shell: process.platform === "win32" });
 
 const release = join(workspace, "target", "release");
-const files = [`qt-ai-gui${ext}`, `qt-ai${ext}`];
+const files = [`VNCVT-AI-Translator${ext}`, `qt-ai${ext}`];
 for (const file of files) {
   if (!existsSync(join(release, file))) throw new Error(`Thiếu ${join(release, file)} — build chưa xong?`);
 }
@@ -34,9 +34,9 @@ writeFileSync(
   [
     "VNCVT AI Translator — bản portable",
     "",
-    "Chạy qt-ai-gui.exe. Không cần cài đặt; config.json được tạo ngay trong folder này.",
+    "Chạy VNCVT-AI-Translator.exe. Không cần cài đặt; config.json được tạo ngay trong folder này.",
     "Cần WebView2 (Windows 10/11 cập nhật đã có sẵn; thiếu thì tải Evergreen Runtime của Microsoft).",
-    "qt-ai.exe là công cụ dòng lệnh app dùng kèm — giữ cạnh qt-ai-gui.exe.",
+    "qt-ai.exe là công cụ dòng lệnh app dùng kèm — giữ cạnh VNCVT-AI-Translator.exe.",
     "",
   ].join("\r\n"),
 );
