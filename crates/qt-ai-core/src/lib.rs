@@ -3,6 +3,7 @@ pub mod story;
 pub mod paragraphs;
 pub mod prompt;
 pub mod check;
+pub mod base;
 pub mod glossary;
 pub mod story_fs;
 pub mod templates;
