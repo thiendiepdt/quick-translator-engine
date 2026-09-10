@@ -257,7 +257,7 @@ export function StoryPicker() {
     <main className="fine-scrollbar flex h-full items-start justify-center overflow-auto p-8">
       <div className="w-full max-w-2xl">
         <header className="mb-6">
-          <p className="text-xs font-medium tracking-widest text-primary uppercase">QT AI Translator</p>
+          <p className="text-xs font-medium tracking-widest text-primary uppercase">VNCVT AI Translator</p>
           <h1 className="mt-1 flex items-center gap-3 text-3xl font-semibold tracking-tight">
             Chọn truyện để dịch
             {running.length > 0 && (

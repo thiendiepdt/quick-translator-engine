@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "QT AI Translator",
+  "productName": "VNCVT AI Translator",
   "version": "0.1.0",
   "identifier": "com.vn-converter.qt-ai-gui",
   "build": {
@@ -15,7 +15,7 @@
     },
     "windows": [
       {
-        "title": "QT AI Translator",
+        "title": "VNCVT AI Translator",
         "width": 1280,
         "height": 820,
         "minWidth": 960,
@@ -30,7 +30,7 @@
     "externalBin": ["binaries/qt-ai"],
     "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
     "shortDescription": "Dịch truyện Trung sang Việt hàng loạt bằng Antigravity CLI hoặc API key",
-    "longDescription": "QT AI Translator dịch truyện theo chương bằng Antigravity CLI (agy) hoặc gọi thẳng Gemini / API OpenAI-compatible bằng key của bạn, quản lý glossary và kiểm tra bản dịch tự động.",
+    "longDescription": "VNCVT AI Translator dịch truyện theo chương bằng Antigravity CLI (agy) hoặc gọi thẳng Gemini / API OpenAI-compatible bằng key của bạn, quản lý glossary và kiểm tra bản dịch tự động.",
     "windows": { "webviewInstallMode": { "type": "downloadBootstrapper" } }
   }
 }

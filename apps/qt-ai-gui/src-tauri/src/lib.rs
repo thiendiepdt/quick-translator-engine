@@ -95,7 +95,7 @@ pub fn run() {
             library_cmds::import_chapters,
         ])
         .run(tauri::generate_context!())
-        .expect("không khởi động được QT AI Translator");
+        .expect("không khởi động được VNCVT AI Translator");
 }
 
 #[cfg(test)]

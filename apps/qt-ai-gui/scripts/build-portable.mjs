@@ -22,7 +22,7 @@ for (const file of files) {
   if (!existsSync(join(release, file))) throw new Error(`Thiếu ${join(release, file)} — build chưa xong?`);
 }
 
-const name = `QT-AI-Translator-${version}-portable`;
+const name = `VNCVT-AI-Translator-${version}-portable`;
 const outRoot = join(app, "dist-portable");
 const outDir = join(outRoot, name);
 rmSync(outDir, { recursive: true, force: true });
@@ -32,7 +32,7 @@ writeFileSync(join(outDir, "portable"), "Xoá file này nếu muốn app lưu co
 writeFileSync(
   join(outDir, "README.txt"),
   [
-    "QT AI Translator — bản portable",
+    "VNCVT AI Translator — bản portable",
     "",
     "Chạy qt-ai-gui.exe. Không cần cài đặt; config.json được tạo ngay trong folder này.",
     "Cần WebView2 (Windows 10/11 cập nhật đã có sẵn; thiếu thì tải Evergreen Runtime của Microsoft).",
