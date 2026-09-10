@@ -181,3 +181,11 @@ describe("openStory/closeStory", () => {
     expect(useStoryStore.getState().config).toBeUndefined();
   });
 });
+
+describe("baseVersion", () => {
+  it("bumpBaseVersion tăng để hook defaults nạp lại", () => {
+    const before = useStoryStore.getState().baseVersion;
+    useStoryStore.getState().bumpBaseVersion();
+    expect(useStoryStore.getState().baseVersion).toBe(before + 1);
+  });
+});

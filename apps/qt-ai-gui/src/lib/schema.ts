@@ -13,23 +13,26 @@ export const GENRE_NAMES = ["han", "foreign", "mixed"] as const;
 /** Hai trục thể loại (port `StoryGenre` của qt-web): bối cảnh quyết xưng hô/rule, tên riêng quyết cách phiên. */
 export const storyGenreSchema = z.object({ setting: z.enum(GENRE_SETTINGS), names: z.enum(GENRE_NAMES) });
 
+/** 8 nhóm glossary (truyện lẫn kho chung của app). */
+export const glossaryRecordSchema = z.object({
+  names: stringRecord,
+  places: stringRecord,
+  items: stringRecord,
+  creatures: stringRecord,
+  skills: stringRecord,
+  common: stringRecord,
+  signature_phrases: stringRecord,
+  /** `甲→乙: X–Y` xưng hô theo cặp; story.json cũ thiếu nhóm này. */
+  addressing: stringRecord.default({}),
+});
+
 export const storyConfigSchema = z.object({
   name: z.string(),
   sourceUrl: z.string(),
   protagonist: z.string(),
   summary: z.string(),
   genre: storyGenreSchema,
-  glossary: z.object({
-    names: stringRecord,
-    places: stringRecord,
-    items: stringRecord,
-    creatures: stringRecord,
-    skills: stringRecord,
-    common: stringRecord,
-    signature_phrases: stringRecord,
-    /** `甲→乙: X–Y` xưng hô theo cặp; story.json cũ thiếu nhóm này. */
-    addressing: stringRecord.default({}),
-  }),
+  glossary: glossaryRecordSchema,
   style: z.object({
     voice: z.string(),
     toneRules: z.array(z.string()),
@@ -140,11 +143,26 @@ export const appConfigSchema = z.object({
   readingWidth: z.string().default("normal"),
 });
 
-/** Prompt gốc + rule mặc định của hệ (Rust `story_defaults`). */
+/** "builtin" = bản cứng trong binary; "file" = người dùng đã sửa ở Cài đặt → Bản mặc định. */
+export const BASE_SOURCES = ["builtin", "file"] as const;
+/** Prompt gốc + rule mặc định của app (Rust `story_defaults`). */
 export const storyDefaultsSchema = z.object({
   basePrompt: z.string(),
+  promptSource: z.enum(BASE_SOURCES),
   promptSuffix: z.string(),
   checkRules: z.array(checkRuleSchema),
+  rulesSource: z.enum(BASE_SOURCES),
+});
+export const BASE_KINDS = ["prompt", "rules", "glossary"] as const;
+/** Một bản mặc định (Rust `base_get/base_save/base_reset`): prompt theo genre, rules/glossary theo bối cảnh. */
+export const baseViewSchema = z.object({
+  kind: z.enum(BASE_KINDS),
+  setting: z.enum(GENRE_SETTINGS),
+  names: z.enum(GENRE_NAMES).optional(),
+  source: z.enum(BASE_SOURCES),
+  text: z.string().optional(),
+  rules: z.array(checkRuleSchema).optional(),
+  glossary: glossaryRecordSchema.optional(),
 });
 
 export const recentSummarySchema = z.object({

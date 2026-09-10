@@ -3,12 +3,17 @@ import { toast } from "sonner";
 
 import { storyDefaults } from "@/lib/api";
 import type { StoryDefaults, StoryGenre } from "@/lib/types";
+import { useStoryStore } from "@/store/story";
 
 const cache = new Map<string, Promise<StoryDefaults>>();
 
-/** Prompt gốc + rule mặc định theo genre — không đổi trong một phiên app, tải một lần mỗi tổ hợp. */
+/**
+ * Prompt gốc + rule mặc định theo genre. Cache theo genre + baseVersion: dialog "Bản mặc định" lưu/xoá
+ * xong bump version nên tab Prompt/Rule của truyện thấy bản mới ngay, không phải mở lại app.
+ */
 export function useStoryDefaults(genre: StoryGenre): StoryDefaults | undefined {
-  const key = `${genre.setting}/${genre.names}`;
+  const baseVersion = useStoryStore((s) => s.baseVersion);
+  const key = `${genre.setting}/${genre.names}#${baseVersion}`;
   const [state, setState] = useState<{ key: string; value: StoryDefaults } | undefined>();
   useEffect(() => {
     let cancelled = false;

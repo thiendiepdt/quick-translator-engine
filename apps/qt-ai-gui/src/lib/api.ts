@@ -6,6 +6,7 @@ import {
   agyStatusSchema,
   aiFillResultSchema,
   appConfigSchema,
+  baseViewSchema,
   chapterViewSchema,
   exportOutcomeSchema,
   harnessSettingsSchema,
@@ -16,7 +17,16 @@ import {
   storyDefaultsSchema,
   storySnapshotSchema,
 } from "@/lib/schema";
-import type { AppConfig, HarnessSettings, StoryConfig, StoryGenre } from "@/lib/types";
+import type {
+  AppConfig,
+  BaseKind,
+  CheckRule,
+  GenreNames,
+  GenreSetting,
+  HarnessSettings,
+  StoryConfig,
+  StoryGenre,
+} from "@/lib/types";
 
 export class ApiError extends Error {
   kind: string;
@@ -72,6 +82,19 @@ export const exportChapters = (root: string, range: { from?: string; to?: string
 export const revealFolder = (path: string) => call("reveal_folder", { path }, noop);
 export const storyDefaults = (genre: StoryGenre) =>
   call("story_defaults", { genre }, (v) => storyDefaultsSchema.parse(v));
+
+export interface BasePayload {
+  text?: string;
+  rules?: CheckRule[];
+  glossary?: StoryConfig["glossary"];
+}
+/** Bản mặc định của app (Cài đặt → Bản mặc định). `names` chỉ dùng cho kind "prompt". */
+export const baseGet = (kind: BaseKind, setting: GenreSetting, names?: GenreNames) =>
+  call("base_get", { kind, setting, names }, (v) => baseViewSchema.parse(v));
+export const baseSave = (kind: BaseKind, setting: GenreSetting, names: GenreNames | undefined, payload: BasePayload) =>
+  call("base_save", { kind, setting, names, payload }, (v) => baseViewSchema.parse(v));
+export const baseReset = (kind: BaseKind, setting: GenreSetting, names?: GenreNames) =>
+  call("base_reset", { kind, setting, names }, (v) => baseViewSchema.parse(v));
 export const agyStatus = (configured?: string) =>
   call("agy_status", { configured: configured ?? null }, (v) => agyStatusSchema.parse(v));
 export const appConfigGet = () => call("app_config_get", undefined, (v) => appConfigSchema.parse(v));

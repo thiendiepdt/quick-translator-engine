@@ -13,8 +13,10 @@ vi.mock("@/lib/api", () => ({
   storyDefaults: vi.fn((genre: { setting: string }) =>
     Promise.resolve({
       basePrompt: genre.setting === "modern" ? "Prompt hiện đại." : "Prompt gốc.",
+      promptSource: "builtin",
       promptSuffix: "Đuôi.",
       checkRules: [],
+      rulesSource: "builtin",
     }),
   ),
 }));

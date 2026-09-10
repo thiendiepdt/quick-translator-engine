@@ -7,6 +7,8 @@ import {
   type apiProviderSchema,
   type apiSettingsSchema,
   type appConfigSchema,
+  type baseViewSchema,
+  type checkRuleSchema,
   type engineSchema,
   type chapterRowSchema,
   type chapterStatusSchema,
@@ -32,6 +34,10 @@ export type StoryGenre = z.infer<typeof storyGenreSchema>;
 export type GenreSetting = StoryGenre["setting"];
 export type GenreNames = StoryGenre["names"];
 export type StoryDefaults = z.infer<typeof storyDefaultsSchema>;
+export type CheckRule = z.infer<typeof checkRuleSchema>;
+export type BaseView = z.infer<typeof baseViewSchema>;
+export type BaseKind = BaseView["kind"];
+export type BaseSource = BaseView["source"];
 
 export const GENRE_SETTING_LABELS: Record<GenreSetting, { label: string; hint: string }> = {
   ancient: { label: "Cổ đại / tiên hiệp", hint: "ta/ngươi/hắn/nàng, thán từ A?/Ân, cấm vợ/chồng" },

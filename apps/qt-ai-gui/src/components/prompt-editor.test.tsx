@@ -7,7 +7,13 @@ import { PromptEditor } from "@/components/prompt-editor";
 import type { StoryFormValues } from "@/lib/story-form";
 import type { StoryDefaults } from "@/lib/types";
 
-const defaults: StoryDefaults = { basePrompt: "# Prompt gốc\n\nNội dung **gốc**.", promptSuffix: "Đuôi cố định.", checkRules: [] };
+const defaults: StoryDefaults = {
+  basePrompt: "# Prompt gốc\n\nNội dung **gốc**.",
+  promptSource: "builtin",
+  promptSuffix: "Đuôi cố định.",
+  checkRules: [],
+  rulesSource: "builtin",
+};
 let latest: StoryFormValues | undefined;
 
 function Harness({ custom, defs }: { custom: string; defs?: StoryDefaults }) {

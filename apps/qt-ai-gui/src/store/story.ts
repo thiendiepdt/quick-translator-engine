@@ -52,6 +52,9 @@ interface StoryState extends PerStory {
   searchQuery: string;
   agy?: AgyStatus;
   config?: AppConfig;
+  /** Tăng mỗi lần dialog Bản mặc định lưu/xoá — hook defaults nạp lại prompt/rule mặc định. */
+  baseVersion: number;
+  bumpBaseVersion: () => void;
   openStory: (snapshot: StorySnapshot) => void;
   /** Chuyển nhanh sang truyện khác từ dock/dialog: như openStory nhưng giữ trang đang xem. */
   switchStory: (snapshot: StorySnapshot) => void;
@@ -151,6 +154,8 @@ export const useStoryStore = create<StoryState>()((set) => ({
   roots: {},
   names: {},
   opened: [],
+  baseVersion: 0,
+  bumpBaseVersion: () => set((state) => ({ baseVersion: state.baseVersion + 1 })),
   // Rust open_story đã touch_recent và ghi đĩa; store phải làm y hệt, nếu không picker hiện danh sách cũ
   // và lần appConfigSet kế tiếp (đổi theme, settings…) đẩy recent cũ đè lên đĩa, mất truyện vừa mở.
   // Phiên/tiến độ/log của truyện khác giữ nguyên — nhiều truyện chạy song song.

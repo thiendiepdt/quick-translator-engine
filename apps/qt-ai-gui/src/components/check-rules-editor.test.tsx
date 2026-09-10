@@ -9,7 +9,9 @@ import type { StoryDefaults } from "@/lib/types";
 
 const defaults: StoryDefaults = {
   basePrompt: "GỐC",
+  promptSource: "builtin",
   promptSuffix: "ĐUÔI",
+  rulesSource: "builtin",
   checkRules: [
     { pattern: "vợ|chồng", flags: "i", message: "thê tử/phu quân" },
     { pattern: "anh ấy", message: "hắn" },
