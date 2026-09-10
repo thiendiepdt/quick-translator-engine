@@ -12,7 +12,14 @@ import { toast } from "sonner";
 
 import { LogPanel } from "@/components/log-panel";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -57,6 +64,7 @@ export function ChapterReader({ root, row, hasPrev, hasNext, onPrev, onNext }: P
   const [loaded, setLoaded] = useState<{ key: string; view: ChapterView } | undefined>();
   const view = loaded?.key === viewKey ? loaded.view : undefined;
   const [skipOpen, setSkipOpen] = useState(false);
+  const [retryOpen, setRetryOpen] = useState(false);
   const [reason, setReason] = useState("");
 
   useEffect(() => {
@@ -81,7 +89,9 @@ export function ChapterReader({ root, row, hasPrev, hasNext, onPrev, onNext }: P
     }
   }
 
-  const canRetry = row.status === "error" || row.status === "skipped";
+  // Chương nào cũng dịch lại được trừ chương đang chờ sẵn; chương done thì hỏi trước vì mất bản ở out/.
+  const canRetry = row.status !== "queued";
+  const retry = () => void act("Đã đưa về hàng đợi", () => chapterRetry(root, row.id));
   const canSkip = row.status !== "done";
   const canForce = row.status === "translating" && Boolean(view?.draft);
   const defaultTab = view?.output ? "output" : view?.draft ? "draft" : "raw";
@@ -108,7 +118,8 @@ export function ChapterReader({ root, row, hasPrev, hasNext, onPrev, onNext }: P
           size="sm"
           variant="outline"
           disabled={!canRetry || running}
-          onClick={() => void act("Đã đưa về hàng đợi", () => chapterRetry(root, row.id))}
+          title={row.status === "done" ? "Dịch lại từ đầu; bản hiện có được giữ thành out/<id>.txt.bak" : undefined}
+          onClick={() => (row.status === "done" ? setRetryOpen(true) : retry())}
         >
           <RotateCcw /> Dịch lại
         </Button>
@@ -194,6 +205,30 @@ export function ChapterReader({ root, row, hasPrev, hasNext, onPrev, onNext }: P
           <LogPanel />
         </TabsContent>
       </Tabs>
+      <Dialog open={retryOpen} onOpenChange={setRetryOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Dịch lại chương {row.id}?</DialogTitle>
+            <DialogDescription>
+              Chương này đã dịch xong. Bản hiện có sẽ được đổi tên thành out/{row.id}.txt.bak (đè bản .bak cũ nếu
+              có), chương về hàng đợi và dịch lại từ đầu.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRetryOpen(false)}>
+              Huỷ
+            </Button>
+            <Button
+              onClick={() => {
+                setRetryOpen(false);
+                retry();
+              }}
+            >
+              Dịch lại
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog open={skipOpen} onOpenChange={setSkipOpen}>
         <DialogContent>
           <DialogHeader>

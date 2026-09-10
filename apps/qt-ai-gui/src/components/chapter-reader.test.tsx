@@ -1,8 +1,9 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ChapterReader } from "@/components/chapter-reader";
+import { chapterRetry, storySnapshot } from "@/lib/api";
 import { appConfigSchema } from "@/lib/schema";
 import { useStoryStore } from "@/store/story";
 
@@ -19,11 +20,14 @@ vi.mock("@/lib/api", () => ({
 }));
 
 const config = appConfigSchema.parse({ agyPath: null, model: null, maxSessions: 50, recent: [], readingWidth: "wide" });
+const ROOT = "D:\\t";
 const row = { id: "0002", status: "done" as const, reviewRound: 0, reason: null, warnings: [] };
 
 describe("ChapterReader", () => {
   beforeEach(() => {
     useStoryStore.setState({ config, sessions: {} });
+    vi.mocked(chapterRetry).mockReset();
+    vi.mocked(chapterRetry).mockResolvedValue(undefined);
   });
 
   it("nút chương trước/sau nằm trên đầu trang, theo hasPrev/hasNext; vùng đọc theo readingWidth", async () => {
@@ -44,5 +48,42 @@ describe("ChapterReader", () => {
     expect(onPrev).toHaveBeenCalledTimes(1);
     expect(document.querySelector("article.reading")).toHaveAttribute("data-width", "wide");
     expect(screen.getByRole("combobox", { name: "Chiều ngang văn bản" })).toHaveTextContent("Rộng");
+  });
+
+  it("chương done: Dịch lại bật, hỏi xác nhận (nêu .bak) rồi mới gọi chapterRetry", async () => {
+    const user = userEvent.setup();
+    vi.mocked(storySnapshot).mockResolvedValue({
+      root: ROOT,
+      chapters: [],
+      counts: { total: 0, queued: 0, translating: 0, done: 0, error: 0, skipped: 0, withWarnings: 0 },
+      settings: { maxReviewRounds: 3 },
+      story: { name: "" } as never,
+      sessionRunning: false,
+    } as never);
+    render(<ChapterReader root={ROOT} row={row} hasPrev hasNext onPrev={vi.fn()} onNext={vi.fn()} />);
+    await waitFor(() => expect(screen.getByText("Bản dịch.")).toBeInTheDocument());
+    const button = screen.getByRole("button", { name: "Dịch lại" });
+    expect(button).toBeEnabled();
+    await user.click(button);
+    expect(chapterRetry).not.toHaveBeenCalled();
+    expect(screen.getByText(/out\/0002\.txt\.bak/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Huỷ" }));
+    expect(chapterRetry).not.toHaveBeenCalled();
+    await user.click(button);
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Dịch lại" }));
+    expect(chapterRetry).toHaveBeenCalledWith(ROOT, "0002");
+  });
+
+  it("chương translating: Dịch lại gọi thẳng không hỏi; queued thì tắt", async () => {
+    const user = userEvent.setup();
+    vi.mocked(storySnapshot).mockResolvedValue({} as never);
+    const translating = { ...row, status: "translating" as const };
+    const { rerender } = render(
+      <ChapterReader root={ROOT} row={translating} hasPrev hasNext onPrev={vi.fn()} onNext={vi.fn()} />,
+    );
+    await user.click(screen.getByRole("button", { name: "Dịch lại" }));
+    expect(chapterRetry).toHaveBeenCalledWith(ROOT, "0002");
+    rerender(<ChapterReader root={ROOT} row={{ ...row, status: "queued" }} hasPrev hasNext onPrev={vi.fn()} onNext={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "Dịch lại" })).toBeDisabled();
   });
 });

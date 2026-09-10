@@ -17,7 +17,7 @@ Lệnh:
   check <root> <id>                  Kiểm tra bản dịch work/<id>.draft.md
   accept <root> <id> [--force]       Chốt chương: ghi out/, merge glossary
   skip <root> <id> --reason <lý do>  Bỏ qua chương (model từ chối...)
-  retry <root> <id>                  Đưa chương error/skipped về hàng đợi dịch lại
+  retry <root> <id>                  Đưa chương về hàng đợi dịch lại (done: out/<id>.txt → .bak)
   export <root> [--from <id>] [--to <id>] [--out <file>]
                                      Gộp các chương done thành một file txt
   status <root>                      Bảng tiến độ`;

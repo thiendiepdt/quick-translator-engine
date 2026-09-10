@@ -254,8 +254,15 @@ pub fn save_settings(root: String, settings: HarnessSettings) -> CmdResult<Harne
     save_settings_inner(Path::new(&root), settings)
 }
 
+/// Chặn khi phiên đang chạy: runner có thể đang ghi work/ hoặc out/ của chính chương này.
 #[tauri::command]
-pub fn chapter_retry(root: String, id: String) -> CmdResult<()> {
+pub fn chapter_retry(state: State<'_, AppState>, root: String, id: String) -> CmdResult<()> {
+    if session_running(&state, &root) {
+        return Err(CommandError::new(
+            "session_locked",
+            "Truyện này đang có phiên dịch chạy — bấm Dừng trước khi dịch lại chương.",
+        ));
+    }
     Ok(run_retry(Path::new(&root), &id)?)
 }
 

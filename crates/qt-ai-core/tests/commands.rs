@@ -4,7 +4,7 @@ use qt_ai_core::commands::check::run_check;
 use qt_ai_core::commands::export::{run_export, ExportOptions};
 use qt_ai_core::commands::init::run_init;
 use qt_ai_core::commands::next::run_next;
-use qt_ai_core::commands::retry::run_retry;
+use qt_ai_core::commands::retry::{retry_backup_path, run_retry};
 use qt_ai_core::commands::skip::run_skip;
 use qt_ai_core::commands::status::run_status;
 use qt_ai_core::story::StoryConfig;
@@ -420,12 +420,52 @@ fn retry_dua_error_skipped_ve_queued_va_chan_case_vo_nghia() {
     assert!(!work_file(&paths, "0001", WorkKind::Draft).exists());
     assert_eq!(run_next(root).unwrap().chapter_id, "0001");
 
-    assert!(matches!(run_retry(root, "0001"), Err(CoreError::InvalidState(ref m)) if m.contains("translating")));
+    // translating (phiên chết, chương kẹt) cũng dịch lại được — caller tự chắc không có phiên đang chạy.
+    run_retry(root, "0001").unwrap();
+    assert_eq!(load_state(&paths).unwrap().chapters["0001"].status, ChapterStatus::Queued);
+    assert_eq!(run_next(root).unwrap().chapter_id, "0001");
     assert!(matches!(run_retry(root, "0002"), Err(CoreError::InvalidState(ref m)) if m.contains("queued sẵn")));
     assert!(matches!(run_retry(root, "9999"), Err(CoreError::StoryNotFound(_))));
     run_skip(root, "0001", "thử").unwrap();
     run_retry(root, "0001").unwrap();
     assert_eq!(load_state(&paths).unwrap().chapters["0001"].status, ChapterStatus::Queued);
+}
+
+#[test]
+fn retry_chuong_done_doi_out_thanh_bak_roi_ve_queued() {
+    let dir = make_story_dir(&[("0001", "第一章")]);
+    let root = dir.path();
+    run_init(root, "qt-ai").unwrap();
+    let paths = story_paths(root);
+    let mut state = load_state(&paths).unwrap();
+    state.chapters.insert(
+        "0001".into(),
+        ChapterState { status: ChapterStatus::Done, review_round: 1, reason: None, warnings: None, updated_at: 1 },
+    );
+    save_state(&paths, &state).unwrap();
+    fs::create_dir_all(&paths.out_dir).unwrap();
+    let out = paths.out_dir.join("0001.txt");
+    fs::write(&out, "bản dịch cũ").unwrap();
+    fs::create_dir_all(&paths.work_dir).unwrap();
+    fs::write(work_file(&paths, "0001", WorkKind::Review), "review cũ").unwrap();
+
+    run_retry(root, "0001").unwrap();
+    let after = &load_state(&paths).unwrap().chapters["0001"];
+    assert_eq!(after.status, ChapterStatus::Queued);
+    assert_eq!(after.review_round, 0);
+    assert!(!out.exists(), "out/<id>.txt phải được dọn khỏi out/ để accept sau này không đè nhầm");
+    assert_eq!(fs::read_to_string(retry_backup_path(&paths, "0001")).unwrap(), "bản dịch cũ");
+    assert!(!work_file(&paths, "0001", WorkKind::Review).exists());
+    assert_eq!(run_next(root).unwrap().chapter_id, "0001");
+
+    // Dịch lại lần nữa: bak cũ bị đè bằng bản mới nhất, không tích luỹ file.
+    let mut state = load_state(&paths).unwrap();
+    state.chapters.get_mut("0001").unwrap().status = ChapterStatus::Done;
+    save_state(&paths, &state).unwrap();
+    fs::write(&out, "bản dịch mới").unwrap();
+    run_retry(root, "0001").unwrap();
+    assert_eq!(fs::read_to_string(retry_backup_path(&paths, "0001")).unwrap(), "bản dịch mới");
+    assert_eq!(fs::read_dir(&paths.out_dir).unwrap().count(), 1);
 }
 
 #[test]
