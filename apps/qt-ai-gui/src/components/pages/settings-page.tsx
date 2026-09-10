@@ -91,9 +91,11 @@ function Choice<T extends string>({
 const ENGINES: readonly Engine[] = ["agy", "api"];
 const API_PROVIDERS: readonly ApiProvider[] = ["gemini", "openai"];
 
+const FORM_ID = "settings-form";
+
 /**
- * Thanh lưu dính đáy khung cuộn, luôn hiện: người dùng sửa ô nào cũng thấy nút Lưu ngay trước mắt
- * thay vì phải cuộn xuống cuối trang mới biết cần lưu. Chưa sửa gì thì nút mờ, có sửa thì sáng lên.
+ * Footer cố định dưới khung cuộn (ngoài form, nút Lưu nối vào form qua thuộc tính form=): người dùng
+ * sửa ô nào cũng thấy nút Lưu ngay trước mắt thay vì phải cuộn xuống cuối trang. Chưa sửa gì thì nút mờ.
  */
 function SaveBar({ dirty, running, saving, onReset }: { dirty: boolean; running: boolean; saving: boolean; onReset: () => void }) {
   const status = !dirty
@@ -102,20 +104,19 @@ function SaveBar({ dirty, running, saving, onReset }: { dirty: boolean; running:
       ? "Có thay đổi chưa lưu. Dừng dịch rồi mới lưu được."
       : "Có thay đổi chưa lưu.";
   return (
-    <div
-      data-testid="save-bar"
-      className="sticky bottom-0 z-10 flex items-center justify-between gap-3 rounded-lg border bg-background/95 px-4 py-3 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-background/80"
-    >
-      <p className={cn("text-sm", dirty ? "font-medium text-foreground" : "text-muted-foreground")}>{status}</p>
-      <div className="flex shrink-0 gap-2">
-        <Button type="button" variant="ghost" size="sm" onClick={onReset} disabled={!dirty || saving}>
-          Hoàn tác
-        </Button>
-        <Button type="submit" size="sm" disabled={!dirty || running || saving}>
-          Lưu App + Truyện này
-        </Button>
+    <footer data-testid="save-bar" className="shrink-0 border-t bg-background px-8 py-3">
+      <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
+        <p className={cn("text-sm", dirty ? "font-medium text-foreground" : "text-muted-foreground")}>{status}</p>
+        <div className="flex shrink-0 gap-2">
+          <Button type="button" variant="ghost" size="sm" onClick={onReset} disabled={!dirty || saving}>
+            Hoàn tác
+          </Button>
+          <Button type="submit" form={FORM_ID} size="sm" disabled={!dirty || running || saving}>
+            Lưu App + Truyện này
+          </Button>
+        </div>
       </div>
-    </div>
+    </footer>
   );
 }
 
@@ -295,125 +296,122 @@ export function SettingsPage() {
   );
 
   return (
-    <div className="fine-scrollbar h-full overflow-y-auto">
-      <div className="mx-auto flex max-w-3xl flex-col gap-6 px-8 py-8">
-        <header>
-          <h1 className="text-2xl font-semibold tracking-tight">Cài đặt</h1>
-          <p className="text-sm text-muted-foreground">
-            Giao diện và App dùng chung mọi truyện; "Truyện này" ghi vào state.json của truyện đang mở.
-          </p>
-        </header>
-        <Card title="Giao diện" description="Áp dụng ngay, lưu vào cấu hình app.">
-          <PalettePicker value={theme.palette} onChange={(p) => void theme.setPalette(p)} />
-          <div className="flex flex-col gap-1.5">
-            <Label>Chế độ</Label>
-            <div role="radiogroup" aria-label="Chế độ sáng tối" className="inline-flex w-fit rounded-md border p-0.5">
-              {THEME_MODES.map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  role="radio"
-                  aria-checked={theme.mode === mode}
-                  onClick={() => void theme.setMode(mode)}
-                  className={cn(
-                    "rounded-[calc(var(--radius)-2px)] px-3 py-1.5 text-sm",
-                    theme.mode === mode ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent",
-                  )}
-                >
-                  {THEME_MODE_LABELS[mode]}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>Chiều ngang văn bản đọc</Label>
-            <Choice
-              label="Chiều ngang văn bản đọc"
-              value={reading.width}
-              options={READING_WIDTHS}
-              labels={READING_WIDTH_LABELS}
-              onChange={(v) => void reading.setWidth(v)}
-            />
-            <p className="text-xs text-muted-foreground">Cũng đổi được ngay trên thanh tab của trang đọc.</p>
-          </div>
-        </Card>
-        <Card title="Thư viện" description="Folder cha chứa mọi truyện: Tạo truyện mới ghi vào đây, màn chọn truyện liệt kê con trực tiếp.">
-          <div className="flex items-center gap-2">
-            <p className="min-w-0 flex-1 truncate font-mono text-xs" title={config?.libraryRoot ?? undefined}>
-              {config?.libraryRoot ?? <span className="text-muted-foreground">Chưa chọn</span>}
+    <div className="flex h-full flex-col">
+      <div className="fine-scrollbar min-h-0 flex-1 overflow-y-auto">
+        <div className="mx-auto flex max-w-3xl flex-col gap-6 px-8 py-8">
+          <header>
+            <h1 className="text-2xl font-semibold tracking-tight">Cài đặt</h1>
+            <p className="text-sm text-muted-foreground">
+              Giao diện và App dùng chung mọi truyện; "Truyện này" ghi vào state.json của truyện đang mở.
             </p>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                void pickFolder("Chọn thư viện (folder cha chứa truyện)").then((root) => {
-                  if (root) void setLibrary(root);
-                });
-              }}
-            >
-              <FolderSearch /> Chọn
-            </Button>
-            {config?.libraryRoot && (
-              <Button type="button" variant="ghost" size="sm" onClick={() => void setLibrary(null)}>
-                Bỏ
-              </Button>
-            )}
-          </div>
-        </Card>
-        <form onSubmit={(e) => void submit(e)} className="flex flex-col gap-6">
-          <EngineCard form={form} running={running} />
-          <Card title="App" description="Giới hạn phiên chung; đường dẫn agy và model chỉ dùng khi động cơ là agy.">
-            {field("maxParallel", "Số truyện dịch song song", "Mỗi truyện một phiên; API hub dễ trả 429 nếu để cao. Mặc định 2.", {
-              type: "number",
-              min: 1,
-              max: 5,
-            })}
+          </header>
+          <Card title="Giao diện" description="Áp dụng ngay, lưu vào cấu hình app.">
+            <PalettePicker value={theme.palette} onChange={(p) => void theme.setPalette(p)} />
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="agyPath">Đường dẫn agy</Label>
-              <div className="flex gap-1">
-                <Input id="agyPath" {...form.register("agyPath")} placeholder="Trống = tự tìm trong PATH" />
-                <Button type="button" variant="outline" size="icon" aria-label="Chọn file agy" onClick={() => void pickAgy()}>
-                  <FolderSearch />
-                </Button>
+              <Label>Chế độ</Label>
+              <div role="radiogroup" aria-label="Chế độ sáng tối" className="inline-flex w-fit rounded-md border p-0.5">
+                {THEME_MODES.map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    role="radio"
+                    aria-checked={theme.mode === mode}
+                    onClick={() => void theme.setMode(mode)}
+                    className={cn(
+                      "rounded-[calc(var(--radius)-2px)] px-3 py-1.5 text-sm",
+                      theme.mode === mode ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent",
+                    )}
+                  >
+                    {THEME_MODE_LABELS[mode]}
+                  </button>
+                ))}
               </div>
-              <p className="text-xs text-muted-foreground">
-                {agy?.found ? `Đang dùng: ${agy.path}${agy.version ? ` (${agy.version})` : ""}` : "Chưa tìm thấy agy."}
-              </p>
             </div>
-            {field("model", "Model mặc định", "Trống = model mặc định của agy; danh sách ở dropdown trang Dịch.")}
-            {field("maxSessions", "Số phiên tối đa mỗi lần Bắt đầu", "Cầu dao chống chạy vô hạn; mặc định 50.", {
-              type: "number",
-              min: 1,
-              max: 1000,
-            })}
+            <div className="flex flex-col gap-1.5">
+              <Label>Chiều ngang văn bản đọc</Label>
+              <Choice
+                label="Chiều ngang văn bản đọc"
+                value={reading.width}
+                options={READING_WIDTHS}
+                labels={READING_WIDTH_LABELS}
+                onChange={(v) => void reading.setWidth(v)}
+              />
+              <p className="text-xs text-muted-foreground">Cũng đổi được ngay trên thanh tab của trang đọc.</p>
+            </div>
           </Card>
-          <Card title="Truyện này" description="Ghi vào state.json của truyện đang mở.">
-            {field("chaptersPerSession", "Chương / phiên", "Agent dừng sau số chương này để giữ context sạch; mặc định 10.", {
-              type: "number",
-              min: 1,
-              max: 100,
-            })}
-            {field("maxReviewRounds", "Số vòng soát tối đa", "Hết vòng mà chỉ còn vi phạm rule thì chốt kèm cảnh báo; mặc định 3.", {
-              type: "number",
-              min: 0,
-              max: 10,
-            })}
-            {field("minLengthRatio", "Tỉ lệ ký tự dịch/raw tối thiểu", "Dưới ngưỡng coi là dịch thiếu; mặc định 0.75.", {
-              type: "number",
-              step: 0.05,
-              min: 0.1,
-              max: 3,
-            })}
+          <Card title="Thư viện" description="Folder cha chứa mọi truyện: Tạo truyện mới ghi vào đây, màn chọn truyện liệt kê con trực tiếp.">
+            <div className="flex items-center gap-2">
+              <p className="min-w-0 flex-1 truncate font-mono text-xs" title={config?.libraryRoot ?? undefined}>
+                {config?.libraryRoot ?? <span className="text-muted-foreground">Chưa chọn</span>}
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  void pickFolder("Chọn thư viện (folder cha chứa truyện)").then((root) => {
+                    if (root) void setLibrary(root);
+                  });
+                }}
+              >
+                <FolderSearch /> Chọn
+              </Button>
+              {config?.libraryRoot && (
+                <Button type="button" variant="ghost" size="sm" onClick={() => void setLibrary(null)}>
+                  Bỏ
+                </Button>
+              )}
+            </div>
           </Card>
-          <SaveBar
-            dirty={form.formState.isDirty}
-            running={running}
-            saving={form.formState.isSubmitting}
-            onReset={() => form.reset()}
-          />
-        </form>
+          <form id={FORM_ID} onSubmit={(e) => void submit(e)} className="flex flex-col gap-6">
+            <EngineCard form={form} running={running} />
+            <Card title="App" description="Giới hạn phiên chung; đường dẫn agy và model chỉ dùng khi động cơ là agy.">
+              {field("maxParallel", "Số truyện dịch song song", "Mỗi truyện một phiên; API hub dễ trả 429 nếu để cao. Mặc định 2.", {
+                type: "number",
+                min: 1,
+                max: 5,
+              })}
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="agyPath">Đường dẫn agy</Label>
+                <div className="flex gap-1">
+                  <Input id="agyPath" {...form.register("agyPath")} placeholder="Trống = tự tìm trong PATH" />
+                  <Button type="button" variant="outline" size="icon" aria-label="Chọn file agy" onClick={() => void pickAgy()}>
+                    <FolderSearch />
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {agy?.found ? `Đang dùng: ${agy.path}${agy.version ? ` (${agy.version})` : ""}` : "Chưa tìm thấy agy."}
+                </p>
+              </div>
+              {field("model", "Model mặc định", "Trống = model mặc định của agy; danh sách ở dropdown trang Dịch.")}
+              {field("maxSessions", "Số phiên tối đa mỗi lần Bắt đầu", "Cầu dao chống chạy vô hạn; mặc định 50.", {
+                type: "number",
+                min: 1,
+                max: 1000,
+              })}
+            </Card>
+            <Card title="Truyện này" description="Ghi vào state.json của truyện đang mở.">
+              {field("chaptersPerSession", "Chương / phiên", "Agent dừng sau số chương này để giữ context sạch; mặc định 10.", {
+                type: "number",
+                min: 1,
+                max: 100,
+              })}
+              {field("maxReviewRounds", "Số vòng soát tối đa", "Hết vòng mà chỉ còn vi phạm rule thì chốt kèm cảnh báo; mặc định 3.", {
+                type: "number",
+                min: 0,
+                max: 10,
+              })}
+              {field("minLengthRatio", "Tỉ lệ ký tự dịch/raw tối thiểu", "Dưới ngưỡng coi là dịch thiếu; mặc định 0.75.", {
+                type: "number",
+                step: 0.05,
+                min: 0.1,
+                max: 3,
+              })}
+            </Card>
+          </form>
+        </div>
       </div>
+      <SaveBar dirty={form.formState.isDirty} running={running} saving={form.formState.isSubmitting} onReset={() => form.reset()} />
     </div>
   );
 }

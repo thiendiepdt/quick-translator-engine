@@ -76,10 +76,13 @@ describe("SettingsPage · Động cơ dịch", () => {
     expect(useStoryStore.getState().config?.readingWidth).toBe("full");
   });
 
-  it("thanh Lưu dính đáy luôn hiện, nút mờ khi chưa sửa; sửa thì sáng, Hoàn tác trả giá trị cũ", async () => {
+  it("footer Lưu nằm ngoài khung cuộn, luôn hiện; nút mờ khi chưa sửa, sửa thì sáng, Hoàn tác trả giá trị cũ", async () => {
     const user = userEvent.setup();
     render(<SettingsPage />);
-    expect(screen.getByTestId("save-bar")).toHaveClass("sticky");
+    const bar = screen.getByTestId("save-bar");
+    expect(bar.tagName).toBe("FOOTER");
+    expect(bar.closest("form")).toBeNull();
+    expect(screen.getByRole("button", { name: "Lưu App + Truyện này" })).toHaveAttribute("form", "settings-form");
     expect(screen.getByRole("button", { name: "Lưu App + Truyện này" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Hoàn tác" })).toBeDisabled();
 
