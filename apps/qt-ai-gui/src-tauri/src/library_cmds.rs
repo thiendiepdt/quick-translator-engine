@@ -1,7 +1,7 @@
 //! Thư viện truyện (folder cha): liệt kê, tạo truyện mới, quét chương mới, nhập chương kéo thả.
 //! Spec: docs/superpowers/specs/2026-09-09-qt-ai-gui-library-design.md
 
-use crate::error::{CmdResult, CommandError};
+use crate::error::{blocking, CmdResult, CommandError};
 use crate::sidecar::qt_ai_command;
 use crate::story_cmds::{snapshot, RecentSummary, StorySnapshot};
 use crate::AppState;
@@ -11,7 +11,7 @@ use qt_ai_core::story_fs::{load_state, load_story_config, save_story_config, sto
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
-use tauri::State;
+use tauri::{AppHandle, Manager, Runtime, State};
 
 const SLUG_MAX: usize = 80;
 
@@ -203,54 +203,65 @@ pub fn slugify_name(name: String) -> String {
 }
 
 /// `root` = None → thư viện trong config; Some → dò folder bất kỳ (picker hỏi "đặt làm thư viện?").
-#[tauri::command(async)]
-pub fn library_list(state: State<'_, AppState>, root: Option<String>) -> CmdResult<Vec<RecentSummary>> {
-    let library = root.or_else(|| state.config.lock().unwrap().library_root.clone());
-    Ok(list_library(library.as_deref().map(Path::new)))
+#[tauri::command]
+pub async fn library_list<R: Runtime>(app: AppHandle<R>, root: Option<String>) -> CmdResult<Vec<RecentSummary>> {
+    blocking(move || {
+        let state = app.state::<AppState>();
+        let library = root.or_else(|| state.config.lock().unwrap().library_root.clone());
+        Ok(list_library(library.as_deref().map(Path::new)))
+    })
+    .await
 }
 
-#[tauri::command(async)]
-pub fn create_story(
-    state: State<'_, AppState>,
-    name: String,
-    slug: String,
-    source_url: String,
-) -> CmdResult<StorySnapshot> {
-    let library = state
-        .config
-        .lock()
-        .unwrap()
-        .library_root
-        .clone()
-        .ok_or_else(|| CommandError::new("invalid_state", "Chưa chọn thư viện (folder cha chứa truyện)."))?;
-    let root = create_story_inner(Path::new(&library), &name, &slug, &source_url, &qt_ai_command())?;
-    let root_text = root.display().to_string();
-    let snap = snapshot(&root, session_running(&state, &root_text))?;
-    let mut config = state.config.lock().unwrap();
-    config.touch_recent(&root_text);
-    config.save(&state.config_path)?;
-    Ok(snap)
+#[tauri::command]
+pub async fn create_story<R: Runtime>(app: AppHandle<R>, name: String, slug: String, source_url: String) -> CmdResult<StorySnapshot> {
+    blocking(move || {
+        let state = app.state::<AppState>();
+        let library = state
+            .config
+            .lock()
+            .unwrap()
+            .library_root
+            .clone()
+            .ok_or_else(|| CommandError::new("invalid_state", "Chưa chọn thư viện (folder cha chứa truyện)."))?;
+        let root = create_story_inner(Path::new(&library), &name, &slug, &source_url, &qt_ai_command())?;
+        let root_text = root.display().to_string();
+        let snap = snapshot(&root, session_running(&state, &root_text))?;
+        let mut config = state.config.lock().unwrap();
+        config.touch_recent(&root_text);
+        config.save(&state.config_path)?;
+        Ok(snap)
+    })
+    .await
 }
 
 /// Quét raw/ lấy chương mới vào hàng đợi (run_init idempotent) rồi trả snapshot.
-#[tauri::command(async)]
-pub fn rescan_story(state: State<'_, AppState>, root: String) -> CmdResult<StorySnapshot> {
-    let path = Path::new(&root);
-    run_init(path, &qt_ai_command())?;
-    snapshot(path, session_running(&state, &root))
+#[tauri::command]
+pub async fn rescan_story<R: Runtime>(app: AppHandle<R>, root: String) -> CmdResult<StorySnapshot> {
+    blocking(move || {
+        let state = app.state::<AppState>();
+        let path = Path::new(&root);
+        run_init(path, &qt_ai_command())?;
+        snapshot(path, session_running(&state, &root))
+    })
+    .await
 }
 
-#[tauri::command(async)]
-pub fn import_chapters(state: State<'_, AppState>, root: String, paths: Vec<String>) -> CmdResult<ImportOutcome> {
-    let path = Path::new(&root);
-    let sources: Vec<PathBuf> = paths.iter().map(PathBuf::from).collect();
-    let counts = import_chapters_inner(path, &sources, &qt_ai_command())?;
-    Ok(ImportOutcome {
-        added: counts.added,
-        skipped_existing: counts.skipped_existing,
-        ignored: counts.ignored,
-        snapshot: snapshot(path, session_running(&state, &root))?,
+#[tauri::command]
+pub async fn import_chapters<R: Runtime>(app: AppHandle<R>, root: String, paths: Vec<String>) -> CmdResult<ImportOutcome> {
+    blocking(move || {
+        let state = app.state::<AppState>();
+        let path = Path::new(&root);
+        let sources: Vec<PathBuf> = paths.iter().map(PathBuf::from).collect();
+        let counts = import_chapters_inner(path, &sources, &qt_ai_command())?;
+        Ok(ImportOutcome {
+            added: counts.added,
+            skipped_existing: counts.skipped_existing,
+            ignored: counts.ignored,
+            snapshot: snapshot(path, session_running(&state, &root))?,
+        })
     })
+    .await
 }
 
 #[cfg(test)]

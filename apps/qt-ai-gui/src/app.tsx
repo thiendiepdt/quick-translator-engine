@@ -1,5 +1,5 @@
 import { LoaderCircle } from "lucide-react";
-import { useCallback, useEffect, type ComponentType } from "react";
+import { useCallback, useEffect, useRef, type ComponentType } from "react";
 import { toast } from "sonner";
 
 import { AgyMissing } from "@/components/agy-missing";
@@ -35,13 +35,28 @@ export default function App() {
   useThemeSync();
 
   // Chỉ dò agy khi động cơ là agy: người dùng API key không phải chờ, không bị màn "Chưa thấy agy".
+  // `probing` chặn dò chồng: mỗi lượt dò spawn `agy --version` + `agy models` (~2s), dò chồng liên tục
+  // từng làm hàng chục tiến trình agy chạy song song và mọi lệnh khác của app treo theo.
+  const probing = useRef(false);
   const probe = useCallback(async () => {
+    if (probing.current) return;
+    probing.current = true;
     try {
       const config = await appConfigGet();
       setConfig(config);
-      if (config.engine === "agy") setAgy(await agyStatus(config.agyPath ?? undefined));
+      if (config.engine === "agy") {
+        try {
+          setAgy(await agyStatus(config.agyPath ?? undefined));
+        } catch (error) {
+          // Dò hỏng → hiện màn "Chưa thấy agy" có nút thử lại thay vì xoay vô hạn.
+          const message = error instanceof Error ? error.message : "Không dò được agy";
+          setAgy({ found: false, path: null, version: null, models: [], message });
+        }
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Không đọc được cấu hình");
+    } finally {
+      probing.current = false;
     }
   }, [setAgy, setConfig]);
 
@@ -49,10 +64,11 @@ export default function App() {
     void probe();
   }, [probe]);
 
-  // Đổi sang agy giữa chừng (Cài đặt) mà chưa dò lần nào thì dò lúc đó.
+  // Đổi sang agy giữa chừng (Cài đặt) mà chưa dò lần nào thì dò lúc đó. Không phụ thuộc `config`:
+  // mỗi lượt dò lại setConfig → object mới → effect chạy lại → vòng lặp dò vô hạn.
   useEffect(() => {
-    if (engine === "agy" && !agy && config) void probe();
-  }, [engine, agy, config, probe]);
+    if (engine === "agy" && !agy) void probe();
+  }, [engine, agy, probe]);
 
   async function pickAgy() {
     const path = await pickAgyFile();

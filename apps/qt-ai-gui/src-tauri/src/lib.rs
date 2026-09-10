@@ -89,10 +89,11 @@ mod tests {
     }
 
     /// Lệnh Tauri đồng bộ chạy ngay trên luồng nhận IPC — trên Linux là luồng GTK vẽ cửa sổ, nên lệnh
-    /// tốn thời gian (HTTP, spawn tiến trình, quét raw/) làm cả app đơ. Những lệnh này phải là
-    /// `#[tauri::command(async)]` để Tauri đẩy sang thread pool.
+    /// tốn thời gian (HTTP, spawn tiến trình, quét raw/) làm cả app đơ. Nhưng `#[tauri::command(async)]`
+    /// trên hàm sync lại chạy thân hàm ngay trên worker tokio: 12 lệnh chặn cùng lúc là mọi lệnh async
+    /// khác treo. Những lệnh này phải là `async fn` và bọc thân bằng `error::blocking` (spawn_blocking).
     #[test]
-    fn lenh_nang_phai_la_command_async() {
+    fn lenh_nang_phai_la_async_fn_boc_blocking() {
         let sources = [
             include_str!("agy_cmds.rs"),
             include_str!("library_cmds.rs"),
@@ -117,8 +118,57 @@ mod tests {
             "reveal_folder",
         ];
         for name in heavy {
-            let marker = format!("#[tauri::command(async)]\npub fn {name}(");
-            assert!(sources.contains(&marker), "{name} phải là #[tauri::command(async)]");
+            // Có AppHandle thì generic theo Runtime (mock runtime trong test gọi được), không thì không.
+            let markers = [
+                format!("#[tauri::command]\npub async fn {name}<R: Runtime>("),
+                format!("#[tauri::command]\npub async fn {name}("),
+            ];
+            let Some(body_start) = markers.iter().find_map(|m| sources.find(m)) else {
+                panic!("{name} phải là #[tauri::command] pub async fn");
+            };
+            let body = &sources[body_start..body_start + sources[body_start..].find("\n}\n").unwrap()];
+            assert!(body.contains("blocking(move ||"), "{name} phải bọc thân bằng blocking(move || …)");
+        }
+    }
+
+    /// Gọi lệnh async qua IPC giả của Tauri: phải trả lời (không treo), kể cả khi lệnh có `State`.
+    #[test]
+    fn lenh_async_tra_loi_qua_ipc() {
+        use tauri::test::{mock_builder, mock_context, noop_assets};
+        let dir = tempfile::tempdir().unwrap();
+        let config_path = dir.path().join("config.json");
+        let app = mock_builder()
+            .manage(AppState {
+                config_path: config_path.clone(),
+                config: Mutex::new(AppConfig::load(&config_path)),
+                sessions: Mutex::new(SessionRegistry::new()),
+            })
+            .invoke_handler(tauri::generate_handler![story_cmds::recent_summaries, agy_cmds::app_config_get])
+            .build(mock_context(noop_assets()))
+            .expect("mock app");
+        let webview = tauri::WebviewWindowBuilder::new(&app, "main", Default::default()).build().unwrap();
+        for cmd in ["app_config_get", "recent_summaries"] {
+            let (tx, rx) = std::sync::mpsc::sync_channel(1);
+            let webview = webview.clone();
+            std::thread::spawn(move || {
+                let response = tauri::test::get_ipc_response(
+                    &webview,
+                    tauri::webview::InvokeRequest {
+                        cmd: cmd.into(),
+                        callback: tauri::ipc::CallbackFn(0),
+                        error: tauri::ipc::CallbackFn(1),
+                        url: "tauri://localhost".parse().unwrap(),
+                        body: tauri::ipc::InvokeBody::Json(serde_json::json!({})),
+                        headers: Default::default(),
+                        invoke_key: tauri::test::INVOKE_KEY.to_string(),
+                    },
+                );
+                let _ = tx.send(response.map(|b| b.deserialize::<serde_json::Value>().unwrap()));
+            });
+            let response = rx
+                .recv_timeout(std::time::Duration::from_secs(10))
+                .unwrap_or_else(|_| panic!("{cmd}: IPC không trả lời trong 10 giây (treo)"));
+            assert!(response.is_ok(), "{cmd}: {response:?}");
         }
     }
 }

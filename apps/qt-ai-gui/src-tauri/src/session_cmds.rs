@@ -1,5 +1,5 @@
 use crate::app_config::{ApiSettings, Engine};
-use crate::error::{CmdResult, CommandError};
+use crate::error::{blocking, CmdResult, CommandError};
 use crate::AppState;
 use qt_ai_core::agy::find_agy;
 use qt_ai_core::api::{ApiConfig, HttpModel, TextModel};
@@ -12,7 +12,7 @@ use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, Runtime, State};
 
 pub const SESSION_EVENT: &str = "session-event";
 
@@ -81,46 +81,50 @@ pub fn session_state(state: State<'_, AppState>) -> CmdResult<SessionStatus> {
 /// Bắt đầu vòng phiên cho một truyện theo động cơ trong config (agy hoặc API key); event phát lên UI
 /// qua `session-event` kèm root. Truyện đang chạy hoặc đã đủ `max_parallel` truyện thì từ chối.
 /// `model` chỉ áp dụng cho agy.
-#[tauri::command(async)]
-pub fn session_start(
-    app: AppHandle,
-    state: State<'_, AppState>,
-    root: String,
-    model: Option<String>,
-) -> CmdResult<SessionStatus> {
-    let (engine, api, max_sessions, max_parallel) = {
-        let config = state.config.lock().unwrap();
-        (config.engine, config.api.clone(), config.max_sessions, config.max_parallel as usize)
-    };
-    state.sessions.lock().unwrap().check_can_start(&root, max_parallel)?;
-    let event_root = root.clone();
-    let sink: Sink = Arc::new(move |event: SessionEvent| {
-        let _ = app.emit(SESSION_EVENT, &RootedEvent { root: event_root.clone(), event });
-    });
-    let handle: SessionHandle = match engine {
-        Engine::Agy => {
-            let agy = resolve_agy(&state)?;
-            start_session(session_config(Path::new(&root), agy, model, max_sessions), sink)?
-        }
-        Engine::Api => {
-            let model = Arc::new(HttpModel::new(resolve_api(&api)?));
-            start_api_session(api_session_config(Path::new(&root)), model, sink)?
-        }
-    };
-    state.sessions.lock().unwrap().insert(&root, Box::new(handle));
-    Ok(status(&state))
+#[tauri::command]
+pub async fn session_start<R: Runtime>(app: AppHandle<R>, root: String, model: Option<String>) -> CmdResult<SessionStatus> {
+    blocking(move || {
+        let state = app.state::<AppState>();
+        let (engine, api, max_sessions, max_parallel) = {
+            let config = state.config.lock().unwrap();
+            (config.engine, config.api.clone(), config.max_sessions, config.max_parallel as usize)
+        };
+        state.sessions.lock().unwrap().check_can_start(&root, max_parallel)?;
+        let event_root = root.clone();
+        let emitter = app.clone();
+        let sink: Sink = Arc::new(move |event: SessionEvent| {
+            let _ = emitter.emit(SESSION_EVENT, &RootedEvent { root: event_root.clone(), event });
+        });
+        let handle: SessionHandle = match engine {
+            Engine::Agy => {
+                let agy = resolve_agy(&state)?;
+                start_session(session_config(Path::new(&root), agy, model, max_sessions), sink)?
+            }
+            Engine::Api => {
+                let model = Arc::new(HttpModel::new(resolve_api(&api)?));
+                start_api_session(api_session_config(Path::new(&root)), model, sink)?
+            }
+        };
+        state.sessions.lock().unwrap().insert(&root, Box::new(handle));
+        Ok(status(&state))
+    })
+    .await
 }
 
 /// Dừng phiên của một truyện: cancel (core giết process tree agy) rồi đợi thread runner kết thúc,
 /// ngoài lock để truyện khác không bị chặn.
-#[tauri::command(async)]
-pub fn session_stop(state: State<'_, AppState>, root: String) -> CmdResult<SessionStatus> {
-    let handle = state.sessions.lock().unwrap().take(&root);
-    if let Some(handle) = handle {
-        handle.cancel();
-        let _ = handle.join();
-    }
-    Ok(status(&state))
+#[tauri::command]
+pub async fn session_stop<R: Runtime>(app: AppHandle<R>, root: String) -> CmdResult<SessionStatus> {
+    blocking(move || {
+        let state = app.state::<AppState>();
+        let handle = state.sessions.lock().unwrap().take(&root);
+        if let Some(handle) = handle {
+            handle.cancel();
+            let _ = handle.join();
+        }
+        Ok(status(&state))
+    })
+    .await
 }
 
 pub fn build_setup_prompt(root: &Path, name: &str, source_url: &str) -> String {
@@ -137,27 +141,28 @@ pub fn build_setup_prompt(root: &Path, name: &str, source_url: &str) -> String {
 /// AI điền hồ sơ theo động cơ đang chọn. agy: chạy một lượt để agent điền story.json rồi KHÔI PHỤC
 /// bản trước; API key: model đọc 3 chương đầu, không đụng đĩa. Cả hai chỉ trả before/after — UI hiện
 /// diff, người dùng Áp dụng bằng `save_story(after)`.
-#[tauri::command(async)]
-pub fn ai_fill_story(
-    state: State<'_, AppState>,
-    root: String,
-    name: String,
-    source_url: String,
-) -> CmdResult<AiFillResult> {
-    if session_running(&state, &root) {
-        return Err(CommandError::new(
-            "session_locked",
-            "Truyện này đang có phiên dịch chạy — bấm Dừng trước khi AI điền hồ sơ.",
-        ));
-    }
-    let (engine, api) = {
-        let config = state.config.lock().unwrap();
-        (config.engine, config.api.clone())
-    };
-    match engine {
-        Engine::Api => fill_story_via_api(Path::new(&root), &HttpModel::new(resolve_api(&api)?), &name, &source_url),
-        Engine::Agy => fill_story_via_agy(&state, Path::new(&root), &name, &source_url),
-    }
+#[tauri::command]
+pub async fn ai_fill_story<R: Runtime>(app: AppHandle<R>, root: String, name: String, source_url: String) -> CmdResult<AiFillResult> {
+    blocking(move || {
+        let state = app.state::<AppState>();
+        if session_running(&state, &root) {
+            return Err(CommandError::new(
+                "session_locked",
+                "Truyện này đang có phiên dịch chạy — bấm Dừng trước khi AI điền hồ sơ.",
+            ));
+        }
+        let (engine, api) = {
+            let config = state.config.lock().unwrap();
+            (config.engine, config.api.clone())
+        };
+        match engine {
+            Engine::Api => {
+                fill_story_via_api(Path::new(&root), &HttpModel::new(resolve_api(&api)?), &name, &source_url)
+            }
+            Engine::Agy => fill_story_via_agy(&state, Path::new(&root), &name, &source_url),
+        }
+    })
+    .await
 }
 
 /// Đường API: đọc `SAMPLE_CHAPTERS` chương đầu, một lượt `complete_json`, merge vào hồ sơ hiện tại.

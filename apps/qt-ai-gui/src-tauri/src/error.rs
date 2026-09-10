@@ -36,3 +36,12 @@ mod tests {
         assert_eq!(json["kind"], "agy_missing");
     }
 }
+
+/// Thân lệnh tốn thời gian (HTTP, spawn tiến trình, quét raw/…) chạy trên pool blocking của tokio.
+/// KHÔNG dùng `#[tauri::command(async)]` cho hàm sync: Tauri gọi thân hàm ngay trong task async, chiếm
+/// worker của runtime; đủ lệnh chặn cùng lúc (12 worker) là mọi lệnh async khác treo vô hạn.
+pub async fn blocking<T: Send + 'static>(f: impl FnOnce() -> CmdResult<T> + Send + 'static) -> CmdResult<T> {
+    tauri::async_runtime::spawn_blocking(f)
+        .await
+        .map_err(|error| CommandError::new("internal", format!("Thread lệnh kết thúc bất thường: {error}")))?
+}

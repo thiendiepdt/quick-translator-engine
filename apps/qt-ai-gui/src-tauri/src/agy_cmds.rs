@@ -1,10 +1,10 @@
 use crate::app_config::AppConfig;
-use crate::error::CmdResult;
+use crate::error::{blocking, CmdResult};
 use crate::AppState;
 use qt_ai_core::agy::{agy_models, agy_version, find_agy};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
-use tauri::State;
+use tauri::{AppHandle, Manager, Runtime, State};
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -29,11 +29,15 @@ pub fn probe_agy(configured: Option<&Path>) -> AgyStatus {
 }
 
 /// Không truyền `configured` thì dùng agy_path trong config app.
-#[tauri::command(async)]
-pub fn agy_status(state: State<'_, AppState>, configured: Option<String>) -> CmdResult<AgyStatus> {
-    let from_config = state.config.lock().unwrap().agy_path.clone();
-    let chosen = configured.or(from_config);
-    Ok(probe_agy(chosen.as_deref().map(Path::new)))
+#[tauri::command]
+pub async fn agy_status<R: Runtime>(app: AppHandle<R>, configured: Option<String>) -> CmdResult<AgyStatus> {
+    blocking(move || {
+        let state = app.state::<AppState>();
+        let from_config = state.config.lock().unwrap().agy_path.clone();
+        let chosen = configured.or(from_config);
+        Ok(probe_agy(chosen.as_deref().map(Path::new)))
+    })
+    .await
 }
 
 #[tauri::command]

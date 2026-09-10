@@ -1,4 +1,4 @@
-use crate::error::{CmdResult, CommandError};
+use crate::error::{blocking, CmdResult, CommandError};
 use crate::sidecar::qt_ai_command;
 use crate::AppState;
 use qt_ai_core::commands::accept::run_accept;
@@ -17,7 +17,7 @@ use qt_ai_core::story_fs::{
 use serde::Serialize;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
-use tauri::State;
+use tauri::{AppHandle, Manager, Runtime, State};
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -127,10 +127,13 @@ pub fn story_defaults(genre: StoryGenre) -> CmdResult<StoryDefaults> {
     Ok(defaults(&genre))
 }
 
-#[tauri::command(async)]
-pub fn recent_summaries(state: State<'_, AppState>) -> CmdResult<Vec<RecentSummary>> {
-    let roots = state.config.lock().unwrap().recent.clone();
-    Ok(summarize_recent(&roots))
+#[tauri::command]
+pub async fn recent_summaries<R: Runtime>(app: AppHandle<R>) -> CmdResult<Vec<RecentSummary>> {
+    blocking(move || {
+        let roots = app.state::<AppState>().config.lock().unwrap().recent.clone();
+        Ok(summarize_recent(&roots))
+    })
+    .await
 }
 
 pub fn snapshot(root: &Path, session_running: bool) -> CmdResult<StorySnapshot> {
@@ -215,23 +218,30 @@ fn session_running(state: &State<'_, AppState>, root: &str) -> bool {
 
 /// Mở truyện đã init: quét raw/ lấy chương mới vào hàng đợi trước (run_init idempotent), rồi snapshot.
 /// Folder chưa có state.json vẫn trả story_not_found để UI hỏi "Khởi tạo?".
-#[tauri::command(async)]
-pub fn open_story(state: State<'_, AppState>, root: String) -> CmdResult<StorySnapshot> {
-    let path = Path::new(&root);
+#[tauri::command]
+pub async fn open_story<R: Runtime>(app: AppHandle<R>, root: String) -> CmdResult<StorySnapshot> {
+    blocking(move || open_story_sync(&app.state::<AppState>(), &root)).await
+}
+
+fn open_story_sync(state: &State<'_, AppState>, root: &str) -> CmdResult<StorySnapshot> {
+    let path = Path::new(root);
     if story_paths(path).state_json.is_file() {
         run_init(path, &qt_ai_command())?;
     }
-    let snap = snapshot(path, session_running(&state, &root))?;
+    let snap = snapshot(path, session_running(state, root))?;
     let mut config = state.config.lock().unwrap();
-    config.touch_recent(&root);
+    config.touch_recent(root);
     config.save(&state.config_path)?;
     Ok(snap)
 }
 
-#[tauri::command(async)]
-pub fn init_story(state: State<'_, AppState>, root: String) -> CmdResult<StorySnapshot> {
-    run_init(Path::new(&root), &qt_ai_command())?;
-    open_story(state, root)
+#[tauri::command]
+pub async fn init_story<R: Runtime>(app: AppHandle<R>, root: String) -> CmdResult<StorySnapshot> {
+    blocking(move || {
+        run_init(Path::new(&root), &qt_ai_command())?;
+        open_story_sync(&app.state::<AppState>(), &root)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -272,37 +282,43 @@ pub fn chapter_skip(root: String, id: String, reason: String) -> CmdResult<()> {
 }
 
 /// Chốt bằng --force; trả danh sách cảnh báo đã ghi vào state.
-#[tauri::command(async)]
-pub fn chapter_force_accept(root: String, id: String) -> CmdResult<Vec<String>> {
-    Ok(run_accept(Path::new(&root), &id, true)?.warnings)
+#[tauri::command]
+pub async fn chapter_force_accept(root: String, id: String) -> CmdResult<Vec<String>> {
+    blocking(move || Ok(run_accept(Path::new(&root), &id, true)?.warnings)).await
 }
 
-#[tauri::command(async)]
-pub fn export_chapters(
+#[tauri::command]
+pub async fn export_chapters(
     root: String,
     from: Option<String>,
     to: Option<String>,
     out: Option<String>,
 ) -> CmdResult<ExportOutcome> {
-    let result = run_export(Path::new(&root), &ExportOptions { from, to, out: out.map(PathBuf::from) })?;
-    Ok(ExportOutcome { out_path: result.out_path.display().to_string(), ids: result.ids, gaps: result.gaps })
+    blocking(move || {
+        let result = run_export(Path::new(&root), &ExportOptions { from, to, out: out.map(PathBuf::from) })?;
+        Ok(ExportOutcome { out_path: result.out_path.display().to_string(), ids: result.ids, gaps: result.gaps })
+    })
+    .await
 }
 
 /// Mở folder/file trong trình quản lý file của hệ.
-#[tauri::command(async)]
-pub fn reveal_folder(path: String) -> CmdResult<()> {
-    let program = if cfg!(windows) {
-        "explorer"
-    } else if cfg!(target_os = "macos") {
-        "open"
-    } else {
-        "xdg-open"
-    };
-    std::process::Command::new(program)
-        .arg(&path)
-        .spawn()
-        .map(|_| ())
-        .map_err(|e| CommandError::new("io", format!("Không mở được {path}: {e}")))
+#[tauri::command]
+pub async fn reveal_folder(path: String) -> CmdResult<()> {
+    blocking(move || {
+        let program = if cfg!(windows) {
+            "explorer"
+        } else if cfg!(target_os = "macos") {
+            "open"
+        } else {
+            "xdg-open"
+        };
+        std::process::Command::new(program)
+            .arg(&path)
+            .spawn()
+            .map(|_| ())
+            .map_err(|e| CommandError::new("io", format!("Không mở được {path}: {e}")))
+    })
+    .await
 }
 
 #[cfg(test)]
