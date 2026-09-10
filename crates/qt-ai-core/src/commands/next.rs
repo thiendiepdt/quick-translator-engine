@@ -1,6 +1,6 @@
 use crate::error::{CoreError, Result};
 use crate::paragraphs::{labeled_source_payload, paragraphs_of};
-use crate::prompt::{build_system_prompt, TranslationGlossary};
+use crate::prompt::build_system_prompt;
 use crate::story::{natural_chapter_compare, StoryConfig};
 use crate::story_fs::{
     load_state, load_story_config, read_raw_chapter, resolve_root, save_state, story_paths, work_file,
@@ -32,7 +32,8 @@ fn agent_instructions(id: &str) -> String {
 /// Sinh + ghi work/<id>.prompt.md; trả về đường dẫn đã ghi.
 fn write_prompt_file(paths: &StoryPaths, story: &StoryConfig, id: &str) -> Result<PathBuf> {
     let source = read_raw_chapter(paths, id)?;
-    let system = build_system_prompt(&TranslationGlossary::new(), Some(story), Some(&source));
+    let base_glossary = crate::base::BaseStore::from_env().glossary(story.genre.setting);
+    let system = build_system_prompt(&base_glossary, Some(story), Some(&source));
     let payload = labeled_source_payload(&paragraphs_of(&source));
     let prompt = format!("{system}\n\n---\n\n{payload}\n\n---\n\n{}\n", agent_instructions(id));
     let prompt_path = work_file(paths, id, WorkKind::Prompt);

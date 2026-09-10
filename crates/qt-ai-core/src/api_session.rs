@@ -13,7 +13,7 @@ use crate::commands::skip::run_skip;
 use crate::error::{CoreError, Result};
 use crate::glossary::{collect_glossary_keys, glossary_key_touches_source};
 use crate::paragraphs::{labeled_repair_payload, labeled_source_payload, paragraphs_of, parse_labeled_translation};
-use crate::prompt::{build_system_prompt, TranslationGlossary};
+use crate::prompt::build_system_prompt;
 use crate::session::{read_progress, spawn_runner, LogStream, SessionEvent, SessionHandle, Sink, StopReason};
 use crate::story::{natural_chapter_compare, StoryConfig};
 use crate::story_fs::{
@@ -170,7 +170,8 @@ fn translate_full(chapter: &Chapter) -> std::result::Result<Vec<String>, ApiErro
 fn harvest_glossary(chapter: &Chapter, paths: &StoryPaths, raw: &str, draft: &[String]) -> Result<()> {
     let (id, log) = (chapter.id, chapter.log);
     // Chỉ gửi key chương này chạm tới — sanitize vốn chặn đề xuất không có trong raw, gửi cả glossary là phí token.
-    let mut exclude: Vec<String> = collect_glossary_keys(&TranslationGlossary::new(), &chapter.story.glossary)
+    let base_glossary = crate::base::BaseStore::from_env().glossary(chapter.story.genre.setting);
+    let mut exclude: Vec<String> = collect_glossary_keys(&base_glossary, &chapter.story.glossary)
         .into_iter()
         .filter(|key| glossary_key_touches_source(key, raw))
         .collect();
@@ -234,7 +235,8 @@ pub fn translate_chapter(
     let raw = read_raw_chapter(&paths, id)?;
     let paragraphs = paragraphs_of(&raw);
     let story = load_story_config(&paths)?;
-    let system = build_system_prompt(&TranslationGlossary::new(), Some(&story), Some(&raw));
+    let base_glossary = crate::base::BaseStore::from_env().glossary(story.genre.setting);
+    let system = build_system_prompt(&base_glossary, Some(&story), Some(&raw));
     let min_ratio = load_state(&paths)?.settings.min_length_ratio;
     let chapter = Chapter { model, id, system: &system, paragraphs: &paragraphs, story: &story, cancel, log };
 

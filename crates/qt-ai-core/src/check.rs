@@ -164,8 +164,13 @@ fn compile(pattern: &str, flags: &str, message: &str) -> Option<CompiledRule> {
 }
 
 pub fn check_violations(text: &str, configured: &[CheckRule], setting: GenreSetting) -> Vec<Violation> {
+    // Rule riêng của truyện > bộ người dùng sửa ở app (file) > bộ cứng lọc theo bối cảnh.
     let mut rules: Vec<CompiledRule> = if configured.is_empty() {
-        rules_for(setting).filter_map(|(p, f, m, _)| compile(p, f, m)).collect()
+        crate::base::BaseStore::from_env()
+            .rules(setting)
+            .iter()
+            .filter_map(|rule| compile(&rule.pattern, rule.flags.as_deref().unwrap_or(""), &rule.message))
+            .collect()
     } else {
         configured
             .iter()

@@ -158,10 +158,11 @@ pub fn build_system_prompt(
         _ => String::new(),
     };
     let default_genre = StoryGenre::default();
-    let base = story
-        .map(|s| s.custom_prompt.trim())
-        .filter(|custom| !custom.is_empty())
-        .unwrap_or_else(|| base_prompt(story.map(|s| &s.genre).unwrap_or(&default_genre)));
+    // Prompt riêng của truyện > base người dùng sửa ở app (file) > bản cứng trong binary.
+    let base = match story.map(|s| s.custom_prompt.trim()).filter(|custom| !custom.is_empty()) {
+        Some(custom) => custom.to_string(),
+        None => crate::base::BaseStore::from_env().prompt(story.map(|s| &s.genre).unwrap_or(&default_genre)),
+    };
     format!("{base}{story_context}{glossary_section}{style_section}{}", prompt_suffix())
 }
 
