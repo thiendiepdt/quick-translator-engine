@@ -5,6 +5,7 @@ import { useForm, type FieldPath, type FieldPathValue, type UseFormReturn } from
 import { toast } from "sonner";
 import { z } from "zod";
 
+import { Choice } from "@/components/choice";
 import { PalettePicker } from "@/components/palette-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,44 +48,6 @@ function Card({ title, description, children }: { title: string; description: st
       <p className="mb-4 text-sm text-muted-foreground">{description}</p>
       <div className="flex flex-col gap-4">{children}</div>
     </section>
-  );
-}
-
-/** Ô chọn kiểu radio giống chọn chế độ sáng/tối. */
-function Choice<T extends string>({
-  label,
-  value,
-  options,
-  labels,
-  onChange,
-  disabled,
-}: {
-  label: string;
-  value: T;
-  options: readonly T[];
-  labels: Record<T, string>;
-  onChange: (value: T) => void;
-  disabled?: boolean;
-}) {
-  return (
-    <div role="radiogroup" aria-label={label} className="inline-flex w-fit rounded-md border p-0.5">
-      {options.map((option) => (
-        <button
-          key={option}
-          type="button"
-          role="radio"
-          aria-checked={value === option}
-          disabled={disabled}
-          onClick={() => onChange(option)}
-          className={cn(
-            "rounded-[calc(var(--radius)-2px)] px-3 py-1.5 text-sm disabled:opacity-50",
-            value === option ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent",
-          )}
-        >
-          {labels[option]}
-        </button>
-      ))}
-    </div>
   );
 }
 
