@@ -30,7 +30,6 @@ import { selectCurrentRunning, useStoryStore } from "@/store/story";
 
 const SECTIONS = [
   { id: "info", label: "Thông tin" },
-  { id: "genre", label: "Thể loại" },
   { id: "style", label: "Style" },
   { id: "glossary", label: "Glossary" },
   { id: "rules", label: "Rule kiểm tra" },
@@ -48,7 +47,10 @@ function Field({ id, label, hint, children }: { id: string; label: string; hint?
   );
 }
 
-/** Mỗi mục là một tab: chỉ mục đang chọn được render — glossary + rule + prompt cùng lúc là quá dài và lag. */
+/**
+ * Mỗi mục là một tab: chỉ mục đang chọn được render — glossary + rule + prompt cùng lúc là quá dài và lag.
+ * Thể loại nằm chung tab Thông tin (chỉ hai ô chọn) để người dùng không bỏ sót khi lập hồ sơ.
+ */
 function Section({ id, active, title, children }: { id: SectionId; active: SectionId; title: string; children: ReactNode }) {
   if (id !== active) return null;
   return (
@@ -190,6 +192,54 @@ export function StoryPage() {
                     </Select>
                   </Field>
                 </div>
+                <div className="flex flex-col gap-3 rounded-md border bg-muted/25 p-4">
+                  <div>
+                    <h3 className="text-sm font-semibold">Thể loại</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Quyết định prompt và bộ rule kiểm tra mặc định. Prompt riêng hoặc rule riêng (nếu có) vẫn thắng.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <Field id="genreSetting" label="Bối cảnh" hint={GENRE_SETTING_LABELS[genre.setting].hint}>
+                      <Select
+                        value={genre.setting}
+                        onValueChange={(v) =>
+                          form.setValue("genreSetting", v as StoryFormValues["genreSetting"], { shouldDirty: true })
+                        }
+                      >
+                        <SelectTrigger id="genreSetting" aria-label="Bối cảnh">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {GENRE_SETTINGS.map((id) => (
+                            <SelectItem key={id} value={id}>
+                              {GENRE_SETTING_LABELS[id].label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                    <Field id="genreNames" label="Tên riêng" hint={GENRE_NAMES_LABELS[genre.names].hint}>
+                      <Select
+                        value={genre.names}
+                        onValueChange={(v) =>
+                          form.setValue("genreNames", v as StoryFormValues["genreNames"], { shouldDirty: true })
+                        }
+                      >
+                        <SelectTrigger id="genreNames" aria-label="Tên riêng">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {GENRE_NAMES.map((id) => (
+                            <SelectItem key={id} value={id}>
+                              {GENRE_NAMES_LABELS[id].label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                  </div>
+                </div>
                 <Field
                   id="summary"
                   label="Tóm tắt"
@@ -206,51 +256,6 @@ export function StoryPage() {
                 >
                   <Sparkles /> AI điền từ tên + link
                 </Button>
-              </Section>
-              <Section id="genre" active={active} title="Thể loại">
-                <p className="text-sm text-muted-foreground">
-                  Quyết định prompt và bộ rule kiểm tra mặc định. Prompt riêng hoặc rule riêng (nếu có) vẫn thắng.
-                </p>
-                <div className="grid grid-cols-2 gap-4">
-                  <Field id="genreSetting" label="Bối cảnh" hint={GENRE_SETTING_LABELS[genre.setting].hint}>
-                    <Select
-                      value={genre.setting}
-                      onValueChange={(v) =>
-                        form.setValue("genreSetting", v as StoryFormValues["genreSetting"], { shouldDirty: true })
-                      }
-                    >
-                      <SelectTrigger id="genreSetting" aria-label="Bối cảnh">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {GENRE_SETTINGS.map((id) => (
-                          <SelectItem key={id} value={id}>
-                            {GENRE_SETTING_LABELS[id].label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                  <Field id="genreNames" label="Tên riêng" hint={GENRE_NAMES_LABELS[genre.names].hint}>
-                    <Select
-                      value={genre.names}
-                      onValueChange={(v) =>
-                        form.setValue("genreNames", v as StoryFormValues["genreNames"], { shouldDirty: true })
-                      }
-                    >
-                      <SelectTrigger id="genreNames" aria-label="Tên riêng">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {GENRE_NAMES.map((id) => (
-                          <SelectItem key={id} value={id}>
-                            {GENRE_NAMES_LABELS[id].label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                </div>
               </Section>
               <Section id="style" active={active} title="Style">
                 <Field id="voice" label="Giọng kể / voice">

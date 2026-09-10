@@ -66,10 +66,11 @@ describe("StoryPage", () => {
     expect(screen.getByText("Có thay đổi chưa lưu")).toBeInTheDocument();
   });
 
-  it("mục Thể loại đổi bối cảnh làm form dirty và prompt mặc định nạp lại theo genre", async () => {
+  it("Thể loại nằm ngay trong tab Thông tin (không có tab riêng); đổi bối cảnh làm form dirty, prompt mặc định nạp lại theo genre", async () => {
     const user = userEvent.setup();
     render(<StoryPage />);
-    await user.click(screen.getByRole("tab", { name: "Thể loại" }));
+    expect(screen.queryByRole("tab", { name: "Thể loại" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Thể loại" })).toBeInTheDocument();
     await user.click(screen.getByRole("combobox", { name: "Bối cảnh" }));
     await user.click(await screen.findByRole("option", { name: /Hiện đại/ }));
     expect(screen.getByText("Có thay đổi chưa lưu")).toBeInTheDocument();
@@ -82,7 +83,6 @@ describe("StoryPage", () => {
   it("chọn Hỗn hợp gọi defaults với setting mixed", async () => {
     const user = userEvent.setup();
     render(<StoryPage />);
-    await user.click(screen.getByRole("tab", { name: "Thể loại" }));
     await user.click(screen.getByRole("combobox", { name: "Bối cảnh" }));
     await user.click(await screen.findByRole("option", { name: /Hỗn hợp/ }));
     const { storyDefaults } = await import("@/lib/api");
