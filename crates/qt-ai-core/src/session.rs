@@ -7,7 +7,8 @@ use crate::story_fs::{load_state, now_ms, story_paths, ChapterStatus};
 use serde::{Deserialize, Serialize};
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command, Stdio};
+use crate::process::quiet_command;
+use std::process::{Child, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
@@ -113,13 +114,13 @@ fn lock_path(root: &Path) -> PathBuf {
 
 fn pid_alive(pid: u32) -> bool {
     if cfg!(windows) {
-        Command::new("tasklist")
+        quiet_command("tasklist")
             .args(["/FI", &format!("PID eq {pid}"), "/NH", "/FO", "CSV"])
             .output()
             .map(|o| String::from_utf8_lossy(&o.stdout).contains(&format!("\"{pid}\"")))
             .unwrap_or(false)
     } else {
-        Command::new("kill").args(["-0", &pid.to_string()]).status().map(|s| s.success()).unwrap_or(false)
+        quiet_command("kill").args(["-0", &pid.to_string()]).status().map(|s| s.success()).unwrap_or(false)
     }
 }
 
@@ -149,14 +150,14 @@ fn release_lock(root: &Path) {
 
 fn kill_tree(child: &mut Child) {
     if cfg!(windows) {
-        let _ = Command::new("taskkill").args(["/PID", &child.id().to_string(), "/T", "/F"]).output();
+        let _ = quiet_command("taskkill").args(["/PID", &child.id().to_string(), "/T", "/F"]).output();
     }
     let _ = child.kill();
     let _ = child.wait();
 }
 
 fn spawn_agy(config: &SessionConfig, prompt: &str) -> Result<Child> {
-    let mut command = Command::new(&config.agy);
+    let mut command = quiet_command(&config.agy);
     command.arg("-p").arg(prompt).arg("--dangerously-skip-permissions");
     if let Some(model) = &config.model {
         command.arg("--model").arg(model);

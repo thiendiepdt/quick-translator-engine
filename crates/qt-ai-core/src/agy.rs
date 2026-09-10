@@ -2,7 +2,7 @@
 
 use crate::error::{CoreError, Result};
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use crate::process::quiet_command;
 
 /// Đường dẫn cấu hình tay thắng; không có thì quét PATH rồi thư mục cài mặc định của installer Windows.
 pub fn find_agy(configured: Option<&Path>) -> Result<PathBuf> {
@@ -34,7 +34,7 @@ pub fn find_agy(configured: Option<&Path>) -> Result<PathBuf> {
 }
 
 fn run_capture(agy: &Path, args: &[&str]) -> Result<String> {
-    let output = Command::new(agy).args(args).output().map_err(|_| CoreError::AgyMissing)?;
+    let output = quiet_command(agy).args(args).output().map_err(|_| CoreError::AgyMissing)?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         let tail: String = stderr.chars().rev().take(500).collect::<String>().chars().rev().collect();

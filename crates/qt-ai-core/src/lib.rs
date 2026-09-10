@@ -8,6 +8,7 @@ pub mod story_fs;
 pub mod templates;
 pub mod commands;
 pub mod agy;
+pub mod process;
 pub mod session;
 pub mod api;
 pub mod api_session;
