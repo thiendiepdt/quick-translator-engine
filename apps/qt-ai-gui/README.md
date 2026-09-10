@@ -72,7 +72,7 @@ cargo test -p qt-ai-gui   # Tauri commands
 
 `npm run build:portable` → `dist-portable/QT-AI-Translator-<version>-portable/` (+ `.zip` trên Windows): `qt-ai-gui.exe`,
 `qt-ai.exe` và file đánh dấu `portable`. Có file này cạnh exe thì app đọc/ghi `config.json` ngay cạnh exe thay vì
-`%APPDATA%\io.quicktranslator.ai-gui\` — copy folder đi đâu cũng mang theo cấu hình. Máy đích vẫn cần WebView2.
+`%APPDATA%\com.vn-converter.qt-ai-gui\` (bản cài trước 2026-09-11 dùng `io.quicktranslator.ai-gui`; lần đầu chạy bản mới tự copy config.json cũ sang) — copy folder đi đâu cũng mang theo cấu hình. Máy đích vẫn cần WebView2.
 
 ## Folder truyện
 

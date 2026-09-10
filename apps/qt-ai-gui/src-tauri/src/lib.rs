@@ -20,13 +20,36 @@ pub struct AppState {
     pub sessions: Mutex<SessionRegistry>,
 }
 
+/// Identifier cũ (trước 2026-09-11) — thư mục config cũ trong %APPDATA% để migrate.
+const LEGACY_IDENTIFIER: &str = "io.quicktranslator.ai-gui";
+
 /// Bản portable: có file đánh dấu `portable` cạnh exe → config.json nằm cạnh exe, copy folder là mang
-/// theo cấu hình. Không có thì dùng thư mục config của app (%APPDATA%/io.quicktranslator.ai-gui).
+/// theo cấu hình. Không có thì dùng thư mục config của app (%APPDATA%/com.vn-converter.qt-ai-gui).
 pub fn resolve_config_path(exe_dir: Option<&Path>, app_config_dir: Option<PathBuf>) -> PathBuf {
     if let Some(dir) = exe_dir.filter(|dir| dir.join("portable").is_file()) {
         return dir.join("config.json");
     }
     app_config_dir.map(|dir| dir.join("config.json")).unwrap_or_else(|| PathBuf::from("config.json"))
+}
+
+/// Đổi identifier làm %APPDATA% đổi thư mục: chưa có config mới mà thư mục identifier cũ (cùng cha)
+/// còn config.json thì copy sang, người dùng không mất recent/API key. Lỗi copy bỏ qua (app vẫn chạy).
+pub fn migrate_legacy_config(config_path: &Path) {
+    if config_path.exists() {
+        return;
+    }
+    let Some(legacy) = config_path
+        .parent()
+        .and_then(Path::parent)
+        .map(|base| base.join(LEGACY_IDENTIFIER).join("config.json"))
+        .filter(|path| path.is_file())
+    else {
+        return;
+    };
+    if let Some(dir) = config_path.parent() {
+        let _ = std::fs::create_dir_all(dir);
+    }
+    let _ = std::fs::copy(&legacy, config_path);
 }
 
 pub fn run() {
@@ -35,6 +58,7 @@ pub fn run() {
         .setup(|app| {
             let exe_dir = std::env::current_exe().ok().and_then(|exe| exe.parent().map(Path::to_path_buf));
             let config_path = resolve_config_path(exe_dir.as_deref(), app.path().app_config_dir().ok());
+            migrate_legacy_config(&config_path);
             let config = AppConfig::load(&config_path);
             app.manage(AppState {
                 config_path,
@@ -86,6 +110,25 @@ mod tests {
         std::fs::write(dir.path().join("portable"), "").unwrap();
         assert_eq!(resolve_config_path(Some(dir.path()), Some(app_dir.clone())), dir.path().join("config.json"));
         assert_eq!(resolve_config_path(None, None), PathBuf::from("config.json"));
+    }
+
+    #[test]
+    fn migrate_copy_config_tu_thu_muc_identifier_cu_khi_chua_co_config_moi() {
+        let dir = tempfile::tempdir().unwrap();
+        let legacy = dir.path().join(LEGACY_IDENTIFIER);
+        std::fs::create_dir_all(&legacy).unwrap();
+        std::fs::write(legacy.join("config.json"), "config-cu").unwrap();
+        let new_path = dir.path().join("com.vn-converter.qt-ai-gui").join("config.json");
+        migrate_legacy_config(&new_path);
+        assert_eq!(std::fs::read_to_string(&new_path).unwrap(), "config-cu");
+        // Đã có config mới thì không đè.
+        std::fs::write(&new_path, "moi").unwrap();
+        migrate_legacy_config(&new_path);
+        assert_eq!(std::fs::read_to_string(&new_path).unwrap(), "moi");
+        // Không có thư mục cũ: không tạo gì.
+        let lonely = dir.path().join("x").join("y").join("config.json");
+        migrate_legacy_config(&lonely);
+        assert!(!lonely.exists());
     }
 
     /// Lệnh Tauri đồng bộ chạy ngay trên luồng nhận IPC — trên Linux là luồng GTK vẽ cửa sổ, nên lệnh
