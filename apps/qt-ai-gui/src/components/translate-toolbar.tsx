@@ -36,11 +36,17 @@ export function TranslateToolbar() {
     if (!root) return;
     setScanning(true);
     try {
-      const before = snapshot?.counts.total ?? 0;
+      const before = new Set((snapshot?.chapters ?? []).map((c) => c.id));
       const next = await rescanStory(root);
       setSnapshot(next);
-      const added = next.counts.total - before;
-      toast.message(added > 0 ? `Thêm ${added} chương mới vào hàng đợi` : "Không có chương mới trong raw/");
+      const after = new Set(next.chapters.map((c) => c.id));
+      const added = next.chapters.filter((c) => !before.has(c.id)).length;
+      const removed = [...before].filter((id) => !after.has(id)).length;
+      const parts = [
+        added > 0 ? `thêm ${added} chương mới vào hàng đợi` : "",
+        removed > 0 ? `gỡ ${removed} chương raw đã mất` : "",
+      ].filter(Boolean);
+      toast.message(parts.length > 0 ? `Quét lại: ${parts.join(", ")}` : "Không có thay đổi trong raw/");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Không quét được raw/");
     } finally {

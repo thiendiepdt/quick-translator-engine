@@ -1,8 +1,8 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { runInit } from "../src/commands/init.ts";
-import { loadState, loadStoryConfig, storyPaths } from "../src/story-fs.ts";
+import { loadState, loadStoryConfig, saveState, storyPaths, workFile } from "../src/story-fs.ts";
 import { makeStoryDir } from "./helpers.ts";
 
 describe("qt-ai init", () => {
@@ -35,6 +35,25 @@ describe("qt-ai init", () => {
     expect(after.chapters["0001"]?.status).toBe("done");
     expect(after.chapters["0002"]?.status).toBe("queued");
     expect(readFileSync(join(root, "AGENTS.md"), "utf8")).toBe("tự sửa");
+  });
+
+  it("gỡ chương có raw đã mất (trừ done), dọn work/, vẫn thêm chương mới", () => {
+    const root = makeStoryDir({ "0001": "第一章", "0002": "第二章", "0003": "第三章" });
+    runInit(root);
+    const paths = storyPaths(root);
+    const state = loadState(paths);
+    state.chapters["0001"] = { status: "done", reviewRound: 0, updatedAt: 1 };
+    state.chapters["0002"] = { status: "error", reviewRound: 1, reason: "x", updatedAt: 1 };
+    saveState(paths, state);
+    writeFileSync(workFile(paths, "0002", "draft"), "nháp", "utf8");
+    for (const id of ["0001", "0002", "0003"]) rmSync(join(paths.rawDir, `${id}.txt`));
+    writeFileSync(join(paths.rawDir, "0004.txt"), "第四章", "utf8");
+
+    const message = runInit(root);
+    expect(message).toContain("2 chương (1 mới thêm vào hàng đợi, 2 gỡ vì raw đã mất)");
+    expect(Object.keys(loadState(paths).chapters)).toEqual(["0001", "0004"]);
+    expect(loadState(paths).chapters["0001"]?.status).toBe("done");
+    expect(existsSync(workFile(paths, "0002", "draft"))).toBe(false);
   });
 
   it("template đầy đủ: có vòng lặp translate và luật vệ sinh context", () => {

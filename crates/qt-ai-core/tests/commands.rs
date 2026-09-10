@@ -150,6 +150,32 @@ fn init_dung_story_state_copy_template_idempotent() {
 }
 
 #[test]
+fn init_go_chuong_raw_da_mat_tru_chuong_done_va_don_work() {
+    let dir = make_story_dir(&[("0001", "第一章"), ("0002", "第二章"), ("0003", "第三章")]);
+    let root = dir.path();
+    run_init(root, "qt-ai").unwrap();
+    let paths = story_paths(root);
+    let mut state = load_state(&paths).unwrap();
+    state.chapters.get_mut("0001").unwrap().status = ChapterStatus::Done;
+    state.chapters.get_mut("0002").unwrap().status = ChapterStatus::Error;
+    save_state(&paths, &state).unwrap();
+    fs::create_dir_all(&paths.work_dir).unwrap();
+    fs::write(work_file(&paths, "0002", WorkKind::Draft), "nháp").unwrap();
+    // Đổi tên file raw (kiểu "chuong - 0001" → "chuong-0001"): 0001/0002/0003 mất, 0004 mới xuất hiện.
+    for id in ["0001", "0002", "0003"] {
+        fs::remove_file(root.join("raw").join(format!("{id}.txt"))).unwrap();
+    }
+    fs::write(root.join("raw").join("0004.txt"), "第四章").unwrap();
+
+    let message = run_init(root, "qt-ai").unwrap();
+    assert!(message.contains("2 chương (1 mới thêm vào hàng đợi, 2 gỡ vì raw đã mất)"), "{message}");
+    let state = load_state(&paths).unwrap();
+    assert_eq!(state.chapters.keys().collect::<Vec<_>>(), vec!["0001", "0004"]);
+    assert_eq!(state.chapters["0001"].status, ChapterStatus::Done, "đã dịch xong thì giữ dù raw mất");
+    assert!(!work_file(&paths, "0002", WorkKind::Draft).exists(), "dọn work/ của chương bị gỡ");
+}
+
+#[test]
 fn next_phat_chuong_dau_prompt_du_3_phan_state_translating() {
     let dir = make_story_dir(&[("0001", RAW), ("0002", "第二章")]);
     let root = dir.path();

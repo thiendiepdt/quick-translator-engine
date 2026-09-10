@@ -1,11 +1,13 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { emptyAiStoryConfig } from "@/lib/ai-story";
 import {
   defaultSettings, ensureStoryDirs, listRawChapterIds, loadState,
-  saveState, saveStoryConfig, storyPaths, type StoryState,
+  saveState, saveStoryConfig, storyPaths, workFile, type StoryState, type WorkKind,
 } from "../story-fs.ts";
+
+const WORK_KINDS: WorkKind[] = ["prompt", "draft", "glossary", "check", "review"];
 
 const CLI_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const TEMPLATE_DIR = join(CLI_DIR, "antigravity");
@@ -36,8 +38,17 @@ export function runInit(root: string): string {
   const state: StoryState = existsSync(paths.stateJson)
     ? loadState(paths)
     : { version: 1, settings: defaultSettings(), chapters: {} };
+  const rawIds = new Set(listRawChapterIds(paths));
+  // Raw đổi tên/xoá → gỡ khỏi state (trừ done: bản dịch trong out/ vẫn dùng được), dọn work/ kèm theo.
+  const gone = Object.entries(state.chapters)
+    .filter(([id, chapter]) => !rawIds.has(id) && chapter.status !== "done")
+    .map(([id]) => id);
+  for (const id of gone) {
+    delete state.chapters[id];
+    for (const kind of WORK_KINDS) rmSync(workFile(paths, id, kind), { force: true });
+  }
   let added = 0;
-  for (const id of listRawChapterIds(paths)) {
+  for (const id of rawIds) {
     if (state.chapters[id]) continue;
     state.chapters[id] = { status: "queued", reviewRound: 0, updatedAt: Date.now() };
     added += 1;
@@ -45,5 +56,6 @@ export function runInit(root: string): string {
   saveState(paths, state);
   copyTemplates(paths.root);
   const total = Object.keys(state.chapters).length;
-  return `Đã init ${paths.root}: ${total} chương (${added} mới thêm vào hàng đợi).`;
+  const removed = gone.length > 0 ? `, ${gone.length} gỡ vì raw đã mất` : "";
+  return `Đã init ${paths.root}: ${total} chương (${added} mới thêm vào hàng đợi${removed}).`;
 }
