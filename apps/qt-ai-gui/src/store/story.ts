@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 import type { ChapterFilter } from "@/lib/chapters";
-import { pathKey } from "@/lib/paths";
+import { pathKey, samePath } from "@/lib/paths";
 import type { AgyStatus, AppConfig, Progress, SessionEvent, StopReason, StorySnapshot } from "@/lib/types";
 
 export type Page = "translate" | "story" | "export" | "settings";
@@ -43,6 +43,8 @@ interface PerStory {
 interface StoryState extends PerStory {
   screen: "picker" | "workbench";
   page: Page;
+  /** Root mọi truyện đã mở trong phiên app này, mới mở nhất đứng đầu (sidebar phải). Không lưu đĩa. */
+  opened: string[];
   root?: string;
   snapshot?: StorySnapshot;
   selectedId?: string;
@@ -134,6 +136,7 @@ function enterStory(state: StoryState, snapshot: StorySnapshot, page: Page): Par
     sessions,
     roots: state.roots[key] === snapshot.root ? state.roots : { ...state.roots, [key]: snapshot.root },
     names: state.names[key] === name ? state.names : { ...state.names, [key]: name },
+    opened: [snapshot.root, ...state.opened.filter((item) => !samePath(item, snapshot.root))],
   };
 }
 
@@ -147,6 +150,7 @@ export const useStoryStore = create<StoryState>()((set) => ({
   logs: {},
   roots: {},
   names: {},
+  opened: [],
   // Rust open_story đã touch_recent và ghi đĩa; store phải làm y hệt, nếu không picker hiện danh sách cũ
   // và lần appConfigSet kế tiếp (đổi theme, settings…) đẩy recent cũ đè lên đĩa, mất truyện vừa mở.
   // Phiên/tiến độ/log của truyện khác giữ nguyên — nhiều truyện chạy song song.

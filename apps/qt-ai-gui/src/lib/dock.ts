@@ -28,32 +28,33 @@ export function progressPercent(progress: Progress | undefined): number | undefi
   return total > 0 ? Math.round((progress.done / total) * 100) : 0;
 }
 
-/** Truyện đang mở trước, rồi các truyện đang dịch khác theo tên. */
+/**
+ * Sidebar phải: truyện đang dịch trước (theo tên), rồi mọi truyện đã mở trong phiên app theo lần mở
+ * gần nhất (`opened` đã sắp mới nhất đứng đầu). Truyện đang dịch mà chưa mở lần nào cũng hiện.
+ */
 export function dockEntries(state: {
   root?: string;
+  opened: string[];
   sessions: Record<string, SessionState>;
   roots: Record<string, string>;
   names: Record<string, string>;
   progress: Record<string, Progress>;
 }): DockEntry[] {
   const running = runningRoots(state);
-  const entry = (root: string, current: boolean): DockEntry => {
+  const entry = (root: string): DockEntry => {
     const key = pathKey(root);
     const isRunning = running.some((r) => samePath(r, root));
     const progress = state.progress[key];
     return {
       root,
       name: state.names[key] ?? "",
-      current,
+      current: state.root !== undefined && samePath(state.root, root),
       running: isRunning,
       percent: isRunning ? progressPercent(progress) : undefined,
       currentChapter: isRunning ? (progress?.current ?? null) : undefined,
     };
   };
-  const list: DockEntry[] = state.root ? [entry(state.root, true)] : [];
-  const others = running
-    .filter((root) => !state.root || !samePath(root, state.root))
-    .map((root) => entry(root, false))
-    .sort((a, b) => (a.name || a.root).localeCompare(b.name || b.root, "vi"));
-  return [...list, ...others];
+  const top = running.map(entry).sort((a, b) => (a.name || a.root).localeCompare(b.name || b.root, "vi"));
+  const rest = state.opened.filter((root) => !running.some((r) => samePath(r, root))).map(entry);
+  return [...top, ...rest];
 }

@@ -9,6 +9,7 @@ import { SettingsPage } from "@/components/pages/settings-page";
 import { StoryPage } from "@/components/pages/story-page";
 import { TranslatePage } from "@/components/pages/translate-page";
 import { StoryPicker } from "@/components/story-picker";
+import { StorySidebar } from "@/components/story-sidebar";
 import { useSessionEvents } from "@/hooks/use-session-events";
 import { useThemeSync } from "@/hooks/use-theme";
 import { agyStatus, appConfigGet, appConfigSet, pickAgyFile } from "@/lib/api";
@@ -99,6 +100,7 @@ export default function App() {
       <main className="min-w-0 flex-1 overflow-hidden">
         <Current />
       </main>
+      <StorySidebar />
     </div>
   );
 }

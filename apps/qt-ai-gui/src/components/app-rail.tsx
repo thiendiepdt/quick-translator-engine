@@ -1,7 +1,6 @@
 import { BookUser, Download, Languages, LibraryBig, Moon, Settings2, Sun } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { StoryDock } from "@/components/story-dock";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useThemeActions } from "@/hooks/use-theme";
@@ -69,7 +68,6 @@ export function AppRail() {
           <Icon className="size-5" />
         </RailButton>
       ))}
-      <StoryDock />
       <div className="flex-1" />
       <RailButton label={mode === "dark" ? "Chuyển sang sáng" : "Chuyển sang tối"} onClick={() => void toggleMode()}>
         {mode === "dark" ? <Sun className="size-5" /> : <Moon className="size-5" />}

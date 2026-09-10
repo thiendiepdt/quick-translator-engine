@@ -39,7 +39,16 @@ function snapshotFor(root: string, sessionRunning = false): StorySnapshot {
 }
 
 beforeEach(() => {
-  useStoryStore.setState({ sessions: {}, progress: {}, logs: {}, roots: {}, root: undefined, snapshot: undefined });
+  useStoryStore.setState({
+    sessions: {},
+    progress: {},
+    logs: {},
+    roots: {},
+    names: {},
+    opened: [],
+    root: undefined,
+    snapshot: undefined,
+  });
 });
 
 describe("applySessionEvent theo truyện", () => {
@@ -124,6 +133,9 @@ describe("openStory/closeStory", () => {
     expect(state.root).toBe(B);
     expect(state.page).toBe("story");
     expect(state.names).toEqual({ "d:\\lib\\a": "Alpha", "d:\\lib\\b": "Bravo" });
+    expect(state.opened).toEqual([B, A]); // mới mở nhất đứng đầu
+    useStoryStore.getState().switchStory(snapshotFor("d:/lib/a/"));
+    expect(useStoryStore.getState().opened).toEqual(["d:/lib/a/", B]); // cùng truyện (khác chữ) không nhân đôi
   });
 
   it("page mặc định translate, openStory reset về translate, setPage đổi", () => {
