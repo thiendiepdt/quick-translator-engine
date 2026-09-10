@@ -270,6 +270,9 @@ export function StoryPage() {
                 <GlossaryEditor name="signaturePhrases" label="Cụm từ đặc trưng (style)" />
               </Section>
               <Section id="glossary" active={active} title="Glossary">
+                <p className="text-xs text-muted-foreground">
+                  Kho chung theo bối cảnh (Cài đặt → Bản mặc định → Glossary chung) làm nền; mục ở đây đè khi trùng.
+                </p>
                 {GLOSSARY_KEYS.map((key) => (
                   <GlossaryEditor key={key} name={`glossary.${key}`} label={GLOSSARY_LABELS[key]} />
                 ))}

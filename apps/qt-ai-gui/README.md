@@ -99,6 +99,15 @@ Ba bộ màu (Editorial / Studio / Soft) × sáng / tối / theo hệ thống, c
 
 `story.json` có `genre: { setting: "ancient" | "modern" | "mixed", names: "han" | "foreign" | "mixed" }`; chọn ở trang Hồ sơ truyện, nhóm Thể loại trong tab Thông tin. Bối cảnh quyết xưng hô, thán từ, từ gia đình, bảng thuật ngữ và bộ rule kiểm tra mặc định; `mixed` (xuyên qua lại, đô thị tu tiên) đưa cả hai bộ xưng hô vào prompt để chọn theo cảnh và chỉ chạy rule trung lập. Tên riêng quyết phiên Hán-Việt hay trả về dạng gốc. Truyện cũ thiếu `genre` chạy như cổ đại/Hán-Việt. Prompt riêng hoặc rule riêng vẫn thắng. Chữ prompt nằm ở qt-web (`src/lib/ai-translation-prompt.ts`), Rust đọc 6 bản ghép sẵn trong `crates/qt-ai-core/prompts/prompts.json` qua golden.
 
+## Bản mặc định sửa được
+
+Cài đặt → **Bản mặc định**: sửa base prompt từng genre, bộ rule từng bối cảnh và kho glossary chung từng bối cảnh.
+File rời trong thư mục cấu hình app: `base/prompts/<setting>-<names>.md`, `base/rules/<setting>.json`,
+`base/glossary/<setting>.json`; không có file = bản cứng trong binary; "Về mặc định" = xoá file. Core đọc qua env
+`QT_AI_BASE_DIR` (app đặt lúc khởi động, phiên agy thừa hưởng) nên app, phiên API và `qt-ai next` dùng cùng bản.
+Ưu tiên: prompt/rule riêng của truyện > file base > bản cứng; glossary chung làm nền, glossary truyện đè key trùng.
+Tab Prompt/Rule của truyện ghi "mặc định của app (đã sửa)" khi base đang là file.
+
 ## Drift với qt-web
 
 Prompt/rule của GUI khớp qt-web qua golden fixtures. Trước khi mở PR: `npm --prefix apps/qt-ai-cli run -s golden:check`; đỏ thì chạy `golden` rồi sửa Rust cho `cargo test -p qt-ai-core` xanh.

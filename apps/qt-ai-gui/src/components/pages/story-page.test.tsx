@@ -13,7 +13,7 @@ vi.mock("@/lib/api", () => ({
   storyDefaults: vi.fn((genre: { setting: string }) =>
     Promise.resolve({
       basePrompt: genre.setting === "modern" ? "Prompt hiện đại." : "Prompt gốc.",
-      promptSource: "builtin",
+      promptSource: "file",
       promptSuffix: "Đuôi.",
       checkRules: [],
       rulesSource: "builtin",
@@ -58,9 +58,11 @@ describe("StoryPage", () => {
     await user.click(screen.getByRole("tab", { name: "Glossary" }));
     expect(screen.queryByLabelText("Tên truyện")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Tên nhân vật CN 1")).toHaveValue("赵静文");
+    expect(screen.getByText(/Kho chung theo bối cảnh/)).toBeInTheDocument();
 
     await user.click(screen.getByRole("tab", { name: "Prompt" }));
     expect(await screen.findByRole("textbox", { name: "Prompt dịch thuật" }, { timeout: 5000 })).toBeInTheDocument();
+    expect(screen.getByText("mặc định của app (đã sửa)")).toBeInTheDocument();
     expect(screen.queryByLabelText("Tên nhân vật CN 1")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("tab", { name: "Thông tin" }));

@@ -53,7 +53,7 @@ export function PromptEditor({ defaults }: { defaults: StoryDefaults | undefined
         <Label>
           Prompt dịch{" "}
           <span className="rounded-full bg-muted px-1.5 text-xs font-normal text-muted-foreground">
-            {usingDefault ? "mặc định" : "riêng"}
+            {usingDefault ? (defaults?.promptSource === "file" ? "mặc định của app (đã sửa)" : "mặc định") : "riêng"}
           </span>
         </Label>
         <div className="flex-1" />

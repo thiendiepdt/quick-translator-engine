@@ -3,13 +3,16 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SettingsPage } from "@/components/pages/settings-page";
-import { appConfigSet } from "@/lib/api";
+import { appConfigSet, baseGet } from "@/lib/api";
 import { appConfigSchema, storySnapshotSchema } from "@/lib/schema";
 import { useStoryStore } from "@/store/story";
 
 vi.mock("@/lib/api", () => ({
   agyStatus: vi.fn(),
   appConfigSet: vi.fn((config: unknown) => Promise.resolve(config)),
+  baseGet: vi.fn(),
+  baseReset: vi.fn(),
+  baseSave: vi.fn(),
   pickAgyFile: vi.fn(),
   pickFolder: vi.fn(),
   saveSettings: vi.fn(),
@@ -106,6 +109,17 @@ describe("SettingsPage · Động cơ dịch", () => {
     await user.type(parallel, "3");
     expect(screen.getByRole("button", { name: "Lưu App + Truyện này" })).toBeDisabled();
     expect(screen.getByText(/Dừng dịch rồi mới lưu được/)).toBeInTheDocument();
+  });
+
+  it("card Bản mặc định có ba nút; bấm Prompt mặc định mở dialog và nạp base", async () => {
+    const user = userEvent.setup();
+    vi.mocked(baseGet).mockResolvedValue({ kind: "prompt", setting: "ancient", names: "han", source: "builtin", text: "# x" });
+    render(<SettingsPage />);
+    expect(screen.getByRole("button", { name: "Rule mặc định" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Glossary chung" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Prompt mặc định" }));
+    expect(await screen.findByRole("dialog", { name: "Prompt mặc định" })).toBeInTheDocument();
+    await waitFor(() => expect(baseGet).toHaveBeenCalledWith("prompt", "ancient", "han"));
   });
 
   it("config engine api nạp sẵn key/model của provider đang chọn", () => {

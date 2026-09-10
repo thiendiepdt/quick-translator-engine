@@ -1,10 +1,13 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { FolderSearch } from "lucide-react";
-import { useEffect, type ComponentProps, type ReactNode } from "react";
+import { BookA, FileText, FolderSearch, ListChecks } from "lucide-react";
+import { useEffect, useState, type ComponentProps, type ReactNode } from "react";
 import { useForm, type FieldPath, type FieldPathValue, type UseFormReturn } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
+import { BaseGlossaryDialog } from "@/components/base-glossary-dialog";
+import { BasePromptDialog } from "@/components/base-prompt-dialog";
+import { BaseRulesDialog } from "@/components/base-rules-dialog";
 import { Choice } from "@/components/choice";
 import { PalettePicker } from "@/components/palette-picker";
 import { Button } from "@/components/ui/button";
@@ -19,7 +22,7 @@ import { apiSettingsFromForm, engineFormFromConfig, engineFormSchema } from "@/l
 import { READING_WIDTH_LABELS, READING_WIDTHS } from "@/lib/reading";
 import { DEFAULT_API_MODELS, OPENAI_REASONING_EFFORTS } from "@/lib/schema";
 import { THEME_MODE_LABELS, THEME_MODES } from "@/lib/theme";
-import { API_PROVIDER_LABELS, ENGINE_LABELS, type ApiProvider, type Engine } from "@/lib/types";
+import { API_PROVIDER_LABELS, ENGINE_LABELS, type ApiProvider, type BaseKind, type Engine } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { selectCurrentRunning, useStoryStore } from "@/store/story";
 
@@ -185,6 +188,7 @@ export function SettingsPage() {
   const theme = useThemeActions();
   const reading = useReadingWidth();
   const form = useForm<SettingsForm>({ resolver: zodResolver(settingsFormSchema) });
+  const [baseDialog, setBaseDialog] = useState<BaseKind | undefined>();
 
   useEffect(() => {
     if (config && settings) {
@@ -326,6 +330,25 @@ export function SettingsPage() {
               )}
             </div>
           </Card>
+          <Card
+            title="Bản mặc định"
+            description="Prompt, rule và glossary dùng cho mọi truyện chưa có bản riêng. Sửa ở đây là mọi truyện đang dùng mặc định ăn theo, kể cả phiên agy."
+          >
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={() => setBaseDialog("prompt")}>
+                <FileText /> Prompt mặc định
+              </Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => setBaseDialog("rules")}>
+                <ListChecks /> Rule mặc định
+              </Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => setBaseDialog("glossary")}>
+                <BookA /> Glossary chung
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              File nằm trong thư mục cấu hình app, mục <code>base/</code>. Về mặc định = xoá file.
+            </p>
+          </Card>
           <form id={FORM_ID} onSubmit={(e) => void submit(e)} className="flex flex-col gap-6">
             <EngineCard form={form} running={running} />
             <Card title="App" description="Giới hạn phiên chung; đường dẫn agy và model chỉ dùng khi động cơ là agy.">
@@ -375,6 +398,9 @@ export function SettingsPage() {
         </div>
       </div>
       <SaveBar dirty={form.formState.isDirty} running={running} saving={form.formState.isSubmitting} onReset={() => form.reset()} />
+      <BasePromptDialog open={baseDialog === "prompt"} onOpenChange={(o) => setBaseDialog(o ? "prompt" : undefined)} />
+      <BaseRulesDialog open={baseDialog === "rules"} onOpenChange={(o) => setBaseDialog(o ? "rules" : undefined)} />
+      <BaseGlossaryDialog open={baseDialog === "glossary"} onOpenChange={(o) => setBaseDialog(o ? "glossary" : undefined)} />
     </div>
   );
 }
