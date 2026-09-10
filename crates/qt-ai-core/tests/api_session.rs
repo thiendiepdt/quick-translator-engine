@@ -66,7 +66,7 @@ impl TextModel for FakeModel {
         on_progress(10);
         self.script.lock().unwrap().pop_front().unwrap_or_else(|| Ok(good()))
     }
-    fn complete_json(&self, _system: &str, _user: &str) -> Result<String, ApiError> {
+    fn complete_json(&self, _system: &str, _user: &str, _cancel: &AtomicBool) -> Result<String, ApiError> {
         Ok(self.glossary_json.clone())
     }
 }

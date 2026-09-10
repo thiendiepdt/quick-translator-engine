@@ -176,7 +176,7 @@ fn harvest_glossary(chapter: &Chapter, paths: &StoryPaths, raw: &str, draft: &[S
         .collect();
     exclude.sort();
     let user = json!({ "exclude": exclude, "raw": raw, "translation": final_text(draft) }).to_string();
-    let entries = match chapter.model.complete_json(GLOSSARY_EXTRACT_SYSTEM_PROMPT, &user) {
+    let entries = match chapter.model.complete_json(GLOSSARY_EXTRACT_SYSTEM_PROMPT, &user, chapter.cancel) {
         Ok(text) => serde_json::from_str::<Value>(&text)
             .ok()
             .and_then(|value| value.get("entries").cloned().or(Some(value)))

@@ -8,8 +8,9 @@ pub mod sse;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::io::BufReader;
-use std::sync::atomic::AtomicBool;
+use std::io::{BufReader, Read};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::{sync_channel, Receiver, RecvTimeoutError};
 use std::sync::OnceLock;
 use std::time::Duration;
 
@@ -135,8 +136,8 @@ pub trait TextModel: Send + Sync {
         cancel: &AtomicBool,
         on_progress: &mut dyn FnMut(usize),
     ) -> Result<String, ApiError>;
-    /// Sinh JSON (không stream) cho tác vụ phụ như trích glossary.
-    fn complete_json(&self, system: &str, user: &str) -> Result<String, ApiError>;
+    /// Sinh JSON (không stream) cho tác vụ phụ như trích glossary. `cancel` bật → `ApiError::Cancelled`.
+    fn complete_json(&self, system: &str, user: &str, cancel: &AtomicBool) -> Result<String, ApiError>;
 }
 
 fn install_crypto_provider() {
@@ -182,22 +183,133 @@ impl HttpModel {
         &self.config
     }
 
-    fn send(&self, url: &str, headers: &[(&str, String)], body: &Value) -> Result<reqwest::blocking::Response, ApiError> {
+    /// Gửi request rồi đọc body trên thread phụ; phía gọi nhận từng khúc qua channel và nhìn cờ huỷ mỗi
+    /// `CANCEL_POLL`. reqwest blocking không abort được, nên huỷ = bỏ receiver: thread phụ thấy channel
+    /// đóng thì drop response → kết nối bị cắt, hub ngừng sinh. Nhờ vậy Dừng phản hồi ngay cả khi model
+    /// đang "nghĩ" và chưa gửi byte nào.
+    fn send<'a>(
+        &self,
+        url: &str,
+        headers: &[(&str, String)],
+        body: &Value,
+        cancel: &'a AtomicBool,
+    ) -> Result<CancellableBody<'a>, ApiError> {
         let provider = self.config.provider.label();
         let mut request = http_client().post(url).header("content-type", "application/json");
         for (name, value) in headers {
             request = request.header(*name, value.as_str());
         }
-        let response = request.body(serde_json::to_vec(body).expect("body serialize")).send().map_err(|error| {
-            let message = if error.is_timeout() { "timeout".to_string() } else { error.without_url().to_string() };
-            ApiError::Network { provider, message }
-        })?;
-        let status = response.status();
-        if !status.is_success() {
-            let text = response.text().unwrap_or_default();
-            return Err(ApiError::Http { provider, status: status.as_u16(), message: error_message(&text) });
+        let request = request.body(serde_json::to_vec(body).expect("body serialize"));
+        let (tx, rx) = sync_channel::<Result<Vec<u8>, ApiError>>(64);
+        std::thread::spawn(move || {
+            let mut response = match request.send() {
+                Ok(response) => response,
+                Err(error) => {
+                    let message = if error.is_timeout() { "timeout".to_string() } else { error.without_url().to_string() };
+                    let _ = tx.send(Err(ApiError::Network { provider, message }));
+                    return;
+                }
+            };
+            let status = response.status();
+            if !status.is_success() {
+                let text = response.text().unwrap_or_default();
+                let _ = tx.send(Err(ApiError::Http { provider, status: status.as_u16(), message: error_message(&text) }));
+                return;
+            }
+            // Header OK: báo một khúc rỗng để phía gọi biết đã kết nối, rồi stream body.
+            if tx.send(Ok(Vec::new())).is_err() {
+                return;
+            }
+            let mut chunk = [0u8; 8192];
+            loop {
+                match response.read(&mut chunk) {
+                    Ok(0) => break,
+                    Ok(n) => {
+                        if tx.send(Ok(chunk[..n].to_vec())).is_err() {
+                            break; // phía gọi đã huỷ — drop response, cắt kết nối
+                        }
+                    }
+                    Err(error) => {
+                        let _ = tx.send(Err(ApiError::Stream(error.to_string())));
+                        break;
+                    }
+                }
+            }
+        });
+        let mut body = CancellableBody { rx, cancel, buffer: Vec::new(), pos: 0, done: false };
+        body.wait_headers()?;
+        Ok(body)
+    }
+}
+
+/// Nhịp nhìn cờ huỷ khi đang chờ byte từ hub.
+pub const CANCEL_POLL: Duration = Duration::from_millis(100);
+
+/// Body HTTP đọc qua channel từ thread phụ — `Read` trả lỗi "đã huỷ" ngay khi cờ bật.
+pub struct CancellableBody<'a> {
+    rx: Receiver<Result<Vec<u8>, ApiError>>,
+    cancel: &'a AtomicBool,
+    buffer: Vec<u8>,
+    pos: usize,
+    done: bool,
+}
+
+impl CancellableBody<'_> {
+    /// Chờ tín hiệu header OK (khúc rỗng đầu tiên) hoặc lỗi gửi/HTTP; huỷ giữa chừng → Cancelled.
+    fn wait_headers(&mut self) -> Result<(), ApiError> {
+        match self.recv()? {
+            Some(_) => Ok(()),
+            None => Err(ApiError::Stream("kết nối đóng trước khi có response".to_string())),
         }
-        Ok(response)
+    }
+
+    /// `Ok(None)` = hết body. Chờ theo nhịp `CANCEL_POLL` để cờ huỷ có tác dụng ngay.
+    fn recv(&mut self) -> Result<Option<Vec<u8>>, ApiError> {
+        loop {
+            if self.cancel.load(Ordering::SeqCst) {
+                return Err(ApiError::Cancelled);
+            }
+            match self.rx.recv_timeout(CANCEL_POLL) {
+                Ok(Ok(chunk)) => return Ok(Some(chunk)),
+                Ok(Err(error)) => return Err(error),
+                Err(RecvTimeoutError::Timeout) => continue,
+                Err(RecvTimeoutError::Disconnected) => return Ok(None),
+            }
+        }
+    }
+
+    /// Đọc trọn body thành text (đường JSON không stream).
+    pub fn read_all(mut self) -> Result<String, ApiError> {
+        let mut bytes = self.buffer.split_off(self.pos);
+        while let Some(chunk) = self.recv()? {
+            bytes.extend_from_slice(&chunk);
+        }
+        String::from_utf8(bytes).map_err(|error| ApiError::Stream(format!("body không phải UTF-8: {error}")))
+    }
+}
+
+impl Read for CancellableBody<'_> {
+    fn read(&mut self, out: &mut [u8]) -> std::io::Result<usize> {
+        while self.pos >= self.buffer.len() {
+            if self.done {
+                return Ok(0);
+            }
+            match self.recv() {
+                Ok(Some(chunk)) => {
+                    self.buffer = chunk;
+                    self.pos = 0;
+                }
+                Ok(None) => {
+                    self.done = true;
+                    return Ok(0);
+                }
+                Err(error) => return Err(std::io::Error::other(error.to_string())),
+            }
+        }
+        let n = out.len().min(self.buffer.len() - self.pos);
+        out[..n].copy_from_slice(&self.buffer[self.pos..self.pos + n]);
+        self.pos += n;
+        Ok(n)
     }
 }
 
@@ -220,6 +332,7 @@ impl TextModel for HttpModel {
                     &gemini::stream_url(config),
                     &gemini::headers(config),
                     &gemini::stream_body(config, system, user),
+                    cancel,
                 )?;
                 gemini::parse_stream(BufReader::new(response), cancel, on_progress)
             }
@@ -228,6 +341,7 @@ impl TextModel for HttpModel {
                     &openai::url(config),
                     &openai::headers(config, true),
                     &openai::stream_body(config, system, user),
+                    cancel,
                 )?;
                 openai::parse_stream(BufReader::new(response), cancel, on_progress)
             }
@@ -236,13 +350,13 @@ impl TextModel for HttpModel {
 
     /// JSON mode trước; hub/model không nhận JSON mode (400/404/422, trả rỗng, không phải JSON…) thì
     /// gọi lại bằng lượt text thường rồi bóc object JSON ra — glossary/AI điền không vì hub lạ mà câm.
-    fn complete_json(&self, system: &str, user: &str) -> Result<String, ApiError> {
-        match self.complete_json_strict(system, user) {
+    fn complete_json(&self, system: &str, user: &str, cancel: &AtomicBool) -> Result<String, ApiError> {
+        match self.complete_json_strict(system, user, cancel) {
             Ok(text) => Ok(text),
             Err(error) if error.is_transient() || matches!(error, ApiError::Blocked(_) | ApiError::Cancelled) => Err(error),
             Err(error) => {
                 let system = format!("{system}\n\nChỉ trả về đúng một JSON object hợp lệ, không giải thích, không markdown.");
-                let text = self.generate(&system, user, &AtomicBool::new(false), &mut |_| {})?;
+                let text = self.generate(&system, user, cancel, &mut |_| {})?;
                 extract_json_object(&text)
                     .ok_or_else(|| ApiError::BadOutput(format!("model không trả JSON (JSON mode lỗi: {error})")))
             }
@@ -251,7 +365,7 @@ impl TextModel for HttpModel {
 }
 
 impl HttpModel {
-    fn complete_json_strict(&self, system: &str, user: &str) -> Result<String, ApiError> {
+    fn complete_json_strict(&self, system: &str, user: &str, cancel: &AtomicBool) -> Result<String, ApiError> {
         let config = &self.config;
         let provider = config.provider.label();
         let (url, headers, body) = match config.provider {
@@ -262,9 +376,8 @@ impl HttpModel {
                 (openai::url(config), openai::headers(config, false), openai::json_body(config, system, user))
             }
         };
-        let response = self.send(&url, &headers, &body)?;
-        let payload: Value = response
-            .json()
+        let text = self.send(&url, &headers, &body, cancel)?.read_all()?;
+        let payload: Value = serde_json::from_str(&text)
             .map_err(|error| ApiError::Stream(format!("response {provider} không phải JSON: {error}")))?;
         let content = match config.provider {
             ApiProvider::Gemini => gemini::parse_json_response(&payload),

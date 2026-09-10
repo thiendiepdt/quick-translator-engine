@@ -8,6 +8,7 @@ use crate::story::StoryConfig;
 use crate::story_fs::{list_raw_chapter_ids, read_raw_chapter, StoryPaths};
 use crate::Result;
 use serde_json::{Map, Value};
+use std::sync::atomic::AtomicBool;
 
 /// Số chương đầu đưa cho model đọc.
 pub const SAMPLE_CHAPTERS: usize = 3;
@@ -166,7 +167,8 @@ pub fn fill_story(
     source_url: &str,
     samples: &[ChapterSample],
 ) -> std::result::Result<StoryConfig, ApiError> {
-    let output = model.complete_json(FILL_SYSTEM_PROMPT, &build_fill_prompt(name, source_url, samples))?;
+    // AI điền chạy một lượt từ dialog, chưa có nút huỷ → cờ luôn tắt.
+    let output = model.complete_json(FILL_SYSTEM_PROMPT, &build_fill_prompt(name, source_url, samples), &AtomicBool::new(false))?;
     let proposed = parse_fill_json(&output)?;
     Ok(merge_fill(current, &proposed, name, source_url))
 }
@@ -175,7 +177,6 @@ pub fn fill_story(
 mod tests {
     use super::*;
     use crate::story::{GenreNames, GenreSetting};
-    use std::sync::atomic::AtomicBool;
     use std::sync::Mutex;
 
     struct FakeModel {
@@ -190,7 +191,7 @@ mod tests {
         fn generate(&self, _: &str, _: &str, _: &AtomicBool, _: &mut dyn FnMut(usize)) -> std::result::Result<String, ApiError> {
             unreachable!("fill chỉ dùng complete_json")
         }
-        fn complete_json(&self, system: &str, user: &str) -> std::result::Result<String, ApiError> {
+        fn complete_json(&self, system: &str, user: &str, _: &AtomicBool) -> std::result::Result<String, ApiError> {
             self.calls.lock().unwrap().push((system.to_string(), user.to_string()));
             Ok(self.reply.clone())
         }

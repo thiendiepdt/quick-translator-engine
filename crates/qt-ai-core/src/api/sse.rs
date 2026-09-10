@@ -16,7 +16,13 @@ pub fn read_sse<R: BufRead>(
             return Err(ApiError::Cancelled);
         }
         line.clear();
-        let read = reader.read_line(&mut line).map_err(|error| ApiError::Stream(error.to_string()))?;
+        let read = reader.read_line(&mut line).map_err(|error| {
+            if cancel.load(Ordering::SeqCst) {
+                ApiError::Cancelled
+            } else {
+                ApiError::Stream(error.to_string())
+            }
+        })?;
         if read == 0 {
             return Ok(());
         }

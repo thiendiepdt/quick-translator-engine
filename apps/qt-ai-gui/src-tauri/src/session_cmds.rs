@@ -210,6 +210,7 @@ fn fill_story_via_agy(state: &State<'_, AppState>, root_path: &Path, name: &str,
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::AtomicBool;
 
     #[test]
     fn setup_prompt_dua_ten_link_va_duong_dan_tuyet_doi() {
@@ -234,7 +235,7 @@ mod tests {
         ) -> Result<String, qt_ai_core::api::ApiError> {
             unreachable!()
         }
-        fn complete_json(&self, _: &str, user: &str) -> Result<String, qt_ai_core::api::ApiError> {
+        fn complete_json(&self, _: &str, user: &str, _: &AtomicBool) -> Result<String, qt_ai_core::api::ApiError> {
             assert!(user.contains("第一章"), "prompt phải kèm chương raw");
             Ok(self.0.clone())
         }

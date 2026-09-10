@@ -1,4 +1,4 @@
-import { KeyRound, Play, RefreshCw, Square } from "lucide-react";
+import { KeyRound, LoaderCircle, Play, RefreshCw, Square } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -130,7 +130,11 @@ export function TranslateToolbar() {
           onClick={() => void toggle()}
           className="min-w-36"
         >
-          {running ? (
+          {running && busy ? (
+            <>
+              <LoaderCircle className="animate-spin" /> Đang dừng…
+            </>
+          ) : running ? (
             <>
               <Square /> Dừng
             </>
