@@ -92,6 +92,32 @@ const ENGINES: readonly Engine[] = ["agy", "api"];
 const API_PROVIDERS: readonly ApiProvider[] = ["gemini", "openai"];
 
 /**
+ * Thanh lưu dính đáy khung cuộn, chỉ hiện khi form có thay đổi: người dùng sửa ô nào cũng thấy nút Lưu
+ * ngay trước mắt thay vì phải cuộn xuống cuối trang mới biết cần lưu.
+ */
+function SaveBar({ dirty, running, saving, onReset }: { dirty: boolean; running: boolean; saving: boolean; onReset: () => void }) {
+  if (!dirty) return null;
+  return (
+    <div
+      data-testid="save-bar"
+      className="sticky bottom-0 z-10 flex items-center justify-between gap-3 rounded-lg border bg-background/95 px-4 py-3 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-background/80"
+    >
+      <p className="text-sm text-muted-foreground">
+        {running ? "Có thay đổi chưa lưu. Dừng dịch rồi mới lưu được." : "Có thay đổi chưa lưu."}
+      </p>
+      <div className="flex shrink-0 gap-2">
+        <Button type="button" variant="ghost" size="sm" onClick={onReset} disabled={saving}>
+          Hoàn tác
+        </Button>
+        <Button type="submit" size="sm" disabled={running || saving}>
+          Lưu App + Truyện này
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/**
  * Card "Động cơ dịch": chọn agy hay API key; API thì key/model/base URL theo provider đang chọn
  * (provider kia vẫn giữ giá trị trong form, đổi qua lại không mất key).
  */
@@ -378,11 +404,12 @@ export function SettingsPage() {
               max: 3,
             })}
           </Card>
-          <div className="flex justify-end">
-            <Button type="submit" disabled={running || !form.formState.isDirty}>
-              Lưu App + Truyện này
-            </Button>
-          </div>
+          <SaveBar
+            dirty={form.formState.isDirty}
+            running={running}
+            saving={form.formState.isSubmitting}
+            onReset={() => form.reset()}
+          />
         </form>
       </div>
     </div>

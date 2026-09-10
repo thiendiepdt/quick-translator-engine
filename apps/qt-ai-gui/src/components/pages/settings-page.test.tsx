@@ -76,6 +76,34 @@ describe("SettingsPage · Động cơ dịch", () => {
     expect(useStoryStore.getState().config?.readingWidth).toBe("full");
   });
 
+  it("thanh Lưu dính đáy chỉ hiện khi có thay đổi; Hoàn tác trả giá trị cũ và ẩn thanh", async () => {
+    const user = userEvent.setup();
+    render(<SettingsPage />);
+    expect(screen.queryByRole("button", { name: "Lưu App + Truyện này" })).not.toBeInTheDocument();
+
+    const parallel = screen.getByLabelText("Số truyện dịch song song");
+    await user.clear(parallel);
+    await user.type(parallel, "4");
+    expect(screen.getByRole("button", { name: "Lưu App + Truyện này" })).toBeEnabled();
+    expect(screen.getByTestId("save-bar")).toHaveClass("sticky");
+    expect(screen.getByText("Có thay đổi chưa lưu.")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Hoàn tác" }));
+    expect(parallel).toHaveValue(2);
+    expect(screen.queryByRole("button", { name: "Lưu App + Truyện này" })).not.toBeInTheDocument();
+  });
+
+  it("đang dịch: thanh Lưu vẫn hiện nhưng nút Lưu khoá kèm lời nhắc dừng dịch", async () => {
+    useStoryStore.getState().openStory({ ...snapshot, sessionRunning: true });
+    const user = userEvent.setup();
+    render(<SettingsPage />);
+    const parallel = screen.getByLabelText("Số truyện dịch song song");
+    await user.clear(parallel);
+    await user.type(parallel, "3");
+    expect(screen.getByRole("button", { name: "Lưu App + Truyện này" })).toBeDisabled();
+    expect(screen.getByText(/Dừng dịch rồi mới lưu được/)).toBeInTheDocument();
+  });
+
   it("config engine api nạp sẵn key/model của provider đang chọn", () => {
     useStoryStore.setState({
       config: {
