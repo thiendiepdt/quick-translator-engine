@@ -63,28 +63,35 @@ export function StorySidebar() {
   }, []);
 
   return (
-    <aside className="flex h-full w-14 shrink-0 flex-col items-center border-l bg-card py-3">
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Chuyển truyện (Ctrl+K)"
-            onClick={() => setSwitcherOpen(true)}
-            className="mb-2 size-10 rounded-lg text-muted-foreground hover:text-foreground"
-          >
-            <LayoutGrid className="size-5" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side="left">Chuyển truyện (Ctrl+K)</TooltipContent>
-      </Tooltip>
+    <aside className="flex h-full w-48 shrink-0 flex-col border-l bg-card">
+      <div className="flex items-center justify-between border-b px-3 py-2">
+        <span className="text-xs font-medium tracking-widest text-muted-foreground uppercase">Phiên này</span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Chuyển truyện (Ctrl+K)"
+              onClick={() => setSwitcherOpen(true)}
+              className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
+            >
+              <LayoutGrid className="size-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="left">Chuyển truyện (Ctrl+K)</TooltipContent>
+        </Tooltip>
+      </div>
       <div
-        className="fine-scrollbar flex min-h-0 flex-1 flex-col items-center gap-1.5 overflow-y-auto"
+        className="fine-scrollbar flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto p-2"
         role="list"
         aria-label="Truyện đã mở trong phiên này"
       >
+        {visible.length === 0 && (
+          <p className="px-1 py-2 text-xs text-muted-foreground">Truyện mở trong phiên này sẽ hiện ở đây để chuyển nhanh.</p>
+        )}
         {visible.map((item) => {
           const label = item.name || item.root;
+          const folder = item.root.replace(/[\\/]+$/, "").split(/[\\/]/).pop() ?? item.root;
           const detail = item.running
             ? `Đang dịch${item.currentChapter ? ` · ${item.currentChapter}` : ""}${item.percent !== undefined ? ` · ${item.percent}%` : ""}`
             : item.current
@@ -101,31 +108,49 @@ export function StorySidebar() {
                   disabled={busy}
                   onClick={() => void switchTo(item.root)}
                   className={cn(
-                    "relative flex size-10 shrink-0 items-center justify-center rounded-lg border text-xs font-semibold transition-colors",
+                    "flex w-full shrink-0 items-start gap-2 rounded-lg border p-2 text-left transition-colors disabled:opacity-50",
                     item.current
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-transparent bg-muted text-muted-foreground hover:bg-accent hover:text-foreground",
+                      ? "border-primary bg-primary/10"
+                      : "border-transparent bg-muted/60 hover:bg-accent",
                   )}
-                  style={
-                    item.running && item.percent !== undefined
-                      ? { backgroundImage: `conic-gradient(var(--status-done) ${item.percent}%, transparent 0)` }
-                      : undefined
-                  }
                 >
-                  <span className={cn("flex size-8 items-center justify-center rounded-md", item.running && "bg-card")}>
+                  <span
+                    className={cn(
+                      "relative flex size-8 shrink-0 items-center justify-center rounded-md text-[11px] font-semibold",
+                      item.current ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground",
+                    )}
+                  >
                     {initials(item.name, item.root)}
+                    {item.running && (
+                      <span
+                        className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-status-translating ring-2 ring-card animate-pulse"
+                        aria-hidden
+                      />
+                    )}
                   </span>
-                  {item.running && (
-                    <span
-                      className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-status-translating ring-2 ring-card animate-pulse"
-                      aria-hidden
-                    />
-                  )}
+                  <span className="flex min-w-0 flex-1 flex-col gap-1">
+                    <span className={cn("line-clamp-2 text-xs leading-snug font-medium", item.current && "text-primary")}>
+                      {item.name || folder}
+                    </span>
+                    {item.running ? (
+                      <span className="flex items-center gap-1.5">
+                        <span className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
+                          <span className="block h-full bg-status-done" style={{ width: `${item.percent ?? 0}%` }} />
+                        </span>
+                        <span className="shrink-0 text-[10px] tabular-nums text-status-translating">
+                          {item.percent !== undefined ? `${item.percent}%` : "…"}
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="truncate font-mono text-[10px] text-muted-foreground">{folder}</span>
+                    )}
+                  </span>
                 </button>
               </TooltipTrigger>
               <TooltipContent side="left">
                 <p className="font-medium">{label}</p>
                 <p className="text-xs opacity-80">{detail}</p>
+                <p className="font-mono text-[10px] opacity-60">{item.root}</p>
               </TooltipContent>
             </Tooltip>
           );
@@ -136,9 +161,9 @@ export function StorySidebar() {
             size="sm"
             aria-label={`Xem thêm ${hidden} truyện`}
             onClick={() => setLimit((value) => value + SIDEBAR_PAGE)}
-            className="h-8 w-10 shrink-0 px-0 text-xs text-muted-foreground"
+            className="h-8 shrink-0 text-xs text-muted-foreground"
           >
-            +{hidden}
+            Xem thêm {hidden}
             <ChevronDown className="size-3" />
           </Button>
         )}
