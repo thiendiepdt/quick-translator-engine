@@ -59,7 +59,7 @@ describe("SettingsPage · Động cơ dịch", () => {
 
     await user.click(screen.getByRole("radio", { name: "API key" }));
     expect(screen.getByLabelText("API key Google AI")).toHaveAttribute("type", "password");
-    expect(screen.getByLabelText("Thinking (Gemini 3.x: high ↔ minimal)")).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Thinking cho lượt dịch/)).toBeInTheDocument();
 
     await user.click(screen.getByRole("radio", { name: "OpenAI-compatible" }));
     expect(screen.queryByLabelText("API key Google AI")).not.toBeInTheDocument();

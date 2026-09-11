@@ -137,7 +137,7 @@ function EngineCard({ form, running }: { form: UseFormReturn<SettingsForm>; runn
               })}
               <div className="flex items-center justify-between rounded-md bg-background/60 px-3 py-2">
                 <Label htmlFor="thinking" className="text-xs font-normal">
-                  Thinking (Gemini 3.x: high ↔ minimal)
+                  Thinking cho lượt dịch (Gemini 3.x: high ↔ minimal; soát và trích glossary luôn ở mức thấp)
                 </Label>
                 <Switch id="thinking" checked={thinking} onCheckedChange={(v) => set("thinking", v)} disabled={running} />
               </div>
@@ -153,7 +153,7 @@ function EngineCard({ form, running }: { form: UseFormReturn<SettingsForm>; runn
               })}
               <div className="flex items-center justify-between gap-2">
                 <Label htmlFor="reasoningEffort" className="text-xs font-normal">
-                  Mức nghĩ (reasoning_effort)
+                  Mức nghĩ lượt dịch (reasoning_effort; soát và trích glossary luôn low)
                 </Label>
                 <Select value={reasoningEffort} onValueChange={(v) => set("reasoningEffort", v as SettingsForm["reasoningEffort"])} disabled={running}>
                   <SelectTrigger id="reasoningEffort" className="w-40" aria-label="Mức reasoning OpenAI">
