@@ -2,6 +2,7 @@ import { RotateCcw } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { ChapterRefHint } from "@/components/chapter-ref-hint";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,7 +17,6 @@ import { Label } from "@/components/ui/label";
 import { chaptersRetry, storySnapshot } from "@/lib/api";
 import { resolveChapterRef } from "@/lib/chapters";
 import { previewRetryRange } from "@/lib/retry-range";
-import { cn } from "@/lib/utils";
 import type { ChapterRow } from "@/lib/types";
 import { useStoryStore } from "@/store/story";
 
@@ -25,16 +25,6 @@ interface Props {
   chapters: ChapterRow[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}
-
-/** Mã chương ứng với số vừa gõ, để người dùng chắc mình chọn đúng. */
-function RefHint({ text, id }: { text: string; id: string }) {
-  if (!text.trim()) return null;
-  return (
-    <p className={cn("truncate font-mono text-[11px]", id ? "text-muted-foreground" : "text-destructive")} title={id}>
-      {id ? `→ ${id}` : "không có chương này"}
-    </p>
-  );
 }
 
 /** Dịch lại toàn bộ hoặc một khoảng chương: xem trước số chương, số bản dịch cũ sẽ thành .bak, rồi xác nhận. */
@@ -94,7 +84,7 @@ export function RetryRangeDialog({ root, chapters, open, onOpenChange }: Props) 
               placeholder="Đầu"
               disabled={busy}
             />
-            <RefHint text={from} id={fromId} />
+            <ChapterRefHint text={from} id={fromId} />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="retry-to">Đến chương</Label>
@@ -107,7 +97,7 @@ export function RetryRangeDialog({ root, chapters, open, onOpenChange }: Props) 
               placeholder="Cuối"
               disabled={busy}
             />
-            <RefHint text={to} id={toId} />
+            <ChapterRefHint text={to} id={toId} />
           </div>
         </div>
         <div className="rounded-md bg-muted p-3 text-sm">
