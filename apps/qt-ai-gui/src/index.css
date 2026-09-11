@@ -257,6 +257,24 @@
   }
 }
 
+/* Nút đóng toast (sonner): mặc định là chấm 20px nằm ngoài góc trên trái, khó bấm. Đặt vào trong toast, cạnh phải, 32px. */
+.toaster [data-sonner-toast][data-styled="true"] {
+  padding-right: 52px;
+}
+.toaster [data-sonner-toast][data-styled="true"] [data-close-button] {
+  left: auto;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius);
+}
+.toaster [data-sonner-toast][data-styled="true"] [data-close-button] svg {
+  width: 16px;
+  height: 16px;
+}
+
 @layer components {
   /* Vùng đọc bản dịch: cột hẹp, chữ to, giãn dòng. */
   .reading {

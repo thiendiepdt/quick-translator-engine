@@ -15,6 +15,9 @@ const Toaster = ({ ...props }: ToasterProps) => {
     <Sonner
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
+      // Nút X hiện khi rê chuột: toast lỗi dài không phải chờ hết giờ hay kéo sang phải mới tắt.
+      closeButton
+      toastOptions={{ closeButtonAriaLabel: "Đóng thông báo" }}
       icons={{
         success: <CircleCheckIcon className="size-4" />,
         info: <InfoIcon className="size-4" />,
