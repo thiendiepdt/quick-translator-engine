@@ -3,6 +3,7 @@ use crate::sidecar::qt_ai_command;
 use crate::summary_cache::SummaryCache;
 use crate::AppState;
 use qt_ai_core::commands::accept::run_accept;
+use qt_ai_core::commands::delete::run_delete;
 use qt_ai_core::commands::export::{run_export, ExportOptions};
 use qt_ai_core::commands::init::run_init;
 use qt_ai_core::commands::retry::{run_retry, run_retry_range};
@@ -59,6 +60,8 @@ pub struct ChapterView {
     pub id: String,
     pub status: String,
     pub raw: String,
+    /// raw/<id>.txt đã mất (xoá khi app đang mở) — `raw` rỗng, UI nhắc Quét lại để gỡ chương.
+    pub raw_missing: bool,
     pub output: Option<String>,
     pub draft: Option<String>,
     pub review: Option<String>,
@@ -179,10 +182,13 @@ pub fn chapter_view(root: &Path, id: &str) -> CmdResult<ChapterView> {
         .chapters
         .get(id)
         .ok_or_else(|| CommandError::new("story_not_found", format!("Không có chương {id} trong state.json.")))?;
+    let raw_path = paths.raw_dir.join(format!("{id}.txt"));
+    let raw_missing = !raw_path.is_file();
     Ok(ChapterView {
         id: id.to_string(),
         status: chapter.status.as_str().to_string(),
-        raw: read_raw_chapter(&paths, id)?,
+        raw: if raw_missing { String::new() } else { read_raw_chapter(&paths, id)? },
+        raw_missing,
         output: optional_text(&paths.out_dir.join(format!("{id}.txt"))),
         draft: optional_text(&work_file(&paths, id, WorkKind::Draft)),
         review: optional_text(&work_file(&paths, id, WorkKind::Review)),
@@ -316,6 +322,26 @@ pub fn chapters_retry(
     })
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeleteOutcomeView {
+    pub removed: Vec<String>,
+    pub kept_outputs: Vec<String>,
+}
+
+/// Xoá hẳn chương (gỡ state, xoá raw/ + work/; out/ giữ nguyên). Chặn khi phiên đang chạy như `chapter_retry`.
+#[tauri::command]
+pub fn chapters_delete(state: State<'_, AppState>, root: String, ids: Vec<String>) -> CmdResult<DeleteOutcomeView> {
+    if session_running(&state, &root) {
+        return Err(CommandError::new(
+            "session_locked",
+            "Truyện này đang có phiên dịch chạy — bấm Dừng trước khi xoá chương.",
+        ));
+    }
+    let outcome = run_delete(Path::new(&root), &ids)?;
+    Ok(DeleteOutcomeView { removed: outcome.removed, kept_outputs: outcome.kept_outputs })
+}
+
 #[tauri::command]
 pub fn chapter_skip(root: String, id: String, reason: String) -> CmdResult<()> {
     Ok(run_skip(Path::new(&root), &id, &reason)?)
@@ -376,6 +402,18 @@ mod tests {
         fs::write(dir.path().join("raw").join("0002.txt"), "第二章").unwrap();
         run_init(dir.path(), "qt-ai").unwrap();
         dir
+    }
+
+    #[test]
+    fn chapter_view_raw_mat_thi_bao_raw_missing_thay_vi_loi() {
+        let dir = story();
+        let view = chapter_view(dir.path(), "0001").unwrap();
+        assert!(!view.raw_missing && view.raw.contains("赵静文"));
+        fs::remove_file(dir.path().join("raw").join("0001.txt")).unwrap();
+        let view = chapter_view(dir.path(), "0001").unwrap();
+        assert!(view.raw_missing && view.raw.is_empty());
+        let json = serde_json::to_value(&view).unwrap();
+        assert_eq!(json["rawMissing"], true);
     }
 
     #[test]

@@ -9,6 +9,7 @@ import {
   Save,
   ShieldCheck,
   SkipForward,
+  Trash2,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -31,12 +32,14 @@ import { useReadingWidth } from "@/hooks/use-reading-width";
 import {
   chapterForceAccept,
   chapterRetry,
+  chaptersDelete,
   chapterSkip,
   readChapter,
   saveChapterOutput,
   revealFolder,
   storySnapshot,
 } from "@/lib/api";
+import { describeDelete } from "@/lib/chapters";
 import { copyText } from "@/lib/clipboard";
 import { isReadingWidth, READING_WIDTH_LABELS, READING_WIDTHS } from "@/lib/reading";
 import { STATUS_LABELS, type ChapterRow, type ChapterStatus, type ChapterView } from "@/lib/types";
@@ -75,6 +78,7 @@ export function ChapterReader({ root, row, ordinal, hasPrev, hasNext, onPrev, on
   const view = loaded?.key === viewKey ? loaded.view : undefined;
   const [skipOpen, setSkipOpen] = useState(false);
   const [retryOpen, setRetryOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   // Sửa tay bản dịch: mặc định chỉ đọc; trạng thái sửa gắn key view để đổi chương là thoát chế độ sửa.
   // Textarea KHÔNG controlled: React set .value mỗi phím làm WebKitGTK xoá undo stack → Ctrl+Z chết.
   // Nội dung sống trong DOM (ref), state chỉ giữ cờ "đã đổi" để bật nút Lưu.
@@ -96,11 +100,12 @@ export function ChapterReader({ root, row, ordinal, hasPrev, hasNext, onPrev, on
     };
   }, [root, row.id, viewKey]);
 
+  /** Chạy hành động rồi nạp lại snapshot; action trả chuỗi thì dùng làm thông báo thay cho `label`. */
   async function act(label: string, action: () => Promise<unknown>) {
     try {
-      await action();
+      const message = await action();
       setSnapshot(await storySnapshot(root));
-      toast.success(label);
+      toast.success(typeof message === "string" ? message : label);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : `${label} thất bại`);
     }
@@ -178,6 +183,16 @@ export function ChapterReader({ root, row, ordinal, hasPrev, hasNext, onPrev, on
           onClick={() => void act("Đã chốt (force)", () => chapterForceAccept(root, row.id))}
         >
           <ShieldCheck /> Chốt --force
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="text-destructive hover:text-destructive"
+          disabled={running}
+          title="Xoá hẳn chương: xoá raw/ + work/, gỡ khỏi danh sách; bản dịch trong out/ giữ nguyên"
+          onClick={() => setDeleteOpen(true)}
+        >
+          <Trash2 /> Xoá chương
         </Button>
         <Button size="sm" variant="ghost" onClick={() => void revealFolder(root)}>
           <FolderOpen /> Mở folder
@@ -281,7 +296,13 @@ export function ChapterReader({ root, row, ordinal, hasPrev, hasNext, onPrev, on
                 />
               ) : (
                 <pre className="font-[inherit] whitespace-pre-wrap">
-                  {view ? (key === "raw" ? view.raw : (view[key] ?? "")) : "Đang đọc…"}
+                  {view
+                    ? key === "raw"
+                      ? view.rawMissing
+                        ? `File raw/${row.id}.txt đã mất — bấm Quét lại để gỡ chương khỏi danh sách (bản dịch trong out/ giữ nguyên).`
+                        : view.raw
+                      : (view[key] ?? "")
+                    : "Đang đọc…"}
                 </pre>
               )}
               <nav className="mt-10 flex items-center justify-between border-t pt-4 font-sans text-sm">
@@ -346,6 +367,37 @@ export function ChapterReader({ root, row, ordinal, hasPrev, hasNext, onPrev, on
               }}
             >
               Bỏ qua
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Xoá chương {ordinal !== undefined ? `#${ordinal} ` : ""}
+              {row.id}?
+            </DialogTitle>
+            <DialogDescription>
+              File raw/{row.id}.txt và nháp trong work/ sẽ bị xoá, chương biến khỏi danh sách; không hoàn tác được.
+              {row.status === "done" ? ` Bản dịch out/${row.id}.txt giữ nguyên trên đĩa.` : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteOpen(false)}>
+              Huỷ
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setDeleteOpen(false);
+                void act("Đã xoá chương", async () => {
+                  const outcome = await chaptersDelete(root, [row.id]);
+                  return describeDelete(outcome.removed.length, outcome.keptOutputs.length);
+                });
+              }}
+            >
+              <Trash2 /> Xoá
             </Button>
           </DialogFooter>
         </DialogContent>

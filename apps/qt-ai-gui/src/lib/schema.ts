@@ -84,6 +84,8 @@ export const chapterViewSchema = z.object({
   id: z.string(),
   status: chapterStatusSchema,
   raw: z.string(),
+  /** raw/<id>.txt đã mất sau lần quét gần nhất — UI nhắc Quét lại để gỡ chương. */
+  rawMissing: z.boolean().default(false),
   output: z.string().nullable(),
   draft: z.string().nullable(),
   review: z.string().nullable(),
@@ -134,7 +136,7 @@ export const appConfigSchema = z.object({
   model: z.string().nullable(),
   maxSessions: z.number().int().min(1).max(1000),
   /** Số truyện dịch song song (mỗi truyện một phiên). */
-  maxParallel: z.number().int().min(1).max(5).default(2),
+  maxParallel: z.number().int().min(1).max(20).default(2),
   recent: z.array(z.string()),
   /** Thư viện: folder cha chứa mọi truyện; null = chưa chọn. */
   libraryRoot: z.string().nullable().default(null),
@@ -236,3 +238,4 @@ export const retryRangeOutcomeSchema = z.object({
   backedUp: z.array(z.string()),
   alreadyQueued: z.array(z.string()),
 });
+export const deleteOutcomeSchema = z.object({ removed: z.array(z.string()), keptOutputs: z.array(z.string()) });

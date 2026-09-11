@@ -10,7 +10,8 @@ use std::fs;
 use std::path::Path;
 
 /// Dựng khung folder truyện. Idempotent: giữ state/story sẵn có, thêm chương raw mới thành queued và
-/// gỡ chương có file raw đã mất (đổi tên/xoá) — trừ chương done vì bản dịch trong out/ vẫn dùng được.
+/// gỡ chương có file raw đã mất (đổi tên/xoá) — kể cả chương done, nhưng out/<id>.txt giữ nguyên trên đĩa
+/// (bản dịch không bị xoá, chỉ không còn trong danh sách/export).
 /// `qt_ai_command` là lệnh chạy CLI để render vào AGENTS.md (đường dẫn binary, có ngoặc kép nếu cần).
 pub fn run_init(root: &Path, qt_ai_command: &str) -> Result<String> {
     let paths = story_paths(&resolve_root(root));
@@ -23,7 +24,7 @@ pub fn run_init(root: &Path, qt_ai_command: &str) -> Result<String> {
     let gone: Vec<String> = state
         .chapters
         .iter()
-        .filter(|(id, chapter)| !raw_ids.contains(*id) && chapter.status != ChapterStatus::Done)
+        .filter(|(id, _)| !raw_ids.contains(*id))
         .map(|(id, _)| id.clone())
         .collect();
     for id in &gone {
@@ -42,7 +43,11 @@ pub fn run_init(root: &Path, qt_ai_command: &str) -> Result<String> {
     }
     save_state(&paths, &state)?;
     let written = copy_templates(&paths.root, qt_ai_command)?;
-    let removed = if gone.is_empty() { String::new() } else { format!(", {} gỡ vì raw đã mất", gone.len()) };
+    let removed = if gone.is_empty() {
+        String::new()
+    } else {
+        format!(", {} gỡ vì raw đã mất — bản dịch trong out/ giữ nguyên", gone.len())
+    };
     let templates = if written.is_empty() { String::new() } else { format!(" Đã ghi {}.", written.join(", ")) };
     Ok(format!(
         "Đã init {}: {} chương ({} mới thêm vào hàng đợi{}).{}",

@@ -3,6 +3,7 @@
 
 use qt_ai_core::commands::accept::run_accept;
 use qt_ai_core::commands::check::run_check;
+use qt_ai_core::commands::delete::run_delete;
 use qt_ai_core::commands::export::{run_export, ExportOptions};
 use qt_ai_core::commands::init::run_init;
 use qt_ai_core::commands::next::run_next;
@@ -22,6 +23,7 @@ Lệnh:
   skip <root> <id> --reason <lý do>  Bỏ qua chương (model từ chối...)
   retry <root> <id>                  Đưa chương về hàng đợi dịch lại (done: out/<id>.txt → .bak)
   retry <root> --all | --from <id> --to <id>   Dịch lại nhiều chương (bỏ qua chương đang queued)
+  delete <root> <id> [<id>…]         Xoá chương khỏi truyện: gỡ state, xoá raw/ + work/ (out/ giữ nguyên)
   export <root> [--from <id>] [--to <id>] [--out <file>]
                                      Gộp các chương done thành một file txt
   status <root>                      Bảng tiến độ";
@@ -119,6 +121,18 @@ fn run(argv: &[String]) -> Result<i32, CoreError> {
             let Some(id) = rest.first() else { return Ok(usage()) };
             run_retry(root, id)?;
             println!("Đã đưa chương {id} về hàng đợi — next sẽ phát lại nó.");
+            Ok(0)
+        }
+        "delete" => {
+            if rest.is_empty() {
+                return Ok(usage());
+            }
+            let outcome = run_delete(root, rest)?;
+            println!(
+                "Đã xoá {} chương ({} bản dịch trong out/ giữ nguyên).",
+                outcome.removed.len(),
+                outcome.kept_outputs.len()
+            );
             Ok(0)
         }
         "export" => {

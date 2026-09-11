@@ -4,5 +4,6 @@ pub mod check;
 pub mod accept;
 pub mod skip;
 pub mod retry;
+pub mod delete;
 pub mod status;
 pub mod export;

@@ -1,7 +1,8 @@
-import { KeyRound, LoaderCircle, Play, RefreshCw, RotateCcw, Square, TriangleAlert } from "lucide-react";
+import { KeyRound, LoaderCircle, Play, RefreshCw, RotateCcw, Square, Trash2, TriangleAlert } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { DeleteRangeDialog } from "@/components/delete-range-dialog";
 import { RetryRangeDialog } from "@/components/retry-range-dialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -39,6 +40,7 @@ export function TranslateToolbar() {
   const [busy, setBusy] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [retryOpen, setRetryOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   /** Quét raw/ lấy chương mới vào hàng đợi (copy tay vào raw/ xong bấm đây). */
   async function rescan() {
@@ -148,8 +150,21 @@ export function TranslateToolbar() {
         >
           <RotateCcw /> Dịch lại…
         </Button>
+        <Button
+          type="button"
+          variant="outline"
+          className="h-9"
+          title="Xoá hẳn một khoảng chương (raw/ + work/); bản dịch trong out/ giữ nguyên"
+          disabled={running || !snapshot}
+          onClick={() => setDeleteOpen(true)}
+        >
+          <Trash2 /> Xoá…
+        </Button>
         {root && (
-          <RetryRangeDialog root={root} chapters={snapshot?.chapters ?? []} open={retryOpen} onOpenChange={setRetryOpen} />
+          <>
+            <RetryRangeDialog root={root} chapters={snapshot?.chapters ?? []} open={retryOpen} onOpenChange={setRetryOpen} />
+            <DeleteRangeDialog root={root} chapters={snapshot?.chapters ?? []} open={deleteOpen} onOpenChange={setDeleteOpen} />
+          </>
         )}
         <Button
           size="lg"
