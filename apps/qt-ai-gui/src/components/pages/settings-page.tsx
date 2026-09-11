@@ -30,7 +30,7 @@ const settingsFormSchema = engineFormSchema.extend({
   agyPath: z.string(),
   model: z.string(),
   maxSessions: z.number().int().min(1).max(1000),
-  maxParallel: z.number().int().min(1).max(5),
+  maxParallel: z.number().int().min(1).max(20),
   chaptersPerSession: z.number().int().min(1).max(100),
   maxReviewRounds: z.number().int().min(0).max(10),
   minLengthRatio: z.number().min(0.1).max(3),
@@ -352,10 +352,10 @@ export function SettingsPage() {
           <form id={FORM_ID} onSubmit={(e) => void submit(e)} className="flex flex-col gap-6">
             <EngineCard form={form} running={running} />
             <Card title="App" description="Giới hạn phiên chung; đường dẫn agy và model chỉ dùng khi động cơ là agy.">
-              {field("maxParallel", "Số truyện dịch song song", "Mỗi truyện một phiên; API hub dễ trả 429 nếu để cao. Mặc định 2.", {
+              {field("maxParallel", "Số truyện dịch song song", "Mỗi truyện một phiên, tối đa 20; API hub dễ trả 429 nếu để cao. Mặc định 2.", {
                 type: "number",
                 min: 1,
-                max: 5,
+                max: 20,
               })}
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="agyPath">Đường dẫn agy</Label>
