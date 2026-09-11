@@ -9,6 +9,8 @@ use std::process::Command;
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 pub fn quiet_command(program: impl AsRef<OsStr>) -> Command {
+    // `mut` chỉ dùng trong khối cfg(windows); nền khác sẽ báo unused_mut nếu không allow.
+    #[cfg_attr(not(windows), allow(unused_mut))]
     let mut command = Command::new(program);
     #[cfg(windows)]
     {
