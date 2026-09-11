@@ -24,8 +24,15 @@
       }
     ]
   },
+  "plugins": {
+    "updater": {
+      "endpoints": ["https://github.com/thiendiepdt/quick-translator-engine/releases/latest/download/latest.json"],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDk5REU4RUY4NzEwNEFGMzIKUldReXJ3UngrSTdlbVNucWw2c2IxWStxZngzZWZGMVB4eG1zc0hTKzNvWlcrSzRBTmtaMDQwT24K"
+    }
+  },
   "bundle": {
     "active": true,
+    "createUpdaterArtifacts": true,
     "targets": ["nsis", "msi"],
     "externalBin": ["binaries/qt-ai"],
     "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],

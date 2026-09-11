@@ -65,7 +65,11 @@ pub fn migrate_legacy_config(config_path: &Path) {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_process::init())
         .setup(|app| {
+            // Updater chỉ có trên desktop; đăng ký trong setup như novelkit nên mock_builder trong test không cần nó.
+            #[cfg(desktop)]
+            app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
             let config_path = resolve_config_path(app.path().app_config_dir().ok());
             migrate_legacy_config(&config_path);
             let base_dir = config_path.parent().map(|dir| dir.join("base")).unwrap_or_else(|| PathBuf::from("base"));

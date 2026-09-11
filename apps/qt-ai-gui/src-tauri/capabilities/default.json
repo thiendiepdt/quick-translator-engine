@@ -3,5 +3,14 @@
   "identifier": "main-capability",
   "description": "Quyền cho cửa sổ chính VNCVT AI Translator.",
   "windows": ["main"],
-  "permissions": ["core:default", "core:event:default", "dialog:allow-open", "dialog:allow-save"]
+  "permissions": [
+    "core:default",
+    "core:event:default",
+    "dialog:allow-open",
+    "dialog:allow-save",
+    "dialog:allow-ask",
+    "dialog:allow-message",
+    "updater:default",
+    "process:allow-restart"
+  ]
 }

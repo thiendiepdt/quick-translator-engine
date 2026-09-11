@@ -13,6 +13,7 @@ import { StorySidebar } from "@/components/story-sidebar";
 import { useSessionEvents } from "@/hooks/use-session-events";
 import { useThemeSync } from "@/hooks/use-theme";
 import { useUndoFallback } from "@/hooks/use-undo-fallback";
+import { useUpdateCheck } from "@/hooks/use-update-check";
 import { agyStatus, appConfigGet, appConfigSet, pickAgyFile } from "@/lib/api";
 import { useStoryStore, type Page } from "@/store/story";
 
@@ -35,6 +36,7 @@ export default function App() {
   useSessionEvents();
   useThemeSync();
   useUndoFallback();
+  useUpdateCheck();
 
   // Chỉ dò agy khi động cơ là agy: người dùng API key không phải chờ, không bị màn "Chưa thấy agy".
   // `probing` chặn dò chồng: mỗi lượt dò spawn `agy --version` + `agy models` (~2s), dò chồng liên tục
