@@ -18,12 +18,15 @@ export const DEFAULT_GEMINI_BASE_URL = "https://generativelanguage.googleapis.co
 export const DEFAULT_GROK_BASE_URL = "https://api.x.ai/v1";
 /** Z.ai (GLM) — endpoint tương thích OpenAI. */
 export const DEFAULT_GLM_BASE_URL = "https://api.z.ai/api/paas/v4";
+/** OpenAI chính chủ; đổi Base URL là trỏ sang hub OpenAI-compatible bất kỳ. */
+export const DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1";
 
 const DEFAULT_BASE_URLS: Record<AiProvider, string> = {
   deepseek: DEFAULT_DEEPSEEK_BASE_URL,
   gemini: DEFAULT_GEMINI_BASE_URL,
   grok: DEFAULT_GROK_BASE_URL,
   glm: DEFAULT_GLM_BASE_URL,
+  openai: DEFAULT_OPENAI_BASE_URL,
 };
 
 /** Model dùng khi người dùng để trống ô model; Gemini bắt buộc phải tự điền. */
@@ -32,6 +35,7 @@ const FALLBACK_MODELS: Record<AiProvider, string> = {
   gemini: "",
   grok: "grok-4.6",
   glm: "glm-5.3-flash",
+  openai: "gpt-5.6-sol",
 };
 
 /** Chương được chia theo dòng thành các khúc tối đa chừng này ký tự. */
@@ -182,9 +186,13 @@ export function resolveAiCall(provider: AiProvider, config: AiProviderConfig): A
 /**
  * Base URL do người dùng nhập phải là https, trừ proxy chạy ngay trên máy —
  * trình duyệt coi localhost là ngữ cảnh an toàn nên http://localhost dùng được
- * (LM Studio, one-api tự host…).
+ * (LM Studio, one-api tự host…). Khi chính trang đang chạy http (dev local)
+ * thì không có mixed-content, hub http://IP trong LAN cũng gọi được.
  */
-export function baseUrlProblem(baseUrl: string): string | null {
+export function baseUrlProblem(
+  baseUrl: string,
+  pageProtocol: string = typeof window === "undefined" ? "https:" : window.location.protocol,
+): string | null {
   const value = baseUrl.trim();
   if (!value) return null;
   let url: URL;
@@ -194,6 +202,7 @@ export function baseUrlProblem(baseUrl: string): string | null {
     return "Base URL không hợp lệ — cần dạng https://host hoặc http://localhost:port";
   }
   if (url.protocol === "https:") return null;
+  if (url.protocol === "http:" && pageProtocol === "http:") return null;
   if (
     url.protocol === "http:" &&
     (url.hostname === "localhost" ||
@@ -273,7 +282,8 @@ async function completeJson(
     config.provider !== "gemini"
       ? {
           model: config.model,
-          temperature: 0.0,
+          // GPT-5/o-series chỉ nhận temperature mặc định — OpenAI không gửi.
+          ...(config.provider === "openai" ? {} : { temperature: 0.0 }),
           response_format: { type: "json_object" },
           messages: [
             { role: "system", content: system },
@@ -649,7 +659,11 @@ const GLOSSARY_EXTRACT_SYSTEM_PROMPT =
   "xuất hiện trong raw nhưng CHƯA có trong danh sách loại trừ, kèm đúng cách bản dịch đã phiên âm chúng. " +
   "target phải chép nguyên văn từ bản dịch, không tự nghĩ phương án khác. " +
   'category chỉ được là một trong: "names", "places", "items", "creatures", "skills". ' +
-  "Bỏ qua từ chung, chức danh, đại từ. Không có tên mới thì trả entries rỗng. " +
+  "Bỏ qua từ chung, chức danh, đại từ. " +
+  'Thêm các CẶP XƯNG HÔ mới trong thoại với category "addressing": source là "甲→乙" (hai tên Hán như trong raw), ' +
+  'target là "X–Y" với X là cách 甲 tự xưng và Y là cách 甲 gọi 乙 trong bản dịch (ví dụ "anh–em", "ta–ngươi", "tôi–cậu"); ' +
+  "mỗi chiều một mục, chỉ ghi cặp chưa có trong danh sách loại trừ. " +
+  "Không có gì mới thì trả entries rỗng. " +
   'Chỉ xuất JSON dạng {"entries": [{"source": "...", "target": "...", "category": "..."}]}.';
 
 const GLOSSARY_EXTRACT_SCHEMA = {
@@ -664,7 +678,7 @@ const GLOSSARY_EXTRACT_SCHEMA = {
           target: { type: "string" },
           category: {
             type: "string",
-            enum: ["names", "places", "items", "creatures", "skills"],
+            enum: ["names", "places", "items", "creatures", "skills", "addressing"],
           },
         },
         required: ["source", "target"],

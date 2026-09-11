@@ -1,5 +1,11 @@
-import { NOVEL_TRANSLATOR_BASE_PROMPT } from "@/lib/ai-translation-prompt";
-import type { AiCheckRule, AiStoryConfig } from "@/lib/ai-story";
+import { composeBasePrompt } from "@/lib/ai-translation-prompt";
+import {
+  addressingSides,
+  defaultStoryGenre,
+  type AiCheckRule,
+  type AiStoryConfig,
+  type GenreSetting,
+} from "@/lib/ai-story";
 import type { LocalDictionaryEntries } from "@/lib/types";
 
 export interface TranslationViolation {
@@ -29,14 +35,17 @@ Trước khi xuất, kiểm tra thầm từng câu:
 
 Chỉ xuất bản dịch tiếng Việt, không giải thích, không comment, không markdown.`;
 
-const CHECK_RULES: Array<[RegExp, string]> = [
+/**
+ * Rule mặc định. Phần tử thứ ba là bối cảnh áp dụng: không có = trung lập (mọi truyện),
+ * "ancient" = chỉ cổ đại/tiên hiệp, "modern" = chỉ hiện đại.
+ */
+const CHECK_RULES: Array<[RegExp, string, GenreSetting?]> = [
   [/[，。、；：？！]/, "Dấu câu tiếng Trung còn sót → dùng dấu câu thường"],
   [/(^|[.!?]\s+|[【(])["“']?(?:but|and|so|the|in|on|at|from|with)\b/i, "Từ nối tiếng Anh lọt vào bản dịch → dịch sang tiếng Việt hoặc chỉ giữ khi có căn cứ"],
-  [/(?<!\p{L})(?:vợ|chồng)(?!\p{L})/iu, "Dùng vợ/chồng → thay bằng thê tử/phu quân"],
-  [/\banh ấy\b|\banh ta\b|\bcô ấy\b|\bchị ấy\b/i, "Đại từ sai → dùng hắn/nàng"],
-  [/(^|[“"']|,\s+)(?:mình|tôi)(?:\s|[,.!?…])/i, "Dùng mình/tôi làm đại từ → thay bằng ta trong style mặc định"],
-  [/Miêu Ảnh Vô Tông/, "Sai âm tên riêng → dùng Miêu Ảnh Vô Tung"],
-  [/một tấc vuông/, "方寸 là không gian hệ thống → dùng Phương Thốn"],
+  [/(?<!\p{L})(?:vợ|chồng)(?!\p{L})/iu, "Dùng vợ/chồng → thay bằng thê tử/phu quân", "ancient"],
+  [/(?<!\p{L})(?:đàn ông|đàn bà|phụ nữ)(?!\p{L})/iu, "Từ chỉ người đời thường trong bối cảnh cổ → nam nhân/nữ nhân (nam tử/nữ tử)", "ancient"],
+  [/\banh ấy\b|\banh ta\b|\bcô ấy\b|\bchị ấy\b/i, "Đại từ sai → dùng hắn/nàng", "ancient"],
+  [/(^|[“"']|,\s+)(?:mình|tôi)(?:\s|[,.!?…])/i, "Dùng mình/tôi làm đại từ → thay bằng ta trong style mặc định", "ancient"],
   [/tinh thần đại chấn/, "精神大振 → dùng tinh thần phấn chấn hẳn lên"],
   [/mơ hồ nghiệm ra|mùi vị không bình thường/, "品出意味 → dùng nhận ra/nhận thấy điều bất thường"],
   [/bình loạn bắt sống/, "平叛生擒 → dùng dẹp loạn, bắt sống"],
@@ -48,14 +57,14 @@ const CHECK_RULES: Array<[RegExp, string]> = [
   [/toàn bộ người nghênh đón có mặt đều/, "Tránh chồng chủ thể/lượng từ"],
   [/đã thưởng Minh chủ/, "感谢 X 打赏的盟主 → dùng cảm ơn minh chủ X đã thưởng/ủng hộ"],
   [/não hải/, "não hải → đầu óc / tâm trí"],
-  [/(?<!\p{L})(?:Hừm|Ừm)(?!\p{L})/iu, "Hừm/Ừm → Ân"],
-  [/Ơ\s*[?!,.…]/, "Thán từ Ơ → dùng A trong bối cảnh cổ đại/huyền huyễn"],
+  [/(?<!\p{L})(?:Hừm|Ừm)(?!\p{L})/iu, "Hừm/Ừm → Ân", "ancient"],
+  [/Ơ\s*[?!,.…]/, "Thán từ Ơ → dùng A trong bối cảnh cổ đại/huyền huyễn", "ancient"],
   [/\bthập phần\b/, "thập phần → vô cùng / hết sức"],
   [/\bsong doanh\b/, "song doanh → đôi bên cùng có lợi"],
   [/còn đừng nói/i, "还别说 → Mà phải nói / Không ngờ thật"],
   [/phụ thân (ở|vào|lên|trong)/, "附身 → nương thân/bám vào"],
   [/nhận dạng/, "nhận dạng → kiểm trắc"],
-  [/kho tàng|kho báu/, "kho tàng/báu → bảo khố"],
+  [/kho tàng|kho báu/, "kho tàng/báu → bảo khố", "ancient"],
   [/xao động/, "xao động → rung động"],
   [/phát xạ/, "phát xạ → phóng ra"],
   [/thích dụng/, "thích dụng → áp dụng"],
@@ -66,7 +75,7 @@ const CHECK_RULES: Array<[RegExp, string]> = [
   [/đại động can qua/, "đại động can qua → làm to chuyện"],
   [/nước thu\b/, "nước thu → thu thủy"],
   [/là tính là/, "là tính là → xem như"],
-  [/\bthê tử danh nghĩa\b/, "Sai vị trí → trên danh nghĩa thê tử"],
+  [/\bthê tử danh nghĩa\b/, "Sai vị trí → trên danh nghĩa thê tử", "ancient"],
   [/(?<!\p{L})đặc ý(?!\p{L})/iu, "đặc ý → cố ý"],
   [/\bvô ý trung\b/, "vô ý trung → trong lúc vô tình"],
   [/(?<!\p{L})bi thê(?!\p{L})/iu, "bi thê → bi thương"],
@@ -86,8 +95,8 @@ const CHECK_RULES: Array<[RegExp, string]> = [
   // `\b` cuối từ không dùng được ở đây: JS chỉ coi [A-Za-z0-9_] là ký tự từ nên
   // chữ kết thúc bằng nguyên âm có dấu (xẻ, thê) không bao giờ tạo ranh giới.
   [/nửa xẻ/i, "衣衫半解 → y phục bán khai / xiêm y cởi dở"],
-  [/vỏ dao|rút dao|thanh dao\b/i, "刀 là đao → vỏ đao / rút đao / thanh đao"],
-  [/bom khói/i, "烟雾弹 trong bối cảnh cổ → màn khói / hỏa mù"],
+  [/vỏ dao|rút dao|thanh dao\b/i, "刀 là đao → vỏ đao / rút đao / thanh đao", "ancient"],
+  [/bom khói/i, "烟雾弹 trong bối cảnh cổ → màn khói / hỏa mù", "ancient"],
   [/đông cứng thành/i, "凝成 → ngưng tụ thành"],
   [/phụ lòng tạo hóa/i, "暴殄天物 → phí phạm của quý"],
   [/nhìn theo bụi/i, "望尘莫及 → không sao theo kịp / tự thẹn không bằng"],
@@ -95,15 +104,29 @@ const CHECK_RULES: Array<[RegExp, string]> = [
   [/ngón.{0,20}mảnh khảnh/i, "mảnh khảnh chỉ tả người → ngón tay dùng thon / thon dài"],
   [/trời sinh [A-Z]/, "Danh xưng lai nửa Việt nửa Hán → dùng Hán-Việt cả cụm (Thiên Sinh ...)"],
   [/…/, "Còn ký tự … → chuẩn hóa thành dấu chấm ASCII, giữ số lượng (… → ..., …… → ......)"],
+  // Rule riêng cho truyện hiện đại: bắt giọng cổ trang lọt vào đô thị.
+  [/(?<!\p{L})(?:ngươi|nàng|bọn ta|các ngươi)(?!\p{L})/iu, "Xưng hô cổ trang trong truyện hiện đại → hắn/cô trong lời kể, tôi/anh/em trong thoại", "modern"],
+  [/(?<!\p{L})(?:thê tử|phu quân|lang quân|phụ thân|mẫu thân)(?!\p{L})/iu, "Từ gia đình cổ trang → vợ/chồng/bố/mẹ", "modern"],
+  [/(?<!\p{L})tổng tài(?!\p{L})/iu, "tổng tài → tổng giám đốc", "modern"],
+  [/nói đạo/i, "说道 → nói / đáp, không \"nói đạo\"", "modern"],
+  // Dòng kể (không có ngoặc kép) mà có `tôi`: người kể ngôi một phải tự xưng `ta`. Dòng có thoại bỏ qua.
+  [/^[^"“”]*(?<!\p{L})tôi(?!\p{L})[^"“”]*$/iu, "Lời kể ngôi một dùng tôi → ta (tôi chỉ trong thoại theo quan hệ)", "modern"],
 ];
 
-export const DEFAULT_AI_CHECK_RULES: AiCheckRule[] = CHECK_RULES.map(
-  ([pattern, message]) => ({
+function rulesForSetting(setting: GenreSetting): Array<[RegExp, string]> {
+  return CHECK_RULES.filter(([, , tag]) => tag === undefined || tag === setting).map(
+    ([pattern, message]) => [pattern, message],
+  );
+}
+
+/** Rule mặc định cho một bối cảnh: rule trung lập + rule gắn đúng setting, giữ thứ tự khai báo. */
+export function defaultAiCheckRules(setting: GenreSetting): AiCheckRule[] {
+  return rulesForSetting(setting).map(([pattern, message]) => ({
     pattern: pattern.source,
     ...(pattern.flags ? { flags: pattern.flags } : {}),
     message,
-  }),
-);
+  }));
+}
 
 /**
  * Rule cứng chạy trong mọi trường hợp, kể cả khi truyện thay bộ rules riêng —
@@ -172,6 +195,9 @@ const HAN_PERSON_NAME = /^\p{Script=Han}{3,4}$/u;
 
 export function glossaryEntryMatchesSource(source: string, text: string): boolean {
   if (text.includes(source)) return true;
+  // Cặp xưng hô `甲→乙`: chương chạm tới khi có mặt ít nhất một bên.
+  const sides = addressingSides(source);
+  if (sides.length > 1) return sides.some((side) => glossaryEntryMatchesSource(side, text));
   if (!HAN_PERSON_NAME.test(source)) return false;
   if (text.includes(source.slice(1))) return true;
   return source.length === 4 && text.includes(source.slice(2));
@@ -208,9 +234,13 @@ export function buildAiTranslationSystemPrompt(
   const glossary = sourceText
     ? filterTranslationGlossaryForSource(merged, sourceText)
     : merged;
+  const addressingNote =
+    Object.keys(glossary.addressing ?? {}).length > 0
+      ? "\nNhóm `addressing`: `甲→乙: X–Y` nghĩa là trong thoại 甲 tự xưng X và gọi 乙 là Y (đã chốt ở chương trước, giữ y hệt; cặp ngược `乙→甲` có mục riêng).\n"
+      : "";
   const glossarySection =
     Object.keys(glossary).length > 0
-      ? `\n# Từ điển riêng của truyện\n\nCác mục này được ưu tiên và phải dùng nhất quán:\n\n${JSON.stringify(glossary, null, 2)}\n`
+      ? `\n# Từ điển riêng của truyện\n\nCác mục này được ưu tiên và phải dùng nhất quán:\n\n${JSON.stringify(glossary, null, 2)}\n${addressingNote}`
       : "";
   const storyContext = story && (story.name || story.protagonist || story.summary)
     ? `\n# Thông tin truyện\n\n${JSON.stringify({
@@ -233,7 +263,7 @@ export function buildAiTranslationSystemPrompt(
         avoid: story.style.avoid,
       }, null, 2)}\n`
     : "";
-  const basePrompt = story?.customPrompt.trim() || NOVEL_TRANSLATOR_BASE_PROMPT;
+  const basePrompt = story?.customPrompt.trim() || composeBasePrompt(story?.genre ?? defaultStoryGenre());
   return `${basePrompt}${storyContext}${glossarySection}${styleSection}${TRANSLATION_PROMPT_SUFFIX}`;
 }
 
@@ -266,6 +296,7 @@ export function wordCount(text: string): number {
 export function checkAiTranslationViolations(
   text: string,
   configuredRules?: AiCheckRule[],
+  setting: GenreSetting = "ancient",
 ): TranslationViolation[] {
   const violations: TranslationViolation[] = [];
   const baseRules: Array<[RegExp, string]> =
@@ -277,7 +308,7 @@ export function checkAiTranslationViolations(
             return [];
           }
         })
-      : CHECK_RULES;
+      : rulesForSetting(setting);
   const configuredPatterns = new Set(
     (configuredRules ?? []).map(({ pattern }) => pattern),
   );

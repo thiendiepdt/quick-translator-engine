@@ -1,6 +1,6 @@
 export const aiSettingsStorageKey = "qt-web-ai-settings";
 
-export type AiProvider = "deepseek" | "gemini" | "grok" | "glm";
+export type AiProvider = "deepseek" | "gemini" | "grok" | "glm" | "openai";
 
 export interface AiProviderConfig {
   apiKey: string;
@@ -9,10 +9,21 @@ export interface AiProviderConfig {
   baseUrl: string;
 }
 
+/** Mức reasoning cho provider OpenAI (Chat Completions `reasoning_effort`). */
+export const OPENAI_REASONING_EFFORTS = ["none", "low", "medium", "high", "xhigh", "max"] as const;
+export type OpenAiReasoningEffort = (typeof OPENAI_REASONING_EFFORTS)[number];
+export const DEFAULT_OPENAI_REASONING_EFFORT: OpenAiReasoningEffort = "high";
+
+export function isOpenAiReasoningEffort(value: unknown): value is OpenAiReasoningEffort {
+  return (OPENAI_REASONING_EFFORTS as readonly unknown[]).includes(value);
+}
+
 export interface AiTranslationSettings {
   provider: AiProvider;
   models: Record<AiProvider, string>;
   thinking: boolean;
+  /** Chỉ áp dụng khi provider Dịch AI là OpenAI; Thinking switch không ảnh hưởng. */
+  openaiReasoningEffort: OpenAiReasoningEffort;
   /** Gemini chặn nội dung (PROHIBITED_CONTENT/SAFETY) thì tự thử lại bằng Grok. */
   grokFallback: boolean;
   /** Sau mỗi chương, tự trích tên riêng mới từ bản dịch nạp vào glossary truyện. */
@@ -36,6 +47,8 @@ export interface AiSettings {
   gemini: AiProviderConfig;
   grok: AiProviderConfig;
   glm: AiProviderConfig;
+  /** OpenAI chính chủ, hoặc hub OpenAI-compatible bất kỳ qua Base URL. */
+  openai: AiProviderConfig;
   /** Dịch AI dùng chung key/base URL, nhưng chọn provider/model/thinking riêng. */
   translation: AiTranslationSettings;
 }
@@ -45,10 +58,12 @@ export const DEFAULT_DEEPSEEK_MODEL = "deepseek-v4-flash";
 export const DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite";
 export const DEFAULT_GROK_MODEL = "grok-4.6";
 export const DEFAULT_GLM_MODEL = "glm-5.3-flash";
+export const DEFAULT_OPENAI_MODEL = "gpt-5.6-sol";
 export const DEFAULT_AI_TRANSLATION_DEEPSEEK_MODEL = "deepseek-v4-flash";
 export const DEFAULT_AI_TRANSLATION_GEMINI_MODEL = "gemini-3.7-flash";
 export const DEFAULT_AI_TRANSLATION_GROK_MODEL = "grok-4.6";
 export const DEFAULT_AI_TRANSLATION_GLM_MODEL = "glm-5.3-flash";
+export const DEFAULT_AI_TRANSLATION_OPENAI_MODEL = "gpt-5.6-sol";
 
 export const defaultAiSettings: AiSettings = {
   provider: "gemini",
@@ -56,6 +71,7 @@ export const defaultAiSettings: AiSettings = {
   gemini: { apiKey: "", model: DEFAULT_GEMINI_MODEL, baseUrl: "" },
   grok: { apiKey: "", model: DEFAULT_GROK_MODEL, baseUrl: "" },
   glm: { apiKey: "", model: DEFAULT_GLM_MODEL, baseUrl: "" },
+  openai: { apiKey: "", model: DEFAULT_OPENAI_MODEL, baseUrl: "" },
   translation: {
     provider: "gemini",
     models: {
@@ -63,8 +79,10 @@ export const defaultAiSettings: AiSettings = {
       gemini: DEFAULT_AI_TRANSLATION_GEMINI_MODEL,
       grok: DEFAULT_AI_TRANSLATION_GROK_MODEL,
       glm: DEFAULT_AI_TRANSLATION_GLM_MODEL,
+      openai: DEFAULT_AI_TRANSLATION_OPENAI_MODEL,
     },
     thinking: true,
+    openaiReasoningEffort: DEFAULT_OPENAI_REASONING_EFFORT,
     grokFallback: true,
     autoGlossary: true,
   },
@@ -72,7 +90,11 @@ export const defaultAiSettings: AiSettings = {
 
 export function isAiProvider(value: unknown): value is AiProvider {
   return (
-    value === "deepseek" || value === "gemini" || value === "grok" || value === "glm"
+    value === "deepseek" ||
+    value === "gemini" ||
+    value === "grok" ||
+    value === "glm" ||
+    value === "openai"
   );
 }
 
@@ -115,6 +137,7 @@ function normalizeTranslationSettings(value: unknown): AiTranslationSettings {
     typeof models.gemini === "string" ? models.gemini.trim() : "";
   const grokModel = typeof models.grok === "string" ? models.grok.trim() : "";
   const glmModel = typeof models.glm === "string" ? models.glm.trim() : "";
+  const openaiModel = typeof models.openai === "string" ? models.openai.trim() : "";
   return {
     provider: isAiProvider(record.provider) ? record.provider : "gemini",
     models: {
@@ -122,8 +145,12 @@ function normalizeTranslationSettings(value: unknown): AiTranslationSettings {
       gemini: geminiModel || DEFAULT_AI_TRANSLATION_GEMINI_MODEL,
       grok: grokModel || DEFAULT_AI_TRANSLATION_GROK_MODEL,
       glm: glmModel || DEFAULT_AI_TRANSLATION_GLM_MODEL,
+      openai: openaiModel || DEFAULT_AI_TRANSLATION_OPENAI_MODEL,
     },
     thinking: typeof record.thinking === "boolean" ? record.thinking : true,
+    openaiReasoningEffort: isOpenAiReasoningEffort(record.openaiReasoningEffort)
+      ? record.openaiReasoningEffort
+      : DEFAULT_OPENAI_REASONING_EFFORT,
     grokFallback:
       typeof record.grokFallback === "boolean" ? record.grokFallback : true,
     autoGlossary: typeof record.autoGlossary === "boolean" ? record.autoGlossary : true,
@@ -141,6 +168,7 @@ export function readStoredAiSettings(): AiSettings {
       gemini: normalizeConfig(parsed?.gemini, DEFAULT_GEMINI_MODEL),
       grok: normalizeConfig(parsed?.grok, DEFAULT_GROK_MODEL),
       glm: normalizeConfig(parsed?.glm, DEFAULT_GLM_MODEL),
+      openai: normalizeConfig(parsed?.openai, DEFAULT_OPENAI_MODEL),
       translation: normalizeTranslationSettings(parsed?.translation),
     };
   } catch {
@@ -158,6 +186,7 @@ export function storeAiSettings(settings: AiSettings): void {
         gemini: normalizeConfig(settings.gemini),
         grok: normalizeConfig(settings.grok, DEFAULT_GROK_MODEL),
         glm: normalizeConfig(settings.glm, DEFAULT_GLM_MODEL),
+        openai: normalizeConfig(settings.openai, DEFAULT_OPENAI_MODEL),
         translation: normalizeTranslationSettings(settings.translation),
       }),
     );
@@ -171,4 +200,5 @@ export const aiProviderLabels: Record<AiProvider, string> = {
   gemini: "Gemini",
   grok: "Grok",
   glm: "GLM",
+  openai: "OpenAI",
 };

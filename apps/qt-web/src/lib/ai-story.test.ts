@@ -68,6 +68,19 @@ describe("AI story workspace data", () => {
   it("provides a complete empty schema for older workspaces", () => {
     expect(normalizeAiStoryConfig(undefined)).toEqual(emptyAiStoryConfig());
   });
+
+  it("defaults genre to ancient/han and drops unknown values", () => {
+    expect(normalizeAiStoryConfig({}).genre).toEqual({ setting: "ancient", names: "han" });
+    expect(normalizeAiStoryConfig({ genre: { setting: "modern", names: "foreign" } }).genre).toEqual({
+      setting: "modern",
+      names: "foreign",
+    });
+    expect(normalizeAiStoryConfig({ genre: { setting: "future", names: 3 } }).genre).toEqual({
+      setting: "ancient",
+      names: "han",
+    });
+    expect(emptyAiStoryConfig().genre).toEqual({ setting: "ancient", names: "han" });
+  });
 });
 
 describe("auto glossary log", () => {

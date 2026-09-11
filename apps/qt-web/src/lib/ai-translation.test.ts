@@ -5,13 +5,14 @@ import {
   buildAiTranslationSystemPrompt,
   buildWorkspaceTranslationGlossary,
   checkAiTranslationViolations,
+  defaultAiCheckRules,
   filterTranslationGlossaryForSource,
   formatAiTranslation,
   glossaryEntryMatchesSource,
   wordCount,
 } from "@/lib/ai-translation";
-import { NOVEL_TRANSLATOR_BASE_PROMPT } from "@/lib/ai-translation-prompt";
-import { emptyAiStoryConfig } from "@/lib/ai-story";
+import { composeBasePrompt } from "@/lib/ai-translation-prompt";
+import { defaultStoryGenre, emptyAiStoryConfig } from "@/lib/ai-story";
 import { dictionaryUpdateKeys, type LocalDictionaryEntries } from "@/lib/types";
 
 function emptyEntries(): LocalDictionaryEntries {
@@ -22,8 +23,9 @@ function emptyEntries(): LocalDictionaryEntries {
 
 describe("AI translation prompt", () => {
   it("stores the ported prompt with real Markdown line breaks", () => {
-    expect(NOVEL_TRANSLATOR_BASE_PROMPT).toContain("\n# Ngữ cảnh tác vụ chuyển ngữ\n");
-    expect(NOVEL_TRANSLATOR_BASE_PROMPT).not.toContain("\\n# Ngữ cảnh tác vụ chuyển ngữ");
+    const base = composeBasePrompt(defaultStoryGenre());
+    expect(base).toContain("\n# Ngữ cảnh tác vụ chuyển ngữ\n");
+    expect(base).not.toContain("\\n# Ngữ cảnh tác vụ chuyển ngữ");
   });
 
   it("uses only compact workspace entries and accepted names as its glossary", () => {
@@ -176,6 +178,75 @@ describe("AI translation post-processing", () => {
     expect(checkAiTranslationViolations(text)).toEqual([]);
   });
 
+  it("bộ rule ancient giữ nguyên thứ tự cũ; modern bỏ rule cổ trang và thêm rule xưng hô", () => {
+    const ancient = defaultAiCheckRules("ancient");
+    const modern = defaultAiCheckRules("modern");
+    expect(ancient[0]?.message).toBe("Dấu câu tiếng Trung còn sót → dùng dấu câu thường");
+    expect(ancient.map((r) => r.message)).toContain("Dùng vợ/chồng → thay bằng thê tử/phu quân");
+    expect(modern.map((r) => r.message)).not.toContain("Dùng vợ/chồng → thay bằng thê tử/phu quân");
+    expect(modern.map((r) => r.message)).toContain(
+      "Xưng hô cổ trang trong truyện hiện đại → hắn/cô trong lời kể, tôi/anh/em trong thoại",
+    );
+    expect(ancient.map((r) => r.message)).not.toContain(
+      "Xưng hô cổ trang trong truyện hiện đại → hắn/cô trong lời kể, tôi/anh/em trong thoại",
+    );
+  });
+
+  it("bối cảnh cổ bắt đàn ông/đàn bà/phụ nữ, hiện đại và hỗn hợp cho qua", () => {
+    const text = [
+      "Đối diện nàng truyền đến giọng của một người đàn ông.",
+      "Người phụ nữ ấy lặng im, đàn bà trong thôn đều vậy.",
+      "Nam nhân khoác hắc bào chậm rãi thêm củi.",
+    ].join("\n");
+    const message = "Từ chỉ người đời thường trong bối cảnh cổ → nam nhân/nữ nhân (nam tử/nữ tử)";
+    expect(checkAiTranslationViolations(text).map((v) => `${v.line}:${v.message}`)).toEqual([`1:${message}`, `2:${message}`]);
+    expect(checkAiTranslationViolations(text, undefined, "modern").map((v) => v.message)).not.toContain(message);
+    expect(checkAiTranslationViolations(text, undefined, "mixed").map((v) => v.message)).not.toContain(message);
+  });
+
+  it("checks theo setting: modern cho vợ/chồng qua, bắt ngươi/nàng/thê tử/tổng tài", () => {
+    const text = [
+      "Vợ anh đang đợi ở công ty.",
+      "Ngươi dám nói vậy sao?",
+      "Nàng im lặng.",
+      "Thê tử của tổng tài Lâm.",
+      "Bố mẹ tôi ở Bắc Kinh, ừm.",
+    ].join("\n");
+    const modern = checkAiTranslationViolations(text, undefined, "modern");
+    expect(modern.map((v) => `${v.line}:${v.message}`)).toEqual([
+      "2:Xưng hô cổ trang trong truyện hiện đại → hắn/cô trong lời kể, tôi/anh/em trong thoại",
+      "3:Xưng hô cổ trang trong truyện hiện đại → hắn/cô trong lời kể, tôi/anh/em trong thoại",
+      "4:Từ gia đình cổ trang → vợ/chồng/bố/mẹ",
+      "4:tổng tài → tổng giám đốc",
+      "5:Lời kể ngôi một dùng tôi → ta (tôi chỉ trong thoại theo quan hệ)",
+    ]);
+    const ancient = checkAiTranslationViolations(text);
+    expect(ancient.map((v) => v.message)).toContain("Dùng vợ/chồng → thay bằng thê tử/phu quân");
+    expect(ancient.map((v) => v.message)).toContain("Hừm/Ừm → Ân");
+  });
+
+  it("modern: tôi ở dòng kể (không ngoặc kép) bị bắt, tôi trong thoại thì không", () => {
+    const text = [
+      "Tôi lắc đầu.",
+      "Sáu năm trước, tôi vì Cao Kiện mà đâm người trọng thương.",
+      "Hứa Như Vân cố tình cao giọng: \"Tôi cố tình đấy thì sao, em gái tôi muốn đến ở thì anh không cho.\"",
+      "\"Ban ngày anh đi làm, chỉ có một mình tôi ở nhà.\"",
+      "Ta lắc đầu.",
+    ].join("\n");
+    expect(checkAiTranslationViolations(text, undefined, "modern").map((v) => v.line)).toEqual([1, 2]);
+    expect(checkAiTranslationViolations(text, undefined, "mixed")).toEqual([]);
+  });
+
+  it("mixed chỉ chạy rule trung lập: vợ, ngươi, Ừm qua; dấu câu Trung vẫn bắt", () => {
+    const messages = defaultAiCheckRules("mixed").map((r) => r.message);
+    expect(messages).not.toContain("Dùng vợ/chồng → thay bằng thê tử/phu quân");
+    expect(messages).not.toContain("Xưng hô cổ trang trong truyện hiện đại → hắn/cô trong lời kể, tôi/anh/em trong thoại");
+    const text = "Vợ anh nói: Ngươi dám? Ừm，được.";
+    expect(checkAiTranslationViolations(text, undefined, "mixed").map((v) => v.message)).toEqual([
+      "Dấu câu tiếng Trung còn sót → dùng dấu câu thường",
+    ]);
+  });
+
   it("uses configured story rules in place of defaults", () => {
     const violations = checkAiTranslationViolations("Vẫn còn văn convert", [
       { pattern: "CONVERT", flags: "i", message: "Rule riêng" },
@@ -277,5 +348,20 @@ describe("glossary filtering in the system prompt", () => {
       names: { "萧炎": "Tiêu Viêm" },
     });
     expect(prompt).toContain("萧炎");
+  });
+
+  it("addressing đi vào prompt khi chương có một bên của cặp, kèm ghi chú cách đọc", () => {
+    const glossary = {
+      names: { 林枫: "Lâm Phong", 苏雨: "Tô Vũ" },
+      addressing: { "林枫→苏雨": "anh–em", "王五→赵六": "tôi–cậu" },
+    };
+    const kept = filterTranslationGlossaryForSource(glossary, "林枫走了进来。");
+    expect(kept.addressing).toEqual({ "林枫→苏雨": "anh–em" });
+    expect(glossaryEntryMatchesSource("林枫→苏雨", "苏雨来了")).toBe(true);
+    const story = { ...emptyAiStoryConfig(), glossary: { ...emptyAiStoryConfig().glossary, addressing: { "林枫→苏雨": "anh–em" } } };
+    const prompt = buildAiTranslationSystemPrompt({}, story, "林枫走了进来。");
+    expect(prompt).toContain('"林枫→苏雨": "anh–em"');
+    expect(prompt).toContain("Nhóm `addressing`: `甲→乙: X–Y`");
+    expect(buildAiTranslationSystemPrompt({}, story, "无人。")).not.toContain("Nhóm `addressing`");
   });
 });

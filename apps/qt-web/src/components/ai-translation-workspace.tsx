@@ -45,6 +45,7 @@ import {
 } from "@/lib/ai-settings";
 import { baseUrlProblem, extractStoryGlossaryWithAi, resolveAiCall } from "@/lib/ai-client";
 import {
+  glossaryKeyTouchesSource,
   appendAutoGlossary,
   collectGlossaryKeys,
   resolveAutoGlossaryEnabled,
@@ -289,6 +290,7 @@ export function AiTranslationWorkspace({
     let streamedThinking = "";
     const options = {
       thinking: aiSettings.translation.thinking,
+      reasoningEffort: aiSettings.translation.openaiReasoningEffort,
       signal,
       onChunk(kind: "thinking" | "text", chunk: string) {
         if (workspaceChanged()) return;
@@ -466,6 +468,7 @@ export function AiTranslationWorkspace({
     let currentViolations = checkAiTranslationViolations(
       translated,
       freshStory.checkRules,
+      freshStory.genre.setting,
     );
     let round = 0;
     while (currentViolations.length > 0 && round < 3) {
@@ -493,6 +496,7 @@ export function AiTranslationWorkspace({
       const reviewedViolations = checkAiTranslationViolations(
         reviewed,
         freshStory.checkRules,
+        freshStory.genre.setting,
       );
       // Review chỉ được sửa từ/cụm; bản sửa làm đổi số đoạn là hỏng ánh xạ.
       if (aiParagraphsOf(reviewed).length !== aiParagraphsOf(translated).length) break;
@@ -554,7 +558,7 @@ export function AiTranslationWorkspace({
         translated,
         // Exclude chỉ cần các key chương này chạm tới — sanitize vốn đã chặn
         // mọi đề xuất không có trong raw, gửi cả glossary là phí token.
-        [...existingKeys].filter((key) => sourceText.includes(key)),
+        [...existingKeys].filter((key) => glossaryKeyTouchesSource(key, sourceText)),
       );
       if (workspaceChanged() || controller.signal.aborted) return;
       const pairs = sanitizeExtractedGlossary(suggestions, sourceText, translated, existingKeys);
@@ -711,7 +715,7 @@ export function AiTranslationWorkspace({
 
   function updateOutput(value: string) {
     setOutput(value);
-    setViolations(checkAiTranslationViolations(value, story.checkRules));
+    setViolations(checkAiTranslationViolations(value, story.checkRules, story.genre.setting));
   }
 
   function confirmClearChapters() {

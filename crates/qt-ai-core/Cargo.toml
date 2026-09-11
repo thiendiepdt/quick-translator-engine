@@ -1,0 +1,28 @@
+[package]
+name = "qt-ai-core"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-only"
+description = "Rust port of qt-ai-cli: batch AI translation harness driven through the Antigravity CLI"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+indexmap = { version = "2", features = ["serde"] }
+regex = "1"
+fancy-regex = "0.18.0"
+thiserror = "2"
+# API key mode: gọi Gemini / OpenAI-compatible thẳng. rustls + ring để build Windows không cần OpenSSL/cmake/NASM.
+reqwest = { version = "0.13", default-features = false, features = ["blocking", "json", "rustls-no-provider"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
+
+[dev-dependencies]
+tempfile = "3"
+
+[[bin]]
+name = "qt-ai"
+path = "src/bin/qt-ai.rs"
+
+[[bin]]
+name = "fake-agy"
+path = "src/bin/fake-agy.rs"

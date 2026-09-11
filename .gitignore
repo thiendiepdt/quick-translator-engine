@@ -2,6 +2,7 @@ QT2025/QuickTranslator.exe
 QT2025/*.dll
 QT2025/Resources/mtcToken.txt
 target/
+apps/qt-ai-gui/dist-portable/
 .aws-sam/
 node_modules/
 dist/
@@ -17,3 +18,6 @@ apps/qt-gui/src-tauri/gen/schemas/
 .env.*
 !.env.example
 _tools/
+apps/qt-ai-gui/src-tauri/gen/schemas/
+apps/qt-ai-gui/src-tauri/binaries/
+.superpowers/

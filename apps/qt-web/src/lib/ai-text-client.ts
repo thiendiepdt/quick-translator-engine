@@ -1,5 +1,6 @@
 import type { AiCallConfig } from "@/lib/ai-client";
 import { aiProviderLabels } from "@/lib/ai-settings";
+import type { OpenAiReasoningEffort } from "@/lib/ai-settings";
 
 export type AiTextChunkKind = "thinking" | "text";
 
@@ -13,6 +14,8 @@ export class GeminiBlockedError extends Error {
 
 export interface AiTextGenerationOptions {
   thinking: boolean;
+  /** OpenAI-only: `reasoning_effort` người dùng chọn trong Cài đặt. */
+  reasoningEffort?: OpenAiReasoningEffort;
   signal?: AbortSignal;
   onChunk?: (kind: AiTextChunkKind, chunk: string) => void;
   /** Gemini-only: bật grounding Google Search cho tác vụ tra cứu metadata. */
@@ -242,7 +245,16 @@ async function generateOpenAiCompatibleText(
             top_p: 0.95,
           }
         : {}),
-      max_tokens: MAX_OUTPUT_TOKENS,
+      // OpenAI: mức nghĩ là lựa chọn tường minh trong Cài đặt (none…max), gửi
+      // y nguyên cho cả model hub relay. Thinking switch không áp dụng.
+      ...(config.provider === "openai" && options.reasoningEffort
+        ? { reasoning_effort: options.reasoningEffort }
+        : {}),
+      // OpenAI đã thay max_tokens bằng max_completion_tokens; các provider
+      // khác vẫn nhận tên cũ.
+      ...(config.provider === "openai"
+        ? { max_completion_tokens: MAX_OUTPUT_TOKENS }
+        : { max_tokens: MAX_OUTPUT_TOKENS }),
       stream: true,
     }),
     signal: options.signal,
@@ -258,9 +270,15 @@ async function generateOpenAiCompatibleText(
     if (!Array.isArray(payload.choices) || !isRecord(payload.choices[0])) return;
     const delta = payload.choices[0].delta;
     if (!isRecord(delta)) return;
-    if (typeof delta.reasoning_content === "string" && delta.reasoning_content) {
-      options.onChunk?.("thinking", delta.reasoning_content);
-    }
+    // DeepSeek/GLM stream suy luận ở reasoning_content; hub OpenAI-compatible
+    // (one-api/new-api) thường dùng reasoning.
+    const reasoning =
+      typeof delta.reasoning_content === "string"
+        ? delta.reasoning_content
+        : typeof delta.reasoning === "string"
+          ? delta.reasoning
+          : "";
+    if (reasoning) options.onChunk?.("thinking", reasoning);
     if (typeof delta.content === "string" && delta.content) {
       output += delta.content;
       options.onChunk?.("text", delta.content);

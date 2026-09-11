@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { MockInstance } from "vitest";
 
 import {
   buildGeminiTextGenerationConfig,
@@ -296,6 +297,87 @@ describe("glm text generation", () => {
     ) as Record<string, unknown>;
     expect(body.thinking).toEqual({ type: "enabled", clear_thinking: false });
     expect(body.reasoning_effort).toBe("low");
+  });
+});
+
+describe("openai text generation", () => {
+  const hubConfig = {
+    provider: "openai" as const,
+    apiKey: "sk-hub-x",
+    model: "gemini-3.7-flash",
+    baseUrl: "http://192.0.2.10/v1",
+  };
+
+  function bodyOf(fetchSpy: MockInstance<typeof fetch>): Record<string, unknown> {
+    return JSON.parse(fetchSpy.mock.calls[0][1]?.body as string) as Record<string, unknown>;
+  }
+
+  // Hub relay sang model không phải OpenAI: không gửi tham số thinking nào để
+  // hub không văng lỗi tham số lạ; max_completion_tokens là tên OpenAI hiện tại.
+  it("streams via chat/completions of a custom hub without thinking parameters", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      sse(
+        { choices: [{ delta: { reasoning: "Suy luận hub" } }] },
+        { choices: [{ delta: { content: "Bản dịch hub." } }] },
+      ),
+    );
+    const chunks: Array<[string, string]> = [];
+    const result = await generateAiText(hubConfig, "system", "user", {
+      thinking: true,
+      onChunk: (kind, text) => chunks.push([kind, text]),
+    });
+
+    expect(result).toBe("Bản dịch hub.");
+    expect(requestUrlOf(fetchSpy.mock.calls[0][0])).toBe(
+      "http://192.0.2.10/v1/chat/completions",
+    );
+    const init = fetchSpy.mock.calls[0][1] as RequestInit;
+    expect(new Headers(init.headers).get("authorization")).toBe("Bearer sk-hub-x");
+    const body = bodyOf(fetchSpy);
+    expect(body).toMatchObject({ model: "gemini-3.7-flash", stream: true });
+    expect(body.max_completion_tokens).toBe(65_536);
+    expect("max_tokens" in body).toBe(false);
+    expect("thinking" in body).toBe(false);
+    expect("reasoning_effort" in body).toBe(false);
+    expect("temperature" in body).toBe(false);
+    expect(chunks).toEqual([
+      ["thinking", "Suy luận hub"],
+      ["text", "Bản dịch hub."],
+    ]);
+  });
+
+  // Mức nghĩ là lựa chọn tường minh của người dùng trong Cài đặt — gửi y
+  // nguyên cho mọi model (kể cả model hub relay), không đoán theo tên model.
+  it("sends the chosen reasoning_effort for any model", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(sse({ choices: [{ delta: { content: "ok" } }] }));
+
+    await generateAiText(hubConfig, "system", "user", { thinking: true, reasoningEffort: "xhigh" });
+    expect(bodyOf(fetchSpy).reasoning_effort).toBe("xhigh");
+
+    fetchSpy.mockClear();
+    fetchSpy.mockResolvedValue(sse({ choices: [{ delta: { content: "ok" } }] }));
+    await generateAiText(
+      { ...hubConfig, model: "gpt-5.6-sol", baseUrl: "https://api.openai.com/v1" },
+      "system",
+      "user",
+      { thinking: false, reasoningEffort: "none" },
+    );
+    expect(bodyOf(fetchSpy).reasoning_effort).toBe("none");
+  });
+
+  it("ignores the OpenAI reasoning effort for other providers", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(sse({ choices: [{ delta: { content: "ok" } }] }));
+    await generateAiText(
+      { provider: "grok", apiKey: "xai-key", model: "grok-4.6", baseUrl: "https://api.x.ai/v1" },
+      "system",
+      "user",
+      { thinking: true, reasoningEffort: "max" },
+    );
+    expect("reasoning_effort" in bodyOf(fetchSpy)).toBe(false);
   });
 });
 

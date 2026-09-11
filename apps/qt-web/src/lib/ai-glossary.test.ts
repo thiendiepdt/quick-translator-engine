@@ -5,6 +5,7 @@ import {
   collectGlossaryKeys,
   resolveAutoGlossaryEnabled,
   sanitizeExtractedGlossary,
+  glossaryKeyTouchesSource,
 } from "@/lib/ai-glossary";
 import { emptyAiStoryConfig } from "@/lib/ai-story";
 
@@ -96,5 +97,29 @@ describe("resolveAutoGlossaryEnabled", () => {
     expect(resolveAutoGlossaryEnabled("off", true)).toBe(false);
     expect(resolveAutoGlossaryEnabled("inherit", true)).toBe(true);
     expect(resolveAutoGlossaryEnabled("inherit", false)).toBe(false);
+  });
+
+  it("addressing: nhận cặp 甲→乙 có cả hai tên trong raw, chuẩn hoá target về X–Y, không đòi target nằm trong bản dịch", () => {
+    const raw = "林枫看着苏雨：“你别怕。”苏雨点头。";
+    const pairs = sanitizeExtractedGlossary(
+      [
+        { source: "林枫→苏雨", target: "anh - em", category: "addressing" },
+        { source: "苏雨 -> 林枫", target: "em/anh", category: "addressing" },
+        { source: "林枫→王五", target: "anh–em", category: "addressing" }, // 王五 không có trong raw
+        { source: "林枫", target: "anh–em", category: "addressing" }, // thiếu mũi tên
+        { source: "林枫→苏雨", target: "anh", category: "addressing" }, // thiếu vế
+        { source: "林枫→苏雨", target: "tôi–cậu", category: "addressing" }, // trùng key
+      ],
+      raw,
+      "Lâm Phong nhìn Tô Vũ: “Em đừng sợ.” Tô Vũ gật đầu.",
+      new Set(),
+    );
+    expect(pairs).toEqual([
+      { source: "林枫→苏雨", target: "anh–em", category: "addressing" },
+      { source: "苏雨→林枫", target: "em–anh", category: "addressing" },
+    ]);
+    expect(glossaryKeyTouchesSource("林枫→苏雨", raw)).toBe(true);
+    expect(glossaryKeyTouchesSource("林枫→王五", raw)).toBe(false);
+    expect(glossaryKeyTouchesSource("林枫", raw)).toBe(true);
   });
 });
