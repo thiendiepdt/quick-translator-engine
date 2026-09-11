@@ -1,7 +1,7 @@
 import { pathKey, samePath } from "@/lib/paths";
 import type { Progress, RecentSummary } from "@/lib/types";
 
-export const PAGE_SIZE = 24;
+export const PAGE_SIZE = 12;
 
 export interface SwitcherCard {
   root: string;

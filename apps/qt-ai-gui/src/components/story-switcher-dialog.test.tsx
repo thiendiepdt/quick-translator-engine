@@ -48,13 +48,15 @@ describe("StorySwitcherDialog", () => {
     useStoryStore.setState({ root: "D:\\lib\\truyen-02", sessions: {}, roots: {}, names: {}, progress: {} });
   });
 
-  it("hiện 24 thẻ, Xem thêm nạp thêm, tìm lọc, bấm thẻ trả root", async () => {
+  it("hiện 12 thẻ, Xem thêm nạp thêm, tìm lọc, bấm thẻ trả root", async () => {
     const user = userEvent.setup();
     const onPick = vi.fn();
     render(<StorySwitcherDialog open onOpenChange={() => undefined} onPick={onPick} />);
     await waitFor(() => expect(screen.getAllByRole("listitem")).toHaveLength(PAGE_SIZE));
     expect(screen.getByRole("button", { name: `Xem thêm (${30 - PAGE_SIZE})` })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /Xem thêm/ }));
+    expect(screen.getAllByRole("listitem")).toHaveLength(2 * PAGE_SIZE);
+    await user.click(screen.getByRole("button", { name: `Xem thêm (${30 - 2 * PAGE_SIZE})` }));
     expect(screen.getAllByRole("listitem")).toHaveLength(30);
     expect(screen.queryByRole("button", { name: /Xem thêm/ })).not.toBeInTheDocument();
 

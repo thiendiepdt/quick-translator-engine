@@ -109,7 +109,7 @@ describe("StoryPicker · Thư viện", () => {
     expect(screen.getAllByRole("button", { name: /Bỏ .* khỏi danh sách/ })).toHaveLength(1);
   });
 
-  it("thư viện dài: vẽ 24 dòng + Xem thêm, ô tìm lọc theo tên/folder và về trang đầu", async () => {
+  it("thư viện dài: vẽ 12 dòng + Xem thêm, ô tìm lọc theo tên/folder và về trang đầu", async () => {
     const user = userEvent.setup();
     useStoryStore.setState({ screen: "picker", config: { ...config, libraryRoot: "D:\\lib", recent: [] } });
     vi.mocked(libraryList).mockResolvedValue(
@@ -117,9 +117,11 @@ describe("StoryPicker · Thư viện", () => {
     );
     render(<StoryPicker />);
     expect(await screen.findByText("Truyện 1")).toBeInTheDocument();
-    expect(screen.getAllByText(/^Truyện \d+$/)).toHaveLength(24);
-    expect(screen.queryByText("Truyện 25")).not.toBeInTheDocument();
+    expect(screen.getAllByText(/^Truyện \d+$/)).toHaveLength(12);
+    expect(screen.queryByText("Truyện 13")).not.toBeInTheDocument();
 
+    await user.click(screen.getByRole("button", { name: "Xem thêm (18)" }));
+    expect(screen.getAllByText(/^Truyện \d+$/)).toHaveLength(24);
     await user.click(screen.getByRole("button", { name: "Xem thêm (6)" }));
     expect(screen.getAllByText(/^Truyện \d+$/)).toHaveLength(30);
     expect(screen.queryByRole("button", { name: /Xem thêm/ })).not.toBeInTheDocument();
