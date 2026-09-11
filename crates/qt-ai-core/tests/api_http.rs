@@ -1,5 +1,5 @@
 //! HttpModel gọi thật qua reqwest tới server TCP giả: kiểm đường dẫn, header, body và đọc SSE.
-use qt_ai_core::api::{ApiConfig, ApiError, ApiProvider, HttpModel, TextModel};
+use qt_ai_core::api::{ApiConfig, ApiError, ApiProvider, Effort, HttpModel, TextModel};
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::sync::atomic::AtomicBool;
@@ -68,8 +68,9 @@ fn openai_stream_qua_hub_http_gui_dung_header_body_va_doc_sse() {
     );
     let model = HttpModel::new(ApiConfig::resolve(ApiProvider::OpenAi, "sk-hub", "gemini-3.7-flash", &format!("{base}/v1/"), true, "xhigh"));
     let mut progress = Vec::new();
-    let out = model.generate("SYS", "USER", &AtomicBool::new(false), &mut |n| progress.push(n)).unwrap();
-    assert_eq!(out, "Xin chào");
+    let out = model.generate("SYS", "USER", Effort::Full, &AtomicBool::new(false), &mut |n| progress.push(n)).unwrap();
+    assert_eq!(out.text, "Xin chào");
+    assert_eq!(out.usage, None, "hub không gửi usage");
     assert_eq!(progress, vec![4, 8]);
     let (head, body) = captured(&slot);
     assert!(head.starts_with("post /v1/chat/completions http/1.1"), "{head}");
@@ -77,6 +78,7 @@ fn openai_stream_qua_hub_http_gui_dung_header_body_va_doc_sse() {
     assert!(head.contains("content-type: application/json"));
     assert_eq!(body["model"], "gemini-3.7-flash");
     assert_eq!(body["reasoning_effort"], "xhigh");
+    assert_eq!(body["stream_options"]["include_usage"], true);
     assert_eq!(body["messages"][1]["content"], "USER");
 }
 
@@ -84,7 +86,7 @@ fn openai_stream_qua_hub_http_gui_dung_header_body_va_doc_sse() {
 fn gemini_stream_gui_key_qua_header_va_bao_blocked() {
     let (base, slot) = serve_once("200 OK", "text/event-stream", "data: {\"promptFeedback\":{\"blockReason\":\"SAFETY\"}}\n\n");
     let model = HttpModel::new(ApiConfig::resolve(ApiProvider::Gemini, "AIza-key", "gemini-3.7-flash", &base, false, ""));
-    let result = model.generate("SYS", "USER", &AtomicBool::new(false), &mut |_| {});
+    let result = model.generate("SYS", "USER", Effort::Full, &AtomicBool::new(false), &mut |_| {});
     assert_eq!(result, Err(ApiError::Blocked("SAFETY".into())));
     let (head, body) = captured(&slot);
     assert!(head.starts_with("post /v1beta/models/gemini-3.7-flash:streamgeneratecontent?alt=sse"), "{head}");
@@ -96,7 +98,7 @@ fn gemini_stream_gui_key_qua_header_va_bao_blocked() {
 fn http_loi_tra_status_va_message_cua_provider() {
     let (base, _) = serve_once("401 Unauthorized", "application/json", "{\"error\":{\"message\":\"Invalid API key\"}}");
     let model = HttpModel::new(ApiConfig::resolve(ApiProvider::OpenAi, "bad", "", &base, true, ""));
-    let result = model.generate("S", "U", &AtomicBool::new(false), &mut |_| {});
+    let result = model.generate("S", "U", Effort::Full, &AtomicBool::new(false), &mut |_| {});
     assert_eq!(result, Err(ApiError::Http { provider: "OpenAI", status: 401, message: "Invalid API key".into() }));
     assert!(!result.unwrap_err().is_transient());
 }
@@ -105,18 +107,20 @@ fn http_loi_tra_status_va_message_cua_provider() {
 fn complete_json_openai_va_gemini() {
     let (base, slot) = serve_once("200 OK", "application/json", "{\"choices\":[{\"message\":{\"content\":\"{\\\"entries\\\":[]}\"}}]}");
     let model = HttpModel::new(ApiConfig::resolve(ApiProvider::OpenAi, "sk", "gpt-5.6-sol", &base, true, "high"));
-    assert_eq!(model.complete_json("S", "U", &AtomicBool::new(false)).unwrap(), "{\"entries\":[]}");
+    assert_eq!(model.complete_json("S", "U", Effort::Low, &AtomicBool::new(false)).unwrap().text, "{\"entries\":[]}");
     let (head, body) = captured(&slot);
     assert!(head.contains("accept: application/json"));
     assert_eq!(body["response_format"]["type"], "json_object");
-    assert!(body.get("reasoning_effort").is_none() && body.get("stream").is_none());
+    assert_eq!(body["reasoning_effort"], "low", "glossary ép low dù người dùng chọn high");
+    assert!(body.get("stream").is_none());
 
     let (base, slot) = serve_once("200 OK", "application/json", "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"{}\"}]}}]}");
     let model = HttpModel::new(ApiConfig::resolve(ApiProvider::Gemini, "AIza", "gemini-3.7-flash", &base, true, ""));
-    assert_eq!(model.complete_json("S", "U", &AtomicBool::new(false)).unwrap(), "{}");
+    assert_eq!(model.complete_json("S", "U", Effort::Low, &AtomicBool::new(false)).unwrap().text, "{}");
     let (head, body) = captured(&slot);
     assert!(head.starts_with("post /v1beta/models/gemini-3.7-flash:generatecontent http"), "{head}");
     assert_eq!(body["generationConfig"]["responseMimeType"], "application/json");
+    assert_eq!(body["generationConfig"]["thinkingConfig"]["thinkingLevel"], "low");
 }
 
 /// Nhận lần lượt N request (mỗi request một kết nối), trả theo thứ tự; ghi lại body từng request.
@@ -172,7 +176,7 @@ fn complete_json_hub_tu_choi_json_mode_thi_fallback_text_thuong_va_boc_json() {
         ),
     ]);
     let model = HttpModel::new(ApiConfig::resolve(ApiProvider::OpenAi, "sk", "gemini-3.8-flash", &base, true, "high"));
-    let out = model.complete_json("Trích glossary", "U", &AtomicBool::new(false)).unwrap();
+    let out = model.complete_json("Trích glossary", "U", Effort::Low, &AtomicBool::new(false)).unwrap().text;
     assert_eq!(out, "{\"entries\":[{\"source\":\"赵静文\"}]}");
     let bodies = bodies.lock().unwrap();
     assert_eq!(bodies.len(), 2);
@@ -190,7 +194,7 @@ fn complete_json_boc_rao_markdown_ngay_o_json_mode_va_content_dang_mang() {
         "{\"choices\":[{\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"```json\\n{\\\"a\\\":1}\\n```\"}]}}]}",
     );
     let model = HttpModel::new(ApiConfig::resolve(ApiProvider::OpenAi, "sk", "m", &base, true, ""));
-    assert_eq!(model.complete_json("S", "U", &AtomicBool::new(false)).unwrap(), "{\"a\":1}");
+    assert_eq!(model.complete_json("S", "U", Effort::Low, &AtomicBool::new(false)).unwrap().text, "{\"a\":1}");
 
     let (base, _) = serve_once(
         "200 OK",
@@ -198,14 +202,14 @@ fn complete_json_boc_rao_markdown_ngay_o_json_mode_va_content_dang_mang() {
         "{\"candidates\":[{\"content\":{\"parts\":[{\"thought\":true,\"text\":\"nghĩ đã\"},{\"text\":\"{\\\"b\\\":2}\"}]}}]}",
     );
     let model = HttpModel::new(ApiConfig::resolve(ApiProvider::Gemini, "AIza", "gemini-3.7-flash", &base, true, ""));
-    assert_eq!(model.complete_json("S", "U", &AtomicBool::new(false)).unwrap(), "{\"b\":2}");
+    assert_eq!(model.complete_json("S", "U", Effort::Low, &AtomicBool::new(false)).unwrap().text, "{\"b\":2}");
 }
 
 #[test]
 fn complete_json_loi_thoang_qua_hay_bi_chan_thi_khong_fallback() {
     let (base, bodies) = serve_sequence(vec![("429 Too Many Requests", "application/json", "{\"error\":{\"message\":\"slow down\"}}")]);
     let model = HttpModel::new(ApiConfig::resolve(ApiProvider::OpenAi, "sk", "m", &base, true, ""));
-    let error = model.complete_json("S", "U", &AtomicBool::new(false)).unwrap_err();
+    let error = model.complete_json("S", "U", Effort::Low, &AtomicBool::new(false)).unwrap_err();
     assert!(error.is_transient(), "{error:?}");
     std::thread::sleep(std::time::Duration::from_millis(50));
     assert_eq!(bodies.lock().unwrap().len(), 1); // không gọi lần hai
@@ -227,7 +231,7 @@ fn khong_ket_noi_duoc_la_network_error() {
     let base = format!("http://{}", listener.local_addr().unwrap());
     drop(listener);
     let model = HttpModel::new(ApiConfig::resolve(ApiProvider::OpenAi, "sk", "", &base, true, ""));
-    let result = model.generate("S", "U", &AtomicBool::new(false), &mut |_| {});
+    let result = model.generate("S", "U", Effort::Full, &AtomicBool::new(false), &mut |_| {});
     assert!(matches!(result, Err(ApiError::Network { provider: "OpenAI", .. })), "{result:?}");
     assert!(result.unwrap_err().is_transient());
 }
@@ -270,7 +274,7 @@ fn huy_giua_luc_hub_im_lang_thi_generate_tra_cancelled_ngay() {
     let model = HttpModel::new(ApiConfig::resolve(ApiProvider::OpenAi, "k", "m", &format!("{base}/v1/"), false, ""));
     let cancel = cancel_after(Duration::from_millis(300));
     let started = Instant::now();
-    let result = model.generate("S", "U", &cancel, &mut |_| {});
+    let result = model.generate("S", "U", Effort::Full, &cancel, &mut |_| {});
     assert_eq!(result, Err(ApiError::Cancelled));
     assert!(started.elapsed() < Duration::from_secs(3), "huỷ phải có tác dụng trong ~1 nhịp poll, không đợi hub");
 }
@@ -281,6 +285,6 @@ fn huy_giua_luc_cho_json_thi_complete_json_tra_cancelled_ngay() {
     let model = HttpModel::new(ApiConfig::resolve(ApiProvider::Gemini, "k", "m", &base, false, ""));
     let cancel = cancel_after(Duration::from_millis(300));
     let started = Instant::now();
-    assert_eq!(model.complete_json("S", "U", &cancel), Err(ApiError::Cancelled));
+    assert_eq!(model.complete_json("S", "U", Effort::Low, &cancel), Err(ApiError::Cancelled));
     assert!(started.elapsed() < Duration::from_secs(3));
 }

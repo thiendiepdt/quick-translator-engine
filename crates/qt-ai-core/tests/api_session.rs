@@ -1,5 +1,5 @@
 //! Vòng dịch API trên tempdir với model giả (không HTTP).
-use qt_ai_core::api::{ApiError, TextModel};
+use qt_ai_core::api::{ApiError, Effort, Generated, TextModel, Usage};
 use qt_ai_core::api_session::*;
 use qt_ai_core::commands::init::run_init;
 use qt_ai_core::session::{SessionEvent, StopReason};
@@ -33,8 +33,11 @@ fn story(chapters: usize) -> tempfile::TempDir {
 struct FakeModel {
     script: Mutex<VecDeque<Result<String, ApiError>>>,
     calls: Mutex<Vec<(String, String)>>,
+    efforts: Mutex<Vec<Effort>>,
     glossary_json: String,
     wait_cancel: bool,
+    /// Usage giả mỗi lượt (None = hub không báo).
+    usage: Option<Usage>,
 }
 
 impl FakeModel {
@@ -42,8 +45,10 @@ impl FakeModel {
         Arc::new(FakeModel {
             script: Mutex::new(script.into()),
             calls: Mutex::new(vec![]),
+            efforts: Mutex::new(vec![]),
             glossary_json: r#"{"entries":[]}"#.to_string(),
             wait_cancel: false,
+            usage: None,
         })
     }
     fn calls(&self) -> Vec<(String, String)> {
@@ -55,8 +60,16 @@ impl TextModel for FakeModel {
     fn label(&self) -> String {
         "Fake fake-model".into()
     }
-    fn generate(&self, system: &str, user: &str, cancel: &AtomicBool, on_progress: &mut dyn FnMut(usize)) -> Result<String, ApiError> {
+    fn generate(
+        &self,
+        system: &str,
+        user: &str,
+        effort: Effort,
+        cancel: &AtomicBool,
+        on_progress: &mut dyn FnMut(usize),
+    ) -> Result<Generated, ApiError> {
         self.calls.lock().unwrap().push((system.to_string(), user.to_string()));
+        self.efforts.lock().unwrap().push(effort);
         if self.wait_cancel {
             while !cancel.load(Ordering::SeqCst) {
                 std::thread::sleep(Duration::from_millis(10));
@@ -64,10 +77,12 @@ impl TextModel for FakeModel {
             return Err(ApiError::Cancelled);
         }
         on_progress(10);
-        self.script.lock().unwrap().pop_front().unwrap_or_else(|| Ok(good()))
+        let text = self.script.lock().unwrap().pop_front().unwrap_or_else(|| Ok(good()))?;
+        Ok(Generated { text, usage: self.usage })
     }
-    fn complete_json(&self, _system: &str, _user: &str, _cancel: &AtomicBool) -> Result<String, ApiError> {
-        Ok(self.glossary_json.clone())
+    fn complete_json(&self, _system: &str, _user: &str, effort: Effort, _cancel: &AtomicBool) -> Result<Generated, ApiError> {
+        self.efforts.lock().unwrap().push(effort);
+        Ok(Generated { text: self.glossary_json.clone(), usage: self.usage })
     }
 }
 
@@ -152,19 +167,101 @@ fn vi_pham_rule_thi_soat_tren_draft_co_nhan_roi_accept() {
 }
 
 #[test]
-fn ban_soat_te_hon_thi_bo_va_het_vong_chot_kem_canh_bao() {
+fn ban_soat_mat_nhan_thi_thu_vong_sau_con_khong_giam_vi_pham_thi_chot_ngay() {
     let dir = story(1);
     let bad = format!("[[1]] Anh ấy ngẩng đầu nhìn về phía tòa tháp cao ở nơi xa.\n\n[[2]] {GOOD_2}");
-    // Ba vòng soát đều trả bản mất nhãn / vẫn lỗi → chốt kèm cảnh báo, không bao giờ treo.
+    // Vòng 1 model làm mất nhãn (lỗi định dạng → thử lại); vòng 2 trả y nguyên (model coi vi phạm là đúng ngữ
+    // cảnh) → lặp thêm chỉ tốn token, chốt kèm cảnh báo ngay thay vì đủ 3 vòng.
     let model = FakeModel::new(vec![Ok(bad.clone()), Ok("không có nhãn".into()), Ok(bad.clone()), Ok(bad.clone())]);
+    let (sink, events) = collect();
+    let handle = start_api_session(config(dir.path()), model.clone(), sink).unwrap();
+    assert_eq!(handle.join(), StopReason::Finished);
+    let state = load_state(&story_paths(dir.path())).unwrap();
+    assert_eq!(state.chapters["0001"].status, ChapterStatus::Done);
+    // review_round đếm số lần check chưa sạch, gồm cả lần check trong accept --force cuối cùng.
+    assert_eq!(state.chapters["0001"].review_round, 3);
+    assert!(state.chapters["0001"].warnings.as_ref().unwrap()[0].contains("Đại từ sai"));
+    assert_eq!(model.calls().len(), 3, "không có lượt soát thứ ba");
+    assert!(logs(&events.lock().unwrap()).iter().any(|l| l.contains("chốt kèm cảnh báo")), "{:?}", logs(&events.lock().unwrap()));
+}
+
+#[test]
+fn soat_khong_giam_vi_pham_ngay_vong_dau_thi_chot_kem_canh_bao_sau_hai_luot_goi() {
+    let dir = story(1);
+    let bad = format!("[[1]] Anh ấy ngẩng đầu nhìn về phía tòa tháp cao ở nơi xa.\n\n[[2]] {GOOD_2}");
+    let model = FakeModel::new(vec![Ok(bad.clone()), Ok(bad.clone())]);
     let (sink, _) = collect();
     let handle = start_api_session(config(dir.path()), model.clone(), sink).unwrap();
     assert_eq!(handle.join(), StopReason::Finished);
     let state = load_state(&story_paths(dir.path())).unwrap();
     assert_eq!(state.chapters["0001"].status, ChapterStatus::Done);
-    assert_eq!(state.chapters["0001"].review_round, 3);
-    assert!(state.chapters["0001"].warnings.as_ref().unwrap()[0].contains("Đại từ sai"));
-    assert_eq!(model.calls().len(), 4);
+    assert_eq!(state.chapters["0001"].review_round, 2, "1 vòng soát + lần check trong accept --force");
+    assert_eq!(state.chapters["0001"].warnings.as_ref().unwrap().len(), 1);
+    assert_eq!(model.calls().len(), 2);
+    assert!(!dir.path().join("work").join("0001.draft.md").exists(), "accept dọn work/");
+}
+
+#[test]
+fn muc_nghi_theo_luot_dich_full_glossary_low_soat_minimal_va_log_token() {
+    let dir = story(1);
+    let bad = format!("[[1]] Anh ấy ngẩng đầu nhìn về phía tòa tháp cao ở nơi xa.\n\n[[2]] {GOOD_2}");
+    let mut model = FakeModel::new(vec![Ok(bad), Ok(good())]);
+    Arc::get_mut(&mut model).unwrap().usage = Some(Usage { input: 1000, cached: 600, output: 200, thoughts: 50 });
+    let (sink, events) = collect();
+    let handle = start_api_session(config(dir.path()), model.clone(), sink).unwrap();
+    assert_eq!(handle.join(), StopReason::Finished);
+    assert_eq!(*model.efforts.lock().unwrap(), vec![Effort::Full, Effort::Low, Effort::Minimal]);
+    let lines = logs(&events.lock().unwrap());
+    assert!(lines.iter().any(|l| l == "0001: dịch — vào 1.0k (cache 600) · ra 200 · nghĩ 50"), "{lines:?}");
+    assert!(lines.iter().any(|l| l.starts_with("0001: trích glossary — vào")), "{lines:?}");
+    assert!(lines.iter().any(|l| l.starts_with("0001: soát lần 1 — vào")), "{lines:?}");
+    // 3 lượt × 1250 token = 3750 → "3.8k".
+    assert!(lines.iter().any(|l| l.contains("0001: chốt (soát 1 lần, 0 cảnh báo, +0 glossary) · 3.8k token")), "{lines:?}");
+}
+
+#[test]
+fn hub_khong_bao_usage_thi_khong_log_token() {
+    let dir = story(1);
+    let model = FakeModel::new(vec![]);
+    let (sink, events) = collect();
+    let handle = start_api_session(config(dir.path()), model, sink).unwrap();
+    assert_eq!(handle.join(), StopReason::Finished);
+    let lines = logs(&events.lock().unwrap());
+    assert!(lines.iter().any(|l| l.ends_with("+0 glossary)")), "{lines:?}");
+    assert!(!lines.iter().any(|l| l.contains(" token") || l.contains(" — vào")), "{lines:?}");
+}
+
+#[test]
+fn glossary_kem_luot_dich_thi_khong_goi_trich_rieng() {
+    let dir = story(1);
+    let with_block = format!(
+        "{}\n\n[[glossary]]\n{{\"entries\":[{{\"source\":\"赵静文\",\"target\":\"Triệu Tĩnh Văn\",\"category\":\"names\"}}]}}",
+        good()
+    );
+    let model = FakeModel::new(vec![Ok(with_block)]);
+    let (sink, events) = collect();
+    let handle = start_api_session(config(dir.path()), model.clone(), sink).unwrap();
+    assert_eq!(handle.join(), StopReason::Finished);
+    assert_eq!(*model.efforts.lock().unwrap(), vec![Effort::Full], "không có lượt complete_json riêng");
+    let calls = model.calls();
+    assert!(calls[0].1.contains("[[glossary]]") && calls[0].1.contains("\"addressing\""), "payload dịch yêu cầu khối glossary");
+    let out = fs::read_to_string(dir.path().join("out").join("0001.txt")).unwrap();
+    assert_eq!(out, format!("{GOOD_1}\n\n{GOOD_2}\n"), "khối glossary không lọt vào bản dịch");
+    let story = load_story_config(&story_paths(dir.path())).unwrap();
+    assert_eq!(story.glossary["names"]["赵静文"], "Triệu Tĩnh Văn");
+    assert!(logs(&events.lock().unwrap()).iter().any(|l| l.contains("+1 glossary")));
+}
+
+#[test]
+fn split_glossary_block_tach_khoi_cuoi_va_chiu_rao_markdown() {
+    let (text, entries) = split_glossary_block("[[1]] a\n\n[[2]] b\n\n[[glossary]]\n```json\n{\"entries\":[{\"source\":\"x\"}]}\n```");
+    assert_eq!(text, "[[1]] a\n\n[[2]] b");
+    assert_eq!(entries.unwrap()[0]["source"], "x");
+    let (text, entries) = split_glossary_block("[[1]] a\n\n[[glossary]]\nkhông phải json");
+    assert_eq!(text, "[[1]] a");
+    assert!(entries.is_none());
+    let (text, entries) = split_glossary_block("[[1]] a");
+    assert_eq!((text, entries.is_none()), ("[[1]] a", true));
 }
 
 #[test]

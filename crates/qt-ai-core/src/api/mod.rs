@@ -125,6 +125,84 @@ impl ApiError {
     }
 }
 
+/// Mức "nghĩ" cho một lượt gọi. Dịch dùng mức người dùng chọn; soát và trích glossary là việc cơ học,
+/// thinking cao chỉ đốt output token (Gemini tính thought vào output).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Effort {
+    /// Theo cấu hình người dùng (Gemini `thinking`, OpenAI `reasoning_effort`).
+    Full,
+    /// Gemini 3: low; 2.5: budget 1024; OpenAI: low.
+    Low,
+    /// Gemini 3: minimal; 2.5: budget 0; OpenAI: low (hub lạ thường không nhận "minimal").
+    Minimal,
+}
+
+/// Token một lượt gọi theo provider báo (Gemini usageMetadata / OpenAI usage). `thoughts` tính riêng
+/// với `output`; `cached` là phần của `input` được cache.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Usage {
+    pub input: u64,
+    pub cached: u64,
+    pub output: u64,
+    pub thoughts: u64,
+}
+
+impl Usage {
+    pub fn total(&self) -> u64 {
+        self.input + self.output + self.thoughts
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.total() == 0
+    }
+
+    /// "vào 13.5k (cache 9.9k) · ra 3.7k · nghĩ 2.1k" — bỏ phần bằng 0.
+    pub fn summary(&self) -> String {
+        let mut parts = vec![format!("vào {}", format_tokens(self.input))];
+        if self.cached > 0 {
+            parts[0].push_str(&format!(" (cache {})", format_tokens(self.cached)));
+        }
+        parts.push(format!("ra {}", format_tokens(self.output)));
+        if self.thoughts > 0 {
+            parts.push(format!("nghĩ {}", format_tokens(self.thoughts)));
+        }
+        parts.join(" · ")
+    }
+}
+
+impl std::ops::AddAssign for Usage {
+    fn add_assign(&mut self, other: Usage) {
+        self.input += other.input;
+        self.cached += other.cached;
+        self.output += other.output;
+        self.thoughts += other.thoughts;
+    }
+}
+
+/// "812", "13.5k", "1.2M".
+pub fn format_tokens(count: u64) -> String {
+    if count >= 1_000_000 {
+        format!("{:.1}M", count as f64 / 1_000_000.0)
+    } else if count >= 1000 {
+        format!("{:.1}k", count as f64 / 1000.0)
+    } else {
+        count.to_string()
+    }
+}
+
+/// Kết quả một lượt gọi: text và usage nếu provider báo (hub lạ có thể không báo).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Generated {
+    pub text: String,
+    pub usage: Option<Usage>,
+}
+
+impl Generated {
+    pub fn text(text: impl Into<String>) -> Self {
+        Generated { text: text.into(), usage: None }
+    }
+}
+
 /// Model text: vòng dịch chỉ cần hai thao tác này nên test được bằng model giả không HTTP.
 pub trait TextModel: Send + Sync {
     fn label(&self) -> String;
@@ -133,11 +211,12 @@ pub trait TextModel: Send + Sync {
         &self,
         system: &str,
         user: &str,
+        effort: Effort,
         cancel: &AtomicBool,
         on_progress: &mut dyn FnMut(usize),
-    ) -> Result<String, ApiError>;
+    ) -> Result<Generated, ApiError>;
     /// Sinh JSON (không stream) cho tác vụ phụ như trích glossary. `cancel` bật → `ApiError::Cancelled`.
-    fn complete_json(&self, system: &str, user: &str, cancel: &AtomicBool) -> Result<String, ApiError>;
+    fn complete_json(&self, system: &str, user: &str, effort: Effort, cancel: &AtomicBool) -> Result<Generated, ApiError>;
 }
 
 fn install_crypto_provider() {
@@ -322,16 +401,17 @@ impl TextModel for HttpModel {
         &self,
         system: &str,
         user: &str,
+        effort: Effort,
         cancel: &AtomicBool,
         on_progress: &mut dyn FnMut(usize),
-    ) -> Result<String, ApiError> {
+    ) -> Result<Generated, ApiError> {
         let config = &self.config;
         match config.provider {
             ApiProvider::Gemini => {
                 let response = self.send(
                     &gemini::stream_url(config),
                     &gemini::headers(config),
-                    &gemini::stream_body(config, system, user),
+                    &gemini::stream_body(config, system, user, effort),
                     cancel,
                 )?;
                 gemini::parse_stream(BufReader::new(response), cancel, on_progress)
@@ -340,7 +420,7 @@ impl TextModel for HttpModel {
                 let response = self.send(
                     &openai::url(config),
                     &openai::headers(config, true),
-                    &openai::stream_body(config, system, user),
+                    &openai::stream_body(config, system, user, effort),
                     cancel,
                 )?;
                 openai::parse_stream(BufReader::new(response), cancel, on_progress)
@@ -350,42 +430,43 @@ impl TextModel for HttpModel {
 
     /// JSON mode trước; hub/model không nhận JSON mode (400/404/422, trả rỗng, không phải JSON…) thì
     /// gọi lại bằng lượt text thường rồi bóc object JSON ra — glossary/AI điền không vì hub lạ mà câm.
-    fn complete_json(&self, system: &str, user: &str, cancel: &AtomicBool) -> Result<String, ApiError> {
-        match self.complete_json_strict(system, user, cancel) {
-            Ok(text) => Ok(text),
+    fn complete_json(&self, system: &str, user: &str, effort: Effort, cancel: &AtomicBool) -> Result<Generated, ApiError> {
+        match self.complete_json_strict(system, user, effort, cancel) {
+            Ok(generated) => Ok(generated),
             Err(error) if error.is_transient() || matches!(error, ApiError::Blocked(_) | ApiError::Cancelled) => Err(error),
             Err(error) => {
                 let system = format!("{system}\n\nChỉ trả về đúng một JSON object hợp lệ, không giải thích, không markdown.");
-                let text = self.generate(&system, user, cancel, &mut |_| {})?;
-                extract_json_object(&text)
-                    .ok_or_else(|| ApiError::BadOutput(format!("model không trả JSON (JSON mode lỗi: {error})")))
+                let generated = self.generate(&system, user, effort, cancel, &mut |_| {})?;
+                let text = extract_json_object(&generated.text)
+                    .ok_or_else(|| ApiError::BadOutput(format!("model không trả JSON (JSON mode lỗi: {error})")))?;
+                Ok(Generated { text, usage: generated.usage })
             }
         }
     }
 }
 
 impl HttpModel {
-    fn complete_json_strict(&self, system: &str, user: &str, cancel: &AtomicBool) -> Result<String, ApiError> {
+    fn complete_json_strict(&self, system: &str, user: &str, effort: Effort, cancel: &AtomicBool) -> Result<Generated, ApiError> {
         let config = &self.config;
         let provider = config.provider.label();
         let (url, headers, body) = match config.provider {
             ApiProvider::Gemini => {
-                (gemini::json_url(config), gemini::headers(config), gemini::json_body(config, system, user))
+                (gemini::json_url(config), gemini::headers(config), gemini::json_body(config, system, user, effort))
             }
             ApiProvider::OpenAi => {
-                (openai::url(config), openai::headers(config, false), openai::json_body(config, system, user))
+                (openai::url(config), openai::headers(config, false), openai::json_body(config, system, user, effort))
             }
         };
         let text = self.send(&url, &headers, &body, cancel)?.read_all()?;
         let payload: Value = serde_json::from_str(&text)
             .map_err(|error| ApiError::Stream(format!("response {provider} không phải JSON: {error}")))?;
-        let content = match config.provider {
-            ApiProvider::Gemini => gemini::parse_json_response(&payload),
-            ApiProvider::OpenAi => openai::parse_json_response(&payload),
+        let (content, usage) = match config.provider {
+            ApiProvider::Gemini => (gemini::parse_json_response(&payload), gemini::usage_of(&payload)),
+            ApiProvider::OpenAi => (openai::parse_json_response(&payload), openai::usage_of(&payload)),
         };
         let text = content.filter(|text| !text.trim().is_empty()).ok_or(ApiError::Empty(provider))?;
         // Một số hub bật JSON mode nhưng vẫn bọc ```json hoặc nói thêm một câu — bóc luôn cho chắc.
-        Ok(extract_json_object(&text).unwrap_or(text))
+        Ok(Generated { text: extract_json_object(&text).unwrap_or(text), usage })
     }
 }
 
@@ -427,6 +508,17 @@ mod tests {
     fn error_message_lay_error_message_json_hoac_body() {
         assert_eq!(error_message(r#"{"error":{"message":"bad key","code":401}}"#), "bad key");
         assert_eq!(error_message("<html>oops</html>"), "<html>oops</html>");
+    }
+
+    #[test]
+    fn usage_cong_don_va_tom_tat_bo_phan_bang_0() {
+        let mut total = Usage { input: 13_500, cached: 9_900, output: 3_700, thoughts: 2_100 };
+        assert_eq!(total.summary(), "vào 13.5k (cache 9.9k) · ra 3.7k · nghĩ 2.1k");
+        total += Usage { input: 500, ..Usage::default() };
+        assert_eq!(total.input, 14_000);
+        assert_eq!(Usage { input: 812, output: 40, ..Usage::default() }.summary(), "vào 812 · ra 40");
+        assert_eq!(format_tokens(1_250_000), "1.2M");
+        assert!(Usage::default().is_empty());
     }
 
     #[test]

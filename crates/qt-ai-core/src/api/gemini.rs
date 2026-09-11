@@ -1,7 +1,7 @@
 //! Gemini API chính chủ: streamGenerateContent (SSE) + generateContent (JSON). Port 1-1 từ qt-web.
 
 use crate::api::sse::read_sse;
-use crate::api::{ApiConfig, ApiError, MAX_OUTPUT_TOKENS};
+use crate::api::{ApiConfig, ApiError, Effort, Generated, Usage, MAX_OUTPUT_TOKENS};
 use serde_json::{json, Value};
 use std::io::BufRead;
 use std::sync::atomic::AtomicBool;
@@ -25,7 +25,8 @@ fn model_major(model: &str) -> Option<u32> {
 }
 
 /// Port `buildGeminiTextGenerationConfig`: 2.5 dùng thinkingBudget, 3.x dùng thinkingLevel high/minimal.
-pub fn generation_config(model: &str, thinking: bool) -> Value {
+/// `thinking` là cấu hình người dùng (áp cho `Effort::Full`); soát/glossary ép mức thấp bất kể cấu hình.
+pub fn generation_config(model: &str, thinking: bool, effort: Effort) -> Value {
     let major = model_major(model);
     let mut config = serde_json::Map::new();
     config.insert("maxOutputTokens".into(), json!(MAX_OUTPUT_TOKENS));
@@ -34,9 +35,19 @@ pub fn generation_config(model: &str, thinking: bool) -> Value {
     }
     let mut thinking_config = serde_json::Map::new();
     if major == Some(2) && normalized_model(model).contains("2.5") {
-        thinking_config.insert("thinkingBudget".into(), json!(if thinking { -1 } else { 0 }));
+        let budget = match effort {
+            Effort::Full if thinking => -1,
+            Effort::Full | Effort::Minimal => 0,
+            Effort::Low => 1024,
+        };
+        thinking_config.insert("thinkingBudget".into(), json!(budget));
     } else if major.is_some_and(|major| major >= 3) {
-        thinking_config.insert("thinkingLevel".into(), json!(if thinking { "high" } else { "minimal" }));
+        let level = match effort {
+            Effort::Full if thinking => "high",
+            Effort::Full | Effort::Minimal => "minimal",
+            Effort::Low => "low",
+        };
+        thinking_config.insert("thinkingLevel".into(), json!(level));
     }
     if major.is_some_and(|major| major >= 3) || !thinking_config.is_empty() {
         thinking_config.insert("includeThoughts".into(), json!(true));
@@ -63,20 +74,40 @@ pub fn headers(config: &ApiConfig) -> Vec<(&'static str, String)> {
     vec![("x-goog-api-key", config.api_key.clone())]
 }
 
-pub fn stream_body(config: &ApiConfig, system: &str, user: &str) -> Value {
+pub fn stream_body(config: &ApiConfig, system: &str, user: &str, effort: Effort) -> Value {
     json!({
         "systemInstruction": { "parts": [{ "text": system }] },
         "contents": [{ "role": "user", "parts": [{ "text": user }] }],
         "safetySettings": safety_settings(),
-        "generationConfig": generation_config(&config.model, config.thinking),
+        "generationConfig": generation_config(&config.model, config.thinking, effort),
     })
 }
 
-pub fn json_body(_config: &ApiConfig, system: &str, user: &str) -> Value {
+/// JSON mode: cùng thinkingConfig như stream (trước đây bỏ trống → Gemini 3 mặc định nghĩ cao cho việc
+/// trích glossary), temperature 0 với model < 3.
+pub fn json_body(config: &ApiConfig, system: &str, user: &str, effort: Effort) -> Value {
+    let mut generation = generation_config(&config.model, config.thinking, effort);
+    if generation.get("temperature").is_some() {
+        generation["temperature"] = json!(0.0);
+    }
+    generation["responseMimeType"] = json!("application/json");
     json!({
         "systemInstruction": { "parts": [{ "text": system }] },
         "contents": [{ "role": "user", "parts": [{ "text": user }] }],
-        "generationConfig": { "temperature": 0.0, "responseMimeType": "application/json" },
+        "safetySettings": safety_settings(),
+        "generationConfig": generation,
+    })
+}
+
+/// `usageMetadata` của response/chunk cuối: prompt, candidates, thoughts, cachedContent.
+pub fn usage_of(payload: &Value) -> Option<Usage> {
+    let meta = payload.get("usageMetadata")?;
+    let count = |key: &str| meta.get(key).and_then(Value::as_u64).unwrap_or(0);
+    Some(Usage {
+        input: count("promptTokenCount"),
+        cached: count("cachedContentTokenCount"),
+        output: count("candidatesTokenCount"),
+        thoughts: count("thoughtsTokenCount"),
     })
 }
 
@@ -92,15 +123,19 @@ pub fn parse_stream<R: BufRead>(
     reader: R,
     cancel: &AtomicBool,
     on_progress: &mut dyn FnMut(usize),
-) -> Result<String, ApiError> {
+) -> Result<Generated, ApiError> {
     let mut output = String::new();
     let mut blocked: Option<String> = None;
+    let mut usage: Option<Usage> = None;
     read_sse(reader, cancel, |payload| {
         if let Some(message) = payload.pointer("/error/message").and_then(Value::as_str) {
             return Err(ApiError::Stream(message.to_string()));
         }
         if let Some(reason) = blocked_reason(&payload) {
             blocked = Some(reason);
+        }
+        if let Some(found) = usage_of(&payload) {
+            usage = Some(found); // chunk cuối mang số tổng
         }
         let Some(parts) = payload.pointer("/candidates/0/content/parts").and_then(Value::as_array) else {
             return Ok(());
@@ -116,7 +151,7 @@ pub fn parse_stream<R: BufRead>(
         Ok(())
     })?;
     if !output.is_empty() {
-        return Ok(output);
+        return Ok(Generated { text: output, usage });
     }
     match blocked {
         Some(reason) => Err(ApiError::Blocked(reason)),
@@ -149,18 +184,42 @@ mod tests {
     #[test]
     fn generation_config_theo_the_he_model() {
         assert_eq!(
-            generation_config("gemini-3.7-flash", true),
+            generation_config("gemini-3.7-flash", true, Effort::Full),
             json!({ "maxOutputTokens": 65536, "thinkingConfig": { "thinkingLevel": "high", "includeThoughts": true } })
         );
         assert_eq!(
-            generation_config("models/gemini-3.1-flash-lite", false)["thinkingConfig"]["thinkingLevel"],
+            generation_config("models/gemini-3.1-flash-lite", false, Effort::Full)["thinkingConfig"]["thinkingLevel"],
             json!("minimal")
         );
         assert_eq!(
-            generation_config("gemini-2.5-flash", false),
+            generation_config("gemini-2.5-flash", false, Effort::Full),
             json!({ "maxOutputTokens": 65536, "temperature": 0.3, "thinkingConfig": { "thinkingBudget": 0, "includeThoughts": true } })
         );
-        assert_eq!(generation_config("gemini-2.0-flash", true), json!({ "maxOutputTokens": 65536, "temperature": 0.3 }));
+        assert_eq!(generation_config("gemini-2.0-flash", true, Effort::Full), json!({ "maxOutputTokens": 65536, "temperature": 0.3 }));
+    }
+
+    #[test]
+    fn effort_thap_ep_muc_nghi_bat_ke_cau_hinh() {
+        // Soát/glossary: dù người dùng bật thinking, vẫn ép low/minimal.
+        assert_eq!(generation_config("gemini-3.7-flash", true, Effort::Low)["thinkingConfig"]["thinkingLevel"], json!("low"));
+        assert_eq!(generation_config("gemini-3.7-flash", true, Effort::Minimal)["thinkingConfig"]["thinkingLevel"], json!("minimal"));
+        assert_eq!(generation_config("gemini-2.5-pro", true, Effort::Low)["thinkingConfig"]["thinkingBudget"], json!(1024));
+        assert_eq!(generation_config("gemini-2.5-pro", true, Effort::Minimal)["thinkingConfig"]["thinkingBudget"], json!(0));
+        assert!(generation_config("gemini-2.0-flash", true, Effort::Low).get("thinkingConfig").is_none());
+        // JSON mode giờ cũng mang thinkingConfig (trước để trống → Gemini 3 mặc định nghĩ cao).
+        let json = json_body(&config(), "S", "U", Effort::Low);
+        assert_eq!(json["generationConfig"]["thinkingConfig"]["thinkingLevel"], "low");
+        assert_eq!(json["generationConfig"]["responseMimeType"], "application/json");
+        assert!(json["generationConfig"].get("temperature").is_none());
+        let old = ApiConfig::resolve(ApiProvider::Gemini, "AIza", "gemini-2.5-flash", "", true, "");
+        assert_eq!(json_body(&old, "S", "U", Effort::Minimal)["generationConfig"]["temperature"], 0.0);
+    }
+
+    #[test]
+    fn usage_of_doc_usage_metadata() {
+        let payload = json!({ "usageMetadata": { "promptTokenCount": 13500, "cachedContentTokenCount": 9900, "candidatesTokenCount": 3700, "thoughtsTokenCount": 2100, "totalTokenCount": 19300 } });
+        assert_eq!(usage_of(&payload), Some(Usage { input: 13500, cached: 9900, output: 3700, thoughts: 2100 }));
+        assert_eq!(usage_of(&json!({ "candidates": [] })), None);
     }
 
     #[test]
@@ -172,13 +231,14 @@ mod tests {
         );
         assert!(json_url(&config).ends_with(":generateContent"));
         assert_eq!(headers(&config), vec![("x-goog-api-key", "AIza".to_string())]);
-        let body = stream_body(&config, "SYS", "USER");
+        let body = stream_body(&config, "SYS", "USER", Effort::Full);
         assert_eq!(body["systemInstruction"]["parts"][0]["text"], "SYS");
         assert_eq!(body["contents"][0]["parts"][0]["text"], "USER");
         assert_eq!(body["safetySettings"].as_array().unwrap().len(), 5);
         assert_eq!(body["safetySettings"][0]["threshold"], "OFF");
-        let json = json_body(&config, "S", "U");
+        let json = json_body(&config, "S", "U", Effort::Full);
         assert_eq!(json["generationConfig"]["responseMimeType"], "application/json");
+        assert_eq!(json["safetySettings"].as_array().unwrap().len(), 5);
     }
 
     #[test]
@@ -186,11 +246,12 @@ mod tests {
         let sse = format!(
             "data: {}\n\ndata: {}\n\n",
             json!({ "candidates": [{ "content": { "parts": [{ "text": "nghĩ", "thought": true }, { "text": "Xin " }] } }] }),
-            json!({ "candidates": [{ "content": { "parts": [{ "text": "chào" }] }, "finishReason": "STOP" }] }),
+            json!({ "candidates": [{ "content": { "parts": [{ "text": "chào" }] }, "finishReason": "STOP" }], "usageMetadata": { "promptTokenCount": 10, "candidatesTokenCount": 4, "thoughtsTokenCount": 6 } }),
         );
         let mut progress = Vec::new();
         let out = parse_stream(Cursor::new(sse), &AtomicBool::new(false), &mut |n| progress.push(n)).unwrap();
-        assert_eq!(out, "Xin chào");
+        assert_eq!(out.text, "Xin chào");
+        assert_eq!(out.usage, Some(Usage { input: 10, cached: 0, output: 4, thoughts: 6 }));
         assert_eq!(progress, vec![4, 8]);
 
         let blocked = format!("data: {}\n\n", json!({ "promptFeedback": { "blockReason": "PROHIBITED_CONTENT" } }));
