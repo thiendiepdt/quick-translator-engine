@@ -3,7 +3,7 @@
 //! Không tra web: Gemini không cho bật Google Search cùng chế độ trả JSON, hub OpenAI-compatible
 //! không có search; bù lại model đọc thẳng chương đầu nên nắm được nhân vật, thể loại, giọng văn.
 
-use crate::api::{ApiError, TextModel};
+use crate::api::{ApiError, ApiStep, TextModel};
 use crate::story::StoryConfig;
 use crate::story_fs::{list_raw_chapter_ids, read_raw_chapter, StoryPaths};
 use crate::Result;
@@ -168,7 +168,8 @@ pub fn fill_story(
     samples: &[ChapterSample],
 ) -> std::result::Result<StoryConfig, ApiError> {
     // AI điền chạy một lượt từ dialog, chưa có nút huỷ → cờ luôn tắt.
-    let output = model.complete_json(FILL_SYSTEM_PROMPT, &build_fill_prompt(name, source_url, samples), &AtomicBool::new(false))?;
+    let output =
+        model.complete_json(ApiStep::Fill, FILL_SYSTEM_PROMPT, &build_fill_prompt(name, source_url, samples), &AtomicBool::new(false))?;
     let proposed = parse_fill_json(&output)?;
     Ok(merge_fill(current, &proposed, name, source_url))
 }
@@ -188,10 +189,11 @@ mod tests {
         fn label(&self) -> String {
             "Fake".into()
         }
-        fn generate(&self, _: &str, _: &str, _: &AtomicBool, _: &mut dyn FnMut(usize)) -> std::result::Result<String, ApiError> {
+        fn generate(&self, _: ApiStep, _: &str, _: &str, _: &AtomicBool, _: &mut dyn FnMut(usize)) -> std::result::Result<String, ApiError> {
             unreachable!("fill chỉ dùng complete_json")
         }
-        fn complete_json(&self, system: &str, user: &str, _: &AtomicBool) -> std::result::Result<String, ApiError> {
+        fn complete_json(&self, step: ApiStep, system: &str, user: &str, _: &AtomicBool) -> std::result::Result<String, ApiError> {
+            assert_eq!(step, ApiStep::Fill);
             self.calls.lock().unwrap().push((system.to_string(), user.to_string()));
             Ok(self.reply.clone())
         }

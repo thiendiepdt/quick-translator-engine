@@ -3,7 +3,7 @@
 //! (ai-translation-workspace.tsx) lên trên cùng state machine `commands::*` mà agy dùng, nên hai
 //! động cơ dùng chung folder truyện và đổi qua lại giữa chừng được.
 
-use crate::api::{ApiError, TextModel};
+use crate::api::{ApiError, ApiStep, TextModel};
 use crate::check::check_violations;
 use crate::commands::accept::run_accept;
 use crate::commands::check::run_check;
@@ -91,10 +91,10 @@ fn format_chars(count: usize) -> String {
     }
 }
 
-/// Gọi model và log tiến độ nhận stream thưa thớt.
-fn generate(chapter: &Chapter, step: &str, system: &str, user: &str) -> std::result::Result<String, ApiError> {
+/// Gọi model (mức nghĩ theo `step`) và log tiến độ nhận stream thưa thớt; `label` là tên bước trong log.
+fn generate(chapter: &Chapter, step: ApiStep, label: &str, system: &str, user: &str) -> std::result::Result<String, ApiError> {
     let (id, log) = (chapter.id, chapter.log);
-    log(format!("{id}: {step} ({})…", chapter.model.label()));
+    log(format!("{id}: {label} ({})…", chapter.model.label()));
     let mut last_log = Instant::now();
     let mut on_progress = |received: usize| {
         if last_log.elapsed() >= STREAM_LOG_INTERVAL {
@@ -102,7 +102,7 @@ fn generate(chapter: &Chapter, step: &str, system: &str, user: &str) -> std::res
             log(format!("{id}: đã nhận {} ký tự", format_chars(received)));
         }
     };
-    chapter.model.generate(system, user, chapter.cancel, &mut on_progress)
+    chapter.model.generate(step, system, user, chapter.cancel, &mut on_progress)
 }
 
 /// Bản draft có nhãn ghi ra work/<id>.draft.md — đúng dạng `assemble_draft` đọc.
@@ -130,6 +130,7 @@ fn repair_missing(chapter: &Chapter, draft: &mut [String], missing: &[usize]) ->
     }
     let output = generate(
         chapter,
+        ApiStep::Translate,
         &format!("dịch bổ sung {} đoạn", missing.len()),
         chapter.system,
         &labeled_repair_payload(chapter.paragraphs, missing),
@@ -149,12 +150,12 @@ fn repair_missing(chapter: &Chapter, draft: &mut [String], missing: &[usize]) ->
 fn translate_full(chapter: &Chapter) -> std::result::Result<Vec<String>, ApiError> {
     let paragraphs = chapter.paragraphs;
     let payload = labeled_source_payload(paragraphs);
-    let mut output = generate(chapter, "dịch", chapter.system, &payload)?;
+    let mut output = generate(chapter, ApiStep::Translate, "dịch", chapter.system, &payload)?;
     let mut parsed = parse_labeled_translation(&output, paragraphs.len());
     if parsed.is_none() {
         // Model bỏ hết nhãn — thử lại một lần rồi mới bó tay.
         (chapter.log)(format!("{}: model bỏ nhãn [[n]], dịch lại", chapter.id));
-        output = generate(chapter, "dịch lại", chapter.system, &payload)?;
+        output = generate(chapter, ApiStep::Translate, "dịch lại", chapter.system, &payload)?;
         parsed = parse_labeled_translation(&output, paragraphs.len());
     }
     let Some(parsed) = parsed else {
@@ -177,7 +178,7 @@ fn harvest_glossary(chapter: &Chapter, paths: &StoryPaths, raw: &str, draft: &[S
         .collect();
     exclude.sort();
     let user = json!({ "exclude": exclude, "raw": raw, "translation": final_text(draft) }).to_string();
-    let entries = match chapter.model.complete_json(GLOSSARY_EXTRACT_SYSTEM_PROMPT, &user, chapter.cancel) {
+    let entries = match chapter.model.complete_json(ApiStep::Glossary, GLOSSARY_EXTRACT_SYSTEM_PROMPT, &user, chapter.cancel) {
         Ok(text) => serde_json::from_str::<Value>(&text)
             .ok()
             .and_then(|value| value.get("entries").cloned().or(Some(value)))
@@ -202,7 +203,7 @@ Giữ nguyên toàn bộ chữ, thứ tự câu, dấu câu và ngắt đoạn k
 Đoạn nào còn nguyên chữ Hán thì dịch đoạn đó theo đúng quy tắc.\n\n---\n\n{}",
         labeled_draft(draft)
     );
-    let output = generate(chapter, &format!("soát lần {round}"), REVIEW_SYSTEM_PROMPT, &user)?;
+    let output = generate(chapter, ApiStep::Review, &format!("soát lần {round}"), REVIEW_SYSTEM_PROMPT, &user)?;
     let Some(reviewed) = parse_labeled_translation(&output, draft.len()) else {
         log(format!("{id}: bản soát mất nhãn — bỏ"));
         return Ok(());

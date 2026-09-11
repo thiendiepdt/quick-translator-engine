@@ -9,18 +9,17 @@ import { BaseGlossaryDialog } from "@/components/base-glossary-dialog";
 import { BasePromptDialog } from "@/components/base-prompt-dialog";
 import { BaseRulesDialog } from "@/components/base-rules-dialog";
 import { Choice } from "@/components/choice";
+import { EffortTable } from "@/components/effort-table";
 import { PalettePicker } from "@/components/palette-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { useReadingWidth } from "@/hooks/use-reading-width";
 import { useThemeActions } from "@/hooks/use-theme";
 import { agyStatus, appConfigSet, pickAgyFile, pickFolder, saveSettings, storySnapshot } from "@/lib/api";
 import { apiSettingsFromForm, engineFormFromConfig, engineFormSchema } from "@/lib/engine-form";
 import { READING_WIDTH_LABELS, READING_WIDTHS } from "@/lib/reading";
-import { DEFAULT_API_MODELS, OPENAI_REASONING_EFFORTS } from "@/lib/schema";
+import { DEFAULT_API_MODELS, GEMINI_EFFORTS, OPENAI_EFFORTS } from "@/lib/schema";
 import { THEME_MODE_LABELS, THEME_MODES } from "@/lib/theme";
 import { API_PROVIDER_LABELS, ENGINE_LABELS, type ApiProvider, type BaseKind, type Engine } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -93,8 +92,8 @@ function SaveBar({ dirty, running, saving, onReset }: { dirty: boolean; running:
 function EngineCard({ form, running }: { form: UseFormReturn<SettingsForm>; running: boolean }) {
   const engine = form.watch("engine");
   const provider = form.watch("apiProvider");
-  const thinking = form.watch("thinking");
-  const reasoningEffort = form.watch("reasoningEffort");
+  const geminiEffort = form.watch("geminiEffort");
+  const openaiEffort = form.watch("openaiEffort");
   const set = <K extends FieldPath<SettingsForm>>(name: K, value: FieldPathValue<SettingsForm, K>) =>
     form.setValue(name, value, { shouldDirty: true });
   const text = (
@@ -135,12 +134,14 @@ function EngineCard({ form, running }: { form: UseFormReturn<SettingsForm>; runn
               {text("geminiBaseUrl", "Base URL", "Trống = endpoint chính thức của Google; điền khi dùng relay Gemini.", {
                 placeholder: "https://generativelanguage.googleapis.com",
               })}
-              <div className="flex items-center justify-between rounded-md bg-background/60 px-3 py-2">
-                <Label htmlFor="thinking" className="text-xs font-normal">
-                  Thinking (Gemini 3.x: high ↔ minimal)
-                </Label>
-                <Switch id="thinking" checked={thinking} onCheckedChange={(v) => set("thinking", v)} disabled={running} />
-              </div>
+              <EffortTable
+                idPrefix="gemini"
+                values={geminiEffort}
+                options={GEMINI_EFFORTS}
+                hint="Gemini 3.x: thinkingLevel; 2.5: minimal = tắt, mức khác = tự động. Mặc định model = không gửi tham số."
+                disabled={running}
+                onChange={(step, v) => set(`geminiEffort.${step}`, v as (typeof GEMINI_EFFORTS)[number])}
+              />
             </>
           ) : (
             <>
@@ -151,23 +152,14 @@ function EngineCard({ form, running }: { form: UseFormReturn<SettingsForm>; runn
               {text("openaiBaseUrl", "Base URL", "Trống = https://api.openai.com/v1; hub riêng thì điền tới hết /v1.", {
                 placeholder: "https://api.openai.com/v1",
               })}
-              <div className="flex items-center justify-between gap-2">
-                <Label htmlFor="reasoningEffort" className="text-xs font-normal">
-                  Mức nghĩ (reasoning_effort)
-                </Label>
-                <Select value={reasoningEffort} onValueChange={(v) => set("reasoningEffort", v as SettingsForm["reasoningEffort"])} disabled={running}>
-                  <SelectTrigger id="reasoningEffort" className="w-40" aria-label="Mức reasoning OpenAI">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {OPENAI_REASONING_EFFORTS.map((effort) => (
-                      <SelectItem key={effort} value={effort}>
-                        {effort}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <EffortTable
+                idPrefix="openai"
+                values={openaiEffort}
+                options={OPENAI_EFFORTS}
+                hint="Gửi reasoning_effort cho từng bước. Mặc định model = không gửi tham số; hub lạ không nhận thì chọn mục này."
+                disabled={running}
+                onChange={(step, v) => set(`openaiEffort.${step}`, v as (typeof OPENAI_EFFORTS)[number])}
+              />
             </>
           )}
         </div>
@@ -352,7 +344,7 @@ export function SettingsPage() {
           <form id={FORM_ID} onSubmit={(e) => void submit(e)} className="flex flex-col gap-6">
             <EngineCard form={form} running={running} />
             <Card title="App" description="Giới hạn phiên chung; đường dẫn agy và model chỉ dùng khi động cơ là agy.">
-              {field("maxParallel", "Số truyện dịch song song", "Mỗi truyện một phiên, tối đa 20; API hub dễ trả 429 nếu để cao. Mặc định 2.", {
+              {field("maxParallel", "Số truyện dịch song song", "Mỗi truyện một phiên, tối đa 20; API hub dễ trả 429 nếu để cao thì hạ xuống. Mặc định 20.", {
                 type: "number",
                 min: 1,
                 max: 20,

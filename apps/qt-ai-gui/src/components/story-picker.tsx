@@ -129,7 +129,7 @@ export function StoryPicker() {
   const sessions = useStoryStore((s) => s.sessions);
   const sessionRoots = useStoryStore((s) => s.roots);
   const progress = useStoryStore((s) => s.progress);
-  const maxParallel = useStoryStore((s) => s.config?.maxParallel ?? 2);
+  const maxParallel = useStoryStore((s) => s.config?.maxParallel ?? 20);
   const applySessionEvent = useStoryStore((s) => s.applySessionEvent);
   const running = useMemo(() => runningRoots({ sessions, roots: sessionRoots }), [sessions, sessionRoots]);
   const isRunning = (root: string) => running.some((r) => samePath(r, root));

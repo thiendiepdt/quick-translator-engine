@@ -1,5 +1,5 @@
 //! Vòng dịch API trên tempdir với model giả (không HTTP).
-use qt_ai_core::api::{ApiError, TextModel};
+use qt_ai_core::api::{ApiError, ApiStep, TextModel};
 use qt_ai_core::api_session::*;
 use qt_ai_core::commands::init::run_init;
 use qt_ai_core::session::{SessionEvent, StopReason};
@@ -55,7 +55,7 @@ impl TextModel for FakeModel {
     fn label(&self) -> String {
         "Fake fake-model".into()
     }
-    fn generate(&self, system: &str, user: &str, cancel: &AtomicBool, on_progress: &mut dyn FnMut(usize)) -> Result<String, ApiError> {
+    fn generate(&self, _: ApiStep, system: &str, user: &str, cancel: &AtomicBool, on_progress: &mut dyn FnMut(usize)) -> Result<String, ApiError> {
         self.calls.lock().unwrap().push((system.to_string(), user.to_string()));
         if self.wait_cancel {
             while !cancel.load(Ordering::SeqCst) {
@@ -66,7 +66,7 @@ impl TextModel for FakeModel {
         on_progress(10);
         self.script.lock().unwrap().pop_front().unwrap_or_else(|| Ok(good()))
     }
-    fn complete_json(&self, _system: &str, _user: &str, _cancel: &AtomicBool) -> Result<String, ApiError> {
+    fn complete_json(&self, _: ApiStep, _system: &str, _user: &str, _cancel: &AtomicBool) -> Result<String, ApiError> {
         Ok(self.glossary_json.clone())
     }
 }

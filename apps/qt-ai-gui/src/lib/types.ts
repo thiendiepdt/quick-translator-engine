@@ -13,6 +13,7 @@ import {
   type chapterRowSchema,
   type chapterStatusSchema,
   type chapterViewSchema,
+  type ApiStep,
   type exportOutcomeSchema,
   type deleteOutcomeSchema,
   type retryRangeOutcomeSchema,
@@ -82,6 +83,12 @@ export const GLOSSARY_LABELS: Record<GlossaryKey, string> = {
 };
 
 export const ENGINE_LABELS: Record<Engine, string> = { agy: "Antigravity CLI (agy)", api: "API key" };
+export const API_STEP_LABELS: Record<ApiStep, string> = {
+  translate: "Dịch (kể cả dịch lại, bù đoạn)",
+  review: "Soát vi phạm",
+  glossary: "Trích glossary",
+  fill: "AI điền hồ sơ",
+};
 export const API_PROVIDER_LABELS: Record<ApiProvider, string> = { gemini: "Gemini", openai: "OpenAI-compatible" };
 
 /** Nhãn ngắn cho toolbar/log: "API · Gemini · gemini-3.7-flash" hoặc "agy". */

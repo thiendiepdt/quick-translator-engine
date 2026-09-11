@@ -1,5 +1,5 @@
 use crate::error::{CmdResult, CommandError};
-use qt_ai_core::api::{ApiConfig, ApiProvider, DEFAULT_GEMINI_MODEL, DEFAULT_OPENAI_MODEL};
+use qt_ai_core::api::{ApiConfig, ApiProvider, StepEfforts, DEFAULT_GEMINI_MODEL, DEFAULT_OPENAI_MODEL};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
@@ -22,6 +22,8 @@ pub struct ProviderCredentials {
     pub model: String,
     /// Trống = endpoint chính thức; OpenAI đổi sang hub OpenAI-compatible bất kỳ.
     pub base_url: String,
+    /// Mức nghĩ theo bước gọi (dịch/soát/glossary/điền hồ sơ); giá trị hợp lệ tuỳ provider.
+    pub effort: StepEfforts,
 }
 
 /// Key/model tách riêng theo provider như qt-web: đổi provider không mang key bên này sang bên kia.
@@ -31,10 +33,11 @@ pub struct ApiSettings {
     pub provider: ApiProvider,
     pub gemini: ProviderCredentials,
     pub openai: ProviderCredentials,
-    /// Gemini: thinkingLevel high ↔ minimal.
-    pub thinking: bool,
-    /// OpenAI: none|low|medium|high|xhigh|max.
-    pub reasoning_effort: String,
+    /// Nút cũ (trước khi có mức nghĩ theo bước): chỉ đọc để chuyển đổi, không ghi lại.
+    #[serde(skip_serializing)]
+    pub thinking: Option<bool>,
+    #[serde(skip_serializing)]
+    pub reasoning_effort: Option<String>,
 }
 
 impl Default for ApiSettings {
@@ -43,8 +46,8 @@ impl Default for ApiSettings {
             provider: ApiProvider::Gemini,
             gemini: ProviderCredentials { model: DEFAULT_GEMINI_MODEL.to_string(), ..Default::default() },
             openai: ProviderCredentials { model: DEFAULT_OPENAI_MODEL.to_string(), ..Default::default() },
-            thinking: true,
-            reasoning_effort: "high".to_string(),
+            thinking: None,
+            reasoning_effort: None,
         }
     }
 }
@@ -57,10 +60,21 @@ impl ApiSettings {
         }
     }
 
+    /// Config cũ có `thinking`/`reasoningEffort` chung → đổ vào dịch + soát của provider tương ứng
+    /// (hai lượt JSON lấy mặc định mới), rồi bỏ hai trường cũ.
+    pub fn migrate_legacy(&mut self) {
+        if let Some(thinking) = self.thinking.take() {
+            self.gemini.effort = StepEfforts::legacy(ApiProvider::Gemini, thinking, "");
+        }
+        if let Some(effort) = self.reasoning_effort.take() {
+            self.openai.effort = StepEfforts::legacy(ApiProvider::OpenAi, true, &effort);
+        }
+    }
+
     /// Cấu hình đã điền mặc định cho provider đang chọn.
     pub fn resolve(&self) -> ApiConfig {
         let active = self.active();
-        ApiConfig::resolve(self.provider, &active.api_key, &active.model, &active.base_url, self.thinking, &self.reasoning_effort)
+        ApiConfig::with_efforts(self.provider, &active.api_key, &active.model, &active.base_url, active.effort.clone())
     }
 }
 
@@ -95,7 +109,7 @@ impl Default for AppConfig {
             agy_path: None,
             model: None,
             max_sessions: 50,
-            max_parallel: 2,
+            max_parallel: 20,
             recent: vec![],
             library_root: None,
             palette: "editorial".to_string(),
@@ -108,7 +122,10 @@ impl Default for AppConfig {
 impl AppConfig {
     /// File thiếu/hỏng → default; không bao giờ chặn app khởi động vì config.
     pub fn load(path: &Path) -> AppConfig {
-        std::fs::read_to_string(path).ok().and_then(|text| serde_json::from_str(&text).ok()).unwrap_or_default()
+        let mut config: AppConfig =
+            std::fs::read_to_string(path).ok().and_then(|text| serde_json::from_str(&text).ok()).unwrap_or_default();
+        config.api.migrate_legacy();
+        config
     }
 
     pub fn save(&self, path: &Path) -> CmdResult<()> {
@@ -164,7 +181,7 @@ mod tests {
         assert_eq!(json["readingWidth"], "normal");
         assert_eq!(old.reading_width, "normal");
         assert_eq!(old.library_root, None);
-        assert_eq!(old.max_parallel, 2);
+        assert_eq!(old.max_parallel, 20);
         assert!(json["libraryRoot"].is_null());
     }
 
@@ -176,29 +193,58 @@ mod tests {
         assert_eq!(old.api, ApiSettings::default());
         assert_eq!(old.api.gemini.model, "gemini-3.7-flash");
         assert_eq!(old.api.openai.model, "gpt-5.6-sol");
-        assert_eq!(old.api.reasoning_effort, "high");
+        assert_eq!(old.api.openai.effort, StepEfforts::default());
         let json = serde_json::to_value(&old).unwrap();
         assert_eq!(json["engine"], "api");
         assert_eq!(json["api"]["provider"], "gemini");
         assert_eq!(json["api"]["gemini"]["apiKey"], "");
+        assert_eq!(json["api"]["gemini"]["effort"], serde_json::json!({ "translate": "high", "review": "high", "glossary": "low", "fill": "high" }));
+        assert!(json["api"].get("thinking").is_none() && json["api"].get("reasoningEffort").is_none());
+    }
+
+    #[test]
+    fn config_cu_co_thinking_va_reasoning_effort_chung_thi_chuyen_sang_effort_theo_buoc() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+        std::fs::write(
+            &path,
+            r#"{"api":{"provider":"openai","thinking":false,"reasoningEffort":"xhigh"},"agyPath":null,"model":null,"maxSessions":7,"recent":[]}"#,
+        )
+        .unwrap();
+        let config = AppConfig::load(&path);
+        assert_eq!(config.api.thinking, None);
+        assert_eq!(config.api.reasoning_effort, None);
+        assert_eq!(config.api.gemini.effort, StepEfforts { translate: "minimal".into(), review: "minimal".into(), ..Default::default() });
+        assert_eq!(config.api.openai.effort, StepEfforts { translate: "xhigh".into(), review: "xhigh".into(), ..Default::default() });
+        assert_eq!(config.api.resolve().effort.review, "xhigh");
+        // Config đã có effort theo bước thì không còn trường cũ để ghi đè.
+        config.save(&path).unwrap();
+        assert!(!std::fs::read_to_string(&path).unwrap().contains("reasoningEffort"));
+        assert_eq!(AppConfig::load(&path), config);
     }
 
     #[test]
     fn api_settings_resolve_theo_provider_dang_chon() {
         let mut api = ApiSettings::default();
         api.gemini.api_key = " AIza ".into();
-        api.openai = ProviderCredentials { api_key: "sk-hub".into(), model: "".into(), base_url: "http://192.0.2.10/v1/".into() };
+        api.openai = ProviderCredentials {
+            api_key: "sk-hub".into(),
+            model: "".into(),
+            base_url: "http://192.0.2.10/v1/".into(),
+            ..Default::default()
+        };
         let gemini = api.resolve();
         assert_eq!(gemini.provider, ApiProvider::Gemini);
         assert_eq!(gemini.api_key, "AIza");
         assert_eq!(gemini.base_url, "https://generativelanguage.googleapis.com");
         api.provider = ApiProvider::OpenAi;
-        api.reasoning_effort = "xhigh".into();
+        api.openai.effort.translate = "xhigh".into();
         let openai = api.resolve();
         assert_eq!(openai.api_key, "sk-hub");
         assert_eq!(openai.model, "gpt-5.6-sol");
         assert_eq!(openai.base_url, "http://192.0.2.10/v1");
-        assert_eq!(openai.reasoning_effort, "xhigh");
+        assert_eq!(openai.effort.translate, "xhigh");
+        assert_eq!(openai.effort.review, "high");
         let round: AppConfig = serde_json::from_str(&serde_json::to_string(&AppConfig { api, engine: Engine::Api, ..Default::default() }).unwrap()).unwrap();
         assert_eq!(round.engine, Engine::Api);
         assert_eq!(round.api.openai.api_key, "sk-hub");

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { apiSettingsFromForm, engineFormFromConfig } from "@/lib/engine-form";
-import { appConfigSchema } from "@/lib/schema";
+import { appConfigSchema, DEFAULT_STEP_EFFORTS } from "@/lib/schema";
 import { engineLabel, stopReasonLabel } from "@/lib/types";
 
 const config = appConfigSchema.parse({
@@ -9,9 +9,12 @@ const config = appConfigSchema.parse({
   api: {
     provider: "openai",
     gemini: { apiKey: "AIza", model: "gemini-3.7-flash", baseUrl: "" },
-    openai: { apiKey: " sk-hub ", model: " gemini-3.8-flash ", baseUrl: " http://192.0.2.10/v1 " },
-    thinking: false,
-    reasoningEffort: "max",
+    openai: {
+      apiKey: " sk-hub ",
+      model: " gemini-3.8-flash ",
+      baseUrl: " http://192.0.2.10/v1 ",
+      effort: { translate: "max", review: "low", glossary: "", fill: "none" },
+    },
   },
   agyPath: null,
   model: null,
@@ -28,9 +31,15 @@ describe("engine form", () => {
     const api = apiSettingsFromForm({ ...form, apiProvider: "gemini" });
     expect(api.provider).toBe("gemini");
     expect(api.gemini.apiKey).toBe("AIza");
-    expect(api.openai).toEqual({ apiKey: "sk-hub", model: "gemini-3.8-flash", baseUrl: "http://192.0.2.10/v1" });
-    expect(api.thinking).toBe(false);
-    expect(api.reasoningEffort).toBe("max");
+    expect(api.openai).toEqual({
+      apiKey: "sk-hub",
+      model: "gemini-3.8-flash",
+      baseUrl: "http://192.0.2.10/v1",
+      effort: { translate: "max", review: "low", glossary: "", fill: "none" },
+    });
+    // Gemini không cấu hình → mặc định như hành vi cũ: dịch/soát high, lượt JSON không gửi.
+    expect(api.gemini.effort).toEqual(DEFAULT_STEP_EFFORTS);
+    expect(form.openaiEffort.review).toBe("low");
   });
 
   it("engineLabel và stopReasonLabel cho động cơ API", () => {

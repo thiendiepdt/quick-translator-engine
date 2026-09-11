@@ -103,40 +103,72 @@ export const agyStatusSchema = z.object({
 
 export const engineSchema = z.enum(["agy", "api"]);
 export const apiProviderSchema = z.enum(["gemini", "openai"]);
-export const OPENAI_REASONING_EFFORTS = ["none", "low", "medium", "high", "xhigh", "max"] as const;
-export const reasoningEffortSchema = z.enum(OPENAI_REASONING_EFFORTS);
 
-export const providerCredentialsSchema = z.object({
-  apiKey: z.string().default(""),
-  model: z.string().default(""),
-  baseUrl: z.string().default(""),
-});
+/** Bước gọi model có mức nghĩ riêng — cùng thứ tự với `ApiStep` bên Rust. */
+export const API_STEPS = ["translate", "review", "glossary", "fill"] as const;
+export type ApiStep = (typeof API_STEPS)[number];
+/** "" = không gửi tham số nghĩ (model tự quyết). Gemini 3.x → thinkingLevel; 2.5: minimal = tắt, khác = tự động. */
+export const GEMINI_EFFORTS = ["", "minimal", "low", "medium", "high"] as const;
+/** "" = không gửi `reasoning_effort`. */
+export const OPENAI_EFFORTS = ["", "none", "low", "medium", "high", "xhigh", "max"] as const;
+/** Dịch/soát và AI điền hồ sơ nghĩ cao; trích glossary chỉ đối chiếu tên nên low cho nhanh, rẻ. */
+export const DEFAULT_STEP_EFFORTS = { translate: "high", review: "high", glossary: "low", fill: "high" } as const;
+
+/**
+ * `strict`: 4 khoá bắt buộc (form Cài đặt). `stored`: config trên đĩa — thiếu khoá/thiếu cả khối thì lấy mặc định.
+ */
+function stepEffortsSchemas<const T extends readonly ["", string, ...string[]]>(values: T) {
+  const level = z.enum(values);
+  type Level = z.infer<typeof level>;
+  const strict = z.object({ translate: level, review: level, glossary: level, fill: level });
+  const stored = z
+    .object({
+      translate: level.default("high" as Level),
+      review: level.default("high" as Level),
+      glossary: level.default("low" as Level),
+      fill: level.default("high" as Level),
+    })
+    .default(DEFAULT_STEP_EFFORTS);
+  return { strict, stored };
+}
+const geminiEfforts = stepEffortsSchemas(GEMINI_EFFORTS);
+const openaiEfforts = stepEffortsSchemas(OPENAI_EFFORTS);
+export const geminiStepEffortsSchema = geminiEfforts.strict;
+export const openaiStepEffortsSchema = openaiEfforts.strict;
+
+function providerCredentialsSchema<T extends z.ZodTypeAny>(effort: T) {
+  return z.object({
+    apiKey: z.string().default(""),
+    model: z.string().default(""),
+    baseUrl: z.string().default(""),
+    effort,
+  });
+}
+export const geminiCredentialsSchema = providerCredentialsSchema(geminiEfforts.stored);
+export const openaiCredentialsSchema = providerCredentialsSchema(openaiEfforts.stored);
 
 export const DEFAULT_API_MODELS = { gemini: "gemini-3.7-flash", openai: "gpt-5.6-sol" } as const;
 
-/** Cùng default với `ApiSettings::default()` bên Rust; config cũ thiếu cả khối vẫn parse. */
+/** Cùng default với `ApiSettings::default()` bên Rust; config cũ thiếu cả khối vẫn parse (Rust đã
+ * chuyển `thinking`/`reasoningEffort` cũ sang `effort`, zod bỏ hai khoá đó nếu còn). */
 export const apiSettingsSchema = z.object({
   provider: apiProviderSchema.default("gemini"),
-  gemini: providerCredentialsSchema.default({ apiKey: "", model: DEFAULT_API_MODELS.gemini, baseUrl: "" }),
-  openai: providerCredentialsSchema.default({ apiKey: "", model: DEFAULT_API_MODELS.openai, baseUrl: "" }),
-  thinking: z.boolean().default(true),
-  reasoningEffort: reasoningEffortSchema.default("high"),
+  gemini: geminiCredentialsSchema.default({ apiKey: "", model: DEFAULT_API_MODELS.gemini, baseUrl: "", effort: DEFAULT_STEP_EFFORTS }),
+  openai: openaiCredentialsSchema.default({ apiKey: "", model: DEFAULT_API_MODELS.openai, baseUrl: "", effort: DEFAULT_STEP_EFFORTS }),
 });
 
 export const appConfigSchema = z.object({
   engine: engineSchema.default("api"),
   api: apiSettingsSchema.default({
     provider: "gemini",
-    gemini: { apiKey: "", model: DEFAULT_API_MODELS.gemini, baseUrl: "" },
-    openai: { apiKey: "", model: DEFAULT_API_MODELS.openai, baseUrl: "" },
-    thinking: true,
-    reasoningEffort: "high",
+    gemini: { apiKey: "", model: DEFAULT_API_MODELS.gemini, baseUrl: "", effort: DEFAULT_STEP_EFFORTS },
+    openai: { apiKey: "", model: DEFAULT_API_MODELS.openai, baseUrl: "", effort: DEFAULT_STEP_EFFORTS },
   }),
   agyPath: z.string().nullable(),
   model: z.string().nullable(),
   maxSessions: z.number().int().min(1).max(1000),
   /** Số truyện dịch song song (mỗi truyện một phiên). */
-  maxParallel: z.number().int().min(1).max(20).default(2),
+  maxParallel: z.number().int().min(1).max(20).default(20),
   recent: z.array(z.string()),
   /** Thư viện: folder cha chứa mọi truyện; null = chưa chọn. */
   libraryRoot: z.string().nullable().default(null),

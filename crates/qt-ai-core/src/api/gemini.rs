@@ -1,7 +1,7 @@
 //! Gemini API chính chủ: streamGenerateContent (SSE) + generateContent (JSON). Port 1-1 từ qt-web.
 
 use crate::api::sse::read_sse;
-use crate::api::{ApiConfig, ApiError, MAX_OUTPUT_TOKENS};
+use crate::api::{ApiConfig, ApiError, ApiStep, MAX_OUTPUT_TOKENS};
 use serde_json::{json, Value};
 use std::io::BufRead;
 use std::sync::atomic::AtomicBool;
@@ -24,25 +24,36 @@ fn model_major(model: &str) -> Option<u32> {
     digits.parse().ok()
 }
 
-/// Port `buildGeminiTextGenerationConfig`: 2.5 dùng thinkingBudget, 3.x dùng thinkingLevel high/minimal.
-pub fn generation_config(model: &str, thinking: bool) -> Value {
+/// `thinkingConfig` theo thế hệ model và mức nghĩ: 3.x → thinkingLevel (minimal|low|medium|high);
+/// 2.5 → thinkingBudget 0 khi minimal, -1 (tự động) khi khác; 2.0 trở xuống không có. Rỗng = không gửi.
+fn thinking_config(model: &str, effort: &str) -> Option<Value> {
+    let effort = effort.trim();
+    if effort.is_empty() {
+        return None;
+    }
+    let major = model_major(model);
+    let mut thinking_config = serde_json::Map::new();
+    if major == Some(2) && normalized_model(model).contains("2.5") {
+        thinking_config.insert("thinkingBudget".into(), json!(if effort == "minimal" { 0 } else { -1 }));
+    } else if major.is_some_and(|major| major >= 3) {
+        thinking_config.insert("thinkingLevel".into(), json!(effort));
+    } else {
+        return None;
+    }
+    thinking_config.insert("includeThoughts".into(), json!(true));
+    Some(Value::Object(thinking_config))
+}
+
+/// Port `buildGeminiTextGenerationConfig` cho lượt stream, thêm mức nghĩ theo bước (`effort`).
+pub fn generation_config(model: &str, effort: &str) -> Value {
     let major = model_major(model);
     let mut config = serde_json::Map::new();
     config.insert("maxOutputTokens".into(), json!(MAX_OUTPUT_TOKENS));
     if major.is_none_or(|major| major < 3) {
         config.insert("temperature".into(), json!(0.3));
     }
-    let mut thinking_config = serde_json::Map::new();
-    if major == Some(2) && normalized_model(model).contains("2.5") {
-        thinking_config.insert("thinkingBudget".into(), json!(if thinking { -1 } else { 0 }));
-    } else if major.is_some_and(|major| major >= 3) {
-        thinking_config.insert("thinkingLevel".into(), json!(if thinking { "high" } else { "minimal" }));
-    }
-    if major.is_some_and(|major| major >= 3) || !thinking_config.is_empty() {
-        thinking_config.insert("includeThoughts".into(), json!(true));
-    }
-    if !thinking_config.is_empty() {
-        config.insert("thinkingConfig".into(), Value::Object(thinking_config));
+    if let Some(thinking) = thinking_config(model, effort) {
+        config.insert("thinkingConfig".into(), thinking);
     }
     Value::Object(config)
 }
@@ -63,20 +74,25 @@ pub fn headers(config: &ApiConfig) -> Vec<(&'static str, String)> {
     vec![("x-goog-api-key", config.api_key.clone())]
 }
 
-pub fn stream_body(config: &ApiConfig, system: &str, user: &str) -> Value {
+pub fn stream_body(config: &ApiConfig, step: ApiStep, system: &str, user: &str) -> Value {
     json!({
         "systemInstruction": { "parts": [{ "text": system }] },
         "contents": [{ "role": "user", "parts": [{ "text": user }] }],
         "safetySettings": safety_settings(),
-        "generationConfig": generation_config(&config.model, config.thinking),
+        "generationConfig": generation_config(&config.model, config.effort(step)),
     })
 }
 
-pub fn json_body(_config: &ApiConfig, system: &str, user: &str) -> Value {
+/// Lượt JSON: chỉ thêm `thinkingConfig` khi bước đó có mức nghĩ (mặc định rỗng → như trước).
+pub fn json_body(config: &ApiConfig, step: ApiStep, system: &str, user: &str) -> Value {
+    let mut generation = json!({ "temperature": 0.0, "responseMimeType": "application/json" });
+    if let Some(thinking) = thinking_config(&config.model, config.effort(step)) {
+        generation["thinkingConfig"] = thinking;
+    }
     json!({
         "systemInstruction": { "parts": [{ "text": system }] },
         "contents": [{ "role": "user", "parts": [{ "text": user }] }],
-        "generationConfig": { "temperature": 0.0, "responseMimeType": "application/json" },
+        "generationConfig": generation,
     })
 }
 
@@ -149,18 +165,18 @@ mod tests {
     #[test]
     fn generation_config_theo_the_he_model() {
         assert_eq!(
-            generation_config("gemini-3.7-flash", true),
+            generation_config("gemini-3.7-flash", "high"),
             json!({ "maxOutputTokens": 65536, "thinkingConfig": { "thinkingLevel": "high", "includeThoughts": true } })
         );
         assert_eq!(
-            generation_config("models/gemini-3.1-flash-lite", false)["thinkingConfig"]["thinkingLevel"],
+            generation_config("models/gemini-3.1-flash-lite", "minimal")["thinkingConfig"]["thinkingLevel"],
             json!("minimal")
         );
         assert_eq!(
-            generation_config("gemini-2.5-flash", false),
+            generation_config("gemini-2.5-flash", "minimal"),
             json!({ "maxOutputTokens": 65536, "temperature": 0.3, "thinkingConfig": { "thinkingBudget": 0, "includeThoughts": true } })
         );
-        assert_eq!(generation_config("gemini-2.0-flash", true), json!({ "maxOutputTokens": 65536, "temperature": 0.3 }));
+        assert_eq!(generation_config("gemini-2.0-flash", "high"), json!({ "maxOutputTokens": 65536, "temperature": 0.3 }));
     }
 
     #[test]
@@ -172,12 +188,12 @@ mod tests {
         );
         assert!(json_url(&config).ends_with(":generateContent"));
         assert_eq!(headers(&config), vec![("x-goog-api-key", "AIza".to_string())]);
-        let body = stream_body(&config, "SYS", "USER");
+        let body = stream_body(&config, ApiStep::Translate, "SYS", "USER");
         assert_eq!(body["systemInstruction"]["parts"][0]["text"], "SYS");
         assert_eq!(body["contents"][0]["parts"][0]["text"], "USER");
         assert_eq!(body["safetySettings"].as_array().unwrap().len(), 5);
         assert_eq!(body["safetySettings"][0]["threshold"], "OFF");
-        let json = json_body(&config, "S", "U");
+        let json = json_body(&config, ApiStep::Glossary, "S", "U");
         assert_eq!(json["generationConfig"]["responseMimeType"], "application/json");
     }
 
