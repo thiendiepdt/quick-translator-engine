@@ -18,8 +18,10 @@ fn main() {
         println!("fake-model\nfake-model-pro\n");
         return;
     }
-    let model = args.iter().position(|a| a == "--model").and_then(|i| args.get(i + 1)).cloned().unwrap_or_default();
-    println!("fake: model={model} args={}", args.len());
+    let flag = |name: &str| args.iter().position(|a| a == name).and_then(|i| args.get(i + 1)).cloned().unwrap_or_default();
+    let model = flag("--model");
+    let print_timeout = flag("--print-timeout");
+    println!("fake: model={model} print_timeout={print_timeout} args={}", args.len());
     let cwd = std::env::current_dir().unwrap();
     let mode = std::fs::read_to_string(cwd.join("fake-agy-mode.txt")).unwrap_or_default();
     match mode.trim() {

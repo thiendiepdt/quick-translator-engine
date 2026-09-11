@@ -59,6 +59,11 @@ fn chay_toi_het_hang_doi_moi_phien_mot_chuong_roi_finished() {
         e,
         SessionEvent::AgyLog { line, stream: LogStream::Stdout } if line.contains("fake: model=fake-model")
     )));
+    // agy 1.2 mặc định --print-timeout 5m: lượt dịch nhiều chương bị cắt giữa chừng → harness phải nới rộng.
+    assert!(events.iter().any(|e| matches!(
+        e,
+        SessionEvent::AgyLog { line, stream: LogStream::Stdout } if line.contains("print_timeout=3h")
+    )));
     assert!(events.iter().any(|e| matches!(e, SessionEvent::Progress(p) if p.done == 1 && p.queued == 1)));
     assert!(matches!(events.last(), Some(SessionEvent::Stopped(StopReason::Finished))));
     let state = load_state(&story_paths(dir.path())).unwrap();

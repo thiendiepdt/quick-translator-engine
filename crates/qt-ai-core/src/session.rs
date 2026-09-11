@@ -166,9 +166,14 @@ fn kill_tree(child: &mut Child) {
     let _ = child.wait();
 }
 
+/// agy 1.2 mặc định `--print-timeout 5m`: một lượt `agy -p` dịch nhiều chương (chaptersPerSession) dễ quá
+/// 5 phút → agy cắt giữa chừng, in "print timeout ... returning partial output", chương đang dịch bỏ dở.
+/// Nới lên 3h; giới hạn thật vẫn là max_sessions và nút Dừng (kill_tree).
+pub const AGY_PRINT_TIMEOUT: &str = "3h";
+
 fn spawn_agy(config: &SessionConfig, prompt: &str) -> Result<Child> {
     let mut command = quiet_command(&config.agy);
-    command.arg("-p").arg(prompt).arg("--dangerously-skip-permissions");
+    command.arg("-p").arg(prompt).arg("--dangerously-skip-permissions").arg("--print-timeout").arg(AGY_PRINT_TIMEOUT);
     if let Some(model) = &config.model {
         command.arg("--model").arg(model);
     }

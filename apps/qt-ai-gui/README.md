@@ -32,6 +32,7 @@ Chọn ở Cài đặt → **Động cơ dịch** (lưu trong `config.json` củ
 
 - **Antigravity CLI (agy)** — agent chạy trong `agy -p` theo vòng phiên, tự dịch/check/accept
   bằng quota Antigravity. Cần cài agy; app chỉ dò agy khi bạn chọn động cơ này.
+  Mỗi phiên chạy `agy -p … --print-timeout 3h` (agy ≥ 1.2; mặc định 5 phút của agy cắt lượt dịch nhiều chương giữa chừng).
 - **API key** — mặc định cho người dùng mới: app tự gọi model qua HTTP bằng key của bạn rồi chạy cùng
   vòng next → dịch → check → accept trong `qt-ai-core` (`api_session`). Không cần agy. Provider: **Gemini** chính chủ, hoặc
   **OpenAI-compatible** (OpenAI, hay hub riêng qua Base URL, ví dụ `http://192.0.2.10/v1` với model
