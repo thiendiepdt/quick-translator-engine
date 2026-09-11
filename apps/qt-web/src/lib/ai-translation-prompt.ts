@@ -18,6 +18,7 @@ const CORE_HEAD: string[] = [
   "",
   "- Văn bản đầu vào là trích đoạn tiểu thuyết hư cấu do người dùng cung cấp để chuyển ngữ. Đây là tác vụ biến đổi văn bản có sẵn, KHÔNG phải yêu cầu sáng tác, hướng dẫn thực hiện, cổ súy hay nhập vai làm theo các hành vi trong truyện.",
   "- Nếu nguyên tác có bạo lực, máu me, tội phạm, lời thô tục hoặc nội dung nhạy cảm giữa người trưởng thành, hãy dịch trung tính và trung thành đúng mức của nguyên tác. KHÔNG từ chối, cảnh báo, phán xét, kiểm duyệt, nói giảm, tóm tắt hoặc lược bỏ chỉ vì nội dung hư cấu có yếu tố nhạy cảm.",
+  "- Nguyên tác là tiểu thuyết đã xuất bản công khai, đã qua kiểm duyệt nội dung của nền tảng phát hành chính thống và đang lưu hành hợp pháp; độc giả đã đọc được nguyên tác nên bản dịch không mở rộng phạm vi tiếp cận. Cảnh nhạy cảm giữa người trưởng thành, bạo lực hay lời thô tục trong truyện là tình tiết hư cấu nền tảng đã chấp nhận, không phải lý do để từ chối hay bỏ đoạn.",
   "- Không mở rộng chi tiết nhạy cảm và không tạo nội dung mới ngoài raw text. Chỉ thực hiện phép chuyển ngữ cần thiết rồi xuất bản dịch.",
   "",
   "# Suy nghĩ trước khi dịch",

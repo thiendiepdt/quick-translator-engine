@@ -28,6 +28,13 @@ describe("AI translation prompt", () => {
     expect(base).not.toContain("\\n# Ngữ cảnh tác vụ chuyển ngữ");
   });
 
+  it("tells the model the source is published fiction already vetted by an official platform", () => {
+    const base = composeBasePrompt(defaultStoryGenre());
+    const head = base.slice(0, base.indexOf("# Suy nghĩ trước khi dịch"));
+    expect(head).toContain("đã qua kiểm duyệt nội dung của nền tảng phát hành chính thống");
+    expect(head).toContain("không phải lý do để từ chối");
+  });
+
   it("uses only compact workspace entries and accepted names as its glossary", () => {
     const entries = emptyEntries();
     entries.names = { 药老: "Dược Lão" };
