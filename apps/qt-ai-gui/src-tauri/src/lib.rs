@@ -92,6 +92,7 @@ pub fn run() {
             story_cmds::story_snapshot,
             story_cmds::read_chapter,
             story_cmds::save_story,
+            story_cmds::save_chapter_output,
             story_cmds::save_settings,
             story_cmds::chapter_retry,
             story_cmds::chapters_retry,

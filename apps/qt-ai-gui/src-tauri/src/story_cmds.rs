@@ -12,7 +12,7 @@ use qt_ai_core::commands::status::count_chapters;
 use qt_ai_core::prompt::prompt_suffix;
 use qt_ai_core::story::{natural_chapter_compare, CheckRule, StoryConfig, StoryGenre};
 use qt_ai_core::story_fs::{
-    load_state, load_story_config, read_raw_chapter, read_text, save_state, save_story_config, story_paths,
+    load_state, load_story_config, read_raw_chapter, read_text, save_state, save_story_config, story_paths, write_text,
     work_file, HarnessSettings, WorkKind,
 };
 use serde::Serialize;
@@ -191,6 +191,17 @@ pub fn chapter_view(root: &Path, id: &str) -> CmdResult<ChapterView> {
     })
 }
 
+/// Người dùng sửa tay bản dịch: ghi đè out/<id>.txt. Chỉ khi file đã có (chương chưa chốt thì không có
+/// gì để sửa — nháp là của runner). Không đụng state.json.
+pub fn save_chapter_output_inner(root: &Path, id: &str, text: &str) -> CmdResult<()> {
+    let paths = story_paths(root);
+    let out = paths.out_dir.join(format!("{id}.txt"));
+    if !out.is_file() {
+        return Err(CommandError::new("invalid_state", format!("Chương {id} chưa có bản dịch trong out/ để sửa.")));
+    }
+    Ok(write_text(&out, text)?)
+}
+
 pub fn save_story_inner(root: &Path, story: Value) -> CmdResult<StoryConfig> {
     let paths = story_paths(root);
     let config = StoryConfig::normalize(&story);
@@ -251,6 +262,11 @@ pub fn read_chapter(root: String, id: String) -> CmdResult<ChapterView> {
 #[tauri::command]
 pub fn save_story(root: String, story: Value) -> CmdResult<StoryConfig> {
     save_story_inner(Path::new(&root), story)
+}
+
+#[tauri::command]
+pub fn save_chapter_output(root: String, id: String, text: String) -> CmdResult<()> {
+    save_chapter_output_inner(Path::new(&root), &id, &text)
 }
 
 #[tauri::command]
@@ -424,6 +440,18 @@ mod tests {
         assert_eq!(view.review.as_deref(), Some("# review"));
         assert!(view.output.is_none());
         assert!(chapter_view(dir.path(), "9999").is_err());
+    }
+
+    #[test]
+    fn save_chapter_output_ghi_de_out_chi_khi_da_co_ban_dich() {
+        let dir = story();
+        let paths = story_paths(dir.path());
+        let error = save_chapter_output_inner(dir.path(), "0001", "sửa").unwrap_err();
+        assert_eq!(error.kind, "invalid_state");
+        fs::create_dir_all(&paths.out_dir).unwrap();
+        fs::write(paths.out_dir.join("0001.txt"), "bản máy").unwrap();
+        save_chapter_output_inner(dir.path(), "0001", "bản người sửa\n").unwrap();
+        assert_eq!(chapter_view(dir.path(), "0001").unwrap().output.as_deref(), Some("bản người sửa\n"));
     }
 
     #[test]

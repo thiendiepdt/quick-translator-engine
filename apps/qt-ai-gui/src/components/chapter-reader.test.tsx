@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ChapterReader } from "@/components/chapter-reader";
-import { chapterRetry, storySnapshot } from "@/lib/api";
+import { chapterRetry, readChapter, saveChapterOutput, storySnapshot } from "@/lib/api";
 import { appConfigSchema } from "@/lib/schema";
 import { useStoryStore } from "@/store/story";
 
@@ -16,6 +16,7 @@ vi.mock("@/lib/api", () => ({
     Promise.resolve({ id: "0002", status: "done", raw: "原文", output: "Bản dịch.", draft: null, review: null, warnings: [], reason: null }),
   ),
   revealFolder: vi.fn(),
+  saveChapterOutput: vi.fn(),
   storySnapshot: vi.fn(),
 }));
 
@@ -85,5 +86,45 @@ describe("ChapterReader", () => {
     expect(chapterRetry).toHaveBeenCalledWith(ROOT, "0002");
     rerender(<ChapterReader root={ROOT} row={{ ...row, status: "queued" }} hasPrev hasNext onPrev={vi.fn()} onNext={vi.fn()} />);
     expect(screen.getByRole("button", { name: "Dịch lại" })).toBeDisabled();
+  });
+
+  it("bản dịch mặc định chỉ đọc; Sửa → textarea, Lưu gọi save_chapter_output rồi đọc lại; Huỷ bỏ thay đổi", async () => {
+    const user = userEvent.setup();
+    vi.mocked(saveChapterOutput).mockResolvedValue(undefined);
+    render(<ChapterReader root={ROOT} row={row} hasPrev hasNext onPrev={vi.fn()} onNext={vi.fn()} />);
+    await waitFor(() => expect(screen.getByText("Bản dịch.")).toBeInTheDocument());
+    expect(screen.queryByRole("textbox", { name: "Bản dịch đang sửa" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Sửa" }));
+    const box = screen.getByRole("textbox", { name: "Bản dịch đang sửa" });
+    expect(box).toHaveValue("Bản dịch.");
+    expect(screen.getByRole("button", { name: "Lưu" })).toBeDisabled(); // chưa đổi gì
+    await user.clear(box);
+    await user.type(box, "Bản người sửa.");
+    await user.click(screen.getByRole("button", { name: "Huỷ" }));
+    expect(screen.queryByRole("textbox", { name: "Bản dịch đang sửa" })).not.toBeInTheDocument();
+    expect(saveChapterOutput).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Sửa" }));
+    await user.clear(screen.getByRole("textbox", { name: "Bản dịch đang sửa" }));
+    await user.type(screen.getByRole("textbox", { name: "Bản dịch đang sửa" }), "Bản người sửa.");
+    vi.mocked(readChapter).mockResolvedValueOnce({
+      id: "0002", status: "done", raw: "原文", output: "Bản người sửa.", draft: null, review: null, warnings: [], reason: null,
+    });
+    await user.keyboard("{Control>}s{/Control}"); // Ctrl+S lưu, không cần bấm nút
+    await waitFor(() => expect(saveChapterOutput).toHaveBeenCalledWith(ROOT, "0002", "Bản người sửa."));
+    expect(await screen.findByText("Bản người sửa.")).toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Bản dịch đang sửa" })).not.toBeInTheDocument();
+  });
+
+  it("nút Chép đưa nội dung tab hiện tại vào clipboard", async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn(() => Promise.resolve());
+    vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
+    render(<ChapterReader root={ROOT} row={row} hasPrev hasNext onPrev={vi.fn()} onNext={vi.fn()} />);
+    await waitFor(() => expect(screen.getByText("Bản dịch.")).toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: "Chép bản dịch" }));
+    expect(writeText).toHaveBeenCalledWith("Bản dịch.");
+    vi.unstubAllGlobals();
   });
 });

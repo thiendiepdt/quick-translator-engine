@@ -97,8 +97,13 @@ mod tests {
         assert_eq!(first.total, Some(1));
         assert_eq!(cache.hits(), 0);
 
-        // Cùng truyện, khác hoa thường + dấu cuối → trúng cache, root trả về là chuỗi caller đưa.
-        let alias = root.display().to_string().to_lowercase() + "\\";
+        // Cùng truyện, khác dấu cuối (Windows: khác cả hoa thường — Linux/macOS phân biệt hoa thường nên
+        // đường dẫn hạ thường là folder khác) → trúng cache, root trả về là chuỗi caller đưa.
+        let alias = if cfg!(windows) {
+            root.display().to_string().to_lowercase() + "\\"
+        } else {
+            root.display().to_string() + "/"
+        };
         let second = cache.summarize(Path::new(&alias));
         assert_eq!(cache.hits(), 1);
         assert_eq!(second.root, alias);

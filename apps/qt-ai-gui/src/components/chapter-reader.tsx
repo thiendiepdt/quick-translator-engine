@@ -2,12 +2,15 @@ import {
   AlertTriangle,
   ChevronLeft,
   ChevronRight,
+  Copy,
   FolderOpen,
+  Pencil,
   RotateCcw,
+  Save,
   ShieldCheck,
   SkipForward,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { LogPanel } from "@/components/log-panel";
@@ -21,6 +24,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useReadingWidth } from "@/hooks/use-reading-width";
@@ -29,13 +33,17 @@ import {
   chapterRetry,
   chapterSkip,
   readChapter,
+  saveChapterOutput,
   revealFolder,
   storySnapshot,
 } from "@/lib/api";
+import { copyText } from "@/lib/clipboard";
 import { isReadingWidth, READING_WIDTH_LABELS, READING_WIDTHS } from "@/lib/reading";
 import { STATUS_LABELS, type ChapterRow, type ChapterStatus, type ChapterView } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { selectCurrentRunning, useStoryStore } from "@/store/story";
+
+const TAB_LABELS = { output: "bản dịch", draft: "nháp", review: "yêu cầu sửa", raw: "bản gốc" } as const;
 
 const STATUS_TONE: Record<ChapterStatus, string> = {
   queued: "bg-status-queued/30 text-foreground",
@@ -67,6 +75,13 @@ export function ChapterReader({ root, row, ordinal, hasPrev, hasNext, onPrev, on
   const view = loaded?.key === viewKey ? loaded.view : undefined;
   const [skipOpen, setSkipOpen] = useState(false);
   const [retryOpen, setRetryOpen] = useState(false);
+  // Sửa tay bản dịch: mặc định chỉ đọc; trạng thái sửa gắn key view để đổi chương là thoát chế độ sửa.
+  // Textarea KHÔNG controlled: React set .value mỗi phím làm WebKitGTK xoá undo stack → Ctrl+Z chết.
+  // Nội dung sống trong DOM (ref), state chỉ giữ cờ "đã đổi" để bật nút Lưu.
+  const [edit, setEdit] = useState<{ key: string; dirty: boolean } | undefined>();
+  const editing = edit?.key === viewKey ? edit : undefined;
+  const editBox = useRef<HTMLTextAreaElement>(null);
+  const [saving, setSaving] = useState(false);
   const [reason, setReason] = useState("");
 
   useEffect(() => {
@@ -92,6 +107,32 @@ export function ChapterReader({ root, row, ordinal, hasPrev, hasNext, onPrev, on
   }
 
   // Chương nào cũng dịch lại được trừ chương đang chờ sẵn; chương done thì hỏi trước vì mất bản ở out/.
+  async function copyTab(text: string) {
+    try {
+      await copyText(text);
+      toast.success("Đã chép vào clipboard");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Không chép được");
+    }
+  }
+
+  async function saveEdit() {
+    const text = editBox.current?.value;
+    if (!editing || text == null) return;
+    setSaving(true);
+    try {
+      await saveChapterOutput(root, row.id, text);
+      const fresh = await readChapter(root, row.id);
+      setLoaded({ key: viewKey, view: fresh });
+      setEdit(undefined);
+      toast.success("Đã lưu bản dịch");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Không lưu được bản dịch");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const canRetry = row.status !== "queued";
   const retry = () => void act("Đã đưa về hàng đợi", () => chapterRetry(root, row.id));
   const canSkip = row.status !== "done";
@@ -190,9 +231,59 @@ export function ChapterReader({ root, row, ordinal, hasPrev, hasNext, onPrev, on
         {(["output", "draft", "review", "raw"] as const).map((key) => (
           <TabsContent key={key} value={key} className="fine-scrollbar min-h-0 flex-1 overflow-y-auto">
             <article className="reading mx-auto px-6 py-8" data-width={width}>
-              <pre className="font-[inherit] whitespace-pre-wrap">
-                {view ? (key === "raw" ? view.raw : (view[key] ?? "")) : "Đang đọc…"}
-              </pre>
+              {view && (
+                <div className="mb-4 flex items-center justify-end gap-2 font-sans text-sm">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    title="Chép toàn bộ nội dung tab này"
+                    aria-label={`Chép ${TAB_LABELS[key]}`}
+                    onClick={() => void copyTab(key === "raw" ? view.raw : (view[key] ?? ""))}
+                  >
+                    <Copy /> Chép
+                  </Button>
+                  {key === "output" && view.output != null && (editing ? (
+                    <>
+                      <Button variant="outline" size="sm" disabled={saving} onClick={() => setEdit(undefined)}>
+                        Huỷ
+                      </Button>
+                      <Button size="sm" disabled={saving || !editing.dirty} onClick={() => void saveEdit()}>
+                        <Save /> {saving ? "Đang lưu…" : "Lưu"}
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={running}
+                      title="Sửa tay bản dịch, ghi đè out/<id>.txt"
+                      onClick={() => setEdit({ key: viewKey, dirty: false })}
+                    >
+                      <Pencil /> Sửa
+                    </Button>
+                  ))}
+                </div>
+              )}
+              {key === "output" && editing ? (
+                <Textarea
+                  ref={editBox}
+                  aria-label="Bản dịch đang sửa"
+                  defaultValue={view?.output ?? ""}
+                  onChange={(e) => setEdit({ key: viewKey, dirty: e.target.value !== (view?.output ?? "") })}
+                  onKeyDown={(e) => {
+                    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+                      e.preventDefault();
+                      if (editing.dirty && !saving) void saveEdit();
+                    }
+                  }}
+                  disabled={saving}
+                  className="min-h-[60vh] resize-y font-[inherit] text-[length:inherit] leading-[inherit]"
+                />
+              ) : (
+                <pre className="font-[inherit] whitespace-pre-wrap">
+                  {view ? (key === "raw" ? view.raw : (view[key] ?? "")) : "Đang đọc…"}
+                </pre>
+              )}
               <nav className="mt-10 flex items-center justify-between border-t pt-4 font-sans text-sm">
                 <Button variant="ghost" size="sm" disabled={!hasPrev} onClick={onPrev}>
                   <ChevronLeft /> Chương trước
