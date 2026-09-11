@@ -4,10 +4,10 @@
 use crate::error::{blocking, CmdResult, CommandError};
 use crate::sidecar::qt_ai_command;
 use crate::story_cmds::{snapshot, RecentSummary, StorySnapshot};
+use crate::summary_cache::SummaryCache;
 use crate::AppState;
 use qt_ai_core::commands::init::run_init;
-use qt_ai_core::commands::status::count_chapters;
-use qt_ai_core::story_fs::{load_state, load_story_config, save_story_config, story_paths};
+use qt_ai_core::story_fs::{load_story_config, save_story_config, story_paths};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
@@ -68,25 +68,9 @@ fn valid_slug(slug: &str) -> bool {
         && !slug.ends_with('-')
 }
 
-fn summarize(root: &Path) -> RecentSummary {
-    let paths = story_paths(root);
-    match (load_state(&paths), load_story_config(&paths)) {
-        (Ok(state), Ok(story)) => {
-            let counts = count_chapters(&state);
-            RecentSummary {
-                root: root.display().to_string(),
-                name: Some(story.name).filter(|n| !n.trim().is_empty()),
-                done: Some(counts.done),
-                total: Some(counts.total),
-            }
-        }
-        _ => RecentSummary { root: root.display().to_string(), name: None, done: None, total: None },
-    }
-}
-
 /// Thư mục con trực tiếp của thư viện: truyện đã init xếp theo state.json mới sửa lên đầu,
 /// folder chưa init xếp cuối theo tên. Thư viện null/mất → rỗng.
-pub fn list_library(library_root: Option<&Path>) -> Vec<RecentSummary> {
+pub fn list_library(library_root: Option<&Path>, cache: &SummaryCache) -> Vec<RecentSummary> {
     let Some(library) = library_root.filter(|dir| dir.is_dir()) else { return vec![] };
     let Ok(entries) = std::fs::read_dir(library) else { return vec![] };
     let mut rows: Vec<(Option<SystemTime>, String, RecentSummary)> = entries
@@ -95,7 +79,7 @@ pub fn list_library(library_root: Option<&Path>) -> Vec<RecentSummary> {
         .map(|entry| {
             let root = entry.path();
             let modified = std::fs::metadata(story_paths(&root).state_json).and_then(|m| m.modified()).ok();
-            (modified, entry.file_name().to_string_lossy().to_lowercase(), summarize(&root))
+            (modified, entry.file_name().to_string_lossy().to_lowercase(), cache.summarize(&root))
         })
         .collect();
     rows.sort_by(|a, b| match (a.0, b.0) {
@@ -208,7 +192,7 @@ pub async fn library_list<R: Runtime>(app: AppHandle<R>, root: Option<String>) -
     blocking(move || {
         let state = app.state::<AppState>();
         let library = root.or_else(|| state.config.lock().unwrap().library_root.clone());
-        Ok(list_library(library.as_deref().map(Path::new)))
+        Ok(list_library(library.as_deref().map(Path::new), &state.summaries))
     })
     .await
 }
@@ -267,6 +251,7 @@ pub async fn import_chapters<R: Runtime>(app: AppHandle<R>, root: String, paths:
 #[cfg(test)]
 mod tests {
     use super::*;
+    use qt_ai_core::story_fs::load_state;
     use qt_ai_core::story_fs::ChapterStatus;
     use std::fs;
 
@@ -315,7 +300,7 @@ mod tests {
         run_init(&new, "qt-ai").unwrap();
         let _ = old;
 
-        let rows = list_library(Some(lib.path()));
+        let rows = list_library(Some(lib.path()), &SummaryCache::new());
         let roots: Vec<&str> = rows.iter().map(|r| r.root.as_str()).collect();
         assert_eq!(rows.len(), 3, "{roots:?}");
         assert!(roots[0].ends_with("moi") && roots[1].ends_with("cu") && roots[2].ends_with("chua-init"));
@@ -323,8 +308,8 @@ mod tests {
         assert_eq!(rows[0].total, Some(1));
         assert_eq!(rows[2].name, None);
         assert_eq!(rows[2].total, None);
-        assert!(list_library(None).is_empty());
-        assert!(list_library(Some(&lib.path().join("none"))).is_empty());
+        assert!(list_library(None, &SummaryCache::new()).is_empty());
+        assert!(list_library(Some(&lib.path().join("none")), &SummaryCache::new()).is_empty());
     }
 
     #[test]

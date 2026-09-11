@@ -109,6 +109,26 @@ describe("StoryPicker · Thư viện", () => {
     expect(screen.getAllByRole("button", { name: /Bỏ .* khỏi danh sách/ })).toHaveLength(1);
   });
 
+  it("thư viện dài: vẽ 24 dòng + Xem thêm, ô tìm lọc theo tên/folder và về trang đầu", async () => {
+    const user = userEvent.setup();
+    useStoryStore.setState({ screen: "picker", config: { ...config, libraryRoot: "D:\\lib", recent: [] } });
+    vi.mocked(libraryList).mockResolvedValue(
+      Array.from({ length: 30 }, (_, i) => ({ root: `D:\\lib\\t${i + 1}`, name: `Truyện ${i + 1}`, done: i, total: 30 })),
+    );
+    render(<StoryPicker />);
+    expect(await screen.findByText("Truyện 1")).toBeInTheDocument();
+    expect(screen.getAllByText(/^Truyện \d+$/)).toHaveLength(24);
+    expect(screen.queryByText("Truyện 25")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Xem thêm (6)" }));
+    expect(screen.getAllByText(/^Truyện \d+$/)).toHaveLength(30);
+    expect(screen.queryByRole("button", { name: /Xem thêm/ })).not.toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("Tìm truyện trong thư viện"), "t27");
+    expect(screen.getAllByText(/^Truyện \d+$/)).toHaveLength(1);
+    expect(screen.getByText("Truyện 27")).toBeInTheDocument();
+  });
+
   it("mở thủ công một folder chứa truyện con thì hỏi đặt làm thư viện thay vì khởi tạo nhầm", async () => {
     useStoryStore.setState({ screen: "picker", config: { ...config, recent: [] } });
     vi.mocked(pickFolder).mockResolvedValue("D:\\bookshelf\\fanqie");

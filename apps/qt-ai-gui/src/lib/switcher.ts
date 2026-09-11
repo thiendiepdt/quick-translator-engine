@@ -50,8 +50,13 @@ export function mergeCandidates(input: {
   return cards;
 }
 
-export function filterCards(cards: SwitcherCard[], query: string): SwitcherCard[] {
+/** Lọc theo tên hoặc đường dẫn, không phân biệt hoa thường; trống = giữ nguyên. */
+export function filterByQuery<T extends { root: string; name: string | null }>(items: T[], query: string): T[] {
   const q = query.trim().toLowerCase();
-  if (!q) return cards;
-  return cards.filter((card) => (card.name ?? "").toLowerCase().includes(q) || card.root.toLowerCase().includes(q));
+  if (!q) return items;
+  return items.filter((item) => (item.name ?? "").toLowerCase().includes(q) || item.root.toLowerCase().includes(q));
+}
+
+export function filterCards(cards: SwitcherCard[], query: string): SwitcherCard[] {
+  return filterByQuery(cards, query);
 }

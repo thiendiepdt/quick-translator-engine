@@ -1,5 +1,6 @@
 use crate::error::{blocking, CmdResult, CommandError};
 use crate::sidecar::qt_ai_command;
+use crate::summary_cache::SummaryCache;
 use crate::AppState;
 use qt_ai_core::commands::accept::run_accept;
 use qt_ai_core::commands::export::{run_export, ExportOptions};
@@ -83,25 +84,8 @@ pub struct RecentSummary {
 }
 
 /// Tóm tắt từng folder gần đây; folder hỏng/mất → chỉ có root (UI hiện mờ).
-pub fn summarize_recent(roots: &[String]) -> Vec<RecentSummary> {
-    roots
-        .iter()
-        .map(|root| {
-            let paths = story_paths(Path::new(root));
-            match (load_state(&paths), load_story_config(&paths)) {
-                (Ok(state), Ok(story)) => {
-                    let counts = count_chapters(&state);
-                    RecentSummary {
-                        root: root.clone(),
-                        name: Some(story.name).filter(|n| !n.trim().is_empty()),
-                        done: Some(counts.done),
-                        total: Some(counts.total),
-                    }
-                }
-                _ => RecentSummary { root: root.clone(), name: None, done: None, total: None },
-            }
-        })
-        .collect()
+pub fn summarize_recent(roots: &[String], cache: &SummaryCache) -> Vec<RecentSummary> {
+    roots.iter().map(|root| cache.summarize(Path::new(root))).collect()
 }
 
 /// Prompt gốc + bộ rule mặc định của hệ để UI hiện cho người dùng sửa thành bản riêng.
@@ -139,8 +123,9 @@ pub fn story_defaults(state: State<'_, AppState>, genre: StoryGenre) -> CmdResul
 #[tauri::command]
 pub async fn recent_summaries<R: Runtime>(app: AppHandle<R>) -> CmdResult<Vec<RecentSummary>> {
     blocking(move || {
-        let roots = app.state::<AppState>().config.lock().unwrap().recent.clone();
-        Ok(summarize_recent(&roots))
+        let state = app.state::<AppState>();
+        let roots = state.config.lock().unwrap().recent.clone();
+        Ok(summarize_recent(&roots, &state.summaries))
     })
     .await
 }
@@ -436,7 +421,7 @@ mod tests {
         let dir = story();
         save_story_inner(dir.path(), serde_json::json!({"name": "Nam Nữ Đế"})).unwrap();
         let roots = vec![dir.path().display().to_string(), "D:\\khong\\co".to_string()];
-        let list = summarize_recent(&roots);
+        let list = summarize_recent(&roots, &SummaryCache::new());
         assert_eq!(list.len(), 2);
         assert_eq!(list[0].name.as_deref(), Some("Nam Nữ Đế"));
         assert_eq!(list[0].total, Some(2));

@@ -7,6 +7,7 @@ mod sidecar;
 mod session_cmds;
 mod session_registry;
 mod story_cmds;
+mod summary_cache;
 
 use app_config::AppConfig;
 use session_registry::SessionRegistry;
@@ -22,6 +23,8 @@ pub struct AppState {
     pub config: Mutex<AppConfig>,
     /// Phiên dịch theo folder truyện — nhiều truyện chạy song song (xem session_registry).
     pub sessions: Mutex<SessionRegistry>,
+    /// Tóm tắt truyện (tên, done/total) theo mtime — màn chọn truyện không parse lại state.json mỗi lần.
+    pub summaries: summary_cache::SummaryCache,
 }
 
 impl AppState {
@@ -73,6 +76,7 @@ pub fn run() {
                 base_dir,
                 config: Mutex::new(config),
                 sessions: Mutex::new(SessionRegistry::new()),
+                summaries: summary_cache::SummaryCache::new(),
             });
             Ok(())
         })
@@ -199,6 +203,7 @@ mod tests {
                 base_dir: dir.path().join("base"),
                 config: Mutex::new(AppConfig::load(&config_path)),
                 sessions: Mutex::new(SessionRegistry::new()),
+                summaries: summary_cache::SummaryCache::new(),
             })
             .invoke_handler(tauri::generate_handler![story_cmds::recent_summaries, agy_cmds::app_config_get])
             .build(mock_context(noop_assets()))

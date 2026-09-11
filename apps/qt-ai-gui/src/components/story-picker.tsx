@@ -1,9 +1,10 @@
-import { FolderOpen, FolderPlus, LibraryBig, Sparkles, Square, X } from "lucide-react";
+import { FolderOpen, FolderPlus, LibraryBig, Search, Sparkles, Square, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { CreateStoryDialog } from "@/components/create-story-dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +24,7 @@ import {
   sessionStop,
 } from "@/lib/api";
 import { pathKey, samePath } from "@/lib/paths";
+import { filterByQuery, PAGE_SIZE } from "@/lib/switcher";
 import type { Progress, RecentSummary } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { runningRoots, useStoryStore } from "@/store/story";
@@ -138,6 +140,9 @@ export function StoryPicker() {
   const [pendingLibrary, setPendingLibrary] = useState<{ root: string; count: number } | undefined>();
   const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Thư viện dài: lọc theo tên/folder và vẽ theo khúc PAGE_SIZE dòng để không lag khi hàng trăm truyện.
+  const [query, setQuery] = useState("");
+  const [limit, setLimit] = useState(PAGE_SIZE);
 
   useEffect(() => {
     let cancelled = false;
@@ -248,7 +253,10 @@ export function StoryPicker() {
     if (root) await saveLibrary(root);
   }, [saveLibrary]);
 
-  const libraryRows = libraryRoot ? library : [];
+  const libraryRows = useMemo(() => (libraryRoot ? library : []), [libraryRoot, library]);
+  const libraryFiltered = useMemo(() => filterByQuery(libraryRows, query), [libraryRows, query]);
+  const libraryVisible = libraryFiltered.slice(0, limit);
+  const showSearch = libraryRows.length > 8;
   const recentRows: RecentSummary[] = recent
     .filter((root) => !libraryRows.some((item) => samePath(item.root, root)))
     .map((root) => summaries.find((s) => s.root === root) ?? { root, name: null, done: null, total: null });
@@ -305,17 +313,45 @@ export function StoryPicker() {
                 Thư viện chưa có truyện nào — bấm Tạo truyện mới.
               </p>
             ) : (
-              <ul className="grid grid-cols-[minmax(0,1fr)] gap-2">
-                {libraryRows.map((item) => (
-                  <StoryRow
-                    key={item.root}
-                    item={item}
-                    busy={busy}
-                    onOpen={() => void tryOpen(item.root)}
-                    {...rowProps(item)}
-                  />
-                ))}
-              </ul>
+              <>
+                {showSearch && (
+                  <div className="relative mb-2">
+                    <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      value={query}
+                      onChange={(e) => {
+                        setQuery(e.target.value);
+                        setLimit(PAGE_SIZE);
+                      }}
+                      placeholder={`Tìm trong ${libraryRows.length} truyện…`}
+                      aria-label="Tìm truyện trong thư viện"
+                      className="pl-8"
+                    />
+                  </div>
+                )}
+                {libraryFiltered.length === 0 ? (
+                  <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">Không có truyện khớp.</p>
+                ) : (
+                  <ul className="grid grid-cols-[minmax(0,1fr)] gap-2">
+                    {libraryVisible.map((item) => (
+                      <StoryRow
+                        key={item.root}
+                        item={item}
+                        busy={busy}
+                        onOpen={() => void tryOpen(item.root)}
+                        {...rowProps(item)}
+                      />
+                    ))}
+                  </ul>
+                )}
+                {libraryFiltered.length > libraryVisible.length && (
+                  <div className="mt-2 flex justify-center">
+                    <Button variant="outline" size="sm" onClick={() => setLimit((v) => v + PAGE_SIZE)}>
+                      Xem thêm ({libraryFiltered.length - libraryVisible.length})
+                    </Button>
+                  </div>
+                )}
+              </>
             )
           ) : (
             <button
