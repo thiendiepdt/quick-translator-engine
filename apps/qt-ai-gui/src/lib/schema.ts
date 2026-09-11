@@ -231,3 +231,8 @@ export const aiFillResultSchema = z.object({
   log: z.array(z.string()),
 });
 export const exportOutcomeSchema = z.object({ outPath: z.string(), ids: z.array(z.string()), gaps: z.array(z.string()) });
+export const retryRangeOutcomeSchema = z.object({
+  retried: z.array(z.string()),
+  backedUp: z.array(z.string()),
+  alreadyQueued: z.array(z.string()),
+});

@@ -26,6 +26,9 @@ interface Props {
 export function ChapterList({ rows, filter, query, selectedId, onSelect, onFilter, onQuery }: Props) {
   const visible = filterChapters(rows, filter, query);
   const counts = countByFilter(rows);
+  // Số thứ tự theo danh sách đầy đủ (không đổi khi lọc) — dùng để gõ khoảng "dịch lại 120–180".
+  const ordinal = new Map(rows.map((row, index) => [row.id, index + 1]));
+  const width = String(rows.length).length;
   return (
     <div className="flex h-full flex-col">
       <div className="flex flex-col gap-2 border-b p-3">
@@ -36,7 +39,7 @@ export function ChapterList({ rows, filter, query, selectedId, onSelect, onFilte
             role="searchbox"
             value={query}
             onChange={(e) => onQuery(e.target.value)}
-            placeholder="Tìm mã chương…"
+            placeholder="Tìm mã hoặc số thứ tự (#12)…"
             className="h-8 pl-8 font-mono text-xs"
           />
         </div>
@@ -82,6 +85,9 @@ export function ChapterList({ rows, filter, query, selectedId, onSelect, onFilte
               )}
             >
               <span className={cn("size-2 shrink-0 rounded-full", DOT[row.status])} aria-hidden />
+              <span className="shrink-0 font-mono text-[11px] text-muted-foreground tabular-nums" style={{ minWidth: `${width + 1}ch` }}>
+                #{ordinal.get(row.id)}
+              </span>
               <span className="min-w-0 flex-1 truncate font-mono text-xs">{row.id}</span>
               {row.reviewRound > 0 && <span className="text-[11px] text-muted-foreground">soát {row.reviewRound}</span>}
               {row.warnings.length > 0 && (

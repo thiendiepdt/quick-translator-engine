@@ -1,7 +1,8 @@
-import { KeyRound, LoaderCircle, Play, RefreshCw, Square } from "lucide-react";
+import { KeyRound, LoaderCircle, Play, RefreshCw, RotateCcw, Square } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { RetryRangeDialog } from "@/components/retry-range-dialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { rescanStory, sessionStart, sessionStop, storySnapshot } from "@/lib/api";
@@ -30,6 +31,7 @@ export function TranslateToolbar() {
   const [model, setModel] = useState<string | undefined>(config?.model ?? undefined);
   const [busy, setBusy] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [retryOpen, setRetryOpen] = useState(false);
 
   /** Quét raw/ lấy chương mới vào hàng đợi (copy tay vào raw/ xong bấm đây). */
   async function rescan() {
@@ -129,6 +131,19 @@ export function TranslateToolbar() {
         >
           <RefreshCw className={cn(scanning && "animate-spin")} /> Quét lại
         </Button>
+        <Button
+          type="button"
+          variant="outline"
+          className="h-9"
+          title="Dịch lại toàn bộ hoặc một khoảng chương"
+          disabled={running || !snapshot}
+          onClick={() => setRetryOpen(true)}
+        >
+          <RotateCcw /> Dịch lại…
+        </Button>
+        {root && (
+          <RetryRangeDialog root={root} chapters={snapshot?.chapters ?? []} open={retryOpen} onOpenChange={setRetryOpen} />
+        )}
         <Button
           size="lg"
           variant={running ? "destructive" : "default"}

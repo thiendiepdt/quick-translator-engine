@@ -9,7 +9,7 @@ App desktop dịch truyện Trung → Việt hàng loạt: điều khiển Antig
 - **Tạo truyện mới**: tên tiếng Việt → tên folder tự sinh (`ta-tuyet-the-chi-dau`, sửa được) → tạo `<thư viện>/<slug>/raw/`,
   init, ghi tên + link vào `story.json`, mở luôn. Chương thêm sau.
 - **Kéo thả**: đang mở truyện, thả file `.txt` (hoặc folder chứa `.txt`, không đệ quy) vào cửa sổ → copy vào `raw/`
-  (không ghi đè file trùng tên, đuôi hạ thường) rồi đưa chương mới vào hàng đợi. Copy tay vào `raw/` thì bấm **Quét lại** (cũng gỡ chương có file raw đã mất, trừ chương đã dịch xong)
+  (không ghi đè file trùng tên, đuôi hạ thường) rồi đưa chương mới vào hàng đợi. Copy tay vào `raw/` thì bấm **Quét lại** (cũng gỡ chương có file raw đã mất, trừ chương đã dịch xong). **Dịch lại…** đưa toàn bộ hoặc một khoảng chương về hàng đợi (chương done giữ bản cũ thành `out/<id>.txt.bak`)
   trên trang Dịch; mở lại truyện cũng tự quét.
 - "Mở folder truyện" thủ công vẫn còn.
 

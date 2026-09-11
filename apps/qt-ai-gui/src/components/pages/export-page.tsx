@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { exportChapters, pickSaveFile, revealFolder } from "@/lib/api";
+import { resolveChapterRef } from "@/lib/chapters";
 import { previewRange } from "@/lib/export-range";
 import type { ExportOutcome } from "@/lib/types";
 import { useStoryStore } from "@/store/story";
@@ -18,7 +19,10 @@ export function ExportPage() {
   const [to, setTo] = useState(done[done.length - 1]?.id ?? "");
   const [result, setResult] = useState<ExportOutcome | undefined>();
   const [busy, setBusy] = useState(false);
-  const preview = previewRange(chapters, from, to);
+  // Nhận số thứ tự (cột # trong danh sách) hoặc nguyên mã chương; rỗng = đầu/cuối. Không khớp → khoảng không hợp lệ.
+  const fromId = from.trim() ? (chapters[resolveChapterRef(chapters, from)]?.id ?? "\u0000") : "";
+  const toId = to.trim() ? (chapters[resolveChapterRef(chapters, to)]?.id ?? "\u0000") : "";
+  const preview = previewRange(chapters, fromId, toId);
   const canRun = !busy && preview.valid && preview.included.length > 0;
 
   async function run(pickPath: boolean) {
@@ -27,7 +31,7 @@ export function ExportPage() {
     try {
       const out = pickPath ? await pickSaveFile(`${from || "dau"}-${to || "cuoi"}.txt`) : undefined;
       if (pickPath && !out) return;
-      const outcome = await exportChapters(root, { from: from || undefined, to: to || undefined, out });
+      const outcome = await exportChapters(root, { from: fromId || undefined, to: toId || undefined, out });
       setResult(outcome);
       toast.success(`Đã gộp ${outcome.ids.length} chương`);
     } catch (error) {
@@ -48,17 +52,11 @@ export function ExportPage() {
           </p>
         </header>
         <section className="rounded-lg border bg-card p-5">
-          <datalist id="chapter-ids">
-            {chapters.map((c) => (
-              <option key={c.id} value={c.id} />
-            ))}
-          </datalist>
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="from">Từ chương</Label>
               <Input
                 id="from"
-                list="chapter-ids"
                 value={from}
                 onChange={(e) => setFrom(e.target.value)}
                 className="font-mono"
@@ -69,7 +67,6 @@ export function ExportPage() {
               <Label htmlFor="to">Đến chương</Label>
               <Input
                 id="to"
-                list="chapter-ids"
                 value={to}
                 onChange={(e) => setTo(e.target.value)}
                 className="font-mono"
@@ -79,7 +76,7 @@ export function ExportPage() {
           </div>
           <div className="mt-4 rounded-md bg-muted p-3 text-sm">
             {!preview.valid ? (
-              <p className="text-destructive">Khoảng không hợp lệ: mã chương không tồn tại hoặc "từ" đứng sau "đến".</p>
+              <p className="text-destructive">Khoảng không hợp lệ: số thứ tự/mã không tồn tại hoặc "từ" đứng sau "đến".</p>
             ) : (
               <>
                 <p>

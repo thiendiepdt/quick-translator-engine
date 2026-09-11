@@ -1,6 +1,7 @@
 import { existsSync, renameSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { loadState, saveState, storyPaths, workFile, type StoryPaths, type WorkKind } from "../story-fs.ts";
+import { loadState, saveState, storyPaths, workFile, type StoryPaths, type StoryState, type WorkKind } from "../story-fs.ts";
+import { naturalChapterCompare } from "@/lib/ai-story";
 
 const WORK_KINDS: WorkKind[] = ["prompt", "draft", "glossary", "check", "review"];
 
@@ -22,11 +23,50 @@ export function runRetry(root: string, id: string): void {
   const chapter = state.chapters[id];
   if (!chapter) throw new Error(`Không có chương ${id} trong state.json.`);
   if (chapter.status === "queued") throw new Error(`Chương ${id} đang queued sẵn rồi.`);
-  if (chapter.status === "done") {
+  requeueChapter(paths, state, id);
+  saveState(paths, state);
+}
+
+export interface RetryRangeOutcome {
+  retried: string[];
+  backedUp: string[];
+  alreadyQueued: string[];
+}
+
+/** Dịch lại mọi chương trong [from..to] (undefined = đầu/cuối): done giữ .bak, queued bỏ qua. */
+export function runRetryRange(root: string, from?: string, to?: string): RetryRangeOutcome {
+  const paths = storyPaths(resolve(root));
+  const state = loadState(paths);
+  const all = Object.keys(state.chapters).sort(naturalChapterCompare);
+  for (const bound of [from, to]) {
+    if (bound !== undefined && !state.chapters[bound]) throw new Error(`Không có chương ${bound} trong state.json.`);
+  }
+  if (from !== undefined && to !== undefined && naturalChapterCompare(from, to) > 0) {
+    throw new Error(`Khoảng ngược: --from ${from} sau --to ${to}.`);
+  }
+  const outcome: RetryRangeOutcome = { retried: [], backedUp: [], alreadyQueued: [] };
+  for (const id of all) {
+    if (from !== undefined && naturalChapterCompare(id, from) < 0) continue;
+    if (to !== undefined && naturalChapterCompare(id, to) > 0) continue;
+    const status = state.chapters[id]!.status;
+    if (status === "queued") {
+      outcome.alreadyQueued.push(id);
+      continue;
+    }
+    if (status === "done") outcome.backedUp.push(id);
+    requeueChapter(paths, state, id);
+    outcome.retried.push(id);
+  }
+  if (outcome.retried.length > 0) saveState(paths, state);
+  return outcome;
+}
+
+/** Một chương về hàng đợi trong state (chưa ghi đĩa): done → out/<id>.txt thành .bak; dọn work/. */
+function requeueChapter(paths: StoryPaths, state: StoryState, id: string): void {
+  if (state.chapters[id]?.status === "done") {
     const out = join(paths.outDir, `${id}.txt`);
     if (existsSync(out)) renameSync(out, retryBackupPath(paths, id));
   }
   state.chapters[id] = { status: "queued", reviewRound: 0, updatedAt: Date.now() };
-  saveState(paths, state);
   for (const kind of WORK_KINDS) rmSync(workFile(paths, id, kind), { force: true });
 }

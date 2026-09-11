@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { countByFilter, filterChapters } from "@/lib/chapters";
+import { countByFilter, filterChapters, resolveChapterRef } from "@/lib/chapters";
 import type { ChapterRow } from "@/lib/types";
 
 const rows: ChapterRow[] = [
@@ -16,6 +16,21 @@ describe("chapters", () => {
     expect(filterChapters(rows, "error", "").map((r) => r.id)).toEqual(["chuong-0003"]);
     expect(filterChapters(rows, "warning", "").map((r) => r.id)).toEqual(["chuong-0002"]);
     expect(filterChapters(rows, "done", "")).toHaveLength(2);
+  });
+
+  it("tìm theo số thứ tự: '3' khớp chương thứ 3 lẫn mã chứa 3, '#3' chỉ chương thứ 3", () => {
+    expect(filterChapters(rows, "all", "#3").map((r) => r.id)).toEqual(["chuong-0003"]);
+    expect(filterChapters(rows, "all", "4").map((r) => r.id)).toEqual(["chuong-0010"]); // thứ 4, mã không chứa 4
+    expect(filterChapters(rows, "all", "#9")).toHaveLength(0);
+  });
+
+  it("resolveChapterRef: số thứ tự 1-based hoặc nguyên mã; ngoài khoảng/lạ → -1", () => {
+    expect(resolveChapterRef(rows, "1")).toBe(0);
+    expect(resolveChapterRef(rows, "#4")).toBe(3);
+    expect(resolveChapterRef(rows, "chuong-0003")).toBe(2);
+    expect(resolveChapterRef(rows, "5")).toBe(-1);
+    expect(resolveChapterRef(rows, "0")).toBe(-1);
+    expect(resolveChapterRef(rows, "")).toBe(-1);
   });
 
   it("tìm theo mã không phân biệt hoa thường, kết hợp với lọc", () => {

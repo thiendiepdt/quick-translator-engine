@@ -14,6 +14,7 @@ import {
   type chapterStatusSchema,
   type chapterViewSchema,
   type exportOutcomeSchema,
+  type retryRangeOutcomeSchema,
   type harnessSettingsSchema,
   type progressSchema,
   type recentSummarySchema,
@@ -63,6 +64,7 @@ export type StopReason = z.infer<typeof stopReasonSchema>;
 export type SessionEvent = z.infer<typeof sessionEventSchema>;
 export type AiFillResult = z.infer<typeof aiFillResultSchema>;
 export type ExportOutcome = z.infer<typeof exportOutcomeSchema>;
+export type RetryRangeOutcome = z.infer<typeof retryRangeOutcomeSchema>;
 export type RecentSummary = z.infer<typeof recentSummarySchema>;
 export type ImportOutcome = z.infer<typeof importOutcomeSchema>;
 

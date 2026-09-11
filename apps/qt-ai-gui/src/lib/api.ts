@@ -12,6 +12,7 @@ import {
   harnessSettingsSchema,
   importOutcomeSchema,
   recentSummarySchema,
+  retryRangeOutcomeSchema,
   sessionStatusSchema,
   storyConfigSchema,
   storyDefaultsSchema,
@@ -71,6 +72,8 @@ export const saveStory = (root: string, story: StoryConfig) =>
 export const saveSettings = (root: string, settings: HarnessSettings) =>
   call("save_settings", { root, settings }, (v) => harnessSettingsSchema.parse(v));
 export const chapterRetry = (root: string, id: string) => call("chapter_retry", { root, id }, noop);
+export const chaptersRetry = (root: string, range: { from?: string; to?: string }) =>
+  call("chapters_retry", { root, from: range.from ?? null, to: range.to ?? null }, (v) => retryRangeOutcomeSchema.parse(v));
 export const chapterSkip = (root: string, id: string, reason: string) =>
   call("chapter_skip", { root, id, reason }, noop);
 export const chapterForceAccept = (root: string, id: string) =>

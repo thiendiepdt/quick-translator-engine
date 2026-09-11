@@ -33,6 +33,7 @@ describe("ChapterList", () => {
     expect(screen.getByRole("button", { name: /Lỗi 1/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Cảnh báo 1/ })).toBeInTheDocument();
     expect(screen.getAllByRole("option")).toHaveLength(4);
+    expect(screen.getByRole("option", { name: /#3.*0003/ })).toBeInTheDocument(); // số thứ tự trước mã
     await userEvent.click(screen.getByRole("button", { name: /Lỗi 1/ }));
     expect(onFilter).toHaveBeenCalledWith("error");
     await userEvent.click(screen.getByRole("option", { name: /0003/ }));

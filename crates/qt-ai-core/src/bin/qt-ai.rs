@@ -6,7 +6,7 @@ use qt_ai_core::commands::check::run_check;
 use qt_ai_core::commands::export::{run_export, ExportOptions};
 use qt_ai_core::commands::init::run_init;
 use qt_ai_core::commands::next::run_next;
-use qt_ai_core::commands::retry::run_retry;
+use qt_ai_core::commands::retry::{run_retry, run_retry_range};
 use qt_ai_core::commands::skip::run_skip;
 use qt_ai_core::commands::status::run_status;
 use qt_ai_core::CoreError;
@@ -21,6 +21,7 @@ Lệnh:
   accept <root> <id> [--force]       Chốt chương: ghi out/, merge glossary
   skip <root> <id> --reason <lý do>  Bỏ qua chương (model từ chối...)
   retry <root> <id>                  Đưa chương về hàng đợi dịch lại (done: out/<id>.txt → .bak)
+  retry <root> --all | --from <id> --to <id>   Dịch lại nhiều chương (bỏ qua chương đang queued)
   export <root> [--from <id>] [--to <id>] [--out <file>]
                                      Gộp các chương done thành một file txt
   status <root>                      Bảng tiến độ";
@@ -104,6 +105,17 @@ fn run(argv: &[String]) -> Result<i32, CoreError> {
             Ok(0)
         }
         "retry" => {
+            let ranged = rest.iter().any(|arg| arg == "--all" || arg == "--from" || arg == "--to");
+            if ranged {
+                let outcome = run_retry_range(root, flag(rest, "--from").map(String::as_str), flag(rest, "--to").map(String::as_str))?;
+                println!(
+                    "Đã đưa {} chương về hàng đợi ({} bản dịch cũ giữ .bak, {} vốn đã queued).",
+                    outcome.retried.len(),
+                    outcome.backed_up.len(),
+                    outcome.already_queued.len()
+                );
+                return Ok(0);
+            }
             let Some(id) = rest.first() else { return Ok(usage()) };
             run_retry(root, id)?;
             println!("Đã đưa chương {id} về hàng đợi — next sẽ phát lại nó.");

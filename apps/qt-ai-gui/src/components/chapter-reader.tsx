@@ -48,13 +48,15 @@ const STATUS_TONE: Record<ChapterStatus, string> = {
 interface Props {
   root: string;
   row: ChapterRow;
+  /** Số thứ tự 1-based trong danh sách đầy đủ, hiện cạnh mã. */
+  ordinal?: number;
   hasPrev: boolean;
   hasNext: boolean;
   onPrev: () => void;
   onNext: () => void;
 }
 
-export function ChapterReader({ root, row, hasPrev, hasNext, onPrev, onNext }: Props) {
+export function ChapterReader({ root, row, ordinal, hasPrev, hasNext, onPrev, onNext }: Props) {
   const running = useStoryStore(selectCurrentRunning);
   const setSnapshot = useStoryStore((s) => s.setSnapshot);
   const { width, setWidth } = useReadingWidth();
@@ -108,6 +110,7 @@ export function ChapterReader({ root, row, hasPrev, hasNext, onPrev, onNext }: P
             <ChevronRight />
           </Button>
         </div>
+        {ordinal !== undefined && <span className="font-mono text-xs text-muted-foreground tabular-nums">#{ordinal}</span>}
         <span className="font-mono text-sm font-medium">{row.id}</span>
         <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", STATUS_TONE[row.status])}>
           {STATUS_LABELS[row.status]}

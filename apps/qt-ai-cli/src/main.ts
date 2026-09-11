@@ -5,7 +5,7 @@ import { runCheck } from "./commands/check.ts";
 import { runExport } from "./commands/export.ts";
 import { runInit } from "./commands/init.ts";
 import { runNext } from "./commands/next.ts";
-import { runRetry } from "./commands/retry.ts";
+import { runRetry, runRetryRange } from "./commands/retry.ts";
 import { runSkip } from "./commands/skip.ts";
 import { runStatus } from "./commands/status.ts";
 
@@ -18,6 +18,7 @@ Lệnh:
   accept <root> <id> [--force]       Chốt chương: ghi out/, merge glossary
   skip <root> <id> --reason <lý do>  Bỏ qua chương (model từ chối...)
   retry <root> <id>                  Đưa chương về hàng đợi dịch lại (done: out/<id>.txt → .bak)
+  retry <root> --all | --from <id> --to <id>   Dịch lại nhiều chương (bỏ qua chương đang queued)
   export <root> [--from <id>] [--to <id>] [--out <file>]
                                      Gộp các chương done thành một file txt
   status <root>                      Bảng tiến độ`;
@@ -97,8 +98,20 @@ export function main(argv: string[]): number {
         return 0;
       }
       case "retry": {
+        if (!root) break;
+        if (rest.some((arg) => arg === "--all" || arg === "--from" || arg === "--to")) {
+          const flag = (name: string): string | undefined => {
+            const index = rest.indexOf(name);
+            return index >= 0 ? rest[index + 1] : undefined;
+          };
+          const outcome = runRetryRange(root, flag("--from"), flag("--to"));
+          console.log(
+            `Đã đưa ${outcome.retried.length} chương về hàng đợi (${outcome.backedUp.length} bản dịch cũ giữ .bak, ${outcome.alreadyQueued.length} vốn đã queued).`,
+          );
+          return 0;
+        }
         const id = rest[0];
-        if (!root || !id) break;
+        if (!id) break;
         runRetry(root, id);
         console.log(`Đã đưa chương ${id} về hàng đợi — next sẽ phát lại nó.`);
         return 0;

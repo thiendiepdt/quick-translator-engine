@@ -78,6 +78,7 @@ export function TranslatePage() {
             <ChapterReader
               root={root}
               row={row}
+              ordinal={snapshot.chapters.findIndex((c) => c.id === row.id) + 1}
               hasPrev={index > 0}
               hasNext={index >= 0 && index < visible.length - 1}
               onPrev={() => {

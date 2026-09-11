@@ -5,7 +5,7 @@ use crate::AppState;
 use qt_ai_core::commands::accept::run_accept;
 use qt_ai_core::commands::export::{run_export, ExportOptions};
 use qt_ai_core::commands::init::run_init;
-use qt_ai_core::commands::retry::run_retry;
+use qt_ai_core::commands::retry::{run_retry, run_retry_range};
 use qt_ai_core::commands::skip::run_skip;
 use qt_ai_core::base::{BaseSource, BaseStore};
 use qt_ai_core::commands::status::count_chapters;
@@ -268,6 +268,36 @@ pub fn chapter_retry(state: State<'_, AppState>, root: String, id: String) -> Cm
         ));
     }
     Ok(run_retry(Path::new(&root), &id)?)
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RetryRangeOutcomeView {
+    pub retried: Vec<String>,
+    pub backed_up: Vec<String>,
+    pub already_queued: Vec<String>,
+}
+
+/// Dịch lại nhiều chương ([from..to], None = đầu/cuối). Chặn khi phiên đang chạy như `chapter_retry`.
+#[tauri::command]
+pub fn chapters_retry(
+    state: State<'_, AppState>,
+    root: String,
+    from: Option<String>,
+    to: Option<String>,
+) -> CmdResult<RetryRangeOutcomeView> {
+    if session_running(&state, &root) {
+        return Err(CommandError::new(
+            "session_locked",
+            "Truyện này đang có phiên dịch chạy — bấm Dừng trước khi dịch lại chương.",
+        ));
+    }
+    let outcome = run_retry_range(Path::new(&root), from.as_deref(), to.as_deref())?;
+    Ok(RetryRangeOutcomeView {
+        retried: outcome.retried,
+        backed_up: outcome.backed_up,
+        already_queued: outcome.already_queued,
+    })
 }
 
 #[tauri::command]

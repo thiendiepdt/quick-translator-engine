@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { runInit } from "../src/commands/init.ts";
 import { runNext } from "../src/commands/next.ts";
-import { retryBackupPath, runRetry } from "../src/commands/retry.ts";
+import { retryBackupPath, runRetry, runRetryRange } from "../src/commands/retry.ts";
 import { runSkip } from "../src/commands/skip.ts";
 import { loadState, saveState, storyPaths, workFile } from "../src/story-fs.ts";
 import { makeStoryDir } from "./helpers.ts";
@@ -71,5 +71,29 @@ describe("qt-ai retry", () => {
     runRetry(root, "0001");
     expect(readFileSync(retryBackupPath(paths, "0001"), "utf8")).toBe("bản dịch mới");
     expect(readdirSync(paths.outDir)).toEqual(["0001.txt.bak"]);
+  });
+
+  it("runRetryRange: khoảng bỏ qua queued, done giữ .bak, ngoài khoảng giữ nguyên; không from/to = tất cả", () => {
+    const root = makeStoryDir({ "0001": "一", "0002": "二", "0003": "三", "0004": "四" });
+    runInit(root);
+    const paths = storyPaths(root);
+    const state = loadState(paths);
+    state.chapters["0001"] = { status: "done", reviewRound: 0, updatedAt: 1 };
+    state.chapters["0002"] = { status: "error", reviewRound: 1, reason: "x", updatedAt: 1 };
+    state.chapters["0004"] = { status: "done", reviewRound: 0, updatedAt: 1 };
+    saveState(paths, state);
+    writeFileSync(join(paths.outDir, "0001.txt"), "dịch 1", "utf8");
+    writeFileSync(join(paths.outDir, "0004.txt"), "dịch 4", "utf8");
+
+    const outcome = runRetryRange(root, "0001", "0003");
+    expect(outcome).toEqual({ retried: ["0001", "0002"], backedUp: ["0001"], alreadyQueued: ["0003"] });
+    const after = loadState(paths).chapters;
+    expect(["0001", "0002", "0003"].every((id) => after[id]?.status === "queued")).toBe(true);
+    expect(after["0004"]?.status).toBe("done");
+    expect(readFileSync(retryBackupPath(paths, "0001"), "utf8")).toBe("dịch 1");
+
+    expect(runRetryRange(root).retried).toEqual(["0004"]);
+    expect(() => runRetryRange(root, "0003", "0001")).toThrow(/ngược/);
+    expect(() => runRetryRange(root, "9999")).toThrow(/Không có chương/);
   });
 });

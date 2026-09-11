@@ -4,7 +4,7 @@ use qt_ai_core::commands::check::run_check;
 use qt_ai_core::commands::export::{run_export, ExportOptions};
 use qt_ai_core::commands::init::run_init;
 use qt_ai_core::commands::next::run_next;
-use qt_ai_core::commands::retry::{retry_backup_path, run_retry};
+use qt_ai_core::commands::retry::{retry_backup_path, run_retry, run_retry_range};
 use qt_ai_core::commands::skip::run_skip;
 use qt_ai_core::commands::status::run_status;
 use qt_ai_core::story::StoryConfig;
@@ -147,6 +147,39 @@ fn init_dung_story_state_copy_template_idempotent() {
     assert_eq!(state.chapters["0001"].status, ChapterStatus::Done);
     assert_eq!(state.chapters["0003"].status, ChapterStatus::Queued);
     assert_eq!(fs::read_to_string(root.join("AGENTS.md")).unwrap(), "tự sửa");
+}
+
+#[test]
+fn retry_range_dich_lai_khoang_bo_qua_queued_giu_bak_va_all() {
+    let dir = make_story_dir(&[("0001", "一"), ("0002", "二"), ("0003", "三"), ("0004", "四")]);
+    let root = dir.path();
+    run_init(root, "qt-ai").unwrap();
+    let paths = story_paths(root);
+    let mut state = load_state(&paths).unwrap();
+    for (id, status) in [("0001", ChapterStatus::Done), ("0002", ChapterStatus::Error), ("0004", ChapterStatus::Done)] {
+        state.chapters.get_mut(id).unwrap().status = status;
+    }
+    save_state(&paths, &state).unwrap();
+    fs::create_dir_all(&paths.out_dir).unwrap();
+    fs::write(paths.out_dir.join("0001.txt"), "dịch 1").unwrap();
+    fs::write(paths.out_dir.join("0004.txt"), "dịch 4").unwrap();
+
+    let outcome = run_retry_range(root, Some("0001"), Some("0003")).unwrap();
+    assert_eq!(outcome.retried, vec!["0001", "0002"]);
+    assert_eq!(outcome.backed_up, vec!["0001"]);
+    assert_eq!(outcome.already_queued, vec!["0003"]);
+    let state = load_state(&paths).unwrap();
+    assert!(["0001", "0002", "0003"].iter().all(|id| state.chapters[*id].status == ChapterStatus::Queued));
+    assert_eq!(state.chapters["0004"].status, ChapterStatus::Done, "ngoài khoảng giữ nguyên");
+    assert_eq!(fs::read_to_string(retry_backup_path(&paths, "0001")).unwrap(), "dịch 1");
+    assert!(!paths.out_dir.join("0001.txt").exists());
+
+    // Không from/to = toàn bộ: chỉ còn 0004 chưa queued.
+    let all = run_retry_range(root, None, None).unwrap();
+    assert_eq!(all.retried, vec!["0004"]);
+    assert_eq!(all.already_queued.len(), 3);
+    assert!(matches!(run_retry_range(root, Some("0003"), Some("0001")), Err(CoreError::InvalidState(ref m)) if m.contains("ngược")));
+    assert!(matches!(run_retry_range(root, Some("9999"), None), Err(CoreError::StoryNotFound(_))));
 }
 
 #[test]
