@@ -1,4 +1,4 @@
-import { FolderOpen, FolderPlus, LibraryBig, Search, Sparkles, Square, X } from "lucide-react";
+import { FolderOpen, FolderPlus, LibraryBig, RefreshCw, Search, Sparkles, Square, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -23,6 +23,7 @@ import {
   recentSummaries,
   sessionStop,
 } from "@/lib/api";
+import { storyLabel } from "@/hooks/use-session-events";
 import { pathKey, samePath } from "@/lib/paths";
 import { filterByQuery, PAGE_SIZE } from "@/lib/switcher";
 import type { Progress, RecentSummary } from "@/lib/types";
@@ -140,6 +141,7 @@ export function StoryPicker() {
   const [pendingLibrary, setPendingLibrary] = useState<{ root: string; count: number } | undefined>();
   const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   // Thư viện dài: lọc theo tên/folder và vẽ theo khúc PAGE_SIZE dòng để không lag khi hàng trăm truyện.
   const [query, setQuery] = useState("");
   const [limit, setLimit] = useState(PAGE_SIZE);
@@ -169,6 +171,28 @@ export function StoryPicker() {
       cancelled = true;
     };
   }, [libraryRoot, libraryVersion]);
+
+  /** Quét lại thư viện (folder copy tay vào sau khi mở app) và báo có truyện mới hay không. */
+  async function refreshLibrary() {
+    setRefreshing(true);
+    try {
+      const before = new Set(library.map((item) => pathKey(item.root)));
+      const next = await libraryList();
+      setLibrary(next);
+      const fresh = next.filter((item) => !before.has(pathKey(item.root)));
+      const gone = library.filter((item) => !next.some((row) => samePath(row.root, item.root))).length;
+      const names = fresh.map((item) => item.name?.trim() || storyLabel(item.root));
+      const parts = [
+        fresh.length > 0 ? `${fresh.length} truyện mới: ${names.slice(0, 3).join(", ")}${names.length > 3 ? "…" : ""}` : "",
+        gone > 0 ? `${gone} folder đã biến mất` : "",
+      ].filter(Boolean);
+      toast.message(parts.length > 0 ? `Thư viện: ${parts.join("; ")}` : "Thư viện không có truyện mới");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Không quét được thư viện");
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   async function tryOpen(root: string) {
     setBusy(true);
@@ -301,6 +325,16 @@ export function StoryPicker() {
                 <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground" title={libraryRoot}>
                   {libraryRoot}
                 </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={busy || refreshing}
+                  title="Quét lại thư viện xem có truyện mới"
+                  aria-label="Làm mới thư viện"
+                  onClick={() => void refreshLibrary()}
+                >
+                  <RefreshCw className={cn(refreshing && "animate-spin")} /> Làm mới
+                </Button>
                 <Button variant="ghost" size="sm" disabled={busy} onClick={() => void chooseLibrary()}>
                   Đổi
                 </Button>

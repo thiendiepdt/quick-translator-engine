@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { StoryPicker } from "@/components/story-picker";
@@ -8,6 +9,7 @@ import { appConfigSet, libraryList, pickFolder, recentSummaries } from "@/lib/ap
 import { appConfigSchema } from "@/lib/schema";
 import { useStoryStore } from "@/store/story";
 
+vi.mock("sonner", () => ({ toast: { message: vi.fn(), success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/lib/api", () => ({
   ApiError: class ApiError extends Error {
     kind: string;
@@ -107,6 +109,26 @@ describe("StoryPicker · Thư viện", () => {
     expect(screen.getByText("D:\\lib\\chua-init")).toHaveAttribute("title", expect.stringContaining("Chưa khởi tạo"));
     expect(await screen.findByText("Ngoài")).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: /Bỏ .* khỏi danh sách/ })).toHaveLength(1);
+  });
+
+  it("nút Làm mới quét lại thư viện, hiện truyện mới và toast tên truyện; không có gì mới thì nói rõ", async () => {
+    useStoryStore.setState({ screen: "picker", config: { ...config, libraryRoot: "D:\\lib", recent: [] } });
+    const a = { root: "D:\\lib\\truyen-a", name: "Truyện A", done: 2, total: 10 };
+    const b = { root: "D:\\lib\\truyen-b", name: "Truyện B", done: 0, total: 5 };
+    vi.mocked(libraryList).mockResolvedValue([a]);
+    const user = userEvent.setup();
+    render(<StoryPicker />);
+    await screen.findByText("Truyện A");
+    expect(screen.queryByText("Truyện B")).not.toBeInTheDocument();
+
+    vi.mocked(libraryList).mockResolvedValue([a, b]);
+    await user.click(screen.getByRole("button", { name: "Làm mới thư viện" }));
+    expect(await screen.findByText("Truyện B")).toBeInTheDocument();
+    expect(toast.message).toHaveBeenLastCalledWith("Thư viện: 1 truyện mới: Truyện B");
+
+    await user.click(screen.getByRole("button", { name: "Làm mới thư viện" }));
+    await waitFor(() => expect(toast.message).toHaveBeenLastCalledWith("Thư viện không có truyện mới"));
+    expect(libraryList).toHaveBeenCalledTimes(3);
   });
 
   it("thư viện dài: vẽ 12 dòng + Xem thêm, ô tìm lọc theo tên/folder và về trang đầu", async () => {
