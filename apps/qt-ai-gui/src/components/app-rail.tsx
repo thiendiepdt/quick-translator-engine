@@ -1,4 +1,4 @@
-import { BookUser, Download, Languages, LibraryBig, Moon, Settings2, Sun } from "lucide-react";
+import { ArrowLeft, BookUser, Download, Languages, LibraryBig, Moon, Settings2, Sun } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -63,6 +63,26 @@ export function AppRail() {
       >
         Q
       </div>
+      {/* Nút quay về đặt đầu rail, có viền + mũi tên + chữ để khác hẳn các nút trang; trước đây là icon
+          xám dưới đáy nên người dùng không nhận ra. */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="outline"
+            aria-label="Về danh sách truyện"
+            onClick={closeStory}
+            className="mb-1 flex h-12 w-11 flex-col items-center justify-center gap-0.5 rounded-lg border-primary/40 px-0 text-foreground hover:border-primary hover:bg-accent"
+          >
+            <span className="flex items-center">
+              <ArrowLeft className="size-3.5" />
+              <LibraryBig className="size-5" />
+            </span>
+            <span className="text-[10px] leading-none">Truyện</span>
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="right">Về danh sách truyện</TooltipContent>
+      </Tooltip>
+      <div className="mb-2 h-px w-8 bg-border" aria-hidden />
       {ITEMS.map(({ page: item, label, icon: Icon }) => (
         <RailButton key={item} label={label} active={page === item} onClick={() => setPage(item)}>
           <Icon className="size-5" />
@@ -71,9 +91,6 @@ export function AppRail() {
       <div className="flex-1" />
       <RailButton label={mode === "dark" ? "Chuyển sang sáng" : "Chuyển sang tối"} onClick={() => void toggleMode()}>
         {mode === "dark" ? <Sun className="size-5" /> : <Moon className="size-5" />}
-      </RailButton>
-      <RailButton label="Về danh sách truyện" onClick={closeStory}>
-        <LibraryBig className="size-5" />
       </RailButton>
     </nav>
   );
