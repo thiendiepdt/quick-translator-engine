@@ -12,6 +12,7 @@ import { StoryPicker } from "@/components/story-picker";
 import { StorySidebar } from "@/components/story-sidebar";
 import { useSessionEvents } from "@/hooks/use-session-events";
 import { useThemeSync } from "@/hooks/use-theme";
+import { useUndoFallback } from "@/hooks/use-undo-fallback";
 import { agyStatus, appConfigGet, appConfigSet, pickAgyFile } from "@/lib/api";
 import { useStoryStore, type Page } from "@/store/story";
 
@@ -33,6 +34,7 @@ export default function App() {
   const engine = config?.engine ?? "api";
   useSessionEvents();
   useThemeSync();
+  useUndoFallback();
 
   // Chỉ dò agy khi động cơ là agy: người dùng API key không phải chờ, không bị màn "Chưa thấy agy".
   // `probing` chặn dò chồng: mỗi lượt dò spawn `agy --version` + `agy models` (~2s), dò chồng liên tục
