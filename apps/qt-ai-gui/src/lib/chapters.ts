@@ -49,3 +49,27 @@ export function countByFilter(rows: ChapterRow[]): Record<ChapterFilter, number>
   }
   return counts;
 }
+
+export interface FrontierGaps {
+  /** Chương done cuối cùng theo thứ tự danh sách (số thứ tự 1-based). */
+  frontier: { ordinal: number; id: string };
+  /** Chương đứng trước frontier mà chưa done và không đang dịch: queued, error, skipped. */
+  gaps: { ordinal: number; row: ChapterRow }[];
+}
+
+/**
+ * Chương "hổng": chưa dịch nhưng đứng trước chương done cuối — thường do skip (model từ chối) hay lỗi
+ * rồi phiên dịch tiếp chương sau. Trả null khi chưa có chương done nào hoặc không hổng.
+ */
+export function gapsBeforeFrontier(rows: ChapterRow[]): FrontierGaps | null {
+  let last = -1;
+  rows.forEach((row, index) => {
+    if (row.status === "done") last = index;
+  });
+  if (last < 0) return null;
+  const gaps = rows
+    .slice(0, last)
+    .map((row, index) => ({ ordinal: index + 1, row }))
+    .filter(({ row }) => row.status !== "done" && row.status !== "translating");
+  return gaps.length > 0 ? { frontier: { ordinal: last + 1, id: rows[last].id }, gaps } : null;
+}

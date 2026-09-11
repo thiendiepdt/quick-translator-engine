@@ -1,14 +1,18 @@
-import { KeyRound, LoaderCircle, Play, RefreshCw, RotateCcw, Square } from "lucide-react";
-import { useState } from "react";
+import { KeyRound, LoaderCircle, Play, RefreshCw, RotateCcw, Square, TriangleAlert } from "lucide-react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { RetryRangeDialog } from "@/components/retry-range-dialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { rescanStory, sessionStart, sessionStop, storySnapshot } from "@/lib/api";
-import { engineLabel } from "@/lib/types";
+import { gapsBeforeFrontier } from "@/lib/chapters";
+import { engineLabel, STATUS_LABELS } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { selectCurrentProgress, selectCurrentSession, useStoryStore } from "@/store/story";
+
+/** Số chip chương hổng hiện tối đa; truyện vài nghìn chương skip nhiều thì xem tiếp ở bộ lọc Bỏ qua/Lỗi. */
+const GAP_CHIPS = 12;
 
 function Stat({ label, value, tone }: { label: string; value: number; tone: string }) {
   return (
@@ -28,6 +32,9 @@ export function TranslateToolbar() {
   const config = useStoryStore((s) => s.config);
   const setSnapshot = useStoryStore((s) => s.setSnapshot);
   const setPage = useStoryStore((s) => s.setPage);
+  const select = useStoryStore((s) => s.select);
+  // Chương chưa dịch đứng trước chương done cuối (skip vì model từ chối, lỗi…) — dễ bị bỏ quên khi phiên chạy tiếp.
+  const gapInfo = useMemo(() => (snapshot ? gapsBeforeFrontier(snapshot.chapters) : null), [snapshot]);
   const [model, setModel] = useState<string | undefined>(config?.model ?? undefined);
   const [busy, setBusy] = useState(false);
   const [scanning, setScanning] = useState(false);
@@ -205,6 +212,31 @@ export function TranslateToolbar() {
           </span>
         )}
       </div>
+      {gapInfo && (
+        <p
+          role="status"
+          aria-label="Hổng chương chưa dịch"
+          className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-status-warning"
+        >
+          <TriangleAlert className="size-3.5" aria-hidden />
+          <span>
+            {gapInfo.gaps.length} chương trước #{gapInfo.frontier.ordinal} chưa dịch:
+          </span>
+          {gapInfo.gaps.slice(0, GAP_CHIPS).map(({ ordinal, row }) => (
+            <button
+              key={row.id}
+              type="button"
+              aria-label={`#${ordinal} ${row.id}`}
+              title={`${row.id} — ${STATUS_LABELS[row.status]}${row.reason ? `: ${row.reason}` : ""}`}
+              onClick={() => select(row.id)}
+              className="rounded border border-status-warning/40 px-1.5 py-0.5 font-mono tabular-nums hover:bg-status-warning/10"
+            >
+              #{ordinal} <span className="opacity-70">{STATUS_LABELS[row.status]}</span>
+            </button>
+          ))}
+          {gapInfo.gaps.length > GAP_CHIPS && <span>… và {gapInfo.gaps.length - GAP_CHIPS} chương nữa</span>}
+        </p>
+      )}
     </header>
   );
 }

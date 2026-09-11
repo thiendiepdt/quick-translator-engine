@@ -50,3 +50,41 @@ describe("TranslateToolbar · nút Dừng", () => {
     expect(await screen.findByRole("button", { name: "Dừng" })).toBeEnabled();
   });
 });
+
+describe("TranslateToolbar · cảnh báo hổng chương", () => {
+  beforeEach(() => {
+    useStoryStore.setState({
+      config,
+      root: ROOT,
+      roots: { [pathKey(ROOT)]: ROOT },
+      sessions: {},
+      selectedId: undefined,
+      snapshot: {
+        root: ROOT,
+        story: { title: "T" },
+        chapters: [
+          { id: "c1", status: "done", reviewRound: 0, reason: null, warnings: [] },
+          { id: "c2", status: "skipped", reviewRound: 0, reason: "model từ chối", warnings: [] },
+          { id: "c3", status: "done", reviewRound: 0, reason: null, warnings: [] },
+          { id: "c4", status: "queued", reviewRound: 0, reason: null, warnings: [] },
+        ],
+      } as never,
+    });
+  });
+
+  it("báo chương chưa dịch đứng trước chương done cuối; bấm số thứ tự thì chọn chương đó", async () => {
+    render(<TranslateToolbar />);
+    const alert = screen.getByRole("status", { name: /hổng/i });
+    expect(alert).toHaveTextContent("1 chương trước #3 chưa dịch");
+    await userEvent.click(screen.getByRole("button", { name: "#2 c2" }));
+    expect(useStoryStore.getState().selectedId).toBe("c2");
+  });
+
+  it("không hổng thì không hiện", () => {
+    useStoryStore.setState((s) => ({
+      snapshot: { ...s.snapshot!, chapters: s.snapshot!.chapters.filter((c) => c.id !== "c2") },
+    }));
+    render(<TranslateToolbar />);
+    expect(screen.queryByRole("status", { name: /hổng/i })).not.toBeInTheDocument();
+  });
+});

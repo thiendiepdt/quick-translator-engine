@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { countByFilter, filterChapters, resolveChapterRef } from "@/lib/chapters";
+import { countByFilter, filterChapters, gapsBeforeFrontier, resolveChapterRef } from "@/lib/chapters";
 import type { ChapterRow } from "@/lib/types";
 
 const rows: ChapterRow[] = [
@@ -44,5 +44,30 @@ describe("chapters", () => {
     expect(counts.done).toBe(2);
     expect(counts.warning).toBe(1);
     expect(counts.skipped).toBe(0);
+  });
+});
+
+describe("gapsBeforeFrontier", () => {
+  it("liệt kê chương chưa done đứng trước chương done cuối, kèm số thứ tự", () => {
+    const list: ChapterRow[] = [
+      { id: "c1", status: "done", reviewRound: 0, reason: null, warnings: [] },
+      { id: "c2", status: "skipped", reviewRound: 0, reason: "model từ chối", warnings: [] },
+      { id: "c3", status: "error", reviewRound: 3, reason: null, warnings: [] },
+      { id: "c4", status: "done", reviewRound: 0, reason: null, warnings: [] },
+      { id: "c5", status: "translating", reviewRound: 0, reason: null, warnings: [] },
+      { id: "c6", status: "queued", reviewRound: 0, reason: null, warnings: [] },
+    ];
+    expect(gapsBeforeFrontier(list)).toEqual({
+      frontier: { ordinal: 4, id: "c4" },
+      gaps: [
+        { ordinal: 2, row: list[1] },
+        { ordinal: 3, row: list[2] },
+      ],
+    });
+  });
+
+  it("không có chương done hoặc không hổng thì trả null", () => {
+    expect(gapsBeforeFrontier([{ id: "c1", status: "queued", reviewRound: 0, reason: null, warnings: [] }])).toBeNull();
+    expect(gapsBeforeFrontier(rows.slice(0, 2))).toBeNull();
   });
 });
