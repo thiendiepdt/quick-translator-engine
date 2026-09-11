@@ -74,6 +74,24 @@ cargo test -p qt-ai-gui   # Tauri commands
 và `qt-ai.exe`. Bản portable và bản cài đặt dùng chung `config.json` ở `%APPDATA%\com.vn-converter.qt-ai-gui\`
 (bản cài trước 2026-09-11 dùng `io.quicktranslator.ai-gui`; lần đầu chạy bản mới tự copy config.json cũ sang). Máy đích vẫn cần WebView2.
 
+## Phát hành và cập nhật
+
+Tag `qt-ai-gui-v<x.y.z>` kích hoạt `.github/workflows/release-qt-ai-gui.yml` (Windows): tauri-action build NSIS + MSI, ký bằng
+secret `TAURI_SIGNING_PRIVATE_KEY` / `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` của repo, tạo GitHub Release kèm `latest.json` và `.sig`;
+bước sau gom zip portable (`PORTABLE_SKIP_BUILD=1 npm run build:portable`) và upload thêm. App đã cài dò
+`releases/latest/download/latest.json` mỗi lần mở (tắt ở dev), có bản mới thì hỏi bằng hộp thoại native, tải, cài rồi khởi động lại
+(`src/hooks/use-update-check.ts`). Bản portable cũng cập nhật bằng NSIS nên sau đó thành bản cài đặt.
+
+```
+npm run set-version 0.2.0     # package.json, package-lock.json, tauri.conf.json, Cargo.toml + cargo update → Cargo.lock
+git commit -am "release(qt-ai-gui): 0.2.0"
+git tag qt-ai-gui-v0.2.0 && git push origin HEAD --tags
+```
+
+Khoá ký sinh bằng `npx tauri signer generate -w ~/.tauri/qt-ai-gui.key --ci` (không mật khẩu, secret password để rỗng); public key
+nằm ở `plugins.updater.pubkey` trong `tauri.conf.json`. Mất private key thì bản đã phát hành không nhận bản mới nữa, phải đổi pubkey
+và người dùng cài tay một lần.
+
 ## Folder truyện
 
 Cùng format với `apps/qt-ai-cli` và Antigravity IDE: `raw/`, `out/`, `work/`, `story.json`, `state.json`, `AGENTS.md`, `.agent/workflows/`. Mở truyện đang dịch dở bằng bản nào cũng tiếp được.
