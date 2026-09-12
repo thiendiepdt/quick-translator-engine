@@ -3,7 +3,7 @@
 //! (ai-translation-workspace.tsx) lên trên cùng state machine `commands::*` mà agy dùng, nên hai
 //! động cơ dùng chung folder truyện và đổi qua lại giữa chừng được.
 
-use crate::api::{ApiError, ApiStep, TextModel};
+use crate::api::{format_tokens, ApiError, ApiStep, TextModel, Usage};
 use crate::check::check_violations;
 use crate::commands::accept::run_accept;
 use crate::commands::check::run_check;
@@ -23,10 +23,11 @@ use crate::story_fs::{
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-/// Port GLOSSARY_EXTRACT_SYSTEM_PROMPT của qt-web/src/lib/ai-client.ts.
+/// Port GLOSSARY_EXTRACT_SYSTEM_PROMPT của qt-web/src/lib/ai-client.ts — lượt trích riêng (fallback khi
+/// model không kèm khối glossary trong lượt dịch).
 const GLOSSARY_EXTRACT_SYSTEM_PROMPT: &str = "Bạn nhận raw tiếng Trung và bản dịch tiếng Việt của cùng một chương truyện. \
 Liệt kê các TÊN RIÊNG (nhân vật, địa danh, đồ vật/vũ khí, sinh vật, công pháp/kỹ năng) \
 xuất hiện trong raw nhưng CHƯA có trong danh sách loại trừ, kèm đúng cách bản dịch đã phiên âm chúng. \
@@ -38,6 +39,31 @@ target là \"X–Y\" với X là cách 甲 tự xưng và Y là cách 甲 gọi 
 mỗi chiều một mục, chỉ ghi cặp chưa có trong danh sách loại trừ. \
 Không có gì mới thì trả entries rỗng. \
 Chỉ xuất JSON dạng {\"entries\": [{\"source\": \"...\", \"target\": \"...\", \"category\": \"...\"}]}.";
+
+/// Dấu mở khối glossary cuối lượt dịch. Không khớp regex nhãn `[[n]]` (chỉ nhận chữ số).
+pub const GLOSSARY_MARKER: &str = "[[glossary]]";
+
+/// Đuôi user message lượt dịch: model trả glossary ngay trong cùng lượt (như luồng agy ghi glossary.json),
+/// tiết kiệm trọn lượt trích riêng (raw + bản dịch gửi lại lần hai ≈ 2× chương).
+const GLOSSARY_INLINE_INSTRUCTION: &str = "Sau đoạn dịch cuối cùng, xuống dòng và thêm đúng một dòng `[[glossary]]`, rồi một JSON object \
+{\"entries\": [{\"source\": \"...\", \"target\": \"...\", \"category\": \"...\"}]} liệt kê các TÊN RIÊNG \
+(nhân vật, địa danh, đồ vật/vũ khí, sinh vật, công pháp/kỹ năng) xuất hiện trong raw mà CHƯA có trong \"Từ điển riêng của truyện\"; \
+target chép nguyên văn cách bạn vừa dịch; category chỉ được là \"names\", \"places\", \"items\", \"creatures\", \"skills\". \
+Bỏ qua từ chung, chức danh, đại từ. Cặp xưng hô mới trong thoại ghi category \"addressing\": source \"甲→乙\" (hai tên Hán như trong raw), \
+target \"X–Y\" với X là cách 甲 tự xưng và Y là cách 甲 gọi 乙 trong bản dịch; mỗi chiều một mục. \
+Không có gì mới thì {\"entries\": []}. Khối này nằm ngoài bản dịch, không có nhãn [[n]].";
+
+/// Tách khối `[[glossary]]` cuối output lượt dịch: (phần bản dịch, mảng entries nếu parse được).
+/// Chịu rào ```json quanh JSON. Không có dấu → trả nguyên văn.
+pub fn split_glossary_block(output: &str) -> (&str, Option<Value>) {
+    let Some(at) = output.rfind(GLOSSARY_MARKER) else { return (output, None) };
+    let text = output[..at].trim_end();
+    let entries = crate::api::extract_json_object(&output[at + GLOSSARY_MARKER.len()..])
+        .and_then(|json| serde_json::from_str::<Value>(&json).ok())
+        .and_then(|value| value.get("entries").cloned())
+        .filter(Value::is_array);
+    (text, entries)
+}
 
 /// Port system prompt của `buildAiTranslationReviewPrompt`, thêm yêu cầu giữ nhãn.
 const REVIEW_SYSTEM_PROMPT: &str = "Đây là tác vụ soát tối thiểu một bản dịch tiểu thuyết hư cấu do người dùng cung cấp. \
@@ -57,7 +83,7 @@ pub struct ApiSessionConfig {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ChapterOutcome {
-    Accepted { review_rounds: u32, warnings: usize, added_glossary: usize },
+    Accepted { review_rounds: u32, warnings: usize, added_glossary: usize, usage: Usage },
     /// check escalate sang error (quá vòng soát mà vẫn thiếu đoạn/quá ngắn) — state đã ghi.
     Errored { reason: String },
 }
@@ -81,6 +107,21 @@ struct Chapter<'a> {
     story: &'a StoryConfig,
     cancel: &'a AtomicBool,
     log: Log<'a>,
+    /// Token cộng dồn mọi lượt gọi của chương (provider không báo thì giữ 0).
+    usage: Mutex<Usage>,
+}
+
+impl Chapter<'_> {
+    fn record(&self, label: &str, usage: Option<Usage>) {
+        if let Some(usage) = usage {
+            *self.usage.lock().unwrap() += usage;
+            (self.log)(format!("{}: {label} — {}", self.id, usage.summary()));
+        }
+    }
+
+    fn usage(&self) -> Usage {
+        *self.usage.lock().unwrap()
+    }
 }
 
 fn format_chars(count: usize) -> String {
@@ -92,6 +133,7 @@ fn format_chars(count: usize) -> String {
 }
 
 /// Gọi model (mức nghĩ theo `step`) và log tiến độ nhận stream thưa thớt; `label` là tên bước trong log.
+/// Xong thì log token của lượt (nếu provider báo).
 fn generate(chapter: &Chapter, step: ApiStep, label: &str, system: &str, user: &str) -> std::result::Result<String, ApiError> {
     let (id, log) = (chapter.id, chapter.log);
     log(format!("{id}: {label} ({})…", chapter.model.label()));
@@ -102,7 +144,9 @@ fn generate(chapter: &Chapter, step: ApiStep, label: &str, system: &str, user: &
             log(format!("{id}: đã nhận {} ký tự", format_chars(received)));
         }
     };
-    chapter.model.generate(step, system, user, chapter.cancel, &mut on_progress)
+    let generated = chapter.model.generate(step, system, user, chapter.cancel, &mut on_progress)?;
+    chapter.record(label, generated.usage);
+    Ok(generated.text)
 }
 
 /// Bản draft có nhãn ghi ra work/<id>.draft.md — đúng dạng `assemble_draft` đọc.
@@ -135,7 +179,7 @@ fn repair_missing(chapter: &Chapter, draft: &mut [String], missing: &[usize]) ->
         chapter.system,
         &labeled_repair_payload(chapter.paragraphs, missing),
     )?;
-    if let Some(parsed) = parse_labeled_translation(&output, chapter.paragraphs.len()) {
+    if let Some(parsed) = parse_labeled_translation(split_glossary_block(&output).0, chapter.paragraphs.len()) {
         for index in missing {
             if let Some(Some(text)) = parsed.get(*index) {
                 draft[*index] = text.clone();
@@ -146,17 +190,20 @@ fn repair_missing(chapter: &Chapter, draft: &mut [String], missing: &[usize]) ->
 }
 
 /// Lượt dịch chính: model trả đủ nhãn → draft; thiếu đoạn → dịch bổ sung một lần; vẫn thiếu → giữ
-/// nguyên văn Hán (rule CJK bắt ở check, người đọc thấy chỗ hổng thay vì mất đoạn).
-fn translate_full(chapter: &Chapter) -> std::result::Result<Vec<String>, ApiError> {
+/// nguyên văn Hán (rule CJK bắt ở check, người đọc thấy chỗ hổng thay vì mất đoạn). Kèm entries glossary
+/// nếu model trả khối `[[glossary]]` cuối output.
+fn translate_full(chapter: &Chapter) -> std::result::Result<(Vec<String>, Option<Value>), ApiError> {
     let paragraphs = chapter.paragraphs;
-    let payload = labeled_source_payload(paragraphs);
+    let payload = format!("{}\n\n{GLOSSARY_INLINE_INSTRUCTION}", labeled_source_payload(paragraphs));
     let mut output = generate(chapter, ApiStep::Translate, "dịch", chapter.system, &payload)?;
-    let mut parsed = parse_labeled_translation(&output, paragraphs.len());
+    let (mut text, mut glossary) = split_glossary_block(&output);
+    let mut parsed = parse_labeled_translation(text, paragraphs.len());
     if parsed.is_none() {
         // Model bỏ hết nhãn — thử lại một lần rồi mới bó tay.
         (chapter.log)(format!("{}: model bỏ nhãn [[n]], dịch lại", chapter.id));
         output = generate(chapter, ApiStep::Translate, "dịch lại", chapter.system, &payload)?;
-        parsed = parse_labeled_translation(&output, paragraphs.len());
+        (text, glossary) = split_glossary_block(&output);
+        parsed = parse_labeled_translation(text, paragraphs.len());
     }
     let Some(parsed) = parsed else {
         return Err(ApiError::BadOutput("không có nhãn [[n]] nào trong bản dịch".to_string()));
@@ -164,12 +211,23 @@ fn translate_full(chapter: &Chapter) -> std::result::Result<Vec<String>, ApiErro
     let mut draft: Vec<String> = parsed.iter().zip(paragraphs).map(|(p, raw)| p.clone().unwrap_or_else(|| raw.clone())).collect();
     let missing: Vec<usize> = parsed.iter().enumerate().filter(|(_, p)| p.is_none()).map(|(i, _)| i).collect();
     repair_missing(chapter, &mut draft, &missing)?;
-    Ok(draft)
+    Ok((draft, glossary))
 }
 
-/// Trích tên riêng mới → work/<id>.glossary.json. Bước phụ: mọi lỗi nuốt, ghi entries rỗng.
-fn harvest_glossary(chapter: &Chapter, paths: &StoryPaths, raw: &str, draft: &[String]) -> Result<()> {
+/// Trích tên riêng mới → work/<id>.glossary.json. Có khối glossary từ lượt dịch thì dùng luôn; không thì
+/// gọi lượt trích riêng. Bước phụ: mọi lỗi nuốt, ghi entries rỗng.
+fn harvest_glossary(
+    chapter: &Chapter,
+    paths: &StoryPaths,
+    raw: &str,
+    draft: &[String],
+    inline: Option<Value>,
+) -> Result<()> {
     let (id, log) = (chapter.id, chapter.log);
+    if let Some(entries) = inline {
+        log(format!("{id}: glossary kèm lượt dịch — {} đề xuất", entries.as_array().map_or(0, Vec::len)));
+        return write_text(&work_file(paths, id, WorkKind::Glossary), &format!("{}\n", json!({ "entries": entries })));
+    }
     // Chỉ gửi key chương này chạm tới — sanitize vốn chặn đề xuất không có trong raw, gửi cả glossary là phí token.
     let base_glossary = crate::base::BaseStore::from_env().glossary(chapter.story.genre.setting);
     let mut exclude: Vec<String> = collect_glossary_keys(&base_glossary, &chapter.story.glossary)
@@ -179,11 +237,14 @@ fn harvest_glossary(chapter: &Chapter, paths: &StoryPaths, raw: &str, draft: &[S
     exclude.sort();
     let user = json!({ "exclude": exclude, "raw": raw, "translation": final_text(draft) }).to_string();
     let entries = match chapter.model.complete_json(ApiStep::Glossary, GLOSSARY_EXTRACT_SYSTEM_PROMPT, &user, chapter.cancel) {
-        Ok(text) => serde_json::from_str::<Value>(&text)
-            .ok()
-            .and_then(|value| value.get("entries").cloned().or(Some(value)))
-            .filter(Value::is_array)
-            .unwrap_or_else(|| Value::Array(vec![])),
+        Ok(generated) => {
+            chapter.record("trích glossary", generated.usage);
+            serde_json::from_str::<Value>(&generated.text)
+                .ok()
+                .and_then(|value| value.get("entries").cloned().or(Some(value)))
+                .filter(Value::is_array)
+                .unwrap_or_else(|| Value::Array(vec![]))
+        }
         Err(error) => {
             log(format!("{id}: bỏ qua trích glossary — {error}"));
             Value::Array(vec![])
@@ -212,7 +273,7 @@ Giữ nguyên toàn bộ chữ, thứ tự câu, dấu câu và ngắt đoạn k
         labeled_draft(draft)
     );
     let output = generate(chapter, ApiStep::Review, &format!("soát lần {round}"), REVIEW_SYSTEM_PROMPT, &user)?;
-    let Some(reviewed) = parse_labeled_translation(&output, draft.len()) else {
+    let Some(reviewed) = parse_labeled_translation(split_glossary_block(&output).0, draft.len()) else {
         log(format!("{id}: bản soát mất nhãn — bỏ"));
         return Ok(ReviewOutcome::Changed);
     };
@@ -251,11 +312,20 @@ pub fn translate_chapter(
     let base_glossary = crate::base::BaseStore::from_env().glossary(story.genre.setting);
     let system = build_system_prompt(&base_glossary, Some(&story), Some(&raw));
     let min_ratio = load_state(&paths)?.settings.min_length_ratio;
-    let chapter = Chapter { model, id, system: &system, paragraphs: &paragraphs, story: &story, cancel, log };
+    let chapter = Chapter {
+        model,
+        id,
+        system: &system,
+        paragraphs: &paragraphs,
+        story: &story,
+        cancel,
+        log,
+        usage: Mutex::new(Usage::default()),
+    };
 
-    let mut draft = translate_full(&chapter)?;
+    let (mut draft, inline_glossary) = translate_full(&chapter)?;
     write_draft(&paths, id, &draft)?;
-    harvest_glossary(&chapter, &paths, &raw, &draft)?;
+    harvest_glossary(&chapter, &paths, &raw, &draft, inline_glossary)?;
 
     let mut rounds = 0;
     loop {
@@ -269,6 +339,7 @@ pub fn translate_chapter(
                 review_rounds: rounds,
                 warnings: accepted.warnings.len(),
                 added_glossary: accepted.added_glossary,
+                usage: chapter.usage(),
             });
         }
         if check.escalated_to_error {
@@ -281,7 +352,7 @@ pub fn translate_chapter(
             repair_missing(&chapter, &mut draft, &missing)?;
         } else if check.ratio < min_ratio {
             // Quá ngắn (tóm tắt/lược ý): dịch lại cả chương, giữ bản dài hơn — như qt-web.
-            let again = translate_full(&chapter)?;
+            let (again, _) = translate_full(&chapter)?;
             if chars_no_ws(&again) > chars_no_ws(&draft) {
                 draft = again;
             }
@@ -293,6 +364,7 @@ pub fn translate_chapter(
                 review_rounds: rounds,
                 warnings: accepted.warnings.len(),
                 added_glossary: accepted.added_glossary,
+                usage: chapter.usage(),
             });
         }
         write_draft(&paths, id, &draft)?;
@@ -391,9 +463,10 @@ pub fn api_loop(config: &ApiSessionConfig, model: &dyn TextModel, sink: &Sink, c
             }
         };
         match outcome {
-            Ok(ChapterOutcome::Accepted { review_rounds, warnings, added_glossary }) => {
+            Ok(ChapterOutcome::Accepted { review_rounds, warnings, added_glossary, usage }) => {
                 failed_chapters = 0;
-                log(format!("{id}: chốt (soát {review_rounds} lần, {warnings} cảnh báo, +{added_glossary} glossary)"));
+                let tokens = if usage.is_empty() { String::new() } else { format!(" · {} token", format_tokens(usage.total())) };
+                log(format!("{id}: chốt (soát {review_rounds} lần, {warnings} cảnh báo, +{added_glossary} glossary){tokens}"));
             }
             Ok(ChapterOutcome::Errored { reason }) => {
                 failed_chapters = 0;

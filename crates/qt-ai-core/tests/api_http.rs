@@ -69,7 +69,8 @@ fn openai_stream_qua_hub_http_gui_dung_header_body_va_doc_sse() {
     let model = HttpModel::new(ApiConfig::resolve(ApiProvider::OpenAi, "sk-hub", "gemini-3.7-flash", &format!("{base}/v1/"), true, "xhigh"));
     let mut progress = Vec::new();
     let out = model.generate(ApiStep::Translate, "SYS", "USER", &AtomicBool::new(false), &mut |n| progress.push(n)).unwrap();
-    assert_eq!(out, "Xin chào");
+    assert_eq!(out.text, "Xin chào");
+    assert_eq!(out.usage, None, "hub không gửi usage");
     assert_eq!(progress, vec![4, 8]);
     let (head, body) = captured(&slot);
     assert!(head.starts_with("post /v1/chat/completions http/1.1"), "{head}");
@@ -105,7 +106,7 @@ fn http_loi_tra_status_va_message_cua_provider() {
 fn complete_json_openai_va_gemini() {
     let (base, slot) = serve_once("200 OK", "application/json", "{\"choices\":[{\"message\":{\"content\":\"{\\\"entries\\\":[]}\"}}]}");
     let model = HttpModel::new(ApiConfig::resolve(ApiProvider::OpenAi, "sk", "gpt-5.6-sol", &base, true, "high"));
-    assert_eq!(model.complete_json(ApiStep::Glossary, "S", "U", &AtomicBool::new(false)).unwrap(), "{\"entries\":[]}");
+    assert_eq!(model.complete_json(ApiStep::Glossary, "S", "U", &AtomicBool::new(false)).unwrap().text, "{\"entries\":[]}");
     let (head, body) = captured(&slot);
     assert!(head.contains("accept: application/json"));
     assert_eq!(body["response_format"]["type"], "json_object");
@@ -114,7 +115,7 @@ fn complete_json_openai_va_gemini() {
 
     let (base, slot) = serve_once("200 OK", "application/json", "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"{}\"}]}}]}");
     let model = HttpModel::new(ApiConfig::resolve(ApiProvider::Gemini, "AIza", "gemini-3.7-flash", &base, true, ""));
-    assert_eq!(model.complete_json(ApiStep::Glossary, "S", "U", &AtomicBool::new(false)).unwrap(), "{}");
+    assert_eq!(model.complete_json(ApiStep::Glossary, "S", "U", &AtomicBool::new(false)).unwrap().text, "{}");
     let (head, body) = captured(&slot);
     assert!(head.starts_with("post /v1beta/models/gemini-3.7-flash:generatecontent http"), "{head}");
     assert_eq!(body["generationConfig"]["responseMimeType"], "application/json");
@@ -173,7 +174,7 @@ fn complete_json_hub_tu_choi_json_mode_thi_fallback_text_thuong_va_boc_json() {
         ),
     ]);
     let model = HttpModel::new(ApiConfig::resolve(ApiProvider::OpenAi, "sk", "gemini-3.8-flash", &base, true, "high"));
-    let out = model.complete_json(ApiStep::Glossary, "Trích glossary", "U", &AtomicBool::new(false)).unwrap();
+    let out = model.complete_json(ApiStep::Glossary, "Trích glossary", "U", &AtomicBool::new(false)).unwrap().text;
     assert_eq!(out, "{\"entries\":[{\"source\":\"赵静文\"}]}");
     let bodies = bodies.lock().unwrap();
     assert_eq!(bodies.len(), 2);
@@ -191,7 +192,7 @@ fn complete_json_boc_rao_markdown_ngay_o_json_mode_va_content_dang_mang() {
         "{\"choices\":[{\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"```json\\n{\\\"a\\\":1}\\n```\"}]}}]}",
     );
     let model = HttpModel::new(ApiConfig::resolve(ApiProvider::OpenAi, "sk", "m", &base, true, ""));
-    assert_eq!(model.complete_json(ApiStep::Glossary, "S", "U", &AtomicBool::new(false)).unwrap(), "{\"a\":1}");
+    assert_eq!(model.complete_json(ApiStep::Glossary, "S", "U", &AtomicBool::new(false)).unwrap().text, "{\"a\":1}");
 
     let (base, _) = serve_once(
         "200 OK",
@@ -199,7 +200,7 @@ fn complete_json_boc_rao_markdown_ngay_o_json_mode_va_content_dang_mang() {
         "{\"candidates\":[{\"content\":{\"parts\":[{\"thought\":true,\"text\":\"nghĩ đã\"},{\"text\":\"{\\\"b\\\":2}\"}]}}]}",
     );
     let model = HttpModel::new(ApiConfig::resolve(ApiProvider::Gemini, "AIza", "gemini-3.7-flash", &base, true, ""));
-    assert_eq!(model.complete_json(ApiStep::Glossary, "S", "U", &AtomicBool::new(false)).unwrap(), "{\"b\":2}");
+    assert_eq!(model.complete_json(ApiStep::Glossary, "S", "U", &AtomicBool::new(false)).unwrap().text, "{\"b\":2}");
 }
 
 #[test]

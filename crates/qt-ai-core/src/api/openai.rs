@@ -2,7 +2,7 @@
 //! (provider "openai"): max_completion_tokens, reasoning_effort, đọc reasoning_content/reasoning.
 
 use crate::api::sse::read_sse;
-use crate::api::{ApiConfig, ApiError, ApiStep, MAX_OUTPUT_TOKENS};
+use crate::api::{ApiConfig, ApiError, ApiStep, Generated, Usage, MAX_OUTPUT_TOKENS};
 use serde_json::{json, Value};
 use std::io::BufRead;
 use std::sync::atomic::AtomicBool;
@@ -28,6 +28,7 @@ pub fn stream_body(config: &ApiConfig, step: ApiStep, system: &str, user: &str) 
         "messages": messages(system, user),
         "max_completion_tokens": MAX_OUTPUT_TOKENS,
         "stream": true,
+        "stream_options": { "include_usage": true },
     });
     let effort = config.effort(step);
     if !effort.is_empty() {
@@ -50,15 +51,33 @@ pub fn json_body(config: &ApiConfig, step: ApiStep, system: &str, user: &str) ->
     body
 }
 
+/// `usage` của response hoặc chunk cuối (khi bật stream_options.include_usage). `completion_tokens` của
+/// OpenAI đã gồm `reasoning_tokens` → tách ra để `output` chỉ là chữ trả về, không đếm đôi khi cộng tổng.
+pub fn usage_of(payload: &Value) -> Option<Usage> {
+    let usage = payload.get("usage").filter(|value| value.is_object())?;
+    let count = |pointer: &str| usage.pointer(pointer).and_then(Value::as_u64).unwrap_or(0);
+    let thoughts = count("/completion_tokens_details/reasoning_tokens");
+    Some(Usage {
+        input: count("/prompt_tokens"),
+        cached: count("/prompt_tokens_details/cached_tokens"),
+        output: count("/completion_tokens").saturating_sub(thoughts),
+        thoughts,
+    })
+}
+
 pub fn parse_stream<R: BufRead>(
     reader: R,
     cancel: &AtomicBool,
     on_progress: &mut dyn FnMut(usize),
-) -> Result<String, ApiError> {
+) -> Result<Generated, ApiError> {
     let mut output = String::new();
+    let mut usage: Option<Usage> = None;
     read_sse(reader, cancel, |payload| {
         if let Some(message) = payload.pointer("/error/message").and_then(Value::as_str) {
             return Err(ApiError::Stream(message.to_string()));
+        }
+        if let Some(found) = usage_of(&payload) {
+            usage = Some(found);
         }
         let Some(delta) = payload.pointer("/choices/0/delta") else { return Ok(()) };
         if let Some(text) = delta.get("content").and_then(Value::as_str) {
@@ -72,7 +91,7 @@ pub fn parse_stream<R: BufRead>(
     if output.is_empty() {
         return Err(ApiError::Empty("OpenAI"));
     }
-    Ok(output)
+    Ok(Generated { text: output, usage })
 }
 
 /// `message.content` là chuỗi; vài hub trả mảng part `[{type:"text", text}]` — nối text lại.
@@ -103,6 +122,7 @@ mod tests {
         assert_eq!(body["reasoning_effort"], "high");
         assert_eq!(body["max_completion_tokens"], 65536);
         assert_eq!(body["stream"], true);
+        assert_eq!(body["stream_options"]["include_usage"], true);
         assert!(body.get("max_tokens").is_none() && body.get("temperature").is_none());
         assert_eq!(body["messages"][0], json!({ "role": "system", "content": "S" }));
 
@@ -114,6 +134,19 @@ mod tests {
     }
 
     #[test]
+    fn usage_of_tach_reasoning_khoi_completion_va_doc_cache() {
+        // completion_tokens = 40 gồm 25 reasoning → ra 15, nghĩ 25; tổng 100 + 15 + 25 = 140, không đếm đôi.
+        let payload = json!({ "usage": { "prompt_tokens": 100, "completion_tokens": 40, "prompt_tokens_details": { "cached_tokens": 60 }, "completion_tokens_details": { "reasoning_tokens": 25 } } });
+        let usage = usage_of(&payload).unwrap();
+        assert_eq!(usage, Usage { input: 100, cached: 60, output: 15, thoughts: 25 });
+        assert_eq!(usage.total(), 140);
+        assert_eq!(usage_of(&json!({ "usage": null })), None);
+        // Hub báo reasoning lớn hơn completion (lệch chuẩn) → không tràn số.
+        let odd = json!({ "usage": { "completion_tokens": 5, "completion_tokens_details": { "reasoning_tokens": 9 } } });
+        assert_eq!(usage_of(&odd).unwrap().output, 0);
+    }
+
+    #[test]
     fn parse_stream_gom_content_bo_reasoning() {
         let sse = format!(
             "data: {}\n\ndata: {}\n\ndata: [DONE]\n\n",
@@ -121,7 +154,15 @@ mod tests {
             json!({ "choices": [{ "delta": { "content": "Bản dịch" } }] }),
         );
         let out = parse_stream(Cursor::new(sse), &AtomicBool::new(false), &mut |_| {}).unwrap();
-        assert_eq!(out, "Bản dịch");
+        assert_eq!(out.text, "Bản dịch");
+        assert_eq!(out.usage, None);
+        let with_usage = format!(
+            "data: {}\n\ndata: {}\n\ndata: [DONE]\n\n",
+            json!({ "choices": [{ "delta": { "content": "x" } }] }),
+            json!({ "choices": [], "usage": { "prompt_tokens": 7, "completion_tokens": 1 } }),
+        );
+        let out = parse_stream(Cursor::new(with_usage), &AtomicBool::new(false), &mut |_| {}).unwrap();
+        assert_eq!(out.usage, Some(Usage { input: 7, cached: 0, output: 1, thoughts: 0 }));
         let err = format!("data: {}\n\n", json!({ "error": { "message": "quota" } }));
         assert_eq!(
             parse_stream(Cursor::new(err), &AtomicBool::new(false), &mut |_| {}),

@@ -246,12 +246,18 @@ mod tests {
             _: &str,
             _: &std::sync::atomic::AtomicBool,
             _: &mut dyn FnMut(usize),
-        ) -> Result<String, qt_ai_core::api::ApiError> {
+        ) -> Result<qt_ai_core::api::Generated, qt_ai_core::api::ApiError> {
             unreachable!()
         }
-        fn complete_json(&self, _: qt_ai_core::api::ApiStep, _: &str, user: &str, _: &AtomicBool) -> Result<String, qt_ai_core::api::ApiError> {
+        fn complete_json(
+            &self,
+            _: qt_ai_core::api::ApiStep,
+            _: &str,
+            user: &str,
+            _: &AtomicBool,
+        ) -> Result<qt_ai_core::api::Generated, qt_ai_core::api::ApiError> {
             assert!(user.contains("第一章"), "prompt phải kèm chương raw");
-            Ok(self.0.clone())
+            Ok(qt_ai_core::api::Generated::text(self.0.clone()))
         }
     }
 

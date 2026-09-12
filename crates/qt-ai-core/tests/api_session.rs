@@ -1,5 +1,5 @@
 //! Vòng dịch API trên tempdir với model giả (không HTTP).
-use qt_ai_core::api::{ApiError, ApiStep, TextModel};
+use qt_ai_core::api::{ApiError, ApiStep, Generated, TextModel, Usage};
 use qt_ai_core::api_session::*;
 use qt_ai_core::commands::init::run_init;
 use qt_ai_core::session::{SessionEvent, StopReason};
@@ -35,6 +35,8 @@ struct FakeModel {
     calls: Mutex<Vec<(String, String)>>,
     glossary_json: String,
     wait_cancel: bool,
+    /// Usage giả mỗi lượt (None = hub không báo).
+    usage: Option<Usage>,
 }
 
 impl FakeModel {
@@ -44,6 +46,7 @@ impl FakeModel {
             calls: Mutex::new(vec![]),
             glossary_json: r#"{"entries":[]}"#.to_string(),
             wait_cancel: false,
+            usage: None,
         })
     }
     fn calls(&self) -> Vec<(String, String)> {
@@ -55,7 +58,7 @@ impl TextModel for FakeModel {
     fn label(&self) -> String {
         "Fake fake-model".into()
     }
-    fn generate(&self, _: ApiStep, system: &str, user: &str, cancel: &AtomicBool, on_progress: &mut dyn FnMut(usize)) -> Result<String, ApiError> {
+    fn generate(&self, _: ApiStep, system: &str, user: &str, cancel: &AtomicBool, on_progress: &mut dyn FnMut(usize)) -> Result<Generated, ApiError> {
         self.calls.lock().unwrap().push((system.to_string(), user.to_string()));
         if self.wait_cancel {
             while !cancel.load(Ordering::SeqCst) {
@@ -64,10 +67,11 @@ impl TextModel for FakeModel {
             return Err(ApiError::Cancelled);
         }
         on_progress(10);
-        self.script.lock().unwrap().pop_front().unwrap_or_else(|| Ok(good()))
+        let text = self.script.lock().unwrap().pop_front().unwrap_or_else(|| Ok(good()))?;
+        Ok(Generated { text, usage: self.usage })
     }
-    fn complete_json(&self, _: ApiStep, _system: &str, _user: &str, _cancel: &AtomicBool) -> Result<String, ApiError> {
-        Ok(self.glossary_json.clone())
+    fn complete_json(&self, _: ApiStep, _system: &str, _user: &str, _cancel: &AtomicBool) -> Result<Generated, ApiError> {
+        Ok(Generated { text: self.glossary_json.clone(), usage: self.usage })
     }
 }
 
@@ -188,6 +192,74 @@ fn ban_soat_y_het_ban_cu_thi_chot_kem_canh_bao_ngay_khong_dot_them_vong() {
     let lines = logs(&events.lock().unwrap());
     assert!(lines.iter().any(|l| l.contains("model giữ nguyên")), "{lines:?}");
     assert!(lines.iter().any(|l| l.contains("soát 1 lần, 1 cảnh báo")), "{lines:?}");
+}
+
+#[test]
+fn log_token_tung_luot_va_tong_khi_chot() {
+    let dir = story(1);
+    let bad = format!("[[1]] Anh ấy ngẩng đầu nhìn về phía tòa tháp cao ở nơi xa.\n\n[[2]] {GOOD_2}");
+    let mut model = FakeModel::new(vec![Ok(bad), Ok(good())]);
+    Arc::get_mut(&mut model).unwrap().usage = Some(Usage { input: 1000, cached: 600, output: 200, thoughts: 50 });
+    let (sink, events) = collect();
+    let handle = start_api_session(config(dir.path()), model.clone(), sink).unwrap();
+    assert_eq!(handle.join(), StopReason::Finished);
+    let lines = logs(&events.lock().unwrap());
+    assert!(lines.iter().any(|l| l == "0001: dịch — vào 1.0k (cache 600) · ra 200 · nghĩ 50"), "{lines:?}");
+    assert!(lines.iter().any(|l| l.starts_with("0001: trích glossary — vào")), "{lines:?}");
+    assert!(lines.iter().any(|l| l.starts_with("0001: soát lần 1 — vào")), "{lines:?}");
+    // 3 lượt × 1250 token = 3750 → "3.8k".
+    assert!(lines.iter().any(|l| l.contains("0001: chốt (soát 1 lần, 0 cảnh báo, +0 glossary) · 3.8k token")), "{lines:?}");
+}
+
+#[test]
+fn hub_khong_bao_usage_thi_khong_log_token() {
+    let dir = story(1);
+    let model = FakeModel::new(vec![]);
+    let (sink, events) = collect();
+    let handle = start_api_session(config(dir.path()), model, sink).unwrap();
+    assert_eq!(handle.join(), StopReason::Finished);
+    let lines = logs(&events.lock().unwrap());
+    assert!(lines.iter().any(|l| l.ends_with("+0 glossary)")), "{lines:?}");
+    assert!(!lines.iter().any(|l| l.contains(" token") || l.contains(" — vào")), "{lines:?}");
+}
+
+#[test]
+fn glossary_kem_luot_dich_thi_khong_goi_trich_rieng() {
+    let dir = story(1);
+    let with_block = format!(
+        "{}\n\n[[glossary]]\n{{\"entries\":[{{\"source\":\"赵静文\",\"target\":\"Triệu Tĩnh Văn\",\"category\":\"names\"}}]}}",
+        good()
+    );
+    let mut model = FakeModel::new(vec![Ok(with_block)]);
+    // Nếu app vẫn gọi lượt trích riêng thì glossary này sẽ lọt vào story.json.
+    Arc::get_mut(&mut model).unwrap().glossary_json =
+        r#"{"entries":[{"source":"高塔","target":"Cao Tháp","category":"places"}]}"#.to_string();
+    let (sink, events) = collect();
+    let handle = start_api_session(config(dir.path()), model.clone(), sink).unwrap();
+    assert_eq!(handle.join(), StopReason::Finished);
+    let calls = model.calls();
+    assert_eq!(calls.len(), 1);
+    assert!(calls[0].1.contains("[[glossary]]") && calls[0].1.contains("\"addressing\""), "payload dịch yêu cầu khối glossary");
+    let out = fs::read_to_string(dir.path().join("out").join("0001.txt")).unwrap();
+    assert_eq!(out, format!("{GOOD_1}\n\n{GOOD_2}\n"), "khối glossary không lọt vào bản dịch");
+    let story = load_story_config(&story_paths(dir.path())).unwrap();
+    assert_eq!(story.glossary["names"]["赵静文"], "Triệu Tĩnh Văn");
+    assert!(story.glossary.get("places").and_then(|p| p.get("高塔")).is_none(), "không có lượt trích riêng");
+    let lines = logs(&events.lock().unwrap());
+    assert!(lines.iter().any(|l| l.contains("glossary kèm lượt dịch — 1 đề xuất")), "{lines:?}");
+    assert!(lines.iter().any(|l| l.contains("+1 glossary")), "{lines:?}");
+}
+
+#[test]
+fn split_glossary_block_tach_khoi_cuoi_va_chiu_rao_markdown() {
+    let (text, entries) = split_glossary_block("[[1]] a\n\n[[2]] b\n\n[[glossary]]\n```json\n{\"entries\":[{\"source\":\"x\"}]}\n```");
+    assert_eq!(text, "[[1]] a\n\n[[2]] b");
+    assert_eq!(entries.unwrap()[0]["source"], "x");
+    let (text, entries) = split_glossary_block("[[1]] a\n\n[[glossary]]\nkhông phải json");
+    assert_eq!(text, "[[1]] a");
+    assert!(entries.is_none());
+    let (text, entries) = split_glossary_block("[[1]] a");
+    assert_eq!((text, entries.is_none()), ("[[1]] a", true));
 }
 
 #[test]

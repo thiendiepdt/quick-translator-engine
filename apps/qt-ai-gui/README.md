@@ -36,8 +36,14 @@ Chọn ở Cài đặt → **Động cơ dịch** (lưu trong `config.json` củ
 - **API key** — mặc định cho người dùng mới: app tự gọi model qua HTTP bằng key của bạn rồi chạy cùng
   vòng next → dịch → check → accept trong `qt-ai-core` (`api_session`). Không cần agy. Provider: **Gemini** chính chủ, hoặc
   **OpenAI-compatible** (OpenAI, hay hub riêng qua Base URL, ví dụ `http://192.0.2.10/v1` với model
-  `gemini-3.7-flash`). Gemini có công tắc Thinking; OpenAI có Mức nghĩ `reasoning_effort`
-  (none…max, mặc định high). Key lưu plain trong `config.json`.
+  `gemini-3.7-flash`). Mức nghĩ (Gemini `thinkingLevel`, OpenAI `reasoning_effort`) cấu hình riêng cho từng
+  bước: dịch, soát, trích glossary, AI điền hồ sơ. Key lưu plain trong `config.json`.
+
+Token mỗi chương (động cơ API): lượt dịch gửi base prompt + raw, model trả bản dịch kèm khối `[[glossary]]`
+nên không cần lượt trích riêng (model bỏ khối thì app mới gọi lượt trích như cũ). Chỉ soát khi check còn vi phạm; model
+giữ nguyên bản dịch thì chốt kèm cảnh báo ngay thay vì lặp đủ `maxReviewRounds`. Tab Log ghi token từng lượt
+("dịch — vào 13.5k (cache 9.9k) · ra 3.7k · nghĩ 2.1k") và tổng ở dòng "chốt (…) · 21.3k token" khi provider báo usage
+(OpenAI-compatible cần hub chuyển `stream_options.include_usage`; hub không báo thì không có dòng này).
 
 Glossary tự động và AI điền dùng lượt "JSON mode" (`response_format`/`responseMimeType`); hub không nhận JSON mode
 (400/404/422, trả rỗng) thì app tự gọi lại bằng lượt text thường rồi bóc object JSON ra — log trang Dịch ghi

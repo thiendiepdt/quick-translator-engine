@@ -1,7 +1,7 @@
 //! Gemini API chính chủ: streamGenerateContent (SSE) + generateContent (JSON). Port 1-1 từ qt-web.
 
 use crate::api::sse::read_sse;
-use crate::api::{ApiConfig, ApiError, ApiStep, MAX_OUTPUT_TOKENS};
+use crate::api::{ApiConfig, ApiError, ApiStep, Generated, Usage, MAX_OUTPUT_TOKENS};
 use serde_json::{json, Value};
 use std::io::BufRead;
 use std::sync::atomic::AtomicBool;
@@ -104,19 +104,35 @@ fn blocked_reason(payload: &Value) -> Option<String> {
     (reason != "STOP" && reason != "MAX_TOKENS").then(|| reason.to_string())
 }
 
+/// `usageMetadata` của response/chunk cuối: prompt, candidates, thoughts, cachedContent.
+pub fn usage_of(payload: &Value) -> Option<Usage> {
+    let meta = payload.get("usageMetadata")?;
+    let count = |key: &str| meta.get(key).and_then(Value::as_u64).unwrap_or(0);
+    Some(Usage {
+        input: count("promptTokenCount"),
+        cached: count("cachedContentTokenCount"),
+        output: count("candidatesTokenCount"),
+        thoughts: count("thoughtsTokenCount"),
+    })
+}
+
 pub fn parse_stream<R: BufRead>(
     reader: R,
     cancel: &AtomicBool,
     on_progress: &mut dyn FnMut(usize),
-) -> Result<String, ApiError> {
+) -> Result<Generated, ApiError> {
     let mut output = String::new();
     let mut blocked: Option<String> = None;
+    let mut usage: Option<Usage> = None;
     read_sse(reader, cancel, |payload| {
         if let Some(message) = payload.pointer("/error/message").and_then(Value::as_str) {
             return Err(ApiError::Stream(message.to_string()));
         }
         if let Some(reason) = blocked_reason(&payload) {
             blocked = Some(reason);
+        }
+        if let Some(found) = usage_of(&payload) {
+            usage = Some(found); // chunk cuối mang số tổng
         }
         let Some(parts) = payload.pointer("/candidates/0/content/parts").and_then(Value::as_array) else {
             return Ok(());
@@ -132,7 +148,7 @@ pub fn parse_stream<R: BufRead>(
         Ok(())
     })?;
     if !output.is_empty() {
-        return Ok(output);
+        return Ok(Generated { text: output, usage });
     }
     match blocked {
         Some(reason) => Err(ApiError::Blocked(reason)),
@@ -198,15 +214,23 @@ mod tests {
     }
 
     #[test]
+    fn usage_of_doc_usage_metadata() {
+        let payload = json!({ "usageMetadata": { "promptTokenCount": 13500, "cachedContentTokenCount": 9900, "candidatesTokenCount": 3700, "thoughtsTokenCount": 2100, "totalTokenCount": 19300 } });
+        assert_eq!(usage_of(&payload), Some(Usage { input: 13500, cached: 9900, output: 3700, thoughts: 2100 }));
+        assert_eq!(usage_of(&json!({ "candidates": [] })), None);
+    }
+
+    #[test]
     fn parse_stream_gom_text_bo_thought_va_bao_blocked() {
         let sse = format!(
             "data: {}\n\ndata: {}\n\n",
             json!({ "candidates": [{ "content": { "parts": [{ "text": "nghĩ", "thought": true }, { "text": "Xin " }] } }] }),
-            json!({ "candidates": [{ "content": { "parts": [{ "text": "chào" }] }, "finishReason": "STOP" }] }),
+            json!({ "candidates": [{ "content": { "parts": [{ "text": "chào" }] }, "finishReason": "STOP" }], "usageMetadata": { "promptTokenCount": 10, "candidatesTokenCount": 4, "thoughtsTokenCount": 6 } }),
         );
         let mut progress = Vec::new();
         let out = parse_stream(Cursor::new(sse), &AtomicBool::new(false), &mut |n| progress.push(n)).unwrap();
-        assert_eq!(out, "Xin chào");
+        assert_eq!(out.text, "Xin chào");
+        assert_eq!(out.usage, Some(Usage { input: 10, cached: 0, output: 4, thoughts: 6 }));
         assert_eq!(progress, vec![4, 8]);
 
         let blocked = format!("data: {}\n\n", json!({ "promptFeedback": { "blockReason": "PROHIBITED_CONTENT" } }));
