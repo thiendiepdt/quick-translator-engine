@@ -169,7 +169,7 @@ pub fn fill_story(
 ) -> std::result::Result<StoryConfig, ApiError> {
     // AI điền chạy một lượt từ dialog, chưa có nút huỷ → cờ luôn tắt.
     let output =
-        model.complete_json(ApiStep::Fill, FILL_SYSTEM_PROMPT, &build_fill_prompt(name, source_url, samples), &AtomicBool::new(false))?;
+        model.complete_json(ApiStep::Fill, FILL_SYSTEM_PROMPT, &build_fill_prompt(name, source_url, samples), &AtomicBool::new(false))?.text;
     let proposed = parse_fill_json(&output)?;
     Ok(merge_fill(current, &proposed, name, source_url))
 }
@@ -177,6 +177,7 @@ pub fn fill_story(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::api::Generated;
     use crate::story::{GenreNames, GenreSetting};
     use std::sync::Mutex;
 
@@ -189,13 +190,13 @@ mod tests {
         fn label(&self) -> String {
             "Fake".into()
         }
-        fn generate(&self, _: ApiStep, _: &str, _: &str, _: &AtomicBool, _: &mut dyn FnMut(usize)) -> std::result::Result<String, ApiError> {
+        fn generate(&self, _: ApiStep, _: &str, _: &str, _: &AtomicBool, _: &mut dyn FnMut(usize)) -> std::result::Result<Generated, ApiError> {
             unreachable!("fill chỉ dùng complete_json")
         }
-        fn complete_json(&self, step: ApiStep, system: &str, user: &str, _: &AtomicBool) -> std::result::Result<String, ApiError> {
+        fn complete_json(&self, step: ApiStep, system: &str, user: &str, _: &AtomicBool) -> std::result::Result<Generated, ApiError> {
             assert_eq!(step, ApiStep::Fill);
             self.calls.lock().unwrap().push((system.to_string(), user.to_string()));
-            Ok(self.reply.clone())
+            Ok(Generated::text(self.reply.clone()))
         }
     }
 
