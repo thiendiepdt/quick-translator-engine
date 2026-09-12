@@ -155,7 +155,6 @@ describe("AI translation post-processing", () => {
       "Hắn đặc ý tới đây.",
       "Giọng nói bi thê.",
       "Ánh mắt u thê.",
-      "Thôi thì bỏ qua.",
       "Hắn thật vô ngữ.",
       "Địch phương đã rút lui.",
     ].join("\n");
@@ -167,7 +166,6 @@ describe("AI translation post-processing", () => {
         "đặc ý → cố ý",
         "bi thê → bi thương",
         "u thê → u sầu",
-        "thôi thì → vậy thì / đã vậy",
         "vô ngữ → bó tay",
         "địch phương → quân địch",
       ]),
@@ -180,6 +178,11 @@ describe("AI translation post-processing", () => {
       "Hắn rút đao ra khỏi vỏ đao, sát ý ngưng tụ thành thực chất.",
       "Ngón tay ngọc thon dài, móng sơn màu đỏ.",
       "Chỉ nghe nói nàng có Thiên Sinh Kiếm Tâm.",
+      // Từ Việt hợp lệ từng bị rule đổi-từ bắt nhầm (từ nối Anh "so", nhức óc, xao động, thôi thì).
+      "Khác biệt một trời một vực! So với bên ngoài thì bên trong quả là tiên cảnh.",
+      "Âm thanh tựa núi gầm biển thét vang lên điếc tai nhức óc.",
+      "Ngay lúc tâm thần nàng đang xao động, góc phòng vang lên một tiếng thét.",
+      "Thôi thì bỏ qua, đợi lát nữa rồi tính.",
     ].join("\n");
 
     expect(checkAiTranslationViolations(text)).toEqual([]);

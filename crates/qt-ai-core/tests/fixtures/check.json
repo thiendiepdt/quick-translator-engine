@@ -6,7 +6,7 @@
         "message": "Dấu câu tiếng Trung còn sót → dùng dấu câu thường"
       },
       {
-        "pattern": "(^|[.!?]\\s+|[【(])[\"“']?(?:but|and|so|the|in|on|at|from|with)\\b",
+        "pattern": "(^|[.!?]\\s+|[【(])[\"“']?(?:but|and|the|in|on|at|from|with)\\b",
         "flags": "i",
         "message": "Từ nối tiếng Anh lọt vào bản dịch → dịch sang tiếng Việt hoặc chỉ giữ khi có căn cứ"
       },
@@ -101,16 +101,8 @@
         "message": "附身 → nương thân/bám vào"
       },
       {
-        "pattern": "nhận dạng",
-        "message": "nhận dạng → kiểm trắc"
-      },
-      {
         "pattern": "kho tàng|kho báu",
         "message": "kho tàng/báu → bảo khố"
-      },
-      {
-        "pattern": "xao động",
-        "message": "xao động → rung động"
       },
       {
         "pattern": "phát xạ",
@@ -131,10 +123,6 @@
       {
         "pattern": "lãnh tình",
         "message": "lãnh tình → cảm kích"
-      },
-      {
-        "pattern": "đợi lát nữa",
-        "message": "đợi lát nữa → chờ một hồi"
       },
       {
         "pattern": "đại động can qua",
@@ -170,15 +158,6 @@
         "pattern": "(?<!\\p{L})u thê(?!\\p{L})",
         "flags": "iu",
         "message": "u thê → u sầu"
-      },
-      {
-        "pattern": "\\bnhức óc\\b",
-        "message": "nhức óc → đau đầu"
-      },
-      {
-        "pattern": "(?<!\\p{L})thôi thì(?!\\p{L})",
-        "flags": "iu",
-        "message": "thôi thì → vậy thì / đã vậy"
       },
       {
         "pattern": "(?<!\\p{L})vô ngữ(?!\\p{L})",
@@ -282,7 +261,7 @@
         "message": "Dấu câu tiếng Trung còn sót → dùng dấu câu thường"
       },
       {
-        "pattern": "(^|[.!?]\\s+|[【(])[\"“']?(?:but|and|so|the|in|on|at|from|with)\\b",
+        "pattern": "(^|[.!?]\\s+|[【(])[\"“']?(?:but|and|the|in|on|at|from|with)\\b",
         "flags": "i",
         "message": "Từ nối tiếng Anh lọt vào bản dịch → dịch sang tiếng Việt hoặc chỉ giữ khi có căn cứ"
       },
@@ -348,14 +327,6 @@
         "message": "附身 → nương thân/bám vào"
       },
       {
-        "pattern": "nhận dạng",
-        "message": "nhận dạng → kiểm trắc"
-      },
-      {
-        "pattern": "xao động",
-        "message": "xao động → rung động"
-      },
-      {
         "pattern": "phát xạ",
         "message": "phát xạ → phóng ra"
       },
@@ -374,10 +345,6 @@
       {
         "pattern": "lãnh tình",
         "message": "lãnh tình → cảm kích"
-      },
-      {
-        "pattern": "đợi lát nữa",
-        "message": "đợi lát nữa → chờ một hồi"
       },
       {
         "pattern": "đại động can qua",
@@ -409,15 +376,6 @@
         "pattern": "(?<!\\p{L})u thê(?!\\p{L})",
         "flags": "iu",
         "message": "u thê → u sầu"
-      },
-      {
-        "pattern": "\\bnhức óc\\b",
-        "message": "nhức óc → đau đầu"
-      },
-      {
-        "pattern": "(?<!\\p{L})thôi thì(?!\\p{L})",
-        "flags": "iu",
-        "message": "thôi thì → vậy thì / đã vậy"
       },
       {
         "pattern": "(?<!\\p{L})vô ngữ(?!\\p{L})",
@@ -536,7 +494,7 @@
         "message": "Dấu câu tiếng Trung còn sót → dùng dấu câu thường"
       },
       {
-        "pattern": "(^|[.!?]\\s+|[【(])[\"“']?(?:but|and|so|the|in|on|at|from|with)\\b",
+        "pattern": "(^|[.!?]\\s+|[【(])[\"“']?(?:but|and|the|in|on|at|from|with)\\b",
         "flags": "i",
         "message": "Từ nối tiếng Anh lọt vào bản dịch → dịch sang tiếng Việt hoặc chỉ giữ khi có căn cứ"
       },
@@ -602,14 +560,6 @@
         "message": "附身 → nương thân/bám vào"
       },
       {
-        "pattern": "nhận dạng",
-        "message": "nhận dạng → kiểm trắc"
-      },
-      {
-        "pattern": "xao động",
-        "message": "xao động → rung động"
-      },
-      {
         "pattern": "phát xạ",
         "message": "phát xạ → phóng ra"
       },
@@ -628,10 +578,6 @@
       {
         "pattern": "lãnh tình",
         "message": "lãnh tình → cảm kích"
-      },
-      {
-        "pattern": "đợi lát nữa",
-        "message": "đợi lát nữa → chờ một hồi"
       },
       {
         "pattern": "đại động can qua",
@@ -663,15 +609,6 @@
         "pattern": "(?<!\\p{L})u thê(?!\\p{L})",
         "flags": "iu",
         "message": "u thê → u sầu"
-      },
-      {
-        "pattern": "\\bnhức óc\\b",
-        "message": "nhức óc → đau đầu"
-      },
-      {
-        "pattern": "(?<!\\p{L})thôi thì(?!\\p{L})",
-        "flags": "iu",
-        "message": "thôi thì → vậy thì / đã vậy"
       },
       {
         "pattern": "(?<!\\p{L})vô ngữ(?!\\p{L})",

@@ -155,8 +155,10 @@ fn vi_pham_rule_thi_soat_tren_draft_co_nhan_roi_accept() {
 fn ban_soat_te_hon_thi_bo_va_het_vong_chot_kem_canh_bao() {
     let dir = story(1);
     let bad = format!("[[1]] Anh ấy ngẩng đầu nhìn về phía tòa tháp cao ở nơi xa.\n\n[[2]] {GOOD_2}");
-    // Ba vòng soát đều trả bản mất nhãn / vẫn lỗi → chốt kèm cảnh báo, không bao giờ treo.
-    let model = FakeModel::new(vec![Ok(bad.clone()), Ok("không có nhãn".into()), Ok(bad.clone()), Ok(bad.clone())]);
+    // Ba vòng soát đều trả bản mất nhãn / đổi chữ nhưng vẫn lỗi → chốt kèm cảnh báo, không bao giờ treo.
+    let bad2 = bad.replace("Anh ấy", "Cô ấy");
+    let bad3 = bad.replace("Anh ấy", "Chị ấy");
+    let model = FakeModel::new(vec![Ok(bad.clone()), Ok("không có nhãn".into()), Ok(bad2), Ok(bad3)]);
     let (sink, _) = collect();
     let handle = start_api_session(config(dir.path()), model.clone(), sink).unwrap();
     assert_eq!(handle.join(), StopReason::Finished);
@@ -165,6 +167,27 @@ fn ban_soat_te_hon_thi_bo_va_het_vong_chot_kem_canh_bao() {
     assert_eq!(state.chapters["0001"].review_round, 3);
     assert!(state.chapters["0001"].warnings.as_ref().unwrap()[0].contains("Đại từ sai"));
     assert_eq!(model.calls().len(), 4);
+}
+
+#[test]
+fn ban_soat_y_het_ban_cu_thi_chot_kem_canh_bao_ngay_khong_dot_them_vong() {
+    let dir = story(1);
+    // "não hải" dính rule trung lập; model xét ngữ cảnh và giữ nguyên → lặp thêm chỉ tốn tiền.
+    let bad = format!("[[1]] Trong não hải hắn hiện lên tòa tháp cao.\n\n[[2]] {GOOD_2}");
+    let model = FakeModel::new(vec![Ok(bad.clone()), Ok(bad.clone())]);
+    let (sink, events) = collect();
+    let handle = start_api_session(config(dir.path()), model.clone(), sink).unwrap();
+    assert_eq!(handle.join(), StopReason::Finished);
+    assert_eq!(model.calls().len(), 2, "dịch + đúng một lượt soát: {:?}", model.calls().len());
+    let state = load_state(&story_paths(dir.path())).unwrap();
+    assert_eq!(state.chapters["0001"].status, ChapterStatus::Done);
+    assert_eq!(state.chapters["0001"].review_round, 1);
+    assert!(state.chapters["0001"].warnings.as_ref().unwrap()[0].contains("não hải"));
+    let out = fs::read_to_string(dir.path().join("out").join("0001.txt")).unwrap();
+    assert!(out.starts_with("Trong não hải hắn"));
+    let lines = logs(&events.lock().unwrap());
+    assert!(lines.iter().any(|l| l.contains("model giữ nguyên")), "{lines:?}");
+    assert!(lines.iter().any(|l| l.contains("soát 1 lần, 1 cảnh báo")), "{lines:?}");
 }
 
 #[test]

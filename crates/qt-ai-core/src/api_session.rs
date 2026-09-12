@@ -192,8 +192,16 @@ fn harvest_glossary(chapter: &Chapter, paths: &StoryPaths, raw: &str, draft: &[S
     write_text(&work_file(paths, id, WorkKind::Glossary), &format!("{}\n", json!({ "entries": entries })))
 }
 
+/// Kết quả một vòng soát: bản nháp đã đổi (hoặc bản soát bị bỏ) / model xét xong và giữ nguyên toàn bộ.
+#[derive(Debug, PartialEq, Eq)]
+enum ReviewOutcome {
+    Changed,
+    Kept,
+}
+
 /// Soát tối thiểu theo danh sách vấn đề của check; chỉ nhận bản soát khi còn đủ nhãn và ít vi phạm hơn.
-fn review(chapter: &Chapter, round: u32, draft: &mut [String], issues: &[String]) -> std::result::Result<(), ApiError> {
+/// Model trả y hệt bản cũ nghĩa là đã xét từng vi phạm và thấy đúng ngữ cảnh — lặp thêm chỉ tốn tiền.
+fn review(chapter: &Chapter, round: u32, draft: &mut [String], issues: &[String]) -> std::result::Result<ReviewOutcome, ApiError> {
     let (id, log, story) = (chapter.id, chapter.log, chapter.story);
     let list = issues.iter().map(|issue| format!("- {issue}")).collect::<Vec<_>>().join("\n");
     let user = format!(
@@ -206,21 +214,25 @@ Giữ nguyên toàn bộ chữ, thứ tự câu, dấu câu và ngắt đoạn k
     let output = generate(chapter, ApiStep::Review, &format!("soát lần {round}"), REVIEW_SYSTEM_PROMPT, &user)?;
     let Some(reviewed) = parse_labeled_translation(&output, draft.len()) else {
         log(format!("{id}: bản soát mất nhãn — bỏ"));
-        return Ok(());
+        return Ok(ReviewOutcome::Changed);
     };
     if reviewed.iter().any(Option::is_none) {
         log(format!("{id}: bản soát thiếu đoạn — bỏ"));
-        return Ok(());
+        return Ok(ReviewOutcome::Changed);
     }
     let reviewed: Vec<String> = reviewed.into_iter().flatten().collect();
+    if reviewed.iter().map(|p| p.trim()).eq(draft.iter().map(|p| p.trim())) {
+        log(format!("{id}: model giữ nguyên bản dịch (vi phạm đúng ngữ cảnh) — chốt kèm cảnh báo"));
+        return Ok(ReviewOutcome::Kept);
+    }
     let before = check_violations(&final_text(draft), &story.check_rules, story.genre.setting).len();
     let after = check_violations(&final_text(&reviewed), &story.check_rules, story.genre.setting).len();
     if after >= before {
         log(format!("{id}: bản soát không giảm vi phạm ({before} → {after}) — bỏ"));
-        return Ok(());
+        return Ok(ReviewOutcome::Changed);
     }
     draft.clone_from_slice(&reviewed);
-    Ok(())
+    Ok(ReviewOutcome::Changed)
 }
 
 /// Dịch một chương đang ở trạng thái translating tới khi accept/error. Lỗi API trả về nguyên để
@@ -273,8 +285,15 @@ pub fn translate_chapter(
             if chars_no_ws(&again) > chars_no_ws(&draft) {
                 draft = again;
             }
-        } else if !check.violations.is_empty() {
-            review(&chapter, rounds, &mut draft, &check.issues)?;
+        } else if review(&chapter, rounds, &mut draft, &check.issues)? == ReviewOutcome::Kept {
+            // Đủ đoạn, đủ dài, chỉ còn vi phạm rule mà model đã xét và giữ → chốt kèm cảnh báo ngay,
+            // không đốt thêm vòng soát y hệt.
+            let accepted = run_accept(root, id, true)?;
+            return Ok(ChapterOutcome::Accepted {
+                review_rounds: rounds,
+                warnings: accepted.warnings.len(),
+                added_glossary: accepted.added_glossary,
+            });
         }
         write_draft(&paths, id, &draft)?;
     }

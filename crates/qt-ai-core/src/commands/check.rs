@@ -81,6 +81,16 @@ fn char_count_no_ws(text: &str) -> usize {
 }
 
 pub fn run_check(root: &Path, id: &str) -> Result<CheckResult> {
+    check_chapter(root, id, true)
+}
+
+/// Chấm bản nháp mà không ghi gì (không tăng vòng soát, không ghi review.md, không escalate) —
+/// dành cho accept, vì accept chỉ cần danh sách vấn đề để ghi warnings.
+pub fn run_check_readonly(root: &Path, id: &str) -> Result<CheckResult> {
+    check_chapter(root, id, false)
+}
+
+fn check_chapter(root: &Path, id: &str, record: bool) -> Result<CheckResult> {
     let paths = story_paths(&resolve_root(root));
     let mut state = load_state(&paths)?;
     let chapter = state
@@ -118,7 +128,13 @@ pub fn run_check(root: &Path, id: &str) -> Result<CheckResult> {
     let mut escalated_to_error = false;
     let mut review_path = None;
 
-    if !clean {
+    if !clean && !record {
+        // Chỉ chấm: đủ đoạn, đủ dài, còn vi phạm rule → coi như qua kèm cảnh báo (accept --force sẽ ghi).
+        if missing.is_empty() && !too_short {
+            pass = true;
+            accepted_with_warnings = true;
+        }
+    } else if !clean {
         if chapter.review_round >= state.settings.max_review_rounds {
             if missing.is_empty() && !too_short {
                 // Giống web: hết vòng soát mà chỉ còn vi phạm rule thì vẫn chốt, kèm cảnh báo.
@@ -171,15 +187,17 @@ pub fn run_check(root: &Path, id: &str) -> Result<CheckResult> {
         }
     }
 
-    let review_round = state.chapters.get(id).map(|c| c.review_round).unwrap_or(chapter.review_round);
-    let report = serde_json::json!({
-        "pass": pass, "acceptedWithWarnings": accepted_with_warnings, "missing": missing,
-        "violationCount": violations.len(), "ratio": ratio, "reviewRound": review_round, "checkedAt": now_ms(),
-    });
-    write_text(
-        &work_file(&paths, id, WorkKind::Check),
-        &format!("{}\n", serde_json::to_string_pretty(&report).unwrap()),
-    )?;
+    if record {
+        let review_round = state.chapters.get(id).map(|c| c.review_round).unwrap_or(chapter.review_round);
+        let report = serde_json::json!({
+            "pass": pass, "acceptedWithWarnings": accepted_with_warnings, "missing": missing,
+            "violationCount": violations.len(), "ratio": ratio, "reviewRound": review_round, "checkedAt": now_ms(),
+        });
+        write_text(
+            &work_file(&paths, id, WorkKind::Check),
+            &format!("{}\n", serde_json::to_string_pretty(&report).unwrap()),
+        )?;
+    }
 
     Ok(CheckResult { pass, missing, violations, ratio, accepted_with_warnings, issues, escalated_to_error, review_path })
 }
