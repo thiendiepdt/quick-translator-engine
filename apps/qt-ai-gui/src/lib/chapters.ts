@@ -73,3 +73,8 @@ export function gapsBeforeFrontier(rows: ChapterRow[]): FrontierGaps | null {
     .filter(({ row }) => row.status !== "done" && row.status !== "translating");
   return gaps.length > 0 ? { frontier: { ordinal: last + 1, id: rows[last].id }, gaps } : null;
 }
+
+/** Thông điệp sau khi xoá chương, dùng chung cho xoá lẻ và xoá khoảng. */
+export function describeDelete(removed: number, keptOutputs: number): string {
+  return `Đã xoá ${removed} chương` + (keptOutputs > 0 ? ` (${keptOutputs} bản dịch trong out/ giữ nguyên)` : "");
+}

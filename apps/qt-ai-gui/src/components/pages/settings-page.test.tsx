@@ -59,12 +59,15 @@ describe("SettingsPage · Động cơ dịch", () => {
 
     await user.click(screen.getByRole("radio", { name: "API key" }));
     expect(screen.getByLabelText("API key Google AI")).toHaveAttribute("type", "password");
-    expect(screen.getByLabelText("Thinking (Gemini 3.x: high ↔ minimal)")).toBeInTheDocument();
+    // Bảng mức nghĩ theo bước: mặc định dịch high, trích glossary low.
+    expect(screen.getByLabelText("Mức nghĩ Dịch (kể cả dịch lại, bù đoạn)")).toHaveTextContent("high");
+    expect(screen.getByLabelText("Mức nghĩ Trích glossary")).toHaveTextContent("low");
 
     await user.click(screen.getByRole("radio", { name: "OpenAI-compatible" }));
     expect(screen.queryByLabelText("API key Google AI")).not.toBeInTheDocument();
     expect(screen.getByLabelText("API key")).toBeInTheDocument();
-    expect(screen.getByLabelText("Mức reasoning OpenAI")).toHaveTextContent("high");
+    expect(screen.getByLabelText("Mức nghĩ Soát vi phạm")).toHaveTextContent("high");
+    expect(screen.getByLabelText("Mức nghĩ AI điền hồ sơ")).toHaveTextContent("high");
     expect(screen.getByPlaceholderText("https://api.openai.com/v1")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Lưu App + Truyện này" })).toBeEnabled();
   });
@@ -96,7 +99,7 @@ describe("SettingsPage · Động cơ dịch", () => {
     expect(screen.getByText("Có thay đổi chưa lưu.")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Hoàn tác" }));
-    expect(parallel).toHaveValue(2);
+    expect(parallel).toHaveValue(20);
     expect(screen.getByRole("button", { name: "Lưu App + Truyện này" })).toBeDisabled();
   });
 
@@ -127,7 +130,11 @@ describe("SettingsPage · Động cơ dịch", () => {
       config: {
         ...config,
         engine: "api",
-        api: { ...config.api, provider: "openai", openai: { apiKey: "sk-hub", model: "gemini-3.7-flash", baseUrl: "http://192.0.2.10/v1" } },
+        api: {
+          ...config.api,
+          provider: "openai",
+          openai: { ...config.api.openai, apiKey: "sk-hub", model: "gemini-3.7-flash", baseUrl: "http://192.0.2.10/v1" },
+        },
       },
     });
     render(<SettingsPage />);

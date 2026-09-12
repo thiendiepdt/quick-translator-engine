@@ -50,28 +50,40 @@ describe("schema", () => {
     const parsed = appConfigSchema.parse({ agyPath: null, model: null, maxSessions: 50, recent: [] });
     expect(parsed.engine).toBe("api");
     expect(parsed.libraryRoot).toBeNull();
+    const effort = { translate: "high", review: "high", glossary: "low", fill: "high" };
     expect(parsed.api).toEqual({
       provider: "gemini",
-      gemini: { apiKey: "", model: "gemini-3.7-flash", baseUrl: "" },
-      openai: { apiKey: "", model: "gpt-5.6-sol", baseUrl: "" },
-      thinking: true,
-      reasoningEffort: "high",
+      gemini: { apiKey: "", model: "gemini-3.7-flash", baseUrl: "", effort },
+      openai: { apiKey: "", model: "gpt-5.6-sol", baseUrl: "", effort },
     });
+    // Config cũ còn thinking/reasoningEffort chung: zod bỏ qua (Rust đã chuyển sang effort khi load).
     const api = appConfigSchema.parse({
       engine: "api",
-      api: { provider: "openai", openai: { apiKey: "sk-hub", baseUrl: "http://192.0.2.10/v1" }, reasoningEffort: "xhigh" },
+      api: {
+        provider: "openai",
+        openai: { apiKey: "sk-hub", baseUrl: "http://192.0.2.10/v1", effort: { review: "xhigh" } },
+        thinking: false,
+        reasoningEffort: "xhigh",
+      },
       agyPath: null,
       model: null,
       maxSessions: 50,
       recent: [],
     });
     expect(api.engine).toBe("api");
-    expect(api.api.openai).toEqual({ apiKey: "sk-hub", model: "", baseUrl: "http://192.0.2.10/v1" });
+    expect(api.api.openai).toEqual({
+      apiKey: "sk-hub",
+      model: "",
+      baseUrl: "http://192.0.2.10/v1",
+      effort: { ...effort, review: "xhigh" },
+    });
     expect(api.api.gemini.model).toBe("gemini-3.7-flash");
+    expect("thinking" in api.api).toBe(false);
     expect(() => appConfigSchema.parse({ engine: "cloud", agyPath: null, model: null, maxSessions: 1, recent: [] })).toThrow();
-    expect(() =>
-      appConfigSchema.parse({ api: { reasoningEffort: "ultra" }, agyPath: null, model: null, maxSessions: 1, recent: [] }),
-    ).toThrow();
+    const bad = (api: unknown) => appConfigSchema.parse({ api, agyPath: null, model: null, maxSessions: 1, recent: [] });
+    expect(() => bad({ openai: { effort: { translate: "ultra" } } })).toThrow();
+    expect(() => bad({ gemini: { effort: { translate: "xhigh" } } })).toThrow(); // xhigh chỉ có ở OpenAI
+    expect(bad({ gemini: { effort: { glossary: "low" } } }).api.gemini.effort.glossary).toBe("low");
   });
 
   it("parse stopped api_failed", () => {

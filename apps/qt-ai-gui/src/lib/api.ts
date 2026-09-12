@@ -13,6 +13,7 @@ import {
   importOutcomeSchema,
   recentSummarySchema,
   retryRangeOutcomeSchema,
+  deleteOutcomeSchema,
   sessionStatusSchema,
   storyConfigSchema,
   storyDefaultsSchema,
@@ -76,6 +77,9 @@ export const saveChapterOutput = (root: string, id: string, text: string) =>
   call("save_chapter_output", { root, id, text }, noop);
 export const chaptersRetry = (root: string, range: { from?: string; to?: string }) =>
   call("chapters_retry", { root, from: range.from ?? null, to: range.to ?? null }, (v) => retryRangeOutcomeSchema.parse(v));
+/** Xoá hẳn chương: gỡ state, xoá raw/ + work/; out/<id>.txt giữ nguyên (keptOutputs). */
+export const chaptersDelete = (root: string, ids: string[]) =>
+  call("chapters_delete", { root, ids }, (v) => deleteOutcomeSchema.parse(v));
 export const chapterSkip = (root: string, id: string, reason: string) =>
   call("chapter_skip", { root, id, reason }, noop);
 export const chapterForceAccept = (root: string, id: string) =>

@@ -2,7 +2,7 @@
 //! (provider "openai"): max_completion_tokens, reasoning_effort, đọc reasoning_content/reasoning.
 
 use crate::api::sse::read_sse;
-use crate::api::{ApiConfig, ApiError, MAX_OUTPUT_TOKENS};
+use crate::api::{ApiConfig, ApiError, ApiStep, MAX_OUTPUT_TOKENS};
 use serde_json::{json, Value};
 use std::io::BufRead;
 use std::sync::atomic::AtomicBool;
@@ -22,26 +22,32 @@ fn messages(system: &str, user: &str) -> Value {
     json!([{ "role": "system", "content": system }, { "role": "user", "content": user }])
 }
 
-pub fn stream_body(config: &ApiConfig, system: &str, user: &str) -> Value {
+pub fn stream_body(config: &ApiConfig, step: ApiStep, system: &str, user: &str) -> Value {
     let mut body = json!({
         "model": config.model,
         "messages": messages(system, user),
         "max_completion_tokens": MAX_OUTPUT_TOKENS,
         "stream": true,
     });
-    if !config.reasoning_effort.is_empty() {
-        body["reasoning_effort"] = json!(config.reasoning_effort);
+    let effort = config.effort(step);
+    if !effort.is_empty() {
+        body["reasoning_effort"] = json!(effort);
     }
     body
 }
 
-/// GPT-5/o-series chỉ nhận temperature mặc định — không gửi.
-pub fn json_body(config: &ApiConfig, system: &str, user: &str) -> Value {
-    json!({
+/// GPT-5/o-series chỉ nhận temperature mặc định — không gửi. `reasoning_effort` chỉ khi bước có mức nghĩ.
+pub fn json_body(config: &ApiConfig, step: ApiStep, system: &str, user: &str) -> Value {
+    let mut body = json!({
         "model": config.model,
         "response_format": { "type": "json_object" },
         "messages": messages(system, user),
-    })
+    });
+    let effort = config.effort(step);
+    if !effort.is_empty() {
+        body["reasoning_effort"] = json!(effort);
+    }
+    body
 }
 
 pub fn parse_stream<R: BufRead>(
@@ -92,7 +98,7 @@ mod tests {
         let config = ApiConfig::resolve(ApiProvider::OpenAi, "sk-hub", "gemini-3.7-flash", "http://192.0.2.10/v1", true, "high");
         assert_eq!(url(&config), "http://192.0.2.10/v1/chat/completions");
         assert_eq!(headers(&config, true)[0], ("authorization", "Bearer sk-hub".to_string()));
-        let body = stream_body(&config, "S", "U");
+        let body = stream_body(&config, ApiStep::Translate, "S", "U");
         assert_eq!(body["model"], "gemini-3.7-flash");
         assert_eq!(body["reasoning_effort"], "high");
         assert_eq!(body["max_completion_tokens"], 65536);
@@ -101,8 +107,8 @@ mod tests {
         assert_eq!(body["messages"][0], json!({ "role": "system", "content": "S" }));
 
         let no_effort = ApiConfig::resolve(ApiProvider::OpenAi, "sk", "", "", true, "");
-        assert!(stream_body(&no_effort, "S", "U").get("reasoning_effort").is_none());
-        let json = json_body(&no_effort, "S", "U");
+        assert!(stream_body(&no_effort, ApiStep::Translate, "S", "U").get("reasoning_effort").is_none());
+        let json = json_body(&no_effort, ApiStep::Glossary, "S", "U");
         assert_eq!(json["response_format"]["type"], "json_object");
         assert!(json.get("temperature").is_none());
     }

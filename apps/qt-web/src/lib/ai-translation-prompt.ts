@@ -8,8 +8,8 @@ import type { GenreNames, GenreSetting, StoryGenre } from "@/lib/ai-story";
 
 // FNV-1a 64 của prompt cổ đại/Hán-Việt trước khi tách module (xem ai-translation-prompt.test.ts).
 // Đổi hash này chỉ khi cố ý sửa prompt ancient/han (lần gần nhất: gỡ dấu vết truyện riêng, bỏ ý lặp,
-// thêm kính ngữ/hậu tố tên, văn bản ngoài truyện, dấu câu, tượng thanh).
-export const LEGACY_BASE_PROMPT_FNV1A64 = "e0cb0de2a09eed05";
+// thêm kính ngữ/hậu tố tên, văn bản ngoài truyện, dấu câu, tượng thanh; bỏ 4 dòng tránh dùng bắt nhầm từ Việt hợp lệ).
+export const LEGACY_BASE_PROMPT_FNV1A64 = "5fa1f59f952516bd";
 
 const CORE_HEAD: string[] = [
   "Bạn là dịch giả tiểu thuyết Trung Quốc sang tiếng Việt. Nhiệm vụ của bạn là chuyển ngữ trung thành, không phải sáng tác lại hay biên tập nâng giọng.",
@@ -231,18 +231,14 @@ const CORE_VOCAB: string[] = [
   "| vô ý trung | trong lúc vô tình |",
   "| nhận dạng | kiểm trắc |",
   "| kho tàng / kho báu | bảo khố |",
-  "| xao động | rung động |",
   "| phát xạ | phóng ra |",
   "| thích dụng | áp dụng |",
   "| thúc động | thôi động |",
   "| tiền xa | vết xe đổ |",
   "| lãnh tình | cảm kích |",
-  "| đợi lát nữa | chờ một hồi |",
   "| đại động can qua | làm to chuyện |",
   "| nước thu | thu thủy |",
   "| là tính là | xem như |",
-  "| nhức óc | đau đầu |",
-  "| thôi thì | vậy thì / đã vậy |",
   "| vô ngữ | bó tay |",
   "| bãi liễu | thôi |",
   "| cư nhiên | lại / dám / không ngờ... lại / lược bỏ |",

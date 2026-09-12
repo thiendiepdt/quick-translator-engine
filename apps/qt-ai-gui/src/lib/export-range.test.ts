@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { previewRange } from "@/lib/export-range";
+import { idsInRange, previewRange } from "@/lib/export-range";
 import type { ChapterRow } from "@/lib/types";
 
 const rows: ChapterRow[] = ["0001", "0002", "0003", "0004"].map((id, i) => ({
@@ -23,5 +23,14 @@ describe("previewRange", () => {
   it("khoảng sai thì invalid", () => {
     expect(previewRange(rows, "0004", "0001").valid).toBe(false);
     expect(previewRange(rows, "9999", "").valid).toBe(false);
+  });
+});
+
+describe("idsInRange", () => {
+  it("lấy mọi mã trong khoảng kể cả chưa done; sai khoảng thì null", () => {
+    expect(idsInRange(rows, "0002", "0004")).toEqual(["0002", "0003", "0004"]);
+    expect(idsInRange(rows, "", "0002")).toEqual(["0001", "0002"]);
+    expect(idsInRange(rows, "0004", "0001")).toBeNull();
+    expect(idsInRange(rows, "9999", "")).toBeNull();
   });
 });

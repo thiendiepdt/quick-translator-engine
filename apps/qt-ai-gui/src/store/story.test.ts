@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { storySnapshotSchema } from "@/lib/schema";
+import { DEFAULT_STEP_EFFORTS, storySnapshotSchema } from "@/lib/schema";
 import type { StorySnapshot } from "@/lib/types";
 import {
   isRunning,
@@ -153,10 +153,8 @@ describe("openStory/closeStory", () => {
       engine: "agy" as const,
       api: {
         provider: "gemini" as const,
-        gemini: { apiKey: "", model: "", baseUrl: "" },
-        openai: { apiKey: "", model: "", baseUrl: "" },
-        thinking: true,
-        reasoningEffort: "high" as const,
+        gemini: { apiKey: "", model: "", baseUrl: "", effort: DEFAULT_STEP_EFFORTS },
+        openai: { apiKey: "", model: "", baseUrl: "", effort: DEFAULT_STEP_EFFORTS },
       },
       agyPath: null,
       model: null,

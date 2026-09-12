@@ -9,6 +9,8 @@ import { appConfigSchema } from "@/lib/schema";
 import { useStoryStore } from "@/store/story";
 
 vi.mock("@/lib/api", () => ({
+  chaptersDelete: vi.fn(),
+  chaptersRetry: vi.fn(),
   rescanStory: vi.fn(),
   sessionStart: vi.fn(),
   sessionStop: vi.fn(),
@@ -70,6 +72,17 @@ describe("TranslateToolbar · cảnh báo hổng chương", () => {
         ],
       } as never,
     });
+  });
+
+  it("nút Xoá… mở dialog xoá nhiều chương; đang chạy phiên thì khoá", async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<TranslateToolbar />);
+    await user.click(screen.getByRole("button", { name: "Xoá…" }));
+    expect(screen.getByRole("dialog", { name: "Xoá nhiều chương" })).toBeInTheDocument();
+    unmount();
+    useStoryStore.setState({ sessions: { [pathKey(ROOT)]: { status: "running", sessionNo: 1 } } });
+    render(<TranslateToolbar />);
+    expect(screen.getByRole("button", { name: "Xoá…" })).toBeDisabled();
   });
 
   it("báo chương chưa dịch đứng trước chương done cuối; bấm số thứ tự thì chọn chương đó", async () => {

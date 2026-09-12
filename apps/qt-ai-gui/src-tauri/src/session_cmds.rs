@@ -241,6 +241,7 @@ mod tests {
         }
         fn generate(
             &self,
+            _: qt_ai_core::api::ApiStep,
             _: &str,
             _: &str,
             _: &std::sync::atomic::AtomicBool,
@@ -248,7 +249,7 @@ mod tests {
         ) -> Result<String, qt_ai_core::api::ApiError> {
             unreachable!()
         }
-        fn complete_json(&self, _: &str, user: &str, _: &AtomicBool) -> Result<String, qt_ai_core::api::ApiError> {
+        fn complete_json(&self, _: qt_ai_core::api::ApiStep, _: &str, user: &str, _: &AtomicBool) -> Result<String, qt_ai_core::api::ApiError> {
             assert!(user.contains("第一章"), "prompt phải kèm chương raw");
             Ok(self.0.clone())
         }

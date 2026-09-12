@@ -53,6 +53,81 @@ impl ApiProvider {
     }
 }
 
+/// Bước gọi model — mỗi bước có mức nghĩ riêng trong `StepEfforts`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ApiStep {
+    /// Dịch, dịch lại, dịch bổ sung đoạn thiếu (stream).
+    Translate,
+    /// Soát vi phạm (stream).
+    Review,
+    /// Trích glossary (JSON).
+    Glossary,
+    /// AI điền hồ sơ truyện (JSON).
+    Fill,
+}
+
+impl ApiStep {
+    pub const ALL: [ApiStep; 4] = [ApiStep::Translate, ApiStep::Review, ApiStep::Glossary, ApiStep::Fill];
+
+    pub fn key(self) -> &'static str {
+        match self {
+            ApiStep::Translate => "translate",
+            ApiStep::Review => "review",
+            ApiStep::Glossary => "glossary",
+            ApiStep::Fill => "fill",
+        }
+    }
+}
+
+/// Mức nghĩ theo bước. Chuỗi rỗng = không gửi tham số (model tự quyết).
+/// Gemini: minimal|low|medium|high (3.x thinkingLevel; 2.5: minimal → budget 0, khác → -1).
+/// OpenAI: none|low|medium|high|xhigh|max → `reasoning_effort`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct StepEfforts {
+    pub translate: String,
+    pub review: String,
+    pub glossary: String,
+    pub fill: String,
+}
+
+impl Default for StepEfforts {
+    /// Dịch/soát và AI điền hồ sơ nghĩ cao; trích glossary chỉ là đối chiếu tên nên low cho nhanh, rẻ.
+    fn default() -> Self {
+        StepEfforts { translate: "high".to_string(), review: "high".to_string(), glossary: "low".to_string(), fill: "high".to_string() }
+    }
+}
+
+impl StepEfforts {
+    pub fn get(&self, step: ApiStep) -> &str {
+        match step {
+            ApiStep::Translate => &self.translate,
+            ApiStep::Review => &self.review,
+            ApiStep::Glossary => &self.glossary,
+            ApiStep::Fill => &self.fill,
+        }
+    }
+
+    /// Từ hai nút cũ (Gemini `thinking` bật/tắt, OpenAI `reasoning_effort`): áp cho dịch + soát,
+    /// hai lượt JSON lấy mặc định mới (glossary low, fill high).
+    pub fn legacy(provider: ApiProvider, thinking: bool, reasoning_effort: &str) -> Self {
+        let main = match provider {
+            ApiProvider::Gemini => if thinking { "high" } else { "minimal" }.to_string(),
+            ApiProvider::OpenAi => reasoning_effort.trim().to_string(),
+        };
+        StepEfforts { translate: main.clone(), review: main, ..Default::default() }
+    }
+
+    fn trimmed(&self) -> Self {
+        StepEfforts {
+            translate: self.translate.trim().to_string(),
+            review: self.review.trim().to_string(),
+            glossary: self.glossary.trim().to_string(),
+            fill: self.fill.trim().to_string(),
+        }
+    }
+}
+
 /// Cấu hình đã chốt cho một lượt gọi: model/base URL đã điền mặc định, key đã trim.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ApiConfig {
@@ -60,13 +135,12 @@ pub struct ApiConfig {
     pub api_key: String,
     pub model: String,
     pub base_url: String,
-    /// Gemini: thinkingLevel high ↔ minimal (2.5: budget -1 ↔ 0). OpenAI không dùng.
-    pub thinking: bool,
-    /// OpenAI: `reasoning_effort` (none…max); rỗng = không gửi.
-    pub reasoning_effort: String,
+    /// Mức nghĩ theo bước gọi.
+    pub effort: StepEfforts,
 }
 
 impl ApiConfig {
+    /// Dạng cũ hai nút chung (giữ cho test và caller cũ) — xem `StepEfforts::legacy`.
     pub fn resolve(
         provider: ApiProvider,
         api_key: &str,
@@ -75,6 +149,10 @@ impl ApiConfig {
         thinking: bool,
         reasoning_effort: &str,
     ) -> ApiConfig {
+        ApiConfig::with_efforts(provider, api_key, model, base_url, StepEfforts::legacy(provider, thinking, reasoning_effort))
+    }
+
+    pub fn with_efforts(provider: ApiProvider, api_key: &str, model: &str, base_url: &str, effort: StepEfforts) -> ApiConfig {
         let model = model.trim();
         let base_url = base_url.trim();
         ApiConfig {
@@ -84,9 +162,13 @@ impl ApiConfig {
             base_url: if base_url.is_empty() { provider.default_base_url() } else { base_url }
                 .trim_end_matches('/')
                 .to_string(),
-            thinking,
-            reasoning_effort: reasoning_effort.trim().to_string(),
+            effort: effort.trimmed(),
         }
+    }
+
+    /// Mức nghĩ của một bước; rỗng = không gửi.
+    pub fn effort(&self, step: ApiStep) -> &str {
+        self.effort.get(step)
     }
 
     pub fn label(&self) -> String {
@@ -128,16 +210,17 @@ impl ApiError {
 /// Model text: vòng dịch chỉ cần hai thao tác này nên test được bằng model giả không HTTP.
 pub trait TextModel: Send + Sync {
     fn label(&self) -> String;
-    /// Sinh text tự do (stream). `on_progress` nhận tổng ký tự output đã nhận tới lúc đó.
+    /// Sinh text tự do (stream). `step` chọn mức nghĩ; `on_progress` nhận tổng ký tự output đã nhận tới lúc đó.
     fn generate(
         &self,
+        step: ApiStep,
         system: &str,
         user: &str,
         cancel: &AtomicBool,
         on_progress: &mut dyn FnMut(usize),
     ) -> Result<String, ApiError>;
     /// Sinh JSON (không stream) cho tác vụ phụ như trích glossary. `cancel` bật → `ApiError::Cancelled`.
-    fn complete_json(&self, system: &str, user: &str, cancel: &AtomicBool) -> Result<String, ApiError>;
+    fn complete_json(&self, step: ApiStep, system: &str, user: &str, cancel: &AtomicBool) -> Result<String, ApiError>;
 }
 
 fn install_crypto_provider() {
@@ -320,6 +403,7 @@ impl TextModel for HttpModel {
 
     fn generate(
         &self,
+        step: ApiStep,
         system: &str,
         user: &str,
         cancel: &AtomicBool,
@@ -331,7 +415,7 @@ impl TextModel for HttpModel {
                 let response = self.send(
                     &gemini::stream_url(config),
                     &gemini::headers(config),
-                    &gemini::stream_body(config, system, user),
+                    &gemini::stream_body(config, step, system, user),
                     cancel,
                 )?;
                 gemini::parse_stream(BufReader::new(response), cancel, on_progress)
@@ -340,7 +424,7 @@ impl TextModel for HttpModel {
                 let response = self.send(
                     &openai::url(config),
                     &openai::headers(config, true),
-                    &openai::stream_body(config, system, user),
+                    &openai::stream_body(config, step, system, user),
                     cancel,
                 )?;
                 openai::parse_stream(BufReader::new(response), cancel, on_progress)
@@ -350,13 +434,13 @@ impl TextModel for HttpModel {
 
     /// JSON mode trước; hub/model không nhận JSON mode (400/404/422, trả rỗng, không phải JSON…) thì
     /// gọi lại bằng lượt text thường rồi bóc object JSON ra — glossary/AI điền không vì hub lạ mà câm.
-    fn complete_json(&self, system: &str, user: &str, cancel: &AtomicBool) -> Result<String, ApiError> {
-        match self.complete_json_strict(system, user, cancel) {
+    fn complete_json(&self, step: ApiStep, system: &str, user: &str, cancel: &AtomicBool) -> Result<String, ApiError> {
+        match self.complete_json_strict(step, system, user, cancel) {
             Ok(text) => Ok(text),
             Err(error) if error.is_transient() || matches!(error, ApiError::Blocked(_) | ApiError::Cancelled) => Err(error),
             Err(error) => {
                 let system = format!("{system}\n\nChỉ trả về đúng một JSON object hợp lệ, không giải thích, không markdown.");
-                let text = self.generate(&system, user, cancel, &mut |_| {})?;
+                let text = self.generate(step, &system, user, cancel, &mut |_| {})?;
                 extract_json_object(&text)
                     .ok_or_else(|| ApiError::BadOutput(format!("model không trả JSON (JSON mode lỗi: {error})")))
             }
@@ -365,15 +449,15 @@ impl TextModel for HttpModel {
 }
 
 impl HttpModel {
-    fn complete_json_strict(&self, system: &str, user: &str, cancel: &AtomicBool) -> Result<String, ApiError> {
+    fn complete_json_strict(&self, step: ApiStep, system: &str, user: &str, cancel: &AtomicBool) -> Result<String, ApiError> {
         let config = &self.config;
         let provider = config.provider.label();
         let (url, headers, body) = match config.provider {
             ApiProvider::Gemini => {
-                (gemini::json_url(config), gemini::headers(config), gemini::json_body(config, system, user))
+                (gemini::json_url(config), gemini::headers(config), gemini::json_body(config, step, system, user))
             }
             ApiProvider::OpenAi => {
-                (openai::url(config), openai::headers(config, false), openai::json_body(config, system, user))
+                (openai::url(config), openai::headers(config, false), openai::json_body(config, step, system, user))
             }
         };
         let text = self.send(&url, &headers, &body, cancel)?.read_all()?;

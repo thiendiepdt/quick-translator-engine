@@ -1,6 +1,7 @@
 //! State machine trên tempdir — tương đương bộ vitest của apps/qt-ai-cli.
 use qt_ai_core::commands::accept::run_accept;
 use qt_ai_core::commands::check::run_check;
+use qt_ai_core::commands::delete::run_delete;
 use qt_ai_core::commands::export::{run_export, ExportOptions};
 use qt_ai_core::commands::init::run_init;
 use qt_ai_core::commands::next::run_next;
@@ -183,7 +184,7 @@ fn retry_range_dich_lai_khoang_bo_qua_queued_giu_bak_va_all() {
 }
 
 #[test]
-fn init_go_chuong_raw_da_mat_tru_chuong_done_va_don_work() {
+fn init_go_chuong_raw_da_mat_ke_ca_done_giu_out_va_don_work() {
     let dir = make_story_dir(&[("0001", "第一章"), ("0002", "第二章"), ("0003", "第三章")]);
     let root = dir.path();
     run_init(root, "qt-ai").unwrap();
@@ -192,20 +193,53 @@ fn init_go_chuong_raw_da_mat_tru_chuong_done_va_don_work() {
     state.chapters.get_mut("0001").unwrap().status = ChapterStatus::Done;
     state.chapters.get_mut("0002").unwrap().status = ChapterStatus::Error;
     save_state(&paths, &state).unwrap();
+    fs::write(paths.out_dir.join("0001.txt"), "dịch 1").unwrap();
     fs::create_dir_all(&paths.work_dir).unwrap();
     fs::write(work_file(&paths, "0002", WorkKind::Draft), "nháp").unwrap();
-    // Đổi tên file raw (kiểu "chuong - 0001" → "chuong-0001"): 0001/0002/0003 mất, 0004 mới xuất hiện.
+    // Người dùng xoá/đổi tên file raw: 0001 (done)/0002/0003 mất, 0004 mới xuất hiện.
     for id in ["0001", "0002", "0003"] {
         fs::remove_file(root.join("raw").join(format!("{id}.txt"))).unwrap();
     }
     fs::write(root.join("raw").join("0004.txt"), "第四章").unwrap();
 
     let message = run_init(root, "qt-ai").unwrap();
-    assert!(message.contains("2 chương (1 mới thêm vào hàng đợi, 2 gỡ vì raw đã mất)"), "{message}");
+    assert!(message.contains("1 chương (1 mới thêm vào hàng đợi, 3 gỡ vì raw đã mất"), "{message}");
     let state = load_state(&paths).unwrap();
-    assert_eq!(state.chapters.keys().collect::<Vec<_>>(), vec!["0001", "0004"]);
-    assert_eq!(state.chapters["0001"].status, ChapterStatus::Done, "đã dịch xong thì giữ dù raw mất");
+    assert_eq!(state.chapters.keys().collect::<Vec<_>>(), vec!["0004"], "chương done raw mất cũng gỡ");
+    assert_eq!(fs::read_to_string(paths.out_dir.join("0001.txt")).unwrap(), "dịch 1", "out/ giữ nguyên");
     assert!(!work_file(&paths, "0002", WorkKind::Draft).exists(), "dọn work/ của chương bị gỡ");
+}
+
+#[test]
+fn delete_xoa_raw_work_va_state_giu_out_kiem_du_id_truoc() {
+    let dir = make_story_dir(&[("0001", "第一章"), ("0002", "第二章"), ("0003", "第三章")]);
+    let root = dir.path();
+    run_init(root, "qt-ai").unwrap();
+    let paths = story_paths(root);
+    let mut state = load_state(&paths).unwrap();
+    state.chapters.get_mut("0001").unwrap().status = ChapterStatus::Done;
+    save_state(&paths, &state).unwrap();
+    fs::write(paths.out_dir.join("0001.txt"), "dịch 1").unwrap();
+    fs::write(work_file(&paths, "0002", WorkKind::Draft), "nháp").unwrap();
+
+    // Thiếu một id → không xoá gì.
+    let err = run_delete(root, &["0002".to_string(), "9999".to_string()]).unwrap_err();
+    assert!(matches!(err, CoreError::StoryNotFound(ref m) if m.contains("9999")));
+    assert!(root.join("raw").join("0002.txt").exists());
+    assert!(matches!(run_delete(root, &[]), Err(CoreError::InvalidState(_))));
+
+    let outcome = run_delete(root, &["0002".to_string(), "0001".to_string()]).unwrap();
+    assert_eq!(outcome.removed, vec!["0001", "0002"], "theo thứ tự tự nhiên");
+    assert_eq!(outcome.kept_outputs, vec!["0001"]);
+    let state = load_state(&paths).unwrap();
+    assert_eq!(state.chapters.keys().collect::<Vec<_>>(), vec!["0003"]);
+    assert!(!root.join("raw").join("0001.txt").exists());
+    assert!(!root.join("raw").join("0002.txt").exists());
+    assert!(!work_file(&paths, "0002", WorkKind::Draft).exists());
+    assert_eq!(fs::read_to_string(paths.out_dir.join("0001.txt")).unwrap(), "dịch 1", "out/ giữ nguyên");
+    // Quét lại không mọc lại chương đã xoá vì raw đã mất.
+    run_init(root, "qt-ai").unwrap();
+    assert_eq!(load_state(&paths).unwrap().chapters.keys().collect::<Vec<_>>(), vec!["0003"]);
 }
 
 #[test]

@@ -1,4 +1,4 @@
-use crate::commands::check::{assemble_draft, run_check};
+use crate::commands::check::{assemble_draft, run_check_readonly};
 use crate::error::{CoreError, Result};
 use crate::glossary::{
     append_auto_glossary, collect_glossary_keys, resolve_auto_glossary_enabled, sanitize_extracted,
@@ -22,7 +22,8 @@ pub struct AcceptResult {
 
 pub fn run_accept(root: &Path, id: &str, force: bool) -> Result<AcceptResult> {
     let paths = story_paths(&resolve_root(root));
-    let check = run_check(root, id)?;
+    // Chỉ chấm, không đếm vòng soát: accept không phải một lượt soát.
+    let check = run_check_readonly(root, id)?;
     if !check.pass && !force {
         return Err(CoreError::InvalidState(format!(
             "Chương {id} chưa qua check (thiếu {} đoạn, {} vi phạm, ratio {:.2}) — sửa theo work/{id}.review.md hoặc dùng --force.",

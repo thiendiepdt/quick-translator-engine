@@ -15,7 +15,9 @@ export const promptEditorPlugins = [
   BasicMarksPlugin,
   HorizontalRulePlugin,
   ListPlugin,
-  TablePlugin,
+  // Bảng GFM không gộp ô; hơn nữa chế độ gộp đánh chỉ số ô theo `id` mà node đọc từ markdown không có id
+  // → thêm/xoá dòng, cột chạy sai. Tắt hẳn.
+  TablePlugin.configure({ options: { disableMerge: true } }),
   LinkPlugin,
   // Bảng, gạch ngang… là cú pháp GFM — thiếu remark-gfm thì "|" chỉ là text.
   MarkdownPlugin.configure({ options: { remarkPlugins: [remarkGfm] } }),

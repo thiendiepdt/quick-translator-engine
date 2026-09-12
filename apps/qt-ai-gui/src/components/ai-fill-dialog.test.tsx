@@ -35,7 +35,7 @@ const base = appConfigSchema.parse({ agyPath: null, model: null, maxSessions: 50
 const apiConfig = {
   ...base,
   engine: "api" as const,
-  api: { ...base.api, provider: "openai" as const, openai: { apiKey: "sk", model: "gemini-3.8-flash", baseUrl: "" } },
+  api: { ...base.api, provider: "openai" as const, openai: { ...base.api.openai, apiKey: "sk", model: "gemini-3.8-flash", baseUrl: "" } },
 };
 
 function renderDialog() {

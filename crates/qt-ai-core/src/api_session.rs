@@ -3,7 +3,7 @@
 //! (ai-translation-workspace.tsx) lên trên cùng state machine `commands::*` mà agy dùng, nên hai
 //! động cơ dùng chung folder truyện và đổi qua lại giữa chừng được.
 
-use crate::api::{ApiError, TextModel};
+use crate::api::{ApiError, ApiStep, TextModel};
 use crate::check::check_violations;
 use crate::commands::accept::run_accept;
 use crate::commands::check::run_check;
@@ -91,10 +91,10 @@ fn format_chars(count: usize) -> String {
     }
 }
 
-/// Gọi model và log tiến độ nhận stream thưa thớt.
-fn generate(chapter: &Chapter, step: &str, system: &str, user: &str) -> std::result::Result<String, ApiError> {
+/// Gọi model (mức nghĩ theo `step`) và log tiến độ nhận stream thưa thớt; `label` là tên bước trong log.
+fn generate(chapter: &Chapter, step: ApiStep, label: &str, system: &str, user: &str) -> std::result::Result<String, ApiError> {
     let (id, log) = (chapter.id, chapter.log);
-    log(format!("{id}: {step} ({})…", chapter.model.label()));
+    log(format!("{id}: {label} ({})…", chapter.model.label()));
     let mut last_log = Instant::now();
     let mut on_progress = |received: usize| {
         if last_log.elapsed() >= STREAM_LOG_INTERVAL {
@@ -102,7 +102,7 @@ fn generate(chapter: &Chapter, step: &str, system: &str, user: &str) -> std::res
             log(format!("{id}: đã nhận {} ký tự", format_chars(received)));
         }
     };
-    chapter.model.generate(system, user, chapter.cancel, &mut on_progress)
+    chapter.model.generate(step, system, user, chapter.cancel, &mut on_progress)
 }
 
 /// Bản draft có nhãn ghi ra work/<id>.draft.md — đúng dạng `assemble_draft` đọc.
@@ -130,6 +130,7 @@ fn repair_missing(chapter: &Chapter, draft: &mut [String], missing: &[usize]) ->
     }
     let output = generate(
         chapter,
+        ApiStep::Translate,
         &format!("dịch bổ sung {} đoạn", missing.len()),
         chapter.system,
         &labeled_repair_payload(chapter.paragraphs, missing),
@@ -149,12 +150,12 @@ fn repair_missing(chapter: &Chapter, draft: &mut [String], missing: &[usize]) ->
 fn translate_full(chapter: &Chapter) -> std::result::Result<Vec<String>, ApiError> {
     let paragraphs = chapter.paragraphs;
     let payload = labeled_source_payload(paragraphs);
-    let mut output = generate(chapter, "dịch", chapter.system, &payload)?;
+    let mut output = generate(chapter, ApiStep::Translate, "dịch", chapter.system, &payload)?;
     let mut parsed = parse_labeled_translation(&output, paragraphs.len());
     if parsed.is_none() {
         // Model bỏ hết nhãn — thử lại một lần rồi mới bó tay.
         (chapter.log)(format!("{}: model bỏ nhãn [[n]], dịch lại", chapter.id));
-        output = generate(chapter, "dịch lại", chapter.system, &payload)?;
+        output = generate(chapter, ApiStep::Translate, "dịch lại", chapter.system, &payload)?;
         parsed = parse_labeled_translation(&output, paragraphs.len());
     }
     let Some(parsed) = parsed else {
@@ -177,7 +178,7 @@ fn harvest_glossary(chapter: &Chapter, paths: &StoryPaths, raw: &str, draft: &[S
         .collect();
     exclude.sort();
     let user = json!({ "exclude": exclude, "raw": raw, "translation": final_text(draft) }).to_string();
-    let entries = match chapter.model.complete_json(GLOSSARY_EXTRACT_SYSTEM_PROMPT, &user, chapter.cancel) {
+    let entries = match chapter.model.complete_json(ApiStep::Glossary, GLOSSARY_EXTRACT_SYSTEM_PROMPT, &user, chapter.cancel) {
         Ok(text) => serde_json::from_str::<Value>(&text)
             .ok()
             .and_then(|value| value.get("entries").cloned().or(Some(value)))
@@ -191,8 +192,16 @@ fn harvest_glossary(chapter: &Chapter, paths: &StoryPaths, raw: &str, draft: &[S
     write_text(&work_file(paths, id, WorkKind::Glossary), &format!("{}\n", json!({ "entries": entries })))
 }
 
+/// Kết quả một vòng soát: bản nháp đã đổi (hoặc bản soát bị bỏ) / model xét xong và giữ nguyên toàn bộ.
+#[derive(Debug, PartialEq, Eq)]
+enum ReviewOutcome {
+    Changed,
+    Kept,
+}
+
 /// Soát tối thiểu theo danh sách vấn đề của check; chỉ nhận bản soát khi còn đủ nhãn và ít vi phạm hơn.
-fn review(chapter: &Chapter, round: u32, draft: &mut [String], issues: &[String]) -> std::result::Result<(), ApiError> {
+/// Model trả y hệt bản cũ nghĩa là đã xét từng vi phạm và thấy đúng ngữ cảnh — lặp thêm chỉ tốn tiền.
+fn review(chapter: &Chapter, round: u32, draft: &mut [String], issues: &[String]) -> std::result::Result<ReviewOutcome, ApiError> {
     let (id, log, story) = (chapter.id, chapter.log, chapter.story);
     let list = issues.iter().map(|issue| format!("- {issue}")).collect::<Vec<_>>().join("\n");
     let user = format!(
@@ -202,24 +211,28 @@ Giữ nguyên toàn bộ chữ, thứ tự câu, dấu câu và ngắt đoạn k
 Đoạn nào còn nguyên chữ Hán thì dịch đoạn đó theo đúng quy tắc.\n\n---\n\n{}",
         labeled_draft(draft)
     );
-    let output = generate(chapter, &format!("soát lần {round}"), REVIEW_SYSTEM_PROMPT, &user)?;
+    let output = generate(chapter, ApiStep::Review, &format!("soát lần {round}"), REVIEW_SYSTEM_PROMPT, &user)?;
     let Some(reviewed) = parse_labeled_translation(&output, draft.len()) else {
         log(format!("{id}: bản soát mất nhãn — bỏ"));
-        return Ok(());
+        return Ok(ReviewOutcome::Changed);
     };
     if reviewed.iter().any(Option::is_none) {
         log(format!("{id}: bản soát thiếu đoạn — bỏ"));
-        return Ok(());
+        return Ok(ReviewOutcome::Changed);
     }
     let reviewed: Vec<String> = reviewed.into_iter().flatten().collect();
+    if reviewed.iter().map(|p| p.trim()).eq(draft.iter().map(|p| p.trim())) {
+        log(format!("{id}: model giữ nguyên bản dịch (vi phạm đúng ngữ cảnh) — chốt kèm cảnh báo"));
+        return Ok(ReviewOutcome::Kept);
+    }
     let before = check_violations(&final_text(draft), &story.check_rules, story.genre.setting).len();
     let after = check_violations(&final_text(&reviewed), &story.check_rules, story.genre.setting).len();
     if after >= before {
         log(format!("{id}: bản soát không giảm vi phạm ({before} → {after}) — bỏ"));
-        return Ok(());
+        return Ok(ReviewOutcome::Changed);
     }
     draft.clone_from_slice(&reviewed);
-    Ok(())
+    Ok(ReviewOutcome::Changed)
 }
 
 /// Dịch một chương đang ở trạng thái translating tới khi accept/error. Lỗi API trả về nguyên để
@@ -272,8 +285,15 @@ pub fn translate_chapter(
             if chars_no_ws(&again) > chars_no_ws(&draft) {
                 draft = again;
             }
-        } else if !check.violations.is_empty() {
-            review(&chapter, rounds, &mut draft, &check.issues)?;
+        } else if review(&chapter, rounds, &mut draft, &check.issues)? == ReviewOutcome::Kept {
+            // Đủ đoạn, đủ dài, chỉ còn vi phạm rule mà model đã xét và giữ → chốt kèm cảnh báo ngay,
+            // không đốt thêm vòng soát y hệt.
+            let accepted = run_accept(root, id, true)?;
+            return Ok(ChapterOutcome::Accepted {
+                review_rounds: rounds,
+                warnings: accepted.warnings.len(),
+                added_glossary: accepted.added_glossary,
+            });
         }
         write_draft(&paths, id, &draft)?;
     }
