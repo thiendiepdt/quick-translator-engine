@@ -27,7 +27,8 @@ export function applyVersion(appDir, version) {
   written.push(replaceOnce(lockPath, topLevel, `  "version": "${version}"`, "version cấp gốc"));
   replaceOnce(
     lockPath,
-    /("": \{\n\s+"name": "[^"]*",\n\s+"version": )"[^"]*"/,
+    // npm trên Windows có thể ghi lock CRLF → chấp nhận cả \r\n.
+    /("": \{\r?\n\s+"name": "[^"]*",\r?\n\s+"version": )"[^"]*"/,
     `$1"${version}"`,
     'version của packages[""]',
   );

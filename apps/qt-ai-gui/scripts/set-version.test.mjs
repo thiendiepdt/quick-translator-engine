@@ -58,6 +58,18 @@ describe("applyVersion", () => {
     );
   });
 
+  it("package-lock.json xuống dòng CRLF (npm trên Windows) vẫn đổi được packages[\"\"]", () => {
+    const dir = fixture();
+    const lockPath = join(dir, "package-lock.json");
+    writeFileSync(lockPath, readFileSync(lockPath, "utf8").replace(/\n/g, "\r\n"));
+    applyVersion(dir, "0.2.0");
+    const text = readFileSync(lockPath, "utf8");
+    expect(text).toContain("\r\n");
+    const lock = JSON.parse(text);
+    expect(lock.version).toBe("0.2.0");
+    expect(lock.packages[""].version).toBe("0.2.0");
+  });
+
   it("đặt lại cùng version vẫn chạy, file không đổi", () => {
     const dir = fixture();
     const before = readFileSync(join(dir, "package-lock.json"), "utf8");
