@@ -50,11 +50,14 @@ import {
   GENRE_NAMES,
   GENRE_NAMES_LABELS,
   GENRE_SETTINGS,
+  GENRE_TONE_LABELS,
+  GENRE_TONES,
   GENRE_SETTING_LABELS,
   normalizeAiStoryConfig,
   storyGlossaryCategories,
   type AiStoryConfig,
   type GenreNames,
+  type GenreTone,
   type GenreSetting,
   type StoryGlossaryKey,
   parseAiStoryConfigJson,
@@ -357,6 +360,23 @@ export function AiStoryConfigDialog({
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">{GENRE_NAMES_LABELS[draft.genre.names].hint}</p>
+                  </div>
+                  <div className="col-span-2 grid gap-2">
+                    <Label htmlFor="story-genre-tone">Giọng văn</Label>
+                    <Select
+                      value={draft.genre.tone}
+                      onValueChange={(tone) => patch({ genre: { ...draft.genre, tone: tone as GenreTone } })}
+                    >
+                      <SelectTrigger id="story-genre-tone" aria-label="Giọng văn" className="bg-card">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {GENRE_TONES.map((id) => (
+                          <SelectItem key={id} value={id}>{GENRE_TONE_LABELS[id].label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">{GENRE_TONE_LABELS[draft.genre.tone].hint}</p>
                   </div>
                 </div>
               </div>
