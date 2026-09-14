@@ -16,7 +16,7 @@ const before = storyConfigSchema.parse({
   sourceUrl: "",
   protagonist: "",
   summary: "",
-  genre: { setting: "ancient", names: "han" },
+  genre: { setting: "ancient", names: "han", tone: "neutral" },
   glossary: { names: {}, places: {}, items: {}, creatures: {}, skills: {}, common: {}, signature_phrases: {}, addressing: {} },
   style: { voice: "", toneRules: [], signaturePhrases: {}, avoid: [] },
   customPrompt: "",
@@ -28,7 +28,7 @@ const after = {
   ...before,
   name: "Kỳ Chiêu Nguyệt",
   protagonist: "Kỳ Chiêu Nguyệt",
-  genre: { setting: "modern" as const, names: "han" as const },
+  genre: { setting: "modern" as const, names: "han" as const, tone: "romance" as const },
 };
 
 const base = appConfigSchema.parse({ agyPath: null, model: null, maxSessions: 50, recent: [] });
