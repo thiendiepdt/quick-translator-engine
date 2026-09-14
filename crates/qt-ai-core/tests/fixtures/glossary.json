@@ -173,7 +173,8 @@
         "summary": "Tóm tắt 1 câu.",
         "genre": {
           "setting": "ancient",
-          "names": "han"
+          "names": "han",
+          "tone": "neutral"
         },
         "glossary": {
           "names": {
@@ -239,7 +240,8 @@
         "summary": "Tóm tắt 1 câu.",
         "genre": {
           "setting": "ancient",
-          "names": "han"
+          "names": "han",
+          "tone": "neutral"
         },
         "glossary": {
           "names": {

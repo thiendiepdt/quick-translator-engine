@@ -6,7 +6,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { composeBasePrompt, genreKey, PROMPT_GENRE_COMBOS } from "@/lib/ai-translation-prompt";
+import { composeBasePrompt, composeTonePrompt, genreKey, PROMPT_GENRE_COMBOS } from "@/lib/ai-translation-prompt";
 import {
   defaultAiCheckRules, buildAiTranslationSystemPrompt, checkAiTranslationViolations,
   filterTranslationGlossaryForSource, formatAiTranslation, glossaryEntryMatchesSource,
@@ -66,18 +66,25 @@ function storyGenre(genre: StoryGenre) {
   return story;
 }
 function storyGenreCustomPrompt() {
-  const story = storyGenre({ setting: "modern", names: "foreign" });
+  const story = storyGenre({ setting: "modern", names: "foreign", tone: "neutral" });
   story.customPrompt = "Prompt riêng thắng genre.";
+  return story;
+}
+function storyRomanceCustomPrompt() {
+  const story = storyGenre({ setting: "ancient", names: "han", tone: "romance" });
+  story.customPrompt = "Prompt riêng, không chèn mục giọng.";
   return story;
 }
 
 // Rust không port logic ghép: xuất sẵn 6 base theo key `setting/names` để tra bảng.
 const prompts = (() => {
   const noStory = buildAiTranslationSystemPrompt({});
-  const legacy = composeBasePrompt({ setting: "ancient", names: "han" });
+  const legacy = composeBasePrompt({ setting: "ancient", names: "han", tone: "neutral" });
   return {
     bases: Object.fromEntries(PROMPT_GENRE_COMBOS.map((g) => [genreKey(g), composeBasePrompt(g)])),
     suffix: noStory.slice(legacy.length),
+    // Mục giọng văn đứng riêng: Rust chèn trước "## 1. Đại từ nhân xưng" của base (kể cả base người dùng sửa).
+    tones: { romance: composeTonePrompt("romance") },
   };
 })();
 
@@ -140,6 +147,12 @@ const promptCases = [
   { name: "rules", story: storyRules(), source: CH1 },
   ...PROMPT_GENRE_COMBOS.map((g) => ({ name: `genre-${genreKey(g)}`, story: storyGenre(g), source: CH1 })),
   { name: "genre-custom-prompt", story: storyGenreCustomPrompt(), source: CH1 },
+  ...(["ancient", "modern", "mixed"] as const).map((setting) => ({
+    name: `genre-${setting}/han-romance`,
+    story: storyGenre({ setting, names: "han", tone: "romance" }),
+    source: CH1,
+  })),
+  { name: "genre-romance-custom-prompt", story: storyRomanceCustomPrompt(), source: CH1 },
 ].map((c) => ({
   ...c,
   prompt: buildAiTranslationSystemPrompt({}, c.story ?? undefined, c.source ?? undefined),

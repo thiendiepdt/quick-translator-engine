@@ -54,7 +54,8 @@ tên, nhân vật hay tóm tắt. Trả về đúng một JSON theo mẫu:\n\
   \"summary\": \"tóm tắt 3-5 câu tiếng Việt, chỉ bám phần đã đọc, không spoil\",\n\
   \"genre\": {{\n\
     \"setting\": \"ancient | modern | mixed — ancient: cổ đại/tiên hiệp/huyền huyễn/cung đấu/lịch sử; modern: đô thị/hiện đại/vô hạn lưu/hệ thống thời nay; mixed: xuyên qua lại cổ đại ↔ hiện đại hoặc đô thị tu tiên\",\n\
-    \"names\": \"han | foreign | mixed — han: nhân vật Trung Quốc; foreign: bối cảnh phương Tây/Nhật/Hàn; mixed: lẫn\"\n\
+    \"names\": \"han | foreign | mixed — han: nhân vật Trung Quốc; foreign: bối cảnh phương Tây/Nhật/Hàn; mixed: lẫn\",\n\
+    \"tone\": \"neutral | romance — romance: truyện nữ/ngôn tình (nữ chính, tình cảm là mạch chính, giọng ngọt, hài, chớt nhả); neutral: truyện nam, hành động, hệ thống, còn lại\"\n\
   }},\n\
   \"style\": {{\n\
     \"voice\": \"1 câu tả giọng kể (ngôi kể, nhịp, sắc thái)\",\n\
@@ -248,7 +249,7 @@ mod tests {
             r#"{
               "protagonist": "Triệu Tĩnh Văn",
               "summary": "Nàng lên tháp.",
-              "genre": { "setting": "modern", "names": "mixed" },
+              "genre": { "setting": "modern", "names": "mixed", "tone": "romance" },
               "style": { "voice": "Ngôi ba, lạnh", "tone_rules": ["kể bằng hắn/cô"], "signature_phrases": { "啧": "Chậc" }, "avoid": ["anh ấy"] },
               "glossary": { "names": { "赵静文": "BỊ ĐÈ?", "李四": "Lý Tứ" }, "places": { "高塔": "Cao Tháp" }, "lạ": { "x": "y" } }
             }"#,
@@ -261,6 +262,7 @@ mod tests {
         assert_eq!(after.summary, "Nàng lên tháp.");
         assert_eq!(after.genre.setting, GenreSetting::Modern);
         assert_eq!(after.genre.names, GenreNames::Mixed);
+        assert_eq!(after.genre.tone, crate::story::GenreTone::Romance);
         assert_eq!(after.style.voice, "Ngôi ba, lạnh");
         assert_eq!(after.style.tone_rules, vec!["kể bằng hắn/cô"]);
         assert_eq!(after.style.avoid, vec!["anh ấy"]);

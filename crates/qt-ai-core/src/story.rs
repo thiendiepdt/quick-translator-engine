@@ -67,11 +67,32 @@ impl GenreNames {
     }
 }
 
-/// Hai trục độc lập (port `StoryGenre` của qt-web). Thiếu/sai → ancient/han để truyện cũ không đổi.
+/// Giọng văn: `neutral` = prompt y hệt trước; `romance` (truyện nữ) chèn thêm mục "Giọng văn: ngôn tình".
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum GenreTone {
+    #[default]
+    Neutral,
+    Romance,
+}
+
+impl GenreTone {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            GenreTone::Neutral => "neutral",
+            GenreTone::Romance => "romance",
+        }
+    }
+}
+
+/// Ba trục độc lập (port `StoryGenre` của qt-web). Thiếu/sai → ancient/han/neutral để truyện cũ không đổi.
+/// `tone` có `serde(default)` vì story.json cũ và payload GUI cũ không có field này.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct StoryGenre {
     pub setting: GenreSetting,
     pub names: GenreNames,
+    #[serde(default)]
+    pub tone: GenreTone,
 }
 
 impl StoryGenre {
@@ -93,6 +114,10 @@ impl StoryGenre {
                 Some("foreign") => GenreNames::Foreign,
                 Some("mixed") => GenreNames::Mixed,
                 _ => GenreNames::Han,
+            },
+            tone: match get("tone") {
+                Some("romance") => GenreTone::Romance,
+                _ => GenreTone::Neutral,
             },
         }
     }
@@ -382,15 +407,21 @@ mod tests {
         assert_eq!(none.genre, StoryGenre::default());
         assert_eq!(none.genre.key(), "ancient/han");
         let ok = StoryConfig::normalize(&json!({ "genre": { "setting": "modern", "names": "foreign" } }));
-        assert_eq!(ok.genre, StoryGenre { setting: GenreSetting::Modern, names: GenreNames::Foreign });
-        let bad = StoryConfig::normalize(&json!({ "genre": { "setting": "future", "names": 3 } }));
+        assert_eq!(ok.genre, StoryGenre { setting: GenreSetting::Modern, names: GenreNames::Foreign, tone: GenreTone::Neutral });
+        let bad = StoryConfig::normalize(&json!({ "genre": { "setting": "future", "names": 3, "tone": "sweet" } }));
         assert_eq!(bad.genre, StoryGenre::default());
         let mixed = StoryConfig::normalize(&json!({ "genre": { "setting": "mixed" } }));
-        assert_eq!(mixed.genre, StoryGenre { setting: GenreSetting::Mixed, names: GenreNames::Han });
+        assert_eq!(mixed.genre, StoryGenre { setting: GenreSetting::Mixed, names: GenreNames::Han, tone: GenreTone::Neutral });
         assert_eq!(mixed.genre.key(), "mixed/han");
+        let romance = StoryConfig::normalize(&json!({ "genre": { "tone": "romance" } }));
+        assert_eq!(romance.genre.tone, GenreTone::Romance);
+        assert_eq!(romance.genre.key(), "ancient/han", "tone không đổi key base");
+        // Payload GUI/story.json cũ không có tone → serde default.
+        let old: StoryGenre = serde_json::from_value(json!({ "setting": "modern", "names": "han" })).unwrap();
+        assert_eq!(old.tone, GenreTone::Neutral);
         let json = ok.to_json_pretty();
         assert!(json.contains(
-            "\"summary\": \"\",\n  \"genre\": {\n    \"setting\": \"modern\",\n    \"names\": \"foreign\"\n  },\n  \"glossary\""
+            "\"summary\": \"\",\n  \"genre\": {\n    \"setting\": \"modern\",\n    \"names\": \"foreign\",\n    \"tone\": \"neutral\"\n  },\n  \"glossary\""
         ));
     }
 
@@ -398,7 +429,7 @@ mod tests {
     fn empty_round_trip_giu_thu_tu_key_nhu_web() {
         let json = StoryConfig::empty().to_json_pretty();
         assert!(json.starts_with(
-            "{\n  \"name\": \"\",\n  \"sourceUrl\": \"\",\n  \"protagonist\": \"\",\n  \"summary\": \"\",\n  \"genre\": {\n    \"setting\": \"ancient\",\n    \"names\": \"han\"\n  },\n  \"glossary\": {\n    \"names\": {},"
+            "{\n  \"name\": \"\",\n  \"sourceUrl\": \"\",\n  \"protagonist\": \"\",\n  \"summary\": \"\",\n  \"genre\": {\n    \"setting\": \"ancient\",\n    \"names\": \"han\",\n    \"tone\": \"neutral\"\n  },\n  \"glossary\": {\n    \"names\": {},"
         ));
         assert!(json.ends_with("\"autoGlossary\": \"inherit\"\n}\n"));
         let back = StoryConfig::normalize(&serde_json::from_str(&json).unwrap());
