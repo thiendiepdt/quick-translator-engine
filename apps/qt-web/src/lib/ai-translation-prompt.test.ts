@@ -126,4 +126,38 @@ describe("composeBasePrompt", () => {
       "mixed/mixed",
     ]);
   });
+
+  it("mọi genre: tiêu đề chương theo định dạng `Chương N: Tiêu đề`, chương gộp `Chương N-M:`", () => {
+    for (const genre of PROMPT_GENRE_COMBOS) {
+      const prompt = composeBasePrompt(genre);
+      expect(prompt, genreKey(genre)).toContain("`Chương N: Tiêu đề`");
+      expect(prompt, genreKey(genre)).toContain("`Chương 467-468: ");
+    }
+  });
+
+  it("ancient: 他们 chấp nhận bọn họ, không còn cấm họ", () => {
+    const ancientHan = composeBasePrompt({ setting: "ancient", names: "han", tone: "neutral" });
+    expect(ancientHan).toContain("| 他们        | **bọn họ** / **bọn hắn** / **chúng**");
+    expect(ancientHan).not.toContain("| 他们        | **bọn hắn** / **chúng**          | họ");
+    expect(ancientHan).not.toContain("| 她们        | **các nàng**                     | họ");
+  });
+
+  it("han: một chữ Hán một âm Hán-Việt, tên mới theo âm entry glossary sẵn có", () => {
+    for (const setting of ["ancient", "modern", "mixed"] as const) {
+      const han = composeBasePrompt({ setting, names: "han", tone: "neutral" });
+      expect(han, setting).toContain("Đoàn Diên Khánh");
+      expect(han, setting).toContain("Hy Tông");
+      const foreign = composeBasePrompt({ setting, names: "foreign", tone: "neutral" });
+      expect(foreign, setting).not.toContain("Đoàn Diên Khánh");
+    }
+  });
+
+  it("ancient + mixed: viết hoa tước vị và hậu tố địa danh đi sau tên riêng; modern không có", () => {
+    for (const setting of ["ancient", "mixed"] as const) {
+      const prompt = composeBasePrompt({ setting, names: "han", tone: "neutral" });
+      expect(prompt, setting).toContain("`Nhữ Dương Vương`");
+      expect(prompt, setting).toContain("`chùa Thiếu Lâm`");
+    }
+    expect(composeBasePrompt({ setting: "modern", names: "han", tone: "neutral" })).not.toContain("`Nhữ Dương Vương`");
+  });
 });

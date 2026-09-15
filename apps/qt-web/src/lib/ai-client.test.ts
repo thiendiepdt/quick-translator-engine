@@ -419,6 +419,8 @@ describe("extractStoryGlossaryWithAi", () => {
     expect(user).toContain("震雷子看向太清山。");
     expect(user).toContain("Chấn Lôi Tử nhìn về Thái Thanh Sơn.");
     expect(user).toContain("赵静文");
+    const system = (body as unknown as { systemInstruction: { parts: Array<{ text: string }> } }).systemInstruction.parts[0].text;
+    expect(system).toContain("phải phiên cùng âm");
   });
 });
 

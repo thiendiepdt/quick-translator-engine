@@ -23,6 +23,7 @@ fn agent_instructions(id: &str) -> String {
         format!("   xuất hiện trong raw nhưng chưa có trong từ điển của prompt vào work/{id}.glossary.json, dạng:"),
         r#"   {"entries": [{"source": "chữ Hán trong raw", "target": "chép nguyên văn từ bản dịch", "category": "names|places|items|creatures|skills"}]}"#.to_string(),
         r#"   Thêm cặp xưng hô mới trong thoại: {"source": "甲→乙", "target": "X–Y", "category": "addressing"} (甲 tự xưng X, gọi 乙 là Y; mỗi chiều một mục)."#.to_string(),
+        "   Chữ Hán nào đã có âm Hán-Việt trong từ điển của prompt thì tên mới chứa chữ đó phải phiên cùng âm (họ 段 đã là Đoàn thì không đề xuất Đoạn).".to_string(),
         r#"   Bỏ qua từ chung, chức danh, đại từ. Không có gì mới thì ghi {"entries": []}."#.to_string(),
         format!("3. Chạy: qt-ai check {id} (xem AGENTS.md để biết lệnh đầy đủ)."),
     ]

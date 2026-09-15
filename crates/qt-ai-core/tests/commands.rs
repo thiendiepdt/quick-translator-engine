@@ -291,6 +291,7 @@ fn next_phat_chuong_dau_prompt_du_3_phan_state_translating() {
     assert!(!prompt.contains("Không Xuất Hiện"));
     assert!(prompt.contains("[[1]] 赵静文抬头。"));
     assert!(prompt.contains("0001.draft.md") && prompt.contains("0001.glossary.json"));
+    assert!(prompt.contains("phải phiên cùng âm"), "chỉ dẫn glossary: tên mới theo âm entry sẵn có");
     assert_eq!(load_state(&paths).unwrap().chapters["0001"].status, ChapterStatus::Translating);
 
     // từ chối phát chương mới khi còn translating

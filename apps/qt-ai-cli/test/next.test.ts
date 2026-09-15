@@ -33,6 +33,7 @@ describe("qt-ai next", () => {
     expect(prompt).toContain("[[1]] 赵静文抬头。");                  // payload gắn nhãn
     expect(prompt).toContain("0001.draft.md");                      // chỉ dẫn ghi draft
     expect(prompt).toContain("0001.glossary.json");                 // chỉ dẫn đề xuất glossary
+    expect(prompt).toContain("phải phiên cùng âm");                 // tên mới theo âm entry sẵn có
     expect(loadState(paths).chapters["0001"]?.status).toBe("translating");
   });
 

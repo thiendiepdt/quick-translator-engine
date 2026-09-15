@@ -240,6 +240,7 @@ fn glossary_kem_luot_dich_thi_khong_goi_trich_rieng() {
     let calls = model.calls();
     assert_eq!(calls.len(), 1);
     assert!(calls[0].1.contains("[[glossary]]") && calls[0].1.contains("\"addressing\""), "payload dịch yêu cầu khối glossary");
+    assert!(calls[0].1.contains("phải phiên cùng âm"), "chỉ dẫn glossary: tên mới theo âm entry sẵn có");
     let out = fs::read_to_string(dir.path().join("out").join("0001.txt")).unwrap();
     assert_eq!(out, format!("{GOOD_1}\n\n{GOOD_2}\n"), "khối glossary không lọt vào bản dịch");
     let story = load_story_config(&story_paths(dir.path())).unwrap();

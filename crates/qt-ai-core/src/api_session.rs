@@ -33,7 +33,8 @@ Liệt kê các TÊN RIÊNG (nhân vật, địa danh, đồ vật/vũ khí, sin
 xuất hiện trong raw nhưng CHƯA có trong danh sách loại trừ, kèm đúng cách bản dịch đã phiên âm chúng. \
 target phải chép nguyên văn từ bản dịch, không tự nghĩ phương án khác. \
 category chỉ được là một trong: \"names\", \"places\", \"items\", \"creatures\", \"skills\". \
-Bỏ qua từ chung, chức danh, đại từ. \
+Bỏ qua từ chung, chức danh, đại từ.\
+ Chữ Hán nào đã có âm Hán-Việt trong từ điển sẵn có thì tên mới chứa chữ đó phải phiên cùng âm (họ 段 đã là Đoàn thì không đề xuất Đoạn). \
 Thêm các CẶP XƯNG HÔ mới trong thoại với category \"addressing\": source là \"甲→乙\" (hai tên Hán như trong raw), \
 target là \"X–Y\" với X là cách 甲 tự xưng và Y là cách 甲 gọi 乙 trong bản dịch (ví dụ \"anh–em\", \"ta–ngươi\", \"tôi–cậu\"); \
 mỗi chiều một mục, chỉ ghi cặp chưa có trong danh sách loại trừ. \
@@ -49,7 +50,8 @@ const GLOSSARY_INLINE_INSTRUCTION: &str = "Sau đoạn dịch cuối cùng, xu�
 {\"entries\": [{\"source\": \"...\", \"target\": \"...\", \"category\": \"...\"}]} liệt kê các TÊN RIÊNG \
 (nhân vật, địa danh, đồ vật/vũ khí, sinh vật, công pháp/kỹ năng) xuất hiện trong raw mà CHƯA có trong \"Từ điển riêng của truyện\"; \
 target chép nguyên văn cách bạn vừa dịch; category chỉ được là \"names\", \"places\", \"items\", \"creatures\", \"skills\". \
-Bỏ qua từ chung, chức danh, đại từ. Cặp xưng hô mới trong thoại ghi category \"addressing\": source \"甲→乙\" (hai tên Hán như trong raw), \
+Bỏ qua từ chung, chức danh, đại từ.\
+ Chữ Hán nào đã có âm Hán-Việt trong từ điển sẵn có thì tên mới chứa chữ đó phải phiên cùng âm (họ 段 đã là Đoàn thì không đề xuất Đoạn). Cặp xưng hô mới trong thoại ghi category \"addressing\": source \"甲→乙\" (hai tên Hán như trong raw), \
 target \"X–Y\" với X là cách 甲 tự xưng và Y là cách 甲 gọi 乙 trong bản dịch; mỗi chiều một mục. \
 Không có gì mới thì {\"entries\": []}. Khối này nằm ngoài bản dịch, không có nhãn [[n]].";
 

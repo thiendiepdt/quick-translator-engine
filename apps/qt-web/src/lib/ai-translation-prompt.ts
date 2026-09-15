@@ -7,9 +7,9 @@ import type { GenreNames, GenreSetting, GenreTone, StoryGenre } from "@/lib/ai-s
  */
 
 // FNV-1a 64 của prompt cổ đại/Hán-Việt trước khi tách module (xem ai-translation-prompt.test.ts).
-// Đổi hash này chỉ khi cố ý sửa prompt ancient/han (lần gần nhất: gỡ dấu vết truyện riêng, bỏ ý lặp,
-// thêm kính ngữ/hậu tố tên, văn bản ngoài truyện, dấu câu, tượng thanh; bỏ 4 dòng tránh dùng bắt nhầm từ Việt hợp lệ).
-export const LEGACY_BASE_PROMPT_FNV1A64 = "5fa1f59f952516bd";
+// Đổi hash này chỉ khi cố ý sửa prompt ancient/han (lần gần nhất 2026-09-15, từ review thau-huong-cao-thu: định dạng
+// tiêu đề `Chương N: …`, 他们 chấp nhận `bọn họ`, một chữ Hán một âm Hán-Việt theo glossary, viết hoa tước vị/hậu tố địa danh).
+export const LEGACY_BASE_PROMPT_FNV1A64 = "40efe04f5c655f53";
 
 const CORE_HEAD: string[] = [
   "Bạn là dịch giả tiểu thuyết Trung Quốc sang tiếng Việt. Nhiệm vụ của bạn là chuyển ngữ trung thành, không phải sáng tác lại hay biên tập nâng giọng.",
@@ -152,7 +152,7 @@ const CORE_SENTENCES: string[] = [
   "",
   "### Cấu trúc bắt buộc — KHÔNG được vi phạm",
   "",
-  "- **Tiêu đề chương:** Nếu văn bản gốc có tiêu đề chương (第X章、卷X、Chương X...), PHẢI dịch và giữ nguyên ở đầu văn bản, đúng định dạng. Đọc nội dung chương để hiểu tiêu đề là thành ngữ, hình ảnh hay lời gợi trước rồi dịch ngắn gọn, đúng sắc thái. Trừ tên riêng hoặc mục đã có trong glossary, tiêu đề **phải dịch nghĩa sang tiếng Việt**, KHÔNG phiên âm Hán-Việt và KHÔNG đảo từng chữ Hán thành một cụm tối nghĩa. Ví dụ `山雨欲来势` có thể dịch theo ngữ cảnh là `Thế mưa giông sắp tới`, TUYỆT ĐỐI KHÔNG dịch `Thế sơn vũ dục lai`. Không tự làm tiêu đề hoa mỹ hơn gốc và TUYỆT ĐỐI KHÔNG bỏ qua tiêu đề.",
+  "- **Tiêu đề chương:** Nếu văn bản gốc có tiêu đề chương (第X章、卷X、Chương X...), PHẢI dịch và giữ nguyên ở đầu văn bản, đúng định dạng. Đọc nội dung chương để hiểu tiêu đề là thành ngữ, hình ảnh hay lời gợi trước rồi dịch ngắn gọn, đúng sắc thái. Trừ tên riêng hoặc mục đã có trong glossary, tiêu đề **phải dịch nghĩa sang tiếng Việt**, KHÔNG phiên âm Hán-Việt và KHÔNG đảo từng chữ Hán thành một cụm tối nghĩa. Ví dụ `山雨欲来势` có thể dịch theo ngữ cảnh là `Thế mưa giông sắp tới`, TUYỆT ĐỐI KHÔNG dịch `Thế sơn vũ dục lai`. Không tự làm tiêu đề hoa mỹ hơn gốc và TUYỆT ĐỐI KHÔNG bỏ qua tiêu đề. Định dạng thống nhất cho mọi chương: `Chương N: Tiêu đề` — số Ả Rập (`第一百六十一章` → `Chương 161`), dấu hai chấm rồi một khoảng trắng; chương gộp `第467-468章` → `Chương 467-468: Tiêu đề`; raw chỉ có số không có tên thì `Chương N`. Raw không có số chương (lời cảm ơn, thông báo) thì dịch dòng đó như câu thường.",
   "- **Số đoạn phải khớp tuyệt đối:** Bao nhiêu đoạn gốc thì bấy nhiêu đoạn dịch. TUYỆT ĐỐI KHÔNG gộp hai đoạn văn khác nhau thành một. TUYỆT ĐỐI KHÔNG bỏ bất kỳ đoạn nào, kể cả đoạn ngắn.",
   "- Mỗi đoạn cách nhau 1 dòng trống — giữ nguyên, KHÔNG thay đổi.",
   "- **Văn bản ngoài truyện:** lời tác giả, lời cảm ơn, `求票` / `求推荐` / `本章完` / `PS:` / `作者的话` là đoạn thường: dịch nguyên văn ở đúng vị trí, không bỏ, không gộp vào chương, không thêm bình luận.",
@@ -340,8 +340,8 @@ const ancient: SettingModule = {
     "| 我          | **ta**                           | tôi, mình      |",
     "| 你          | **ngươi**                        | bạn, mày, cậu  |",
     "| 我们        | **chúng ta** / **bọn ta**        |                |",
-    "| 他们        | **bọn hắn** / **chúng**          | họ             |",
-    "| 她们        | **các nàng**                     | họ             |",
+    "| 他们        | **bọn họ** / **bọn hắn** / **chúng** |            |",
+    "| 她们        | **các nàng** / **bọn họ**        |                |",
     "| 你们        | **các ngươi**                    | các bạn        |",
     "| 老子        | **lão tử**                       |                |",
     "",
@@ -421,6 +421,7 @@ const ancient: SettingModule = {
     "- **Viết hoa:** cảnh giới (Luyện Khí, Trúc Cơ...), tên sinh vật linh (Linh Ngư, Bán Linh Ngư), tên kiến trúc đặc biệt (Động phủ, Linh điền)",
     "- **Viết thường:** vật phẩm thông thường (linh thạch, đan dược, linh khí...)",
     "- Luôn viết hoa đầu câu, tên người, địa danh, triều đại, tổ chức và danh xưng riêng theo chính tả tiếng Việt. Không hạ toàn bộ câu về chữ thường chỉ vì câu nằm trong `【】` hoặc là nội dung hệ thống.",
+    "- **Tước vị, chức danh và hậu tố địa danh đi sau tên riêng (王/府/殿/营/国/寺/岛/湖/山) viết hoa cả cụm** khi cụm đó là một danh xưng cố định: `Nhữ Dương Vương`, `Ngụy Vương`, `Nhữ Dương Vương Phủ`, `Kim Xà Doanh`, `Thái Hòa Điện`, `Kim Quốc`, `Thiếu Lâm Tự`, `Đào Hoa Đảo`. Danh từ chung đứng trước tên riêng theo cú pháp Việt thì viết thường: `chùa Thiếu Lâm`, `hồ Động Đình`, `nước Kim`. Mỗi địa danh chốt một trong hai dạng ngay lần đầu và dùng y hệt cả truyện; glossary đã có thì theo đúng glossary kể cả hoa/thường.",
     "- **Không lai register trong cùng một cụm.** Một tên riêng/danh hiệu/thuật ngữ phải nằm trọn trong một hệ: hoặc Hán-Việt viết hoa cả cụm (`Thiên Sinh Kiếm Tâm`), hoặc diễn nghĩa thuần Việt viết thường (`bẩm sinh đã có kiếm tâm`). Cấm nửa Việt nửa Hán như `trời sinh Kiếm Tâm`. Cụm được `所谓` (`cái gọi là`) dẫn ra, hoặc được người trong truyện dùng như biệt hiệu, xử lý như danh hiệu — giữ Hán-Việt cả cụm và dùng y hệt ở mọi lần xuất hiện.",
     "",
     "### Cổ đại / Cung đình / Lịch sử",
@@ -682,6 +683,8 @@ const han: string[] = [
   "## 3. Nhân danh & Địa danh — Phiên âm Hán-Việt",
   "",
   "Tra glossary trước. Tên mới chưa có → tự phiên âm, dùng nhất quán.",
+  "",
+  "Một chữ Hán chỉ có một âm Hán-Việt trong toàn truyện. Tên mới chứa chữ đã có trong glossary phải phiên cùng âm với entry đó: 熙 đã là `Hy` trong `Khang Hy` thì 熙宗 là `Hy Tông`, không phải `Hi Tông`; 段 đã là `Đoàn` trong `Đoàn Dự` thì 段延庆 là `Đoàn Diên Khánh`, không phải `Đoạn Duyên Khánh`. Nhân vật, địa danh, môn phái đã có bản dịch tiếng Việt quen thuộc thì dùng đúng âm quen thuộc đó (`Võ Đang`, `Nhậm Ngã Hành`, `Cừu Thiên Nhẫn`), không tự phiên lại.",
   "",
   "| Trung  | Hán-Việt       | SAI                 |",
   "| ------ | -------------- | ------------------- |",
