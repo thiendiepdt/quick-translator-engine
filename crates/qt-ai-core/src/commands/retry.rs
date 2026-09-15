@@ -65,8 +65,32 @@ pub fn run_retry_range(root: &Path, from: Option<&str>, to: Option<&str>) -> Res
         from.is_none_or(|from| natural_chapter_compare(id, from) != Ordering::Less)
             && to.is_none_or(|to| natural_chapter_compare(id, to) != Ordering::Greater)
     });
+    requeue_many(&paths, &mut state, in_range)
+}
+
+/// Dịch lại đúng các chương `ids` (không theo khoảng — dùng cho chương hổng xen kẽ chương done), cùng
+/// luật với `run_retry_range`: queued bỏ qua, done giữ .bak. Id lạ → lỗi, không đổi gì; id trùng gộp lại,
+/// kết quả theo thứ tự tự nhiên. Caller tự chắc không có phiên đang chạy.
+pub fn run_retry_ids(root: &Path, ids: &[String]) -> Result<RetryRangeOutcome> {
+    let paths = story_paths(&resolve_root(root));
+    let mut state = load_state(&paths)?;
+    if let Some(unknown) = ids.iter().find(|id| !state.chapters.contains_key(*id)) {
+        return Err(CoreError::StoryNotFound(format!("Không có chương {unknown} trong state.json.")));
+    }
+    let mut sorted = ids.to_vec();
+    sorted.sort_by(|a, b| natural_chapter_compare(a, b));
+    sorted.dedup();
+    requeue_many(&paths, &mut state, sorted)
+}
+
+/// Đưa lần lượt `ids` về hàng đợi rồi ghi state một lần (nếu có gì đổi).
+fn requeue_many(
+    paths: &StoryPaths,
+    state: &mut StoryState,
+    ids: impl IntoIterator<Item = String>,
+) -> Result<RetryRangeOutcome> {
     let mut outcome = RetryRangeOutcome::default();
-    for id in in_range {
+    for id in ids {
         let status = state.chapters[&id].status;
         if status == ChapterStatus::Queued {
             outcome.already_queued.push(id);
@@ -75,11 +99,11 @@ pub fn run_retry_range(root: &Path, from: Option<&str>, to: Option<&str>) -> Res
         if status == ChapterStatus::Done {
             outcome.backed_up.push(id.clone());
         }
-        requeue_chapter(&paths, &mut state, &id)?;
+        requeue_chapter(paths, state, &id)?;
         outcome.retried.push(id);
     }
     if !outcome.retried.is_empty() {
-        save_state(&paths, &state)?;
+        save_state(paths, state)?;
     }
     Ok(outcome)
 }

@@ -6,7 +6,7 @@ import { DeleteRangeDialog } from "@/components/delete-range-dialog";
 import { RetryRangeDialog } from "@/components/retry-range-dialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { rescanStory, sessionStart, sessionStop, storySnapshot } from "@/lib/api";
+import { chaptersRetryIds, rescanStory, sessionStart, sessionStop, storySnapshot } from "@/lib/api";
 import { gapsBeforeFrontier } from "@/lib/chapters";
 import { engineLabel, STATUS_LABELS } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -36,11 +36,32 @@ export function TranslateToolbar() {
   const select = useStoryStore((s) => s.select);
   // Chương chưa dịch đứng trước chương done cuối (skip vì model từ chối, lỗi…) — dễ bị bỏ quên khi phiên chạy tiếp.
   const gapInfo = useMemo(() => (snapshot ? gapsBeforeFrontier(snapshot.chapters) : null), [snapshot]);
+  // Chương hổng còn phải đưa về hàng đợi (queued sẵn thì thôi).
+  const gapRetryIds = useMemo(
+    () => (gapInfo?.gaps ?? []).filter(({ row }) => row.status !== "queued").map(({ row }) => row.id),
+    [gapInfo],
+  );
   const [model, setModel] = useState<string | undefined>(config?.model ?? undefined);
   const [busy, setBusy] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [retryingGaps, setRetryingGaps] = useState(false);
   const [retryOpen, setRetryOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+
+  /** Đưa mọi chương hổng (skip/lỗi) về hàng đợi; không tự chạy phiên. */
+  async function retryGaps() {
+    if (!root || gapRetryIds.length === 0) return;
+    setRetryingGaps(true);
+    try {
+      const outcome = await chaptersRetryIds(root, gapRetryIds);
+      setSnapshot(await storySnapshot(root));
+      toast.success(`Đã đưa ${outcome.retried.length} chương về hàng đợi — bấm Bắt đầu để dịch`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Dịch lại thất bại");
+    } finally {
+      setRetryingGaps(false);
+    }
+  }
 
   /** Quét raw/ lấy chương mới vào hàng đợi (copy tay vào raw/ xong bấm đây). */
   async function rescan() {
@@ -250,6 +271,18 @@ export function TranslateToolbar() {
             </button>
           ))}
           {gapInfo.gaps.length > GAP_CHIPS && <span>… và {gapInfo.gaps.length - GAP_CHIPS} chương nữa</span>}
+          {gapRetryIds.length > 0 && (
+            <Button
+              type="button"
+              variant="outline"
+              className="h-6 px-2 text-xs"
+              title="Đưa mọi chương hổng (bỏ qua/lỗi) về hàng đợi; chương đã queued không tính"
+              disabled={running || retryingGaps || !root}
+              onClick={() => void retryGaps()}
+            >
+              {retryingGaps ? <LoaderCircle className="animate-spin" /> : <RotateCcw />} Dịch lại cả {gapRetryIds.length}
+            </Button>
+          )}
         </p>
       )}
     </header>

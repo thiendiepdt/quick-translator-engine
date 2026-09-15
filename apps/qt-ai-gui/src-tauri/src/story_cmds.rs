@@ -6,7 +6,7 @@ use qt_ai_core::commands::accept::run_accept;
 use qt_ai_core::commands::delete::run_delete;
 use qt_ai_core::commands::export::{run_export, ExportOptions};
 use qt_ai_core::commands::init::run_init;
-use qt_ai_core::commands::retry::{run_retry, run_retry_range};
+use qt_ai_core::commands::retry::{run_retry, run_retry_ids, run_retry_range};
 use qt_ai_core::commands::skip::run_skip;
 use qt_ai_core::base::{BaseSource, BaseStore};
 use qt_ai_core::commands::status::count_chapters;
@@ -315,6 +315,23 @@ pub fn chapters_retry(
         ));
     }
     let outcome = run_retry_range(Path::new(&root), from.as_deref(), to.as_deref())?;
+    Ok(RetryRangeOutcomeView {
+        retried: outcome.retried,
+        backed_up: outcome.backed_up,
+        already_queued: outcome.already_queued,
+    })
+}
+
+/// Dịch lại đúng các chương `ids` (nút "Dịch lại cả N" ở dòng hổng chương). Chặn khi phiên đang chạy.
+#[tauri::command]
+pub fn chapters_retry_ids(state: State<'_, AppState>, root: String, ids: Vec<String>) -> CmdResult<RetryRangeOutcomeView> {
+    if session_running(&state, &root) {
+        return Err(CommandError::new(
+            "session_locked",
+            "Truyện này đang có phiên dịch chạy — bấm Dừng trước khi dịch lại chương.",
+        ));
+    }
+    let outcome = run_retry_ids(Path::new(&root), &ids)?;
     Ok(RetryRangeOutcomeView {
         retried: outcome.retried,
         backed_up: outcome.backed_up,
