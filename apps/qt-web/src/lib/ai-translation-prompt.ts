@@ -8,8 +8,9 @@ import type { GenreNames, GenreSetting, GenreTone, StoryGenre } from "@/lib/ai-s
 
 // FNV-1a 64 của prompt cổ đại/Hán-Việt trước khi tách module (xem ai-translation-prompt.test.ts).
 // Đổi hash này chỉ khi cố ý sửa prompt ancient/han (lần gần nhất 2026-09-15, từ review thau-huong-cao-thu: định dạng
-// tiêu đề `Chương N: …`, 他们 chấp nhận `bọn họ`, một chữ Hán một âm Hán-Việt theo glossary, viết hoa tước vị/hậu tố địa danh).
-export const LEGACY_BASE_PROMPT_FNV1A64 = "40efe04f5c655f53";
+// tiêu đề `Chương N: …`, 他们 chấp nhận `bọn họ`, một chữ Hán một âm Hán-Việt theo glossary, viết hoa tước vị/hậu tố địa danh,
+// bảng chống convert thêm động từ Hán-Việt dán trợ từ Việt: có biệt / đắc được / đắc thủ).
+export const LEGACY_BASE_PROMPT_FNV1A64 = "5530b6ac6c1fc7a4";
 
 const CORE_HEAD: string[] = [
   "Bạn là dịch giả tiểu thuyết Trung Quốc sang tiếng Việt. Nhiệm vụ của bạn là chuyển ngữ trung thành, không phải sáng tác lại hay biên tập nâng giọng.",
@@ -117,6 +118,11 @@ const CORE_TERMS: string[] = [
   "| 冷眼旁观 | lạnh lùng đứng nhìn | lạnh mắt nhìn |",
   "| 新的一天到来 | ngày mới đến | một ngày mới tiến đến |",
   "| 频繁收放 | liên tục thu vào, thả ra | thu phóng thường xuyên |",
+  "| 男女有别 | nam nữ hữu biệt / nam nữ khác biệt | nam nữ có biệt |",
+  "| 得到 / 深得……真传 | được / học được chân truyền | đắc được chân truyền |",
+  "| 得手 | thành công / ra tay trót lọt | đắc thủ |",
+  "",
+  "Động từ Hán-Việt không được dán trợ từ Việt lên (`đắc được`, `đắc thủ`, `có biệt`): hoặc giữ trọn cụm Hán-Việt đã ổn định (`hữu biệt`), hoặc dịch nghĩa bằng động từ Việt.",
   "",
   "Không được coi mọi chữ Hán là một từ Hán-Việt cần giữ. Một câu đúng thuật ngữ nhưng sai cú pháp, kết hợp từ hoặc thói quen diễn đạt tiếng Việt vẫn là bản dịch lỗi.",
   "",

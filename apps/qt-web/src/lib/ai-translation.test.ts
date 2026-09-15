@@ -188,6 +188,23 @@ describe("AI translation post-processing", () => {
     expect(checkAiTranslationViolations(text)).toEqual([]);
   });
 
+  it("bắt động từ Hán-Việt dán trợ từ Việt: đắc được, đắc thủ, thu hoạch được, X có biệt; tha biệt hiệu/biệt xưng", () => {
+    const text = [
+      "Trương Vô Kỵ đắc được chân truyền của Điệp Cốc Y Tiên.",
+      "Nếu không để Phúc Khang An đắc thủ.",
+      "Mò mẫm một hồi mà không thu hoạch được gì.",
+      "Nam nữ có biệt, đêm tối không tiện gặp mặt. Mãn Hán có biệt.",
+      "Cừu Thiên Nhẫn có biệt hiệu Thiết Chưởng, núi Nga Mi có biệt xưng.",
+    ].join("\n");
+    const lines = checkAiTranslationViolations(text).map((v) => `${v.line}:${v.message}`);
+    expect(lines).toEqual([
+      "1:得到 / 深得 → được / nhận được / học được, không \"đắc được\"",
+      "2:得手 → thành công / ra tay trót lọt, không \"đắc thủ\"",
+      "3:有收获 → thu được / tìm được gì, không \"thu hoạch được\"",
+      "4:有别 → hữu biệt / khác biệt, không \"có biệt\"",
+    ]);
+  });
+
   it("bộ rule ancient giữ nguyên thứ tự cũ; modern bỏ rule cổ trang và thêm rule xưng hô", () => {
     const ancient = defaultAiCheckRules("ancient");
     const modern = defaultAiCheckRules("modern");

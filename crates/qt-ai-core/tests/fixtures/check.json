@@ -88,6 +88,26 @@
         "message": "thập phần → vô cùng / hết sức"
       },
       {
+        "pattern": "(?<!\\p{L})đắc được(?!\\p{L})",
+        "flags": "iu",
+        "message": "得到 / 深得 → được / nhận được / học được, không \"đắc được\""
+      },
+      {
+        "pattern": "(?<!\\p{L})đắc thủ(?!\\p{L})",
+        "flags": "iu",
+        "message": "得手 → thành công / ra tay trót lọt, không \"đắc thủ\""
+      },
+      {
+        "pattern": "(?<!\\p{L})thu hoạch được(?!\\p{L})",
+        "flags": "iu",
+        "message": "有收获 → thu được / tìm được gì, không \"thu hoạch được\""
+      },
+      {
+        "pattern": "(?<!\\p{L})có biệt(?!\\p{L})(?!\\s*(?:hiệu|xưng|danh))",
+        "flags": "iu",
+        "message": "有别 → hữu biệt / khác biệt, không \"có biệt\""
+      },
+      {
         "pattern": "\\bsong doanh\\b",
         "message": "song doanh → đôi bên cùng có lợi"
       },
@@ -312,6 +332,26 @@
       {
         "pattern": "\\bthập phần\\b",
         "message": "thập phần → vô cùng / hết sức"
+      },
+      {
+        "pattern": "(?<!\\p{L})đắc được(?!\\p{L})",
+        "flags": "iu",
+        "message": "得到 / 深得 → được / nhận được / học được, không \"đắc được\""
+      },
+      {
+        "pattern": "(?<!\\p{L})đắc thủ(?!\\p{L})",
+        "flags": "iu",
+        "message": "得手 → thành công / ra tay trót lọt, không \"đắc thủ\""
+      },
+      {
+        "pattern": "(?<!\\p{L})thu hoạch được(?!\\p{L})",
+        "flags": "iu",
+        "message": "有收获 → thu được / tìm được gì, không \"thu hoạch được\""
+      },
+      {
+        "pattern": "(?<!\\p{L})có biệt(?!\\p{L})(?!\\s*(?:hiệu|xưng|danh))",
+        "flags": "iu",
+        "message": "有别 → hữu biệt / khác biệt, không \"có biệt\""
       },
       {
         "pattern": "\\bsong doanh\\b",
@@ -545,6 +585,26 @@
       {
         "pattern": "\\bthập phần\\b",
         "message": "thập phần → vô cùng / hết sức"
+      },
+      {
+        "pattern": "(?<!\\p{L})đắc được(?!\\p{L})",
+        "flags": "iu",
+        "message": "得到 / 深得 → được / nhận được / học được, không \"đắc được\""
+      },
+      {
+        "pattern": "(?<!\\p{L})đắc thủ(?!\\p{L})",
+        "flags": "iu",
+        "message": "得手 → thành công / ra tay trót lọt, không \"đắc thủ\""
+      },
+      {
+        "pattern": "(?<!\\p{L})thu hoạch được(?!\\p{L})",
+        "flags": "iu",
+        "message": "有收获 → thu được / tìm được gì, không \"thu hoạch được\""
+      },
+      {
+        "pattern": "(?<!\\p{L})có biệt(?!\\p{L})(?!\\s*(?:hiệu|xưng|danh))",
+        "flags": "iu",
+        "message": "有别 → hữu biệt / khác biệt, không \"có biệt\""
       },
       {
         "pattern": "\\bsong doanh\\b",

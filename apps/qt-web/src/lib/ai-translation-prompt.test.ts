@@ -135,6 +135,15 @@ describe("composeBasePrompt", () => {
     }
   });
 
+  it("mọi genre: bảng chống convert có mẫu động từ Hán-Việt dán trợ từ Việt", () => {
+    for (const genre of PROMPT_GENRE_COMBOS) {
+      const prompt = composeBasePrompt(genre);
+      expect(prompt, genreKey(genre)).toContain("| 男女有别 | nam nữ hữu biệt / nam nữ khác biệt | nam nữ có biệt |");
+      expect(prompt, genreKey(genre)).toContain("| 得到 / 深得……真传 | được / học được chân truyền | đắc được chân truyền |");
+      expect(prompt, genreKey(genre)).toContain("| 得手 | thành công / ra tay trót lọt | đắc thủ |");
+    }
+  });
+
   it("ancient: 他们 chấp nhận bọn họ, không còn cấm họ", () => {
     const ancientHan = composeBasePrompt({ setting: "ancient", names: "han", tone: "neutral" });
     expect(ancientHan).toContain("| 他们        | **bọn họ** / **bọn hắn** / **chúng**");

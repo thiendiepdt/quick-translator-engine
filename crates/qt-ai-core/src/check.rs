@@ -83,6 +83,10 @@ pub const DEFAULT_RULES: &[(&str, &str, &str, Option<&str>)] = &[
     (r"(?<!\p{L})(?:Hừm|Ừm)(?!\p{L})", "iu", "Hừm/Ừm → Ân", Some("ancient")),
     (r"Ơ\s*[?!,.…]", "", "Thán từ Ơ → dùng A trong bối cảnh cổ đại/huyền huyễn", Some("ancient")),
     (r"\bthập phần\b", "", "thập phần → vô cùng / hết sức", None),
+    (r"(?<!\p{L})đắc được(?!\p{L})", "iu", "得到 / 深得 → được / nhận được / học được, không \"đắc được\"", None),
+    (r"(?<!\p{L})đắc thủ(?!\p{L})", "iu", "得手 → thành công / ra tay trót lọt, không \"đắc thủ\"", None),
+    (r"(?<!\p{L})thu hoạch được(?!\p{L})", "iu", "有收获 → thu được / tìm được gì, không \"thu hoạch được\"", None),
+    (r"(?<!\p{L})có biệt(?!\p{L})(?!\s*(?:hiệu|xưng|danh))", "iu", "有别 → hữu biệt / khác biệt, không \"có biệt\"", None),
     (r"\bsong doanh\b", "", "song doanh → đôi bên cùng có lợi", None),
     (r"còn đừng nói", "i", "还别说 → Mà phải nói / Không ngờ thật", None),
     (r"phụ thân (ở|vào|lên|trong)", "", "附身 → nương thân/bám vào", None),
@@ -192,4 +196,27 @@ pub fn check_violations(text: &str, configured: &[CheckRule], setting: GenreSett
         }
     }
     violations
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bat_dong_tu_han_viet_dan_tro_tu_viet_tha_biet_hieu() {
+        let text = "Hắn đắc được chân truyền.\nKhông để hắn đắc thủ.\nKhông thu hoạch được gì.\nNam nữ có biệt.\nCó biệt hiệu Thiết Chưởng, có biệt xưng.";
+        let messages: Vec<String> = check_violations(text, &[], GenreSetting::Ancient)
+            .into_iter()
+            .map(|v| format!("{}:{}", v.line, v.message))
+            .collect();
+        assert_eq!(
+            messages,
+            vec![
+                "1:得到 / 深得 → được / nhận được / học được, không \"đắc được\"",
+                "2:得手 → thành công / ra tay trót lọt, không \"đắc thủ\"",
+                "3:有收获 → thu được / tìm được gì, không \"thu hoạch được\"",
+                "4:有别 → hữu biệt / khác biệt, không \"có biệt\"",
+            ]
+        );
+    }
 }
