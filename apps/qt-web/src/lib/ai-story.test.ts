@@ -5,6 +5,8 @@ import {
   normalizeAiStoryConfig,
   normalizeAiTranslationChapters,
   parseAiStoryConfigJson,
+  normalizeStoryGenre,
+  defaultStoryGenre,
 } from "@/lib/ai-story";
 
 describe("AI story workspace data", () => {
@@ -70,16 +72,18 @@ describe("AI story workspace data", () => {
   });
 
   it("defaults genre to ancient/han and drops unknown values", () => {
-    expect(normalizeAiStoryConfig({}).genre).toEqual({ setting: "ancient", names: "han" });
+    expect(normalizeAiStoryConfig({}).genre).toEqual({ setting: "ancient", names: "han", tone: "neutral" });
     expect(normalizeAiStoryConfig({ genre: { setting: "modern", names: "foreign" } }).genre).toEqual({
       setting: "modern",
       names: "foreign",
+      tone: "neutral",
     });
     expect(normalizeAiStoryConfig({ genre: { setting: "future", names: 3 } }).genre).toEqual({
       setting: "ancient",
       names: "han",
+      tone: "neutral",
     });
-    expect(emptyAiStoryConfig().genre).toEqual({ setting: "ancient", names: "han" });
+    expect(emptyAiStoryConfig().genre).toEqual({ setting: "ancient", names: "han", tone: "neutral" });
   });
 });
 
@@ -130,5 +134,14 @@ describe("parseAiStoryConfigJson", () => {
     expect(parseAiStoryConfigJson("{hỏng")).toBeUndefined();
     expect(parseAiStoryConfigJson('"chuỗi"')).toBeUndefined();
     expect(parseAiStoryConfigJson("[1,2]")).toBeUndefined();
+  });
+});
+
+describe("normalizeStoryGenre · tone", () => {
+  it("thiếu hoặc sai → neutral; romance giữ", () => {
+    expect(normalizeStoryGenre({ setting: "modern", names: "han" })).toEqual({ setting: "modern", names: "han", tone: "neutral" });
+    expect(normalizeStoryGenre({ tone: "romance" })).toEqual({ setting: "ancient", names: "han", tone: "romance" });
+    expect(normalizeStoryGenre({ tone: "sweet" }).tone).toBe("neutral");
+    expect(defaultStoryGenre().tone).toBe("neutral");
   });
 });

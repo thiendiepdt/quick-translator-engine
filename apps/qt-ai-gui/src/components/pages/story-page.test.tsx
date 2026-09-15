@@ -81,7 +81,7 @@ describe("StoryPage", () => {
     await user.click(screen.getByRole("tab", { name: "Prompt" }));
     expect(await screen.findByRole("textbox", { name: "Prompt dịch thuật" }, { timeout: 5000 })).toBeInTheDocument();
     const { storyDefaults } = await import("@/lib/api");
-    expect(storyDefaults).toHaveBeenCalledWith({ setting: "modern", names: "han" });
+    expect(storyDefaults).toHaveBeenCalledWith({ setting: "modern", names: "han", tone: "neutral" });
   });
 
   it("chọn Hỗn hợp gọi defaults với setting mixed", async () => {
@@ -90,6 +90,16 @@ describe("StoryPage", () => {
     await user.click(screen.getByRole("combobox", { name: "Bối cảnh" }));
     await user.click(await screen.findByRole("option", { name: /Hỗn hợp/ }));
     const { storyDefaults } = await import("@/lib/api");
-    expect(storyDefaults).toHaveBeenCalledWith({ setting: "mixed", names: "han" });
+    expect(storyDefaults).toHaveBeenCalledWith({ setting: "mixed", names: "han", tone: "neutral" });
+  });
+
+  it("Giọng văn mặc định Trung tính; chọn Ngôn tình làm form dirty và hint nói prompt được chèn mục", async () => {
+    const user = userEvent.setup();
+    render(<StoryPage />);
+    expect(screen.getByRole("combobox", { name: "Giọng văn" })).toHaveTextContent("Trung tính");
+    await user.click(screen.getByRole("combobox", { name: "Giọng văn" }));
+    await user.click(await screen.findByRole("option", { name: /Ngôn tình/ }));
+    expect(screen.getByText("Có thay đổi chưa lưu")).toBeInTheDocument();
+    expect(screen.getByText(/chèn thêm mục giọng ngôn tình/)).toBeInTheDocument();
   });
 });

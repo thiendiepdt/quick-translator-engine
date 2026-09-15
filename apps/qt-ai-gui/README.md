@@ -28,6 +28,13 @@ lần; folder chưa khởi tạo hiện mờ, mở từ màn chọn truyện.
 
 ## Hai động cơ dịch
 
+Hồ sơ truyện → **Thể loại** có ba trục: Bối cảnh (xưng hô, thuật ngữ), Tên riêng (cách phiên) và **Giọng văn**:
+Trung tính (mặc định, prompt như trước, hợp truyện nam) hoặc Ngôn tình (truyện nữ). Chọn Ngôn tình thì prompt được chèn thêm
+mục "Giọng văn: ngôn tình" ngay trước "Đại từ nhân xưng": cái ngọt, cái hài, chớt nhả trong thoại là nội dung phải giữ, kèm
+bảng ví dụ khô → đúng giọng; vẫn cấm thêm ý. Mục này không hiện ở tab Prompt (base theo bối cảnh/tên riêng vẫn sửa được như
+cũ); prompt riêng của truyện thì không chèn. AI điền đề xuất giọng từ 3 chương đầu. Nguồn mục ở
+`apps/qt-web/src/lib/ai-translation-prompt.ts` (`TONE_ROMANCE`), Rust chèn qua `prompts.json` → `tones`.
+
 Chọn ở Cài đặt → **Động cơ dịch** (lưu trong `config.json` của app):
 
 - **Antigravity CLI (agy)** — agent chạy trong `agy -p` theo vòng phiên, tự dịch/check/accept

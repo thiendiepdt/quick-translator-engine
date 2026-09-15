@@ -1,4 +1,4 @@
-import type { GenreNames, GenreSetting, StoryGenre } from "@/lib/ai-story";
+import type { GenreNames, GenreSetting, GenreTone, StoryGenre } from "@/lib/ai-story";
 
 /**
  * Đồng bộ từ novel-translator/src-tauri/src/translator/translate.rs, tách theo slot để ghép theo thể loại.
@@ -749,6 +749,48 @@ const mixed: string[] = [
 
 const NAMES: Record<GenreNames, string[]> = { han, foreign, mixed };
 
+/**
+ * Mục "Giọng văn: ngôn tình" cho truyện nữ — chèn ngay sau Triết lý dịch, trước Đại từ nhân xưng. Base vốn
+ * viết cho truyện nam (tiết chế, cấm tô màu) nên dịch truyện nữ ra khô; mục này nói rõ cái ngọt, cái hài là
+ * nội dung phải giữ, kèm ví dụ khô → đúng giọng. Chốt sau A/B trên chuc-tieu-dao (2026-09-14).
+ */
+const TONE_ROMANCE: string[] = [
+  "## Giọng văn: ngôn tình (truyện nữ)",
+  "",
+  "Truyện này viết cho độc giả nữ. Cái ngọt, cái hài, sự chớt nhả, tự trào và nhịp đùa giỡn trong thoại là NỘI DUNG của nguyên tác, không phải trang trí. Dịch khô, dịch phẳng, “nghiêm túc hóa” một câu tác giả cố ý viết duyên dáng là dịch SAI sắc thái, lỗi ngang với thêm ý. Trong truyện này, khi phải chọn giữa một câu đúng ý nhưng nghe như biên bản và một câu đúng ý mà người đọc nữ bật cười hoặc thấy ngọt, LUÔN chọn câu sau.",
+  "",
+  "- Với mỗi câu, nhận ra sắc thái tác giả gài: đùa cợt, mỉa yêu, tủi thân giả vờ, ngượng ngùng, bĩu môi, nũng nịu, tự trào, cường điệu để gây cười. Chuyển đúng sắc thái đó sang cách nói tự nhiên của người đọc nữ Việt; không dịch phẳng thành lời kể trung tính.",
+  "- Thoại và lời bình trong đầu nhân vật: khẩu ngữ đời thường, tiểu từ cuối câu (nhé, nha, cơ, chứ, đấy, hả, mà, thôi mà, đi, cơ mà), từ láy, câu ngắn ngắt nhịp khi nhân vật đang chọc ghẹo hoặc dỗi. Câu hỏi tu từ mang giọng bực yêu hoặc sững sờ phải nghe ra giọng đó (“gì mà… thế này”, “cái quái gì”, “thế mà cũng…”). Nhân vật nói giọng gì giữ đúng giọng đó: người chớt nhả không được thành trang trọng, người nũng không được thành cứng.",
+  "- Lời kể bám nhân vật nữ: giữ giọng bình luận bên lề, câu cảm thán, so sánh hài, cường điệu của nguyên tác bằng cách nói tương đương mà người đọc nữ Việt hiện nay dùng, vẫn khớp bối cảnh (cổ trang thì không dùng tiếng lóng thời nay lộ liễu).",
+  "- Từ láy và từ gợi cảm giác (mềm mại, bồng bềnh, run run, khẽ khàng, chớp chớp, đỏ ửng, tê tê dại dại…): khi raw có từ tương ứng thì CHỌN từ giàu sắc thái nhất tiếng Việt có, không né về từ trung tính hay từ Hán-Việt khô. Danh sách “từ trang sức AI” ở trên chỉ cấm khi raw KHÔNG có; raw có thì dùng.",
+  "- Cảnh tình cảm: giữ đủ độ ngọt, độ ngượng, độ bối rối như nguyên tác; không gọt bớt cho “nghiêm túc”, không nói giảm, không đổi từ gợi cảm thành từ sách vở.",
+  "- Vẫn tuyệt đối không thêm ý, không thêm câu, không giải thích, không tự chế trò đùa mà raw không có. Ngọt và hài phải có căn cứ từng chữ trong raw; việc của bạn là chọn cách nói Việt duyên nhất cho đúng ý đó.",
+  "",
+  "Ví dụ cùng một ý, bản khô (SAI sắc thái) và bản đúng giọng:",
+  "",
+  "| Raw | Khô (tránh) | Đúng giọng |",
+  "| --- | --- | --- |",
+  "| 这么香艳，这么刺激的么？ | Diễm tình thế này, kích thích thế này sao? | Gì mà nóng bỏng, gì mà kích thích thế này hả? |",
+  "| 这是什么见了鬼的俗烂操作？ | Đây là trò vớ vẩn quái quỷ gì thế này? | Cái trò sến sẩm quỷ quái gì thế này? |",
+  "| 她只在话本上看过。 | Nàng chỉ mới thấy trong thoại bản. | Nàng mới chỉ thấy trong thoại bản thôi đấy. |",
+  "| 白骨嘻嘻笑了两声。 | Bạch Cốt hì hì cười hai tiếng. | Bạch Cốt cười hì hì hai tiếng. |",
+  "| 你怎么在这里洗澡？ | Sao ngươi lại tắm ở đây? | Sao ngươi lại tắm ở đây thế hả? |",
+  "| 他是个傻子。 | Hắn là một tên ngốc. | Hắn là một kẻ ngốc chính hiệu. (KHÔNG thêm “chính hiệu” nếu raw không có sắc thái nhấn — chỉ chọn từ mạnh khi raw mỉa) |",
+  "| 真的是要了她老命。 | Thật sự muốn lấy mạng già của nàng. | Đúng là muốn lấy cái mạng già này của nàng mà. |",
+  "",
+  "Phép thử: đọc lại thoại và lời bình của nhân vật nữ mà không nhìn raw; nếu nghe như biên bản hoặc như văn kể hành động của truyện nam, dịch lại câu đó cho có duyên.",
+  "",
+  "---",
+  "",
+];
+
+const TONES: Record<GenreTone, string[]> = { neutral: [], romance: TONE_ROMANCE };
+
+/** Mục giọng văn đứng riêng (join "\n"), để Rust chèn vào base người dùng đã sửa mà vẫn khớp từng byte. */
+export function composeTonePrompt(tone: GenreTone): string {
+  return TONES[tone].join("\n");
+}
+
 const numbered = (lines: string[]) => lines.map((line, index) => `${index + 1}. ${line}`);
 
 export function genreKey(genre: StoryGenre): string {
@@ -756,7 +798,7 @@ export function genreKey(genre: StoryGenre): string {
 }
 
 export const PROMPT_GENRE_COMBOS: StoryGenre[] = (["ancient", "modern", "mixed"] as const).flatMap((setting) =>
-  (["han", "foreign", "mixed"] as const).map((names) => ({ setting, names })),
+  (["han", "foreign", "mixed"] as const).map((names) => ({ setting, names, tone: "neutral" as const })),
 );
 
 /** Base prompt ghép theo thể loại; ancient/han bằng đúng từng byte prompt cũ. */
@@ -766,6 +808,7 @@ export function composeBasePrompt(genre: StoryGenre): string {
     ...CORE_HEAD,
     ...numbered([...CORE_CONSTRAINTS_A, ...setting.constraints, ...CORE_CONSTRAINTS_B]),
     ...CORE_PHILOSOPHY,
+    ...(TONES[genre.tone] ?? []), // dữ liệu cũ chưa qua normalize có thể thiếu tone
     ...setting.pronouns,
     ...CORE_TERMS,
     ...setting.terms,

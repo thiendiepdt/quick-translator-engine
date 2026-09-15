@@ -9,7 +9,8 @@
         "summary": "",
         "genre": {
           "setting": "ancient",
-          "names": "han"
+          "names": "han",
+          "tone": "neutral"
         },
         "glossary": {
           "names": {},
@@ -96,7 +97,8 @@
         "summary": "",
         "genre": {
           "setting": "ancient",
-          "names": "han"
+          "names": "han",
+          "tone": "neutral"
         },
         "glossary": {
           "names": {
@@ -157,7 +159,8 @@
         "summary": "",
         "genre": {
           "setting": "modern",
-          "names": "han"
+          "names": "han",
+          "tone": "neutral"
         },
         "glossary": {
           "names": {},
@@ -195,7 +198,8 @@
         "summary": "",
         "genre": {
           "setting": "mixed",
-          "names": "han"
+          "names": "han",
+          "tone": "neutral"
         },
         "glossary": {
           "names": {},

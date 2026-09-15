@@ -36,6 +36,7 @@ export type StoryConfig = z.infer<typeof storyConfigSchema>;
 export type StoryGenre = z.infer<typeof storyGenreSchema>;
 export type GenreSetting = StoryGenre["setting"];
 export type GenreNames = StoryGenre["names"];
+export type GenreTone = StoryGenre["tone"];
 export type StoryDefaults = z.infer<typeof storyDefaultsSchema>;
 export type CheckRule = z.infer<typeof checkRuleSchema>;
 export type BaseView = z.infer<typeof baseViewSchema>;
@@ -51,6 +52,13 @@ export const GENRE_NAMES_LABELS: Record<GenreNames, { label: string; hint: strin
   han: { label: "Hán-Việt", hint: "Kế Duyên, Bắc Kinh" },
   foreign: { label: "Gốc nước ngoài", hint: "Emily, New York, Naruto" },
   mixed: { label: "Hỗn hợp", hint: "Họ Hán → Hán-Việt, tên phiên âm → gốc" },
+};
+export const GENRE_TONE_LABELS: Record<GenreTone, { label: string; hint: string }> = {
+  neutral: { label: "Trung tính", hint: "Truyện nam, hành động, hệ thống: tiết chế, bám sát nguyên tác" },
+  romance: {
+    label: "Ngôn tình (truyện nữ)",
+    hint: "Giữ ngọt, hài, chớt nhả trong thoại; prompt được chèn thêm mục giọng ngôn tình (không sửa ở tab Prompt)",
+  },
 };
 export type HarnessSettings = z.infer<typeof harnessSettingsSchema>;
 export type ChapterRow = z.infer<typeof chapterRowSchema>;

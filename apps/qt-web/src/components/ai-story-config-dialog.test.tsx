@@ -35,10 +35,12 @@ describe("story genre", () => {
     await user.click(await screen.findByRole("option", { name: /Hiện đại/ }));
     await user.click(screen.getByRole("combobox", { name: "Tên riêng" }));
     await user.click(await screen.findByRole("option", { name: /Gốc nước ngoài/ }));
+    await user.click(screen.getByRole("combobox", { name: "Giọng văn" }));
+    await user.click(await screen.findByRole("option", { name: /Ngôn tình/ }));
     await user.click(screen.getByRole("button", { name: "Lưu cấu hình" }));
 
     expect(onSave).toHaveBeenCalledWith(
-      expect.objectContaining({ genre: { setting: "modern", names: "foreign" } }),
+      expect.objectContaining({ genre: { setting: "modern", names: "foreign", tone: "romance" } }),
     );
   });
 

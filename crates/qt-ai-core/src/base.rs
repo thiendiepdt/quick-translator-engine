@@ -242,7 +242,7 @@ mod tests {
     #[test]
     fn save_ghi_dung_duong_dan_va_doc_lai_reset_xoa() {
         let (dir, store) = store();
-        let genre = StoryGenre { setting: GenreSetting::Modern, names: GenreNames::Foreign };
+        let genre = StoryGenre { setting: GenreSetting::Modern, names: GenreNames::Foreign, ..StoryGenre::default() };
         store.save_prompt(&genre, "# Prompt của tôi\n").unwrap();
         assert_eq!(
             fs::read_to_string(dir.path().join("base/prompts/modern-foreign.md")).unwrap(),

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { GENRE_NAMES, GENRE_SETTINGS } from "@/lib/schema";
+import { GENRE_NAMES, GENRE_SETTINGS, GENRE_TONES } from "@/lib/schema";
 import { GLOSSARY_KEYS, type StoryConfig } from "@/lib/types";
 
 const pairSchema = z.object({ source: z.string(), target: z.string() });
@@ -13,6 +13,7 @@ export const storyFormSchema = z.object({
   summary: z.string(),
   genreSetting: z.enum(GENRE_SETTINGS),
   genreNames: z.enum(GENRE_NAMES),
+  genreTone: z.enum(GENRE_TONES),
   customPrompt: z.string(),
   voice: z.string(),
   toneRules: z.string(),
@@ -95,6 +96,7 @@ export function toFormValues(config: StoryConfig): StoryFormValues {
     summary: config.summary,
     genreSetting: config.genre.setting,
     genreNames: config.genre.names,
+    genreTone: config.genre.tone,
     customPrompt: config.customPrompt,
     voice: config.style.voice,
     toneRules: lines(config.style.toneRules),
@@ -117,7 +119,7 @@ export function fromFormValues(values: StoryFormValues, base: StoryConfig): Stor
     sourceUrl: values.sourceUrl,
     protagonist: values.protagonist,
     summary: values.summary,
-    genre: { setting: values.genreSetting, names: values.genreNames },
+    genre: { setting: values.genreSetting, names: values.genreNames, tone: values.genreTone },
     glossary: pairsToGlossary(values.glossary),
     style: {
       voice: values.voice,

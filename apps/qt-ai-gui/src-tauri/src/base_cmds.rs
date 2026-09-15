@@ -40,9 +40,9 @@ pub fn source_label(source: BaseSource) -> String {
 
 fn genre_of(kind: BaseKind, setting: GenreSetting, names: Option<GenreNames>) -> CmdResult<StoryGenre> {
     match (kind, names) {
-        (BaseKind::Prompt, Some(names)) => Ok(StoryGenre { setting, names }),
+        (BaseKind::Prompt, Some(names)) => Ok(StoryGenre { setting, names, ..StoryGenre::default() }),
         (BaseKind::Prompt, None) => Err(CommandError::new("invalid", "Base prompt cần cả bối cảnh và kiểu tên riêng")),
-        (_, _) => Ok(StoryGenre { setting, names: names.unwrap_or_default() }),
+        (_, _) => Ok(StoryGenre { setting, names: names.unwrap_or_default(), ..StoryGenre::default() }),
     }
 }
 

@@ -10,8 +10,14 @@ export const checkRuleSchema = z.object({ pattern: z.string(), flags: z.string()
 
 export const GENRE_SETTINGS = ["ancient", "modern", "mixed"] as const;
 export const GENRE_NAMES = ["han", "foreign", "mixed"] as const;
+export const GENRE_TONES = ["neutral", "romance"] as const;
 /** Hai trục thể loại (port `StoryGenre` của qt-web): bối cảnh quyết xưng hô/rule, tên riêng quyết cách phiên. */
-export const storyGenreSchema = z.object({ setting: z.enum(GENRE_SETTINGS), names: z.enum(GENRE_NAMES) });
+/** `tone` default neutral: story.json cũ chưa có field, prompt không đổi. */
+export const storyGenreSchema = z.object({
+  setting: z.enum(GENRE_SETTINGS),
+  names: z.enum(GENRE_NAMES),
+  tone: z.enum(GENRE_TONES).default("neutral"),
+});
 
 /** 8 nhóm glossary (truyện lẫn kho chung của app). */
 export const glossaryRecordSchema = z.object({

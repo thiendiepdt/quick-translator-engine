@@ -31,13 +31,19 @@ export interface StoryStyle {
 
 export const GENRE_SETTINGS = ["ancient", "modern", "mixed"] as const;
 export const GENRE_NAMES = ["han", "foreign", "mixed"] as const;
+export const GENRE_TONES = ["neutral", "romance"] as const;
 export type GenreSetting = (typeof GENRE_SETTINGS)[number];
 export type GenreNames = (typeof GENRE_NAMES)[number];
+export type GenreTone = (typeof GENRE_TONES)[number];
 
-/** Hai trục độc lập: bối cảnh quyết xưng hô/thán từ/thuật ngữ; tên riêng quyết cách phiên. */
+/**
+ * Ba trục độc lập: bối cảnh quyết xưng hô/thán từ/thuật ngữ; tên riêng quyết cách phiên; giọng văn chèn thêm
+ * mục riêng vào prompt (romance = truyện nữ: giữ ngọt, hài, chớt nhả), neutral = prompt y hệt trước.
+ */
 export interface StoryGenre {
   setting: GenreSetting;
   names: GenreNames;
+  tone: GenreTone;
 }
 
 export const GENRE_SETTING_LABELS: Record<GenreSetting, { label: string; hint: string }> = {
@@ -51,8 +57,13 @@ export const GENRE_NAMES_LABELS: Record<GenreNames, { label: string; hint: strin
   mixed: { label: "Hỗn hợp", hint: "Họ Hán → Hán-Việt, tên phiên âm → gốc" },
 };
 
+export const GENRE_TONE_LABELS: Record<GenreTone, { label: string; hint: string }> = {
+  neutral: { label: "Trung tính", hint: "Truyện nam, hành động, hệ thống: tiết chế, bám sát nguyên tác" },
+  romance: { label: "Ngôn tình (truyện nữ)", hint: "Giữ ngọt, hài, chớt nhả trong thoại; prompt thêm mục giọng ngôn tình" },
+};
+
 export function defaultStoryGenre(): StoryGenre {
-  return { setting: "ancient", names: "han" };
+  return { setting: "ancient", names: "han", tone: "neutral" };
 }
 
 function isGenreSetting(value: unknown): value is GenreSetting {
@@ -61,6 +72,9 @@ function isGenreSetting(value: unknown): value is GenreSetting {
 function isGenreNames(value: unknown): value is GenreNames {
   return typeof value === "string" && (GENRE_NAMES as readonly string[]).includes(value);
 }
+function isGenreTone(value: unknown): value is GenreTone {
+  return typeof value === "string" && (GENRE_TONES as readonly string[]).includes(value);
+}
 
 /** Thiếu hoặc sai → mặc định cổ đại/Hán-Việt: truyện đang dịch không đổi hành vi. */
 export function normalizeStoryGenre(value: unknown): StoryGenre {
@@ -68,6 +82,7 @@ export function normalizeStoryGenre(value: unknown): StoryGenre {
   return {
     setting: isGenreSetting(record.setting) ? record.setting : "ancient",
     names: isGenreNames(record.names) ? record.names : "han",
+    tone: isGenreTone(record.tone) ? record.tone : "neutral",
   };
 }
 

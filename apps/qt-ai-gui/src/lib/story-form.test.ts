@@ -22,14 +22,16 @@ describe("story-form genre", () => {
     const values = toFormValues(base);
     expect(values.genreSetting).toBe("modern");
     expect(values.genreNames).toBe("mixed");
-    expect(fromFormValues({ ...values, genreNames: "foreign" }, base).genre).toEqual({
+    expect(values.genreTone).toBe("neutral"); // schema default khi story.json cũ không có tone
+    expect(fromFormValues({ ...values, genreNames: "foreign", genreTone: "romance" }, base).genre).toEqual({
       setting: "modern",
       names: "foreign",
+      tone: "romance",
     });
   });
 
   it("diff liệt kê genre khi đổi", () => {
-    const after = { ...base, genre: { setting: "ancient" as const, names: "han" as const } };
+    const after = { ...base, genre: { setting: "ancient" as const, names: "han" as const, tone: "neutral" as const } };
     expect(diffStoryConfig(base, after).map((d) => d.field)).toEqual(["genre"]);
   });
 

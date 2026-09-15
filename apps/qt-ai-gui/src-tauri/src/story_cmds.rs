@@ -443,10 +443,10 @@ mod tests {
         assert!(d.base_prompt.len() > 200 && !d.base_prompt.contains("Dịch raw text tiếng Trung"));
         assert!(d.prompt_suffix.contains("Dịch raw text tiếng Trung"));
         assert!(d.check_rules.iter().any(|r| r.message.contains("vợ/chồng")));
-        let m = defaults(&StoryGenre { setting: GenreSetting::Modern, names: GenreNames::Foreign }, &store);
+        let m = defaults(&StoryGenre { setting: GenreSetting::Modern, names: GenreNames::Foreign, ..StoryGenre::default() }, &store);
         assert!(m.base_prompt.contains("Emily"));
         assert!(!m.check_rules.iter().any(|r| r.message.contains("thê tử/phu quân")));
-        let x = defaults(&StoryGenre { setting: GenreSetting::Mixed, names: GenreNames::Han }, &store);
+        let x = defaults(&StoryGenre { setting: GenreSetting::Mixed, names: GenreNames::Han, ..StoryGenre::default() }, &store);
         assert!(x.base_prompt.contains("theo cảnh"));
         assert!(!x.check_rules.iter().any(|r| r.message.contains("thê tử/phu quân") || r.message.contains("Xưng hô cổ trang")));
         let json = serde_json::to_value(&d).unwrap();

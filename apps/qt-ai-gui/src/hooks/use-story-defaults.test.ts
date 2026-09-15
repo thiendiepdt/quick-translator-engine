@@ -24,7 +24,7 @@ describe("useStoryDefaults", () => {
 
   it("nạp theo genre, dùng lại kết quả cho cùng genre, nạp lại khi baseVersion tăng", async () => {
     vi.mocked(storyDefaults).mockResolvedValueOnce(value("v1")).mockResolvedValueOnce(value("v2"));
-    const genre = { setting: "ancient" as const, names: "han" as const };
+    const genre = { setting: "ancient" as const, names: "han" as const, tone: "neutral" as const };
     const { result, rerender } = renderHook(() => useStoryDefaults(genre));
     await waitFor(() => expect(result.current?.basePrompt).toBe("v1"));
     rerender();

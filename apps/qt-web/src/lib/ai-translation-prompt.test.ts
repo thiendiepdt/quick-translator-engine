@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { defaultStoryGenre } from "@/lib/ai-story";
 import {
   composeBasePrompt,
+  composeTonePrompt,
   genreKey,
   LEGACY_BASE_PROMPT_FNV1A64,
   PROMPT_GENRE_COMBOS,
@@ -24,6 +25,19 @@ describe("composeBasePrompt", () => {
     expect(fnv1a64(composeBasePrompt(defaultStoryGenre()))).toBe(LEGACY_BASE_PROMPT_FNV1A64);
   });
 
+  it("tone romance chèn mục Giọng văn ngôn tình ngay trước Đại từ nhân xưng; neutral không đổi", () => {
+    const romance = composeBasePrompt({ ...defaultStoryGenre(), tone: "romance" });
+    const neutral = composeBasePrompt(defaultStoryGenre());
+    expect(neutral).not.toContain("## Giọng văn: ngôn tình");
+    const at = romance.indexOf("## Giọng văn: ngôn tình (truyện nữ)");
+    expect(at).toBeGreaterThan(romance.indexOf("## 0. Ràng buộc trung thành"));
+    expect(at).toBeLessThan(romance.indexOf("## 1. Đại từ nhân xưng"));
+    // Chèn đúng một khối, phần còn lại y hệt neutral.
+    expect(romance.replace(`${composeTonePrompt("romance")}\n`, "")).toBe(neutral);
+    expect(romance).toContain("| 这么香艳，这么刺激的么？ |");
+    expect(composeTonePrompt("neutral")).toBe("");
+  });
+
   it("đánh số liền mạch hai danh sách ở mọi tổ hợp", () => {
     for (const genre of PROMPT_GENRE_COMBOS) {
       const prompt = composeBasePrompt(genre);
@@ -41,7 +55,7 @@ describe("composeBasePrompt", () => {
   });
 
   it("modern bỏ xưng hô cổ, cho vợ/chồng; foreign trả tên về gốc", () => {
-    const modern = composeBasePrompt({ setting: "modern", names: "han" });
+    const modern = composeBasePrompt({ setting: "modern", names: "han", tone: "neutral" });
     expect(modern).toContain("| 他          | **hắn** (lời kể ngôi ba, mọi nhân vật)");
     expect(modern).toContain("lời kể ngôi ba dùng `hắn` cho nhân vật nam và `cô` cho nhân vật nữ");
     expect(modern).not.toContain("hắn chỉ cho nhân vật lạnh");
@@ -50,17 +64,17 @@ describe("composeBasePrompt", () => {
     expect(modern).not.toContain("| 我          | **tôi**");
     expect(modern).toContain("`我` trong lời kể ngôi thứ nhất dùng `ta`");
     expect(modern).not.toContain("| 男人 / 男子 / 男的 | nam nhân / nam tử");
-    const ancientHan = composeBasePrompt({ setting: "ancient", names: "han" });
+    const ancientHan = composeBasePrompt({ setting: "ancient", names: "han", tone: "neutral" });
     expect(ancientHan).toContain("| 男人 / 男子 / 男的 | nam nhân / nam tử");
     expect(ancientHan).toContain("`Nam nhân khoác hắc bào`");
     expect(modern).not.toContain('KHÔNG dùng "vợ", "chồng"');
     expect(modern).not.toContain("### Tu tiên / Xianxia");
     expect(modern).toContain("Kế Duyên");
-    const foreign = composeBasePrompt({ setting: "ancient", names: "foreign" });
+    const foreign = composeBasePrompt({ setting: "ancient", names: "foreign", tone: "neutral" });
     expect(foreign).toContain("艾米丽");
     expect(foreign).not.toContain("| 计缘   | Kế Duyên");
     expect(foreign).toContain("### Tu tiên / Xianxia");
-    const mixed = composeBasePrompt({ setting: "modern", names: "mixed" });
+    const mixed = composeBasePrompt({ setting: "modern", names: "mixed", tone: "neutral" });
     expect(mixed).toContain("Bách gia tính");
   });
 
@@ -75,20 +89,20 @@ describe("composeBasePrompt", () => {
       // Ý cấm từ nối tiếng Anh chỉ còn hai chỗ: ràng buộc hệ thống và biên tập cuối.
       expect(prompt.match(/`But`/g)?.length, genreKey(genre)).toBe(2);
     }
-    const ancient = composeBasePrompt({ setting: "ancient", names: "han" });
+    const ancient = composeBasePrompt({ setting: "ancient", names: "han", tone: "neutral" });
     expect(ancient).toContain("| X哥 / X姐 | X ca / X tỷ |");
     expect(ancient).not.toContain("### Tiếng lóng mạng");
-    const modern = composeBasePrompt({ setting: "modern", names: "han" });
+    const modern = composeBasePrompt({ setting: "modern", names: "han", tone: "neutral" });
     expect(modern).toContain("| X哥 / X姐 | anh X / chị X |");
     expect(modern).toContain("| 吃瓜 | hóng chuyện / hóng drama |");
     expect(modern).not.toContain("| X兄 / X弟 / X妹 |");
-    const mixed = composeBasePrompt({ setting: "mixed", names: "han" });
+    const mixed = composeBasePrompt({ setting: "mixed", names: "han", tone: "neutral" });
     expect(mixed).toContain("| X哥 / X姐 | X ca / X tỷ |");
     expect(mixed).toContain("| 吃瓜 |");
   });
 
   it("mixed có cả hai bộ xưng hô, hai bảng thuật ngữ", () => {
-    const mixed = composeBasePrompt({ setting: "mixed", names: "han" });
+    const mixed = composeBasePrompt({ setting: "mixed", names: "han", tone: "neutral" });
     expect(mixed).toContain("| 我          | **ta**");
     expect(mixed).toContain("| 他          | **hắn** (lời kể ngôi ba, mọi nhân vật)");
     expect(mixed).toContain("lời kể `hắn`/`cô`, người kể ngôi một `ta`, trong thoại `tôi`/`anh`/`em`/`cậu`");

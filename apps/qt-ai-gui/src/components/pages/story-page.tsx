@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useStoryDefaults } from "@/hooks/use-story-defaults";
 import { saveStory, storySnapshot } from "@/lib/api";
-import { GENRE_NAMES, GENRE_SETTINGS, storyConfigSchema } from "@/lib/schema";
+import { GENRE_NAMES, GENRE_SETTINGS, storyConfigSchema, GENRE_TONES } from "@/lib/schema";
 import { fromFormValues, storyFormSchema, toFormValues, type StoryFormValues } from "@/lib/story-form";
 import {
   GENRE_NAMES_LABELS,
@@ -24,6 +24,7 @@ import {
   GLOSSARY_LABELS,
   type StoryConfig,
   type StoryGenre,
+  GENRE_TONE_LABELS,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { selectCurrentRunning, useStoryStore } from "@/store/story";
@@ -73,10 +74,11 @@ export function StoryPage() {
   const autoGlossary = useWatch({ control: form.control, name: "autoGlossary" });
   const genreSetting = useWatch({ control: form.control, name: "genreSetting" });
   const genreNames = useWatch({ control: form.control, name: "genreNames" });
+  const genreTone = useWatch({ control: form.control, name: "genreTone" });
   // Object ổn định theo hai giá trị watch để hook defaults không tải lại mỗi render.
   const genre = useMemo<StoryGenre>(
-    () => ({ setting: genreSetting ?? "ancient", names: genreNames ?? "han" }),
-    [genreSetting, genreNames],
+    () => ({ setting: genreSetting ?? "ancient", names: genreNames ?? "han", tone: genreTone ?? "neutral" }),
+    [genreSetting, genreNames, genreTone],
   );
   const defaults = useStoryDefaults(genre);
   const [fillOpen, setFillOpen] = useState(false);
@@ -233,6 +235,25 @@ export function StoryPage() {
                           {GENRE_NAMES.map((id) => (
                             <SelectItem key={id} value={id}>
                               {GENRE_NAMES_LABELS[id].label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                    <Field id="genreTone" label="Giọng văn" hint={GENRE_TONE_LABELS[genre.tone].hint}>
+                      <Select
+                        value={genre.tone}
+                        onValueChange={(v) =>
+                          form.setValue("genreTone", v as StoryFormValues["genreTone"], { shouldDirty: true })
+                        }
+                      >
+                        <SelectTrigger id="genreTone" aria-label="Giọng văn">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {GENRE_TONES.map((id) => (
+                            <SelectItem key={id} value={id}>
+                              {GENRE_TONE_LABELS[id].label}
                             </SelectItem>
                           ))}
                         </SelectContent>
