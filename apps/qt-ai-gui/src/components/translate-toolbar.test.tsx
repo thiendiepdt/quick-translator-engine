@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TranslateToolbar } from "@/components/translate-toolbar";
-import { sessionStop, storySnapshot } from "@/lib/api";
+import { chaptersRetryIds, sessionStop, storySnapshot } from "@/lib/api";
 import { pathKey } from "@/lib/paths";
 import { appConfigSchema } from "@/lib/schema";
 import { useStoryStore } from "@/store/story";
@@ -11,6 +11,7 @@ import { useStoryStore } from "@/store/story";
 vi.mock("@/lib/api", () => ({
   chaptersDelete: vi.fn(),
   chaptersRetry: vi.fn(),
+  chaptersRetryIds: vi.fn(),
   rescanStory: vi.fn(),
   sessionStart: vi.fn(),
   sessionStop: vi.fn(),
@@ -91,6 +92,47 @@ describe("TranslateToolbar · cảnh báo hổng chương", () => {
     expect(alert).toHaveTextContent("1 chương trước #3 chưa dịch");
     await userEvent.click(screen.getByRole("button", { name: "#2 c2" }));
     expect(useStoryStore.getState().selectedId).toBe("c2");
+  });
+
+  it("nút 'Dịch lại cả N' đếm chương hổng chưa queued, gọi đúng id rồi tải lại snapshot; đang chạy phiên thì khoá", async () => {
+    vi.mocked(chaptersRetryIds).mockResolvedValue({ retried: ["c2"], backedUp: [], alreadyQueued: [] });
+    const reloaded = { ...useStoryStore.getState().snapshot!, chapters: [] };
+    vi.mocked(storySnapshot).mockResolvedValue(reloaded);
+    const user = userEvent.setup();
+    const { unmount } = render(<TranslateToolbar />);
+    await user.click(screen.getByRole("button", { name: "Dịch lại cả 1" }));
+    expect(chaptersRetryIds).toHaveBeenCalledWith(ROOT, ["c2"]);
+    expect(storySnapshot).toHaveBeenCalledWith(ROOT);
+    await vi.waitFor(() => expect(useStoryStore.getState().snapshot?.chapters).toHaveLength(0));
+    unmount();
+
+    useStoryStore.setState((s) => ({
+      snapshot: {
+        ...s.snapshot!,
+        chapters: [
+          { id: "c1", status: "done", reviewRound: 0, reason: null, warnings: [] },
+          { id: "c2", status: "queued", reviewRound: 0, reason: null, warnings: [] },
+          { id: "c3", status: "error", reviewRound: 0, reason: "lỗi", warnings: [] },
+          { id: "c4", status: "done", reviewRound: 0, reason: null, warnings: [] },
+        ],
+      } as never,
+      sessions: { [pathKey(ROOT)]: { status: "running", sessionNo: 1 } },
+    }));
+    render(<TranslateToolbar />);
+    // c2 queued sẵn không đếm; chỉ c3.
+    expect(screen.getByRole("button", { name: "Dịch lại cả 1" })).toBeDisabled();
+  });
+
+  it("hổng toàn chương queued thì không có nút dịch lại", () => {
+    useStoryStore.setState((s) => ({
+      snapshot: {
+        ...s.snapshot!,
+        chapters: s.snapshot!.chapters.map((c) => (c.id === "c2" ? { ...c, status: "queued", reason: null } : c)),
+      } as never,
+    }));
+    render(<TranslateToolbar />);
+    expect(screen.getByRole("status", { name: /hổng/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Dịch lại cả/ })).not.toBeInTheDocument();
   });
 
   it("không hổng thì không hiện", () => {

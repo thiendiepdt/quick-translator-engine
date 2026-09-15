@@ -77,6 +77,9 @@ export const saveChapterOutput = (root: string, id: string, text: string) =>
   call("save_chapter_output", { root, id, text }, noop);
 export const chaptersRetry = (root: string, range: { from?: string; to?: string }) =>
   call("chapters_retry", { root, from: range.from ?? null, to: range.to ?? null }, (v) => retryRangeOutcomeSchema.parse(v));
+/** Dịch lại đúng các chương `ids` (chương hổng xen kẽ chương done): queued bỏ qua, done giữ .bak. */
+export const chaptersRetryIds = (root: string, ids: string[]) =>
+  call("chapters_retry_ids", { root, ids }, (v) => retryRangeOutcomeSchema.parse(v));
 /** Xoá hẳn chương: gỡ state, xoá raw/ + work/; out/<id>.txt giữ nguyên (keptOutputs). */
 export const chaptersDelete = (root: string, ids: string[]) =>
   call("chapters_delete", { root, ids }, (v) => deleteOutcomeSchema.parse(v));

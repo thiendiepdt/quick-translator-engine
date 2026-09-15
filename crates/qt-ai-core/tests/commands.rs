@@ -5,7 +5,7 @@ use qt_ai_core::commands::delete::run_delete;
 use qt_ai_core::commands::export::{run_export, ExportOptions};
 use qt_ai_core::commands::init::run_init;
 use qt_ai_core::commands::next::run_next;
-use qt_ai_core::commands::retry::{retry_backup_path, run_retry, run_retry_range};
+use qt_ai_core::commands::retry::{retry_backup_path, run_retry, run_retry_ids, run_retry_range};
 use qt_ai_core::commands::skip::run_skip;
 use qt_ai_core::commands::status::run_status;
 use qt_ai_core::story::StoryConfig;
@@ -181,6 +181,36 @@ fn retry_range_dich_lai_khoang_bo_qua_queued_giu_bak_va_all() {
     assert_eq!(all.already_queued.len(), 3);
     assert!(matches!(run_retry_range(root, Some("0003"), Some("0001")), Err(CoreError::InvalidState(ref m)) if m.contains("ngược")));
     assert!(matches!(run_retry_range(root, Some("9999"), None), Err(CoreError::StoryNotFound(_))));
+}
+
+#[test]
+fn retry_ids_dich_lai_dung_cac_chuong_hong_bo_qua_queued_khong_dung_done_xen_giua() {
+    let dir = make_story_dir(&[("0001", "一"), ("0002", "二"), ("0003", "三"), ("0004", "四")]);
+    let root = dir.path();
+    run_init(root, "qt-ai").unwrap();
+    let paths = story_paths(root);
+    let mut state = load_state(&paths).unwrap();
+    for (id, status) in [("0001", ChapterStatus::Done), ("0002", ChapterStatus::Error), ("0004", ChapterStatus::Skipped)] {
+        state.chapters.get_mut(id).unwrap().status = status;
+    }
+    save_state(&paths, &state).unwrap();
+    fs::create_dir_all(&paths.out_dir).unwrap();
+    fs::write(paths.out_dir.join("0001.txt"), "dịch 1").unwrap();
+
+    // Id lạ → không đổi gì.
+    let ids = |list: &[&str]| list.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+    assert!(matches!(run_retry_ids(root, &ids(&["0002", "9999"])), Err(CoreError::StoryNotFound(_))));
+    assert_eq!(load_state(&paths).unwrap().chapters["0002"].status, ChapterStatus::Error);
+
+    // Thứ tự lộn xộn + trùng: kết quả theo thứ tự tự nhiên, queued bỏ qua, done xen giữa giữ nguyên.
+    let outcome = run_retry_ids(root, &ids(&["0004", "0002", "0003", "0004"])).unwrap();
+    assert_eq!(outcome.retried, vec!["0002", "0004"]);
+    assert_eq!(outcome.already_queued, vec!["0003"]);
+    assert!(outcome.backed_up.is_empty());
+    let state = load_state(&paths).unwrap();
+    assert!(["0002", "0003", "0004"].iter().all(|id| state.chapters[*id].status == ChapterStatus::Queued));
+    assert_eq!(state.chapters["0001"].status, ChapterStatus::Done);
+    assert!(paths.out_dir.join("0001.txt").exists(), "chương done không được động vào");
 }
 
 #[test]
