@@ -296,7 +296,7 @@
 
   .fine-scrollbar {
     scrollbar-color: color-mix(in oklch, var(--foreground) 25%, transparent) transparent;
-    scrollbar-width: thin;
+    scrollbar-width: auto; /* thin ~8px trên WebView2, khó bấm — auto ~2x. */
   }
 
   .reading-font {

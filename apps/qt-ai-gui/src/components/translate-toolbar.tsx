@@ -7,7 +7,7 @@ import { RetryRangeDialog } from "@/components/retry-range-dialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { chaptersRetryIds, rescanStory, sessionStart, sessionStop, storySnapshot } from "@/lib/api";
-import { gapsBeforeFrontier } from "@/lib/chapters";
+import { filterChapters, gapsBeforeFrontier } from "@/lib/chapters";
 import { engineLabel, STATUS_LABELS } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { selectCurrentProgress, selectCurrentSession, useStoryStore } from "@/store/story";
@@ -34,6 +34,10 @@ export function TranslateToolbar() {
   const setSnapshot = useStoryStore((s) => s.setSnapshot);
   const setPage = useStoryStore((s) => s.setPage);
   const select = useStoryStore((s) => s.select);
+  const statusFilter = useStoryStore((s) => s.statusFilter);
+  const searchQuery = useStoryStore((s) => s.searchQuery);
+  const setStatusFilter = useStoryStore((s) => s.setStatusFilter);
+  const setSearchQuery = useStoryStore((s) => s.setSearchQuery);
   // Chương chưa dịch đứng trước chương done cuối (skip vì model từ chối, lỗi…) — dễ bị bỏ quên khi phiên chạy tiếp.
   const gapInfo = useMemo(() => (snapshot ? gapsBeforeFrontier(snapshot.chapters) : null), [snapshot]);
   // Chương hổng còn phải đưa về hàng đợi (queued sẵn thì thôi).
@@ -41,6 +45,14 @@ export function TranslateToolbar() {
     () => (gapInfo?.gaps ?? []).filter(({ row }) => row.status !== "queued").map(({ row }) => row.id),
     [gapInfo],
   );
+  /** Chọn chương hổng; đang bị lọc/tìm che thì bỏ lọc để danh sách cuộn tới được. */
+  function jumpTo(id: string) {
+    if (snapshot && !filterChapters(snapshot.chapters, statusFilter, searchQuery).some((row) => row.id === id)) {
+      setStatusFilter("all");
+      setSearchQuery("");
+    }
+    select(id);
+  }
   const [model, setModel] = useState<string | undefined>(config?.model ?? undefined);
   const [busy, setBusy] = useState(false);
   const [scanning, setScanning] = useState(false);
@@ -264,7 +276,7 @@ export function TranslateToolbar() {
               type="button"
               aria-label={`#${ordinal} ${row.id}`}
               title={`${row.id} — ${STATUS_LABELS[row.status]}${row.reason ? `: ${row.reason}` : ""}`}
-              onClick={() => select(row.id)}
+              onClick={() => jumpTo(row.id)}
               className="rounded border border-status-warning/40 px-1.5 py-0.5 font-mono tabular-nums hover:bg-status-warning/10"
             >
               #{ordinal} <span className="opacity-70">{STATUS_LABELS[row.status]}</span>

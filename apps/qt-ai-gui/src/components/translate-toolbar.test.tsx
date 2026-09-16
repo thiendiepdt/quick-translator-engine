@@ -94,6 +94,17 @@ describe("TranslateToolbar · cảnh báo hổng chương", () => {
     expect(useStoryStore.getState().selectedId).toBe("c2");
   });
 
+  it("bấm chip hổng khi chương đang bị lọc/tìm che thì bỏ lọc để danh sách hiện chương đó", async () => {
+    useStoryStore.setState({ statusFilter: "done", searchQuery: "c1" });
+    render(<TranslateToolbar />);
+    await userEvent.click(screen.getByRole("button", { name: "#2 c2" }));
+    expect(useStoryStore.getState()).toMatchObject({ selectedId: "c2", statusFilter: "all", searchQuery: "" });
+    // Lọc đang cho thấy chương đó thì giữ nguyên lọc.
+    useStoryStore.setState({ statusFilter: "skipped", searchQuery: "", selectedId: undefined });
+    await userEvent.click(screen.getByRole("button", { name: "#2 c2" }));
+    expect(useStoryStore.getState()).toMatchObject({ selectedId: "c2", statusFilter: "skipped" });
+  });
+
   it("nút 'Dịch lại cả N' đếm chương hổng chưa queued, gọi đúng id rồi tải lại snapshot; đang chạy phiên thì khoá", async () => {
     vi.mocked(chaptersRetryIds).mockResolvedValue({ retried: ["c2"], backedUp: [], alreadyQueued: [] });
     const reloaded = { ...useStoryStore.getState().snapshot!, chapters: [] };

@@ -1,4 +1,5 @@
 import { Search } from "lucide-react";
+import { useEffect, useRef } from "react";
 
 import { Input } from "@/components/ui/input";
 import { countByFilter, FILTER_LABELS, FILTER_ORDER, filterChapters, type ChapterFilter } from "@/lib/chapters";
@@ -29,6 +30,14 @@ export function ChapterList({ rows, filter, query, selectedId, onSelect, onFilte
   // Số thứ tự theo danh sách đầy đủ (không đổi khi lọc) — dùng để gõ khoảng "dịch lại 120–180".
   const ordinal = new Map(rows.map((row, index) => [row.id, index + 1]));
   const width = String(rows.length).length;
+  const list = useRef<HTMLUListElement>(null);
+  // Chọn chương từ nơi khác (chip hổng ở toolbar, Trước/Sau trong reader) thì cuộn danh sách tới hàng đó.
+  // `nearest` → hàng đang thấy thì không nhúc nhích. Chạy lại khi lọc/tìm đổi vì hàng có thể vừa hiện ra.
+  useEffect(() => {
+    if (!selectedId || !list.current) return;
+    const item = Array.from(list.current.children).find((li) => (li as HTMLElement).dataset.id === selectedId);
+    item?.scrollIntoView({ block: "nearest" });
+  }, [selectedId, filter, query]);
   return (
     <div className="flex h-full flex-col">
       <div className="flex flex-col gap-2 border-b p-3">
@@ -62,13 +71,14 @@ export function ChapterList({ rows, filter, query, selectedId, onSelect, onFilte
           ))}
         </div>
       </div>
-      <ul role="listbox" aria-label="Danh sách chương" className="fine-scrollbar flex-1 overflow-y-auto">
+      <ul ref={list} role="listbox" aria-label="Danh sách chương" className="fine-scrollbar flex-1 overflow-y-auto">
         {visible.length === 0 && <li className="p-4 text-sm text-muted-foreground">Không có chương nào khớp.</li>}
         {visible.map((row) => {
           const selected = selectedId === row.id;
           return (
             <li
               key={row.id}
+              data-id={row.id}
               role="option"
               aria-selected={selected}
               tabIndex={0}

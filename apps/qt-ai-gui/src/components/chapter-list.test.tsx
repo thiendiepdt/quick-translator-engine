@@ -42,6 +42,19 @@ describe("ChapterList", () => {
     expect(onQuery).toHaveBeenLastCalledWith("2");
   });
 
+  it("selectedId đổi từ ngoài thì cuộn tới hàng đó (block nearest)", () => {
+    const { rerender } = render(
+      <ChapterList rows={rows} filter="all" query="" selectedId={undefined} onSelect={noop} onFilter={noop} onQuery={noop} />,
+    );
+    const scroll = vi.spyOn(Element.prototype, "scrollIntoView");
+    rerender(
+      <ChapterList rows={rows} filter="all" query="" selectedId="0003" onSelect={noop} onFilter={noop} onQuery={noop} />,
+    );
+    expect(scroll).toHaveBeenCalledExactlyOnceWith({ block: "nearest" });
+    expect(scroll.mock.contexts).toEqual([screen.getByRole("option", { name: /0003/ })]);
+    scroll.mockRestore();
+  });
+
   it("lọc error chỉ còn 1 hàng, rỗng thì báo", () => {
     const { rerender } = render(
       <ChapterList rows={rows} filter="error" query="" selectedId="0003" onSelect={noop} onFilter={noop} onQuery={noop} />,
