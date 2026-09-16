@@ -31,7 +31,7 @@ export interface StoryStyle {
 
 export const GENRE_SETTINGS = ["ancient", "modern", "mixed"] as const;
 export const GENRE_NAMES = ["han", "foreign", "mixed"] as const;
-export const GENRE_TONES = ["neutral", "romance"] as const;
+export const GENRE_TONES = ["neutral", "romance", "witty", "punchy", "lyrical", "erotic", "youth"] as const;
 export type GenreSetting = (typeof GENRE_SETTINGS)[number];
 export type GenreNames = (typeof GENRE_NAMES)[number];
 export type GenreTone = (typeof GENRE_TONES)[number];
@@ -58,8 +58,13 @@ export const GENRE_NAMES_LABELS: Record<GenreNames, { label: string; hint: strin
 };
 
 export const GENRE_TONE_LABELS: Record<GenreTone, { label: string; hint: string }> = {
-  neutral: { label: "Trung tính", hint: "Truyện nam, hành động, hệ thống: tiết chế, bám sát nguyên tác" },
-  romance: { label: "Ngôn tình (truyện nữ)", hint: "Giữ ngọt, hài, chớt nhả trong thoại; prompt thêm mục giọng ngôn tình" },
+  neutral: { label: "Trung tính", hint: "Mặc định: tiết chế, bám sát nguyên tác; prompt như trước" },
+  romance: { label: "Ngôn tình (truyện nữ)", hint: "Giữ ngọt, hài, chớt nhả trong thoại" },
+  witty: { label: "Hài hước, cợt nhả", hint: "Truyện nam giọng đùa, hậu cung nhật thường: giữ punchline, thán từ tự nhiên, bớt Hán-Việt sách vở" },
+  punchy: { label: "Sảng văn, dồn dập", hint: "Chiến đấu, vô địch lưu, hệ thống: câu ngắn, khí thế, cảm thán đúng lúc" },
+  lyrical: { label: "Cổ phong, trữ tình", hint: "Cổ ngôn, văn thanh: giữ hình ảnh, nhịp cân đối, cho phép Hán-Việt" },
+  erotic: { label: "Sắc (sắc hiệp, sắc đô thị)", hint: "Truyện người lớn: cảnh thân mật dịch đúng độ trực diện của raw, từ vựng truyện sắc, không nói giảm" },
+  youth: { label: "Thanh xuân, đời thường", hint: "Đô thị nhẹ nhàng, giải trí văn, học đường: thoại người trẻ tự nhiên, lời kể ấm, đoạn tả nhạc/cảm xúc giữ độ bay bổng" },
 };
 
 export function defaultStoryGenre(): StoryGenre {

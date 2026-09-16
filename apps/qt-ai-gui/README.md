@@ -29,11 +29,15 @@ lần; folder chưa khởi tạo hiện mờ, mở từ màn chọn truyện.
 ## Hai động cơ dịch
 
 Hồ sơ truyện → **Thể loại** có ba trục: Bối cảnh (xưng hô, thuật ngữ), Tên riêng (cách phiên) và **Giọng văn**:
-Trung tính (mặc định, prompt như trước, hợp truyện nam) hoặc Ngôn tình (truyện nữ). Chọn Ngôn tình thì prompt được chèn thêm
-mục "Giọng văn: ngôn tình" ngay trước "Đại từ nhân xưng": cái ngọt, cái hài, chớt nhả trong thoại là nội dung phải giữ, kèm
-bảng ví dụ khô → đúng giọng; vẫn cấm thêm ý. Mục này không hiện ở tab Prompt (base theo bối cảnh/tên riêng vẫn sửa được như
-cũ); prompt riêng của truyện thì không chèn. AI điền đề xuất giọng từ 3 chương đầu. Nguồn mục ở
-`apps/qt-web/src/lib/ai-translation-prompt.ts` (`TONE_ROMANCE`), Rust chèn qua `prompts.json` → `tones`.
+Trung tính (mặc định, prompt như trước), Ngôn tình (truyện nữ: ngọt, hài, chớt nhả), Hài hước cợt nhả (truyện nam giọng
+đùa, hậu cung nhật thường: giữ punchline, thán từ tự nhiên, bớt Hán-Việt sách vở), Sảng văn dồn dập (chiến đấu, vô địch
+lưu: câu ngắn, khí thế), Cổ phong trữ tình (cổ ngôn: giữ hình ảnh, nhịp cân đối), Sắc (sắc hiệp, sắc đô thị: cảnh thân
+mật dịch đúng độ trực diện của raw, từ vựng truyện sắc, không nói giảm), Thanh xuân đời thường (đô thị nhẹ nhàng, giải trí
+văn, học đường: thoại người trẻ tự nhiên, lời kể ấm, đoạn tả nhạc/cảm xúc giữ độ bay bổng). Giọng khác Trung tính thì prompt được
+chèn thêm mục "Giọng văn: …" ngay trước "Đại từ nhân xưng", kèm ví dụ khô → đúng giọng; vẫn cấm thêm ý, và có điều
+khoản cứng: không đụng bảng đại từ, không đổi cặp xưng hô trong glossary `addressing`. Mục này không hiện ở tab Prompt
+(base theo bối cảnh/tên riêng vẫn sửa được như cũ); prompt riêng của truyện thì không chèn. AI điền đề xuất giọng từ
+3 chương đầu. Nguồn mục ở `apps/qt-web/src/lib/ai-translation-prompt.ts` (`TONE_*`), Rust chèn qua `prompts.json` → `tones`.
 
 Chọn ở Cài đặt → **Động cơ dịch** (lưu trong `config.json` của app):
 

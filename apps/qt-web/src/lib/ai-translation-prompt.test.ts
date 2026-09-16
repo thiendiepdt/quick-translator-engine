@@ -38,6 +38,19 @@ describe("composeBasePrompt", () => {
     expect(composeTonePrompt("neutral")).toBe("");
   });
 
+  it("mọi giọng khác neutral chèn đúng một khối, có điều khoản xưng hô, không đụng bảng đại từ", () => {
+    const neutral = composeBasePrompt(defaultStoryGenre());
+    for (const tone of ["romance", "witty", "punchy", "lyrical", "erotic", "youth"] as const) {
+      const prompt = composeBasePrompt({ ...defaultStoryGenre(), tone });
+      const section = composeTonePrompt(tone);
+      expect(section, tone).toMatch(/^## Giọng văn: /);
+      expect(section, tone).toContain("Xưng hô là ranh giới cứng của mục này");
+      expect(prompt.replace(`${section}\n`, ""), tone).toBe(neutral);
+      expect(prompt.split("## Giọng văn: ").length, tone).toBe(2);
+      expect(prompt.indexOf(section), tone).toBeLessThan(prompt.indexOf("## 1. Đại từ nhân xưng"));
+    }
+  });
+
   it("đánh số liền mạch hai danh sách ở mọi tổ hợp", () => {
     for (const genre of PROMPT_GENRE_COMBOS) {
       const prompt = composeBasePrompt(genre);

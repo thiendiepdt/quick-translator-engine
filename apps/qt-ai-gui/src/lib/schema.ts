@@ -10,7 +10,7 @@ export const checkRuleSchema = z.object({ pattern: z.string(), flags: z.string()
 
 export const GENRE_SETTINGS = ["ancient", "modern", "mixed"] as const;
 export const GENRE_NAMES = ["han", "foreign", "mixed"] as const;
-export const GENRE_TONES = ["neutral", "romance"] as const;
+export const GENRE_TONES = ["neutral", "romance", "witty", "punchy", "lyrical", "erotic", "youth"] as const;
 /** Hai trục thể loại (port `StoryGenre` của qt-web): bối cảnh quyết xưng hô/rule, tên riêng quyết cách phiên. */
 /** `tone` default neutral: story.json cũ chưa có field, prompt không đổi. */
 export const storyGenreSchema = z.object({

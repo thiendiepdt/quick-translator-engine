@@ -101,5 +101,8 @@ describe("StoryPage", () => {
     await user.click(await screen.findByRole("option", { name: /Ngôn tình/ }));
     expect(screen.getByText("Có thay đổi chưa lưu")).toBeInTheDocument();
     expect(screen.getByText(/chèn thêm mục giọng ngôn tình/)).toBeInTheDocument();
+    await user.click(screen.getByRole("combobox", { name: "Giọng văn" }));
+    await user.click(await screen.findByRole("option", { name: /Hài hước/ }));
+    expect(screen.getByText(/giữ punchline/)).toBeInTheDocument();
   });
 });

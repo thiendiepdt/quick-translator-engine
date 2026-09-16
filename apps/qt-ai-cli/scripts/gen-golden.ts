@@ -16,7 +16,7 @@ import {
   parseLabeledAiTranslation, stripAiParagraphMarkers,
 } from "@/lib/ai-paragraphs";
 import { appendAutoGlossary, collectGlossaryKeys, sanitizeExtractedGlossary } from "@/lib/ai-glossary";
-import { emptyAiStoryConfig, naturalChapterCompare, normalizeAiStoryConfig, type StoryGenre } from "@/lib/ai-story";
+import { emptyAiStoryConfig, naturalChapterCompare, normalizeAiStoryConfig, type StoryGenre, GENRE_TONES } from "@/lib/ai-story";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const CORE = resolve(HERE, "../../../crates/qt-ai-core");
@@ -84,7 +84,7 @@ const prompts = (() => {
     bases: Object.fromEntries(PROMPT_GENRE_COMBOS.map((g) => [genreKey(g), composeBasePrompt(g)])),
     suffix: noStory.slice(legacy.length),
     // Mục giọng văn đứng riêng: Rust chèn trước "## 1. Đại từ nhân xưng" của base (kể cả base người dùng sửa).
-    tones: { romance: composeTonePrompt("romance") },
+    tones: Object.fromEntries(GENRE_TONES.filter((t) => t !== "neutral").map((t) => [t, composeTonePrompt(t)])),
   };
 })();
 
@@ -150,6 +150,11 @@ const promptCases = [
   ...(["ancient", "modern", "mixed"] as const).map((setting) => ({
     name: `genre-${setting}/han-romance`,
     story: storyGenre({ setting, names: "han", tone: "romance" }),
+    source: CH1,
+  })),
+  ...(["witty", "punchy", "lyrical", "erotic", "youth"] as const).map((tone) => ({
+    name: `genre-ancient/han-${tone}`,
+    story: storyGenre({ setting: "ancient", names: "han", tone }),
     source: CH1,
   })),
   { name: "genre-romance-custom-prompt", story: storyRomanceCustomPrompt(), source: CH1 },

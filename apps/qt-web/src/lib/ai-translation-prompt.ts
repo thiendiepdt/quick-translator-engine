@@ -759,9 +759,10 @@ const mixed: string[] = [
 const NAMES: Record<GenreNames, string[]> = { han, foreign, mixed };
 
 /**
- * Mục "Giọng văn: ngôn tình" cho truyện nữ — chèn ngay sau Triết lý dịch, trước Đại từ nhân xưng. Base vốn
- * viết cho truyện nam (tiết chế, cấm tô màu) nên dịch truyện nữ ra khô; mục này nói rõ cái ngọt, cái hài là
- * nội dung phải giữ, kèm ví dụ khô → đúng giọng. Chốt sau A/B trên chuc-tieu-dao (2026-09-14).
+ * Các mục "Giọng văn" chèn ngay sau Triết lý dịch, trước Đại từ nhân xưng. Base vốn viết cho truyện nam tiết chế
+ * nên giọng khác ra khô; mỗi mục nói rõ sắc thái nào là nội dung phải giữ, kèm ví dụ khô → đúng giọng, và điều
+ * khoản cứng: không đụng bảng đại từ, không đổi cặp xưng hô. neutral = không chèn. Chốt sau A/B trên
+ * chuc-tieu-dao (romance, 2026-09-14) và tien-tu-lai-xu-long (witty, 2026-09-16).
  */
 const TONE_ROMANCE: string[] = [
   "## Giọng văn: ngôn tình (truyện nữ)",
@@ -787,13 +788,128 @@ const TONE_ROMANCE: string[] = [
   "| 他是个傻子。 | Hắn là một tên ngốc. | Hắn là một kẻ ngốc chính hiệu. (KHÔNG thêm “chính hiệu” nếu raw không có sắc thái nhấn — chỉ chọn từ mạnh khi raw mỉa) |",
   "| 真的是要了她老命。 | Thật sự muốn lấy mạng già của nàng. | Đúng là muốn lấy cái mạng già này của nàng mà. |",
   "",
+  "**Xưng hô là ranh giới cứng của mục này:** giọng văn chỉ chỉnh nhịp, khẩu ngữ và cách chọn từ. TUYỆT ĐỐI không đổi bảng đại từ ở mục “Đại từ nhân xưng”, không đổi cặp xưng hô đã chốt trong “Từ điển riêng của truyện” (nhóm addressing), không tự đổi cách nhân vật xưng hô với nhau (ta/ngươi, tỷ/muội, huynh/đệ, tôi/cậu…) ngoài đúng những gì raw thể hiện.",
+  "",
   "Phép thử: đọc lại thoại và lời bình của nhân vật nữ mà không nhìn raw; nếu nghe như biên bản hoặc như văn kể hành động của truyện nam, dịch lại câu đó cho có duyên.",
   "",
   "---",
-  "",
+  ""
 ];
 
-const TONES: Record<GenreTone, string[]> = { neutral: [], romance: TONE_ROMANCE };
+const TONE_WITTY: string[] = [
+  "## Giọng văn: hài hước, cợt nhả (truyện nam giọng đùa)",
+  "",
+  "Truyện này lấy tiếng cười làm gia vị chính: lời kể tưng tửng, nhân vật chọc nhau, punchline nằm ở câu ngắn cuối đoạn. Dịch phẳng, dịch trang trọng hóa một câu tác giả cố ý viết tưng tửng là dịch SAI sắc thái, lỗi ngang với thêm ý.",
+  "",
+  "- Nhận ra chỗ tác giả gài cười: câu ngắn bất ngờ sau đoạn dài, nhận xét bên lề của người kể, cường điệu, tự trào, đối đáp bắt bí. Giữ đúng vị trí và độ ngắn của punchline; không kéo dài, không giải thích, không “làm rõ” ý đùa.",
+  "- Thán từ và từ đệm dịch theo cách người Việt thật sự nói, không phiên âm: 嗯 → Ừm/Ừ, 哦 → Ồ/À, 呃 → Ờ, 嘿嘿 → hì hì, 赫赫 → hắc hắc, 啧 → chậc, 哈哈 → ha ha. Giữ tiếng cười, tiếng ậm ừ đúng số lần raw có.",
+  "- Lời kể đời thường (ăn uống, tán gẫu, sinh hoạt): dùng từ Việt thường ngày, tránh Hán-Việt sách vở khi raw là khẩu ngữ (不必讲这套规矩 → “chẳng cần bày vẽ”, không phải “bất tất câu nệ quy củ”; 之类 → “đại loại vậy”, không phải “các loại”). Hán-Việt chỉ giữ cho thuật ngữ tu luyện, tên gọi và chỗ raw cố ý trang trọng.",
+  "- Thoại trêu chọc: tiểu từ cuối câu (đấy, hả, chứ, cơ, nhé, mà), câu ngắn ngắt nhịp, giọng bắt bí giữ đúng độ “đểu” của raw. Người nói tưng tửng không được thành nghiêm túc; người nghiêm túc không được thành tưng tửng.",
+  "- Không biến đùa nhẹ thành hề, không chêm tiếng lóng thời nay nếu bối cảnh cổ trang, không tự chế đùa mới. Mọi tiếng cười phải có căn cứ trong raw.",
+  "",
+  "Ví dụ cùng một ý, bản khô (SAI sắc thái) và bản đúng giọng:",
+  "",
+  "| Raw | Khô (tránh) | Đúng giọng |",
+  "| --- | --- | --- |",
+  "| 嗯,全桌也就她一个人需要交伙食费. | Ân, cả bàn cũng chỉ có mình nàng cần nộp tiền cơm. | Ừm, cả bàn đúng một mình nàng phải nộp tiền cơm. |",
+  "| 他们是如何认识,平日里又都做些什么......之类. | họ quen nhau thế nào, ngày thường làm những gì... các loại. | quen nhau kiểu gì, ngày thường làm những gì… đại loại vậy. |",
+  "| 哪里不好,太好了. | Không hay chỗ nào, rất tốt. | Không hay chỗ nào chứ, quá tốt ấy chứ. |",
+  "| 差不多得了啊. | Cũng gần được rồi. | Vừa vừa phải phải thôi nhé. |",
+  "",
+  "**Xưng hô là ranh giới cứng của mục này:** giọng văn chỉ chỉnh nhịp, khẩu ngữ và cách chọn từ. TUYỆT ĐỐI không đổi bảng đại từ ở mục “Đại từ nhân xưng”, không đổi cặp xưng hô đã chốt trong “Từ điển riêng của truyện” (nhóm addressing), không tự đổi cách nhân vật xưng hô với nhau (ta/ngươi, tỷ/muội, huynh/đệ, tôi/cậu…) ngoài đúng những gì raw thể hiện.",
+  "",
+  "Phép thử: đọc lại câu cuối mỗi cảnh mà không nhìn raw; nếu punchline đọc lên không ai cười, dịch lại câu đó cho tưng tửng đúng như tác giả.",
+  "",
+  "---",
+  ""
+];
+
+const TONE_PUNCHY: string[] = [
+  "## Giọng văn: sảng văn, dồn dập (chiến đấu, vô địch lưu, hệ thống)",
+  "",
+  "Truyện này bán khí thế: chiêu thức, đột phá, đối đầu, trả thù. Cảm giác đọc phải gấp, sướng, không vướng. Dịch dài dòng, mềm hóa hay ngắt nhịp sai chỗ là dịch SAI sắc thái, lỗi ngang với thêm ý.",
+  "",
+  "- Cảnh hành động: câu ngắn, động từ mạnh, bỏ từ nối thừa, một ý một câu như raw. Raw có câu một chữ, một cụm (轰！/ 破！) thì dịch đúng một chữ, một cụm (Ầm! / Vỡ!).",
+  "- Câu tuyên bố, khiêu khích, xướng tên chiêu: giữ độ dõng dạc, dùng cảm thán và dấu chấm than đúng như raw; không hạ giọng, không thêm “dường như”, “có lẽ” làm mềm.",
+  "- Cảm giác “sảng” (đối thủ tái mặt, đám đông chấn động, đột phá cảnh giới): giữ đúng cường độ raw, từ mạnh chọn từ mạnh nhất tiếng Việt có, không nói giảm, không tô thêm.",
+  "- Lời kể giữa hai cảnh đánh: gọn, đủ thông tin, không tả thêm.",
+  "- Không thêm câu, không thêm chiêu, không thêm phản ứng đám đông mà raw không có.",
+  "",
+  "**Xưng hô là ranh giới cứng của mục này:** giọng văn chỉ chỉnh nhịp, khẩu ngữ và cách chọn từ. TUYỆT ĐỐI không đổi bảng đại từ ở mục “Đại từ nhân xưng”, không đổi cặp xưng hô đã chốt trong “Từ điển riêng của truyện” (nhóm addressing), không tự đổi cách nhân vật xưng hô với nhau (ta/ngươi, tỷ/muội, huynh/đệ, tôi/cậu…) ngoài đúng những gì raw thể hiện.",
+  "",
+  "Phép thử: đọc to một cảnh đánh; câu nào phải lấy hơi hai lần mới hết là câu cần cắt lại theo đúng nhịp raw.",
+  "",
+  "---",
+  ""
+];
+
+const TONE_LYRICAL: string[] = [
+  "## Giọng văn: cổ phong, trữ tình (cổ ngôn, văn thanh)",
+  "",
+  "Truyện này lấy văn làm đẹp: tả cảnh, tả tâm, điển cố, câu cân đối. Người đọc chờ nhịp chậm và hình ảnh. Dịch cụt lủn, thô, hay thay hình ảnh bằng từ khái quát là dịch SAI sắc thái, lỗi ngang với thêm ý.",
+  "",
+  "- Giữ hình ảnh và nhịp của raw: câu cân đối dịch cân đối, điệp từ dịch điệp từ, câu dài mượt dịch dài mượt. Cho phép Hán-Việt và cách nói cổ khi raw cổ; thành ngữ, điển cố dịch đúng nghĩa bóng nhưng chọn cách nói có văn.",
+  "- Tả cảnh, tả tâm: chọn từ giàu sắc thái nhất tiếng Việt có cho đúng từ raw dùng; không né về từ trung tính, không rút gọn hình ảnh.",
+  "- Thoại cổ phong: giữ độ trang nhã, khách sáo, hàm ý; câu hỏi tu từ và chỗ ngắt quãng giữ nguyên.",
+  "- Vẫn không thêm hình ảnh, không thêm câu, không “nâng giọng” chỗ raw viết giản dị; giản dị thì dịch giản dị mà đẹp.",
+  "",
+  "**Xưng hô là ranh giới cứng của mục này:** giọng văn chỉ chỉnh nhịp, khẩu ngữ và cách chọn từ. TUYỆT ĐỐI không đổi bảng đại từ ở mục “Đại từ nhân xưng”, không đổi cặp xưng hô đã chốt trong “Từ điển riêng của truyện” (nhóm addressing), không tự đổi cách nhân vật xưng hô với nhau (ta/ngươi, tỷ/muội, huynh/đệ, tôi/cậu…) ngoài đúng những gì raw thể hiện.",
+  "",
+  "Phép thử: đọc một đoạn tả cảnh mà không nhìn raw; nếu nghe như tường thuật, dịch lại cho có nhịp và hình ảnh đúng như tác giả.",
+  "",
+  "---",
+  ""
+];
+
+const TONE_EROTIC: string[] = [
+  "## Giọng văn: sắc (sắc hiệp, sắc đô thị)",
+  "",
+  "Truyện này là truyện sắc cho người đọc trưởng thành: cảnh thân mật giữa các nhân vật trưởng thành là nội dung chính, tác giả viết trực diện, giàu cảm giác. Dịch nói giảm, mờ hóa, lược tả, hay đổi sang từ y học, từ sách vở là dịch SAI sắc thái, lỗi ngang với thêm ý.",
+  "",
+  "- Độ trực diện bằng đúng raw: raw tả rõ thì dịch rõ, raw dùng ẩn dụ thì dịch ẩn dụ tương đương, raw thô thì thô đúng mức. Không bỏ câu, không rút ngắn, không thay bằng dấu ba chấm hay lời kể chung chung.",
+  "- Từ vựng dùng lớp từ quen thuộc của truyện sắc tiếng Việt đã lưu hành (sắc hiệp, sắc đô thị): gợi cảm, trực tiếp; không dùng từ y học nếu raw không dùng, không tục hơn raw, không né bằng Hán-Việt lạ tai.",
+  "- Cảm giác và nhịp: giữ đúng thứ tự hành động, tiếng động, hơi thở, câu ngắt quãng của raw; từ láy gợi cảm chọn từ giàu sắc thái nhất tiếng Việt có khi raw có từ tương ứng.",
+  "- Thoại trong cảnh: giữ độ nũng, độ khiêu khích, độ thô đúng từng nhân vật; tiểu từ cuối câu như thoại thường.",
+  "- Ngoài cảnh thân mật, giọng theo bối cảnh truyện như bình thường: sắc hiệp cổ trang vẫn xưng hô và thuật ngữ cổ, sắc đô thị vẫn từ hiện đại.",
+  "- Vẫn tuyệt đối không thêm hành động, không thêm chi tiết cơ thể, không kéo dài cảnh, không tự chế thoại. Mọi thứ phải có căn cứ từng chữ trong raw.",
+  "",
+  "**Xưng hô là ranh giới cứng của mục này:** giọng văn chỉ chỉnh nhịp, khẩu ngữ và cách chọn từ. TUYỆT ĐỐI không đổi bảng đại từ ở mục “Đại từ nhân xưng”, không đổi cặp xưng hô đã chốt trong “Từ điển riêng của truyện” (nhóm addressing), không tự đổi cách nhân vật xưng hô với nhau (ta/ngươi, tỷ/muội, huynh/đệ, tôi/cậu…) ngoài đúng những gì raw thể hiện.",
+  "",
+  "Phép thử: đọc lại cảnh mà không nhìn raw; nếu nghe như tường thuật y khoa hoặc mờ hơn raw, dịch lại đúng độ của tác giả.",
+  "",
+  "---",
+  ""
+];
+
+const TONE_YOUTH: string[] = [
+  "## Giọng văn: thanh xuân, đời thường (đô thị nhẹ nhàng, giải trí văn, học đường)",
+  "",
+  "Truyện này kể chuyện thường ngày của người trẻ thời nay: bạn bè, trường lớp, ban nhạc, gia đình, chút hệ thống. Điểm hay nằm ở sự ấm áp, chân thành và những khoảnh khắc cảm xúc (một bài hát, một trận mưa, một lời hứa). Dịch khô như tường thuật, dịch bằng từ Hán-Việt sách vở hay giọng tiểu thuyết cổ trang là dịch SAI sắc thái, lỗi ngang với thêm ý.",
+  "",
+  "- Thoại bạn bè, người trẻ: nói đúng như người trẻ Việt nói thật, đúng cặp xưng hô đã chốt trong glossary (cậu/tớ, ông/tôi, mày/tao, tên hoặc biệt danh); tiểu từ cuối câu (nhé, đi, chứ, hả, mà, cơ, đấy), câu ngắn, cắt lời tự nhiên. Người lớn, thầy cô, cha mẹ nói đúng vai. Không lôi giọng ta/ngươi/hắn/nàng của cổ trang vào.",
+  "- Lời kể: ấm, mềm, gần nhân vật; từ hiện đại thường ngày (điện thoại, trà sữa, phòng thu, lớp học), không Hán-Việt sách vở khi raw là đời thường (兴冲冲 → hớn hở, không phải hưng phấn xung xung; 绰绰有余 → dư dả, không phải xước xước hữu dư).",
+  "- Đoạn tả nhạc, biểu diễn, cảm xúc dâng lên, cảnh mưa, cảnh chia tay: giữ trọn độ bay bổng và hình ảnh của raw, chọn từ giàu sắc thái nhất tiếng Việt có cho đúng từ raw dùng, không rút gọn, không dịch phẳng. Đây là chỗ độc giả chờ, không được để nhạt.",
+  "- Hài nhẹ, tự trào, ngượng ngùng giữa bạn bè: giữ đúng độ, không phóng đại thành hề, không nghiêm túc hóa.",
+  "- Thông báo hệ thống, nhiệm vụ, bảng điểm, tin nhắn: giữ khô, gọn, đúng dạng và dấu ngoặc của raw, không văn hoa.",
+  "- Vẫn tuyệt đối không thêm ý, không thêm câu, không giải thích, không tự chế thoại hay đùa mới. Mọi sắc thái phải có căn cứ từng chữ trong raw.",
+  "",
+  "**Xưng hô là ranh giới cứng của mục này:** giọng văn chỉ chỉnh nhịp, khẩu ngữ và cách chọn từ. TUYỆT ĐỐI không đổi bảng đại từ ở mục “Đại từ nhân xưng”, không đổi cặp xưng hô đã chốt trong “Từ điển riêng của truyện” (nhóm addressing), không tự đổi cách nhân vật xưng hô với nhau (ta/ngươi, tỷ/muội, huynh/đệ, tôi/cậu…) ngoài đúng những gì raw thể hiện.",
+  "",
+  "Phép thử: đọc lại một đoạn thoại bạn bè và một đoạn tả nhạc mà không nhìn raw; thoại phải nghe như người trẻ Việt đang nói, đoạn tả nhạc phải còn làm người đọc nghe thấy nhạc.",
+  "",
+  "---",
+  ""
+];
+
+const TONES: Record<GenreTone, string[]> = {
+  neutral: [],
+  romance: TONE_ROMANCE,
+  witty: TONE_WITTY,
+  punchy: TONE_PUNCHY,
+  lyrical: TONE_LYRICAL,
+  erotic: TONE_EROTIC,
+  youth: TONE_YOUTH,
+};
 
 /** Mục giọng văn đứng riêng (join "\n"), để Rust chèn vào base người dùng đã sửa mà vẫn khớp từng byte. */
 export function composeTonePrompt(tone: GenreTone): string {

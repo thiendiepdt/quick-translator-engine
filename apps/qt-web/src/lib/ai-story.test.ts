@@ -142,6 +142,7 @@ describe("normalizeStoryGenre · tone", () => {
     expect(normalizeStoryGenre({ setting: "modern", names: "han" })).toEqual({ setting: "modern", names: "han", tone: "neutral" });
     expect(normalizeStoryGenre({ tone: "romance" })).toEqual({ setting: "ancient", names: "han", tone: "romance" });
     expect(normalizeStoryGenre({ tone: "sweet" }).tone).toBe("neutral");
+    for (const tone of ["witty", "punchy", "lyrical", "erotic", "youth"] as const) expect(normalizeStoryGenre({ tone }).tone).toBe(tone);
     expect(defaultStoryGenre().tone).toBe("neutral");
   });
 });

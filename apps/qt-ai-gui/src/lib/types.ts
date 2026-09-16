@@ -53,11 +53,23 @@ export const GENRE_NAMES_LABELS: Record<GenreNames, { label: string; hint: strin
   foreign: { label: "Gốc nước ngoài", hint: "Emily, New York, Naruto" },
   mixed: { label: "Hỗn hợp", hint: "Họ Hán → Hán-Việt, tên phiên âm → gốc" },
 };
+/** Giọng khác Trung tính: prompt được chèn thêm mục "Giọng văn: …" (không hiện ở tab Prompt), không đụng xưng hô. */
 export const GENRE_TONE_LABELS: Record<GenreTone, { label: string; hint: string }> = {
-  neutral: { label: "Trung tính", hint: "Truyện nam, hành động, hệ thống: tiết chế, bám sát nguyên tác" },
-  romance: {
-    label: "Ngôn tình (truyện nữ)",
-    hint: "Giữ ngọt, hài, chớt nhả trong thoại; prompt được chèn thêm mục giọng ngôn tình (không sửa ở tab Prompt)",
+  neutral: { label: "Trung tính", hint: "Mặc định: tiết chế, bám sát nguyên tác; prompt như trước" },
+  romance: { label: "Ngôn tình (truyện nữ)", hint: "Giữ ngọt, hài, chớt nhả trong thoại; prompt được chèn thêm mục giọng ngôn tình" },
+  witty: {
+    label: "Hài hước, cợt nhả",
+    hint: "Truyện nam giọng đùa, hậu cung nhật thường: giữ punchline, thán từ tự nhiên, bớt Hán-Việt sách vở; chèn thêm mục giọng",
+  },
+  punchy: { label: "Sảng văn, dồn dập", hint: "Chiến đấu, vô địch lưu, hệ thống: câu ngắn, khí thế, cảm thán đúng lúc; chèn thêm mục giọng" },
+  lyrical: { label: "Cổ phong, trữ tình", hint: "Cổ ngôn, văn thanh: giữ hình ảnh, nhịp cân đối, cho phép Hán-Việt; chèn thêm mục giọng" },
+  erotic: {
+    label: "Sắc (sắc hiệp, sắc đô thị)",
+    hint: "Truyện người lớn: cảnh thân mật dịch đúng độ trực diện của raw, từ vựng truyện sắc, không nói giảm; chèn thêm mục giọng",
+  },
+  youth: {
+    label: "Thanh xuân, đời thường",
+    hint: "Đô thị nhẹ nhàng, giải trí văn, học đường: thoại người trẻ tự nhiên, lời kể ấm, đoạn tả nhạc/cảm xúc giữ độ bay bổng; chèn thêm mục giọng",
   },
 };
 export type HarnessSettings = z.infer<typeof harnessSettingsSchema>;

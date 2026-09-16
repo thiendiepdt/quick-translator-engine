@@ -67,13 +67,20 @@ impl GenreNames {
     }
 }
 
-/// Giọng văn: `neutral` = prompt y hệt trước; `romance` (truyện nữ) chèn thêm mục "Giọng văn: ngôn tình".
+/// Giọng văn: `neutral` = prompt y hệt trước; các giọng khác chèn thêm mục "Giọng văn: …" (prompts.json → tones).
+/// romance = truyện nữ; witty = truyện nam giọng đùa; punchy = sảng văn chiến đấu; lyrical = cổ phong trữ tình;
+/// erotic = truyện sắc (sắc hiệp, sắc đô thị) cho người đọc trưởng thành; youth = thanh xuân đời thường, giải trí văn.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum GenreTone {
     #[default]
     Neutral,
     Romance,
+    Witty,
+    Punchy,
+    Lyrical,
+    Erotic,
+    Youth,
 }
 
 impl GenreTone {
@@ -81,6 +88,11 @@ impl GenreTone {
         match self {
             GenreTone::Neutral => "neutral",
             GenreTone::Romance => "romance",
+            GenreTone::Witty => "witty",
+            GenreTone::Punchy => "punchy",
+            GenreTone::Lyrical => "lyrical",
+            GenreTone::Erotic => "erotic",
+            GenreTone::Youth => "youth",
         }
     }
 }
@@ -117,6 +129,11 @@ impl StoryGenre {
             },
             tone: match get("tone") {
                 Some("romance") => GenreTone::Romance,
+                Some("witty") => GenreTone::Witty,
+                Some("punchy") => GenreTone::Punchy,
+                Some("lyrical") => GenreTone::Lyrical,
+                Some("erotic") => GenreTone::Erotic,
+                Some("youth") => GenreTone::Youth,
                 _ => GenreTone::Neutral,
             },
         }
@@ -415,6 +432,16 @@ mod tests {
         assert_eq!(mixed.genre.key(), "mixed/han");
         let romance = StoryConfig::normalize(&json!({ "genre": { "tone": "romance" } }));
         assert_eq!(romance.genre.tone, GenreTone::Romance);
+        for (text, tone) in [
+            ("witty", GenreTone::Witty),
+            ("punchy", GenreTone::Punchy),
+            ("lyrical", GenreTone::Lyrical),
+            ("erotic", GenreTone::Erotic),
+            ("youth", GenreTone::Youth),
+        ] {
+            assert_eq!(StoryConfig::normalize(&json!({ "genre": { "tone": text } })).genre.tone, tone);
+            assert_eq!(tone.as_str(), text);
+        }
         assert_eq!(romance.genre.key(), "ancient/han", "tone không đổi key base");
         // Payload GUI/story.json cũ không có tone → serde default.
         let old: StoryGenre = serde_json::from_value(json!({ "setting": "modern", "names": "han" })).unwrap();

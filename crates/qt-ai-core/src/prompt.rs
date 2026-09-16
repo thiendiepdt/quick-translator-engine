@@ -217,6 +217,12 @@ mod tests {
         assert_eq!(insert_tone("Prompt tự viết\n", GenreTone::Romance), format!("Prompt tự viết\n\n{section}"));
         // Đã có mục (dán tay) → giữ nguyên.
         assert_eq!(insert_tone(&with, GenreTone::Romance), with);
+        for tone in [GenreTone::Romance, GenreTone::Witty, GenreTone::Punchy, GenreTone::Lyrical, GenreTone::Erotic, GenreTone::Youth] {
+            let section = tone_prompt(tone);
+            assert!(section.starts_with("## Giọng văn: "), "{tone:?}");
+            assert!(section.contains("Xưng hô là ranh giới cứng của mục này"), "{tone:?}");
+        }
+        assert_eq!(tone_prompt(GenreTone::Neutral), "");
     }
 
     #[test]
