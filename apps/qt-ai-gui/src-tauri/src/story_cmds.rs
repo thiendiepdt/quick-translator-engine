@@ -404,6 +404,19 @@ pub async fn reveal_folder(path: String) -> CmdResult<()> {
     .await
 }
 
+/// Ghi nguyên `content` (BOM nếu có đã nằm trong chuỗi) ra `path`, tạo folder cha nếu thiếu.
+/// Dùng cho export glossary → Names.txt; file nhỏ nên ghi thẳng, không qua spawn_blocking.
+#[tauri::command]
+pub fn write_text_file(path: String, content: String) -> CmdResult<()> {
+    let target = Path::new(&path);
+    if let Some(parent) = target.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| CommandError::new("io", format!("Không tạo được folder {}: {e}", parent.display())))?;
+    }
+    std::fs::write(target, content.as_bytes())
+        .map_err(|e| CommandError::new("io", format!("Không ghi được {path}: {e}")))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -541,5 +554,20 @@ mod tests {
         assert_eq!(list[0].done, Some(0));
         assert_eq!(list[1].root, "D:\\khong\\co");
         assert!(list[1].name.is_none() && list[1].total.is_none());
+    }
+
+    #[test]
+    fn write_text_file_ghi_nguyen_byte_va_tao_folder_cha() {
+        let dir = tempfile::tempdir().unwrap();
+        let out = dir.path().join("sub").join("Names.txt");
+        write_text_file(out.display().to_string(), "\u{feff}甲=A\r\n".to_string()).unwrap();
+        assert_eq!(fs::read(&out).unwrap(), "\u{feff}甲=A\r\n".as_bytes());
+    }
+
+    #[test]
+    fn write_text_file_bao_loi_io_khi_path_la_folder() {
+        let dir = tempfile::tempdir().unwrap();
+        let err = write_text_file(dir.path().display().to_string(), "x".to_string()).unwrap_err();
+        assert_eq!(err.kind, "io");
     }
 }

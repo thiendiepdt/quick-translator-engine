@@ -130,6 +130,10 @@ Ba bộ màu (Editorial / Studio / Soft) × sáng / tối / theo hệ thống, c
 - Prompt và rule kiểm tra: lệnh `story_defaults` trả prompt gốc + bộ rule mặc định của hệ. Ô prompt
   luôn hiện nội dung đang dùng (sửa trên bản mặc định là thành prompt riêng, **Về mặc định** lưu
   trống); rule trống hiện bộ mặc định chỉ đọc, **Sửa bộ mặc định** sao chép ra để chỉnh.
+- Tab Glossary có **Export Names.txt…**: chọn nhóm/dòng rồi **Chép** (clipboard) hoặc **Lưu…** thành
+  `Names.txt` / `Names2.txt` cho bản convert QT, mỗi dòng `Hán=Việt` (CRLF, UTF-8 có BOM khi lưu file).
+  Mặc định tick hết trừ Cụm từ đặc trưng; Xưng hô theo cặp không export; dòng có dấu `=`, thiếu một
+  cột hay trùng Hán bị bỏ vì QT vứt dòng / chỉ giữ dòng đầu.
 
 ## Thể loại
 

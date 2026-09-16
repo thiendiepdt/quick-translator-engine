@@ -106,6 +106,7 @@ pub fn run() {
             story_cmds::chapter_force_accept,
             story_cmds::export_chapters,
             story_cmds::reveal_folder,
+            story_cmds::write_text_file,
             story_cmds::recent_summaries,
             story_cmds::story_defaults,
             session_cmds::session_state,

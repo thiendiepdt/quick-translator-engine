@@ -10,6 +10,8 @@ vi.mock("@/lib/api", () => ({
   saveStory: vi.fn(),
   storySnapshot: vi.fn(),
   aiFillStory: vi.fn(),
+  pickSaveFile: vi.fn(),
+  writeTextFile: vi.fn(),
   storyDefaults: vi.fn((genre: { setting: string }) =>
     Promise.resolve({
       basePrompt: genre.setting === "modern" ? "Prompt hiện đại." : "Prompt gốc.",
@@ -68,6 +70,16 @@ describe("StoryPage", () => {
     await user.click(screen.getByRole("tab", { name: "Thông tin" }));
     expect(screen.getByLabelText("Tên truyện")).toHaveValue("Truyện A sửa");
     expect(screen.getByText("Có thay đổi chưa lưu")).toBeInTheDocument();
+  });
+
+  it("tab Glossary có nút Export Names.txt… mở dialog với glossary đang hiển thị (kể cả sửa chưa lưu)", async () => {
+    const user = userEvent.setup();
+    render(<StoryPage />);
+    await user.click(screen.getByRole("tab", { name: "Glossary" }));
+    await user.type(screen.getByLabelText("Tên nhân vật VN 1"), " sửa");
+    await user.click(screen.getByRole("button", { name: /Export Names\.txt/ }));
+    expect(await screen.findByRole("dialog", { name: "Export glossary ra Names.txt" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Xem trước")).toHaveValue("赵静文=Triệu Tĩnh Văn sửa\n");
   });
 
   it("Thể loại nằm ngay trong tab Thông tin (không có tab riêng); đổi bối cảnh làm form dirty, prompt mặc định nạp lại theo genre", async () => {

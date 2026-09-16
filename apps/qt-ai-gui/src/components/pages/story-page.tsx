@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { AiFillDialog } from "@/components/ai-fill-dialog";
 import { CheckRulesEditor } from "@/components/check-rules-editor";
 import { GlossaryEditor } from "@/components/glossary-editor";
+import { GlossaryExportDialog } from "@/components/glossary-export-dialog";
 import { PromptEditor } from "@/components/prompt-editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -75,6 +76,7 @@ export function StoryPage() {
   const genreSetting = useWatch({ control: form.control, name: "genreSetting" });
   const genreNames = useWatch({ control: form.control, name: "genreNames" });
   const genreTone = useWatch({ control: form.control, name: "genreTone" });
+  const glossaryValues = useWatch({ control: form.control, name: "glossary" });
   // Object ổn định theo hai giá trị watch để hook defaults không tải lại mỗi render.
   const genre = useMemo<StoryGenre>(
     () => ({ setting: genreSetting ?? "ancient", names: genreNames ?? "han", tone: genreTone ?? "neutral" }),
@@ -82,6 +84,7 @@ export function StoryPage() {
   );
   const defaults = useStoryDefaults(genre);
   const [fillOpen, setFillOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const [active, setActive] = useState<SectionId>("info");
   const fileInput = useRef<HTMLInputElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
@@ -291,12 +294,18 @@ export function StoryPage() {
                 <GlossaryEditor name="signaturePhrases" label="Cụm từ đặc trưng (style)" />
               </Section>
               <Section id="glossary" active={active} title="Glossary">
-                <p className="text-xs text-muted-foreground">
-                  Kho chung theo bối cảnh (Cài đặt → Bản mặc định → Glossary chung) làm nền; mục ở đây đè khi trùng.
-                </p>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs text-muted-foreground">
+                    Kho chung theo bối cảnh (Cài đặt → Bản mặc định → Glossary chung) làm nền; mục ở đây đè khi trùng.
+                  </p>
+                  <Button type="button" size="sm" variant="outline" onClick={() => setExportOpen(true)}>
+                    <Download /> Export Names.txt…
+                  </Button>
+                </div>
                 {GLOSSARY_KEYS.map((key) => (
                   <GlossaryEditor key={key} name={`glossary.${key}`} label={GLOSSARY_LABELS[key]} />
                 ))}
+                <GlossaryExportDialog open={exportOpen} onOpenChange={setExportOpen} glossary={glossaryValues} />
               </Section>
               <Section id="rules" active={active} title="Rule kiểm tra">
                 <CheckRulesEditor defaults={defaults} />

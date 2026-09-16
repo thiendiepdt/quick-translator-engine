@@ -145,11 +145,15 @@ export async function pickAgyFile(): Promise<string | undefined> {
   return typeof selected === "string" ? selected : undefined;
 }
 
-export async function pickSaveFile(defaultName: string): Promise<string | undefined> {
+export async function pickSaveFile(defaultName: string, title = "Lưu file gộp"): Promise<string | undefined> {
   const selected = await save({
-    title: "Lưu file gộp",
+    title,
     defaultPath: defaultName,
     filters: [{ name: "Văn bản UTF-8", extensions: ["txt"] }],
   });
   return selected ?? undefined;
 }
+
+/** Ghi nguyên chuỗi ra file (BOM nếu cần phải nằm sẵn trong `content`). */
+export const writeTextFile = (path: string, content: string) =>
+  call("write_text_file", { path, content }, () => undefined);
