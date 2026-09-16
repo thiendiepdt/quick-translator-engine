@@ -24,6 +24,10 @@ Các bước:
      đô thị tu tiên — prompt chọn xưng hô theo cảnh, không bắt lỗi xưng hô). `genre.names`: `han` nếu nhân vật Trung Quốc,
      `foreign` nếu bối cảnh phương Tây / Nhật / Hàn (tên trả về Emily, Naruto), `mixed` nếu lẫn.
      Suy từ thể loại tra được và 2–3 chương đã đọc; không chắc thì giữ `ancient`/`han` và ghi chú khi trình.
+   - `genre.tone`: giọng văn dịch — `neutral` (mặc định, không rõ), `romance` (truyện nữ/ngôn tình: ngọt, hài, chớt nhả),
+     `witty` (truyện nam giọng đùa, hậu cung nhật thường), `punchy` (chiến đấu, vô địch lưu, hệ thống, sảng văn),
+     `lyrical` (cổ ngôn văn thanh, tả cảnh tả tâm), `erotic` (truyện sắc: sắc hiệp, sắc đô thị), `youth` (đô thị nhẹ nhàng,
+     giải trí văn, học đường, nhật thường người trẻ). Chỉ chỉnh nhịp và từ vựng, không đổi xưng hô.
    - `protagonist`: tên nhân vật chính (Hán-Việt với `names: han`, dạng gốc với `foreign`).
    - `summary`: 3–5 câu, ưu tiên thông tin tra được, không spoil quá phần đã đọc/tra.
    - `style.voice` (1 câu tả giọng kể), `style.toneRules` (3–5 luật xưng hô/giọng điệu rút từ chính truyện),

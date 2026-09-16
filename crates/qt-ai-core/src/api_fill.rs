@@ -55,7 +55,7 @@ tên, nhân vật hay tóm tắt. Trả về đúng một JSON theo mẫu:\n\
   \"genre\": {{\n\
     \"setting\": \"ancient | modern | mixed — ancient: cổ đại/tiên hiệp/huyền huyễn/cung đấu/lịch sử; modern: đô thị/hiện đại/vô hạn lưu/hệ thống thời nay; mixed: xuyên qua lại cổ đại ↔ hiện đại hoặc đô thị tu tiên\",\n\
     \"names\": \"han | foreign | mixed — han: nhân vật Trung Quốc; foreign: bối cảnh phương Tây/Nhật/Hàn; mixed: lẫn\",\n\
-    \"tone\": \"neutral | romance — romance: truyện nữ/ngôn tình (nữ chính, tình cảm là mạch chính, giọng ngọt, hài, chớt nhả); neutral: truyện nam, hành động, hệ thống, còn lại\"\n\
+    \"tone\": \"neutral | romance | witty | punchy | lyrical | erotic | youth — romance: truyện nữ/ngôn tình (nữ chính, tình cảm là mạch chính, ngọt, hài, chớt nhả); witty: truyện nam giọng đùa, hậu cung nhật thường, người kể tưng tửng; punchy: chiến đấu, vô địch lưu, hệ thống, sảng văn dồn dập; lyrical: cổ ngôn văn thanh, tả cảnh tả tâm giàu hình ảnh; erotic: truyện sắc (sắc hiệp, sắc đô thị), cảnh thân mật là nội dung chính; youth: đô thị nhẹ nhàng, giải trí văn, học đường, nhật thường hiện đại của người trẻ; neutral: không rõ hoặc không thuộc nhóm nào\"\n\
   }},\n\
   \"style\": {{\n\
     \"voice\": \"1 câu tả giọng kể (ngôi kể, nhịp, sắc thái)\",\n\
