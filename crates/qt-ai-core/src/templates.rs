@@ -7,7 +7,9 @@
 //!
 //! "Chưa sửa tay" nhận ra bằng dòng dấu `<!-- qt-ai-template <fnv> -->` ghi ở cuối file: fnv của phần thân
 //! lúc app ghi. Thân còn đúng fnv → app được phép ghi đè, kể cả khi template đã đổi lời (luật mới trong
-//! AGENTS.md tới được truyện cũ). File không có dấu (bản cũ) thì so khuôn template hiện tại như trước.
+//! AGENTS.md tới được truyện cũ). File không có dấu (app trước 1.0.6 ghi) thì so khuôn template hiện tại
+//! và mọi bản cũ trong `templates/legacy/` — khớp bản nào cũng là chưa sửa tay → render lại kèm dấu.
+//! Đổi template từ nay không cần thêm bản legacy nữa (file đã có dấu); folder đó chỉ để đón truyện cũ.
 
 use crate::error::{CoreError, Result};
 use crate::story_fs::write_text;
@@ -21,6 +23,26 @@ pub const WORKFLOWS: [(&str, &str); 2] = [
     ("translate.md", include_str!("../../../apps/qt-ai-cli/antigravity/workflows/translate.md")),
 ];
 const PLACEHOLDERS: [&str; 2] = ["{{QT_AI}}", "{{STORY_ROOT}}"];
+
+/// Bản template cũ chưa có dấu, theo tên file đích. v0 = bản pilot trước khi vào git.
+const LEGACY_AGENTS: &[&str] = &[
+    include_str!("../templates/legacy/AGENTS.v1.md"),
+    include_str!("../templates/legacy/AGENTS.v2.md"),
+];
+const LEGACY_WORKFLOWS: [(&str, &[&str]); 2] = [
+    (
+        "setup-story.md",
+        &[
+            include_str!("../templates/legacy/setup-story.v0.md"),
+            include_str!("../templates/legacy/setup-story.v1.md"),
+        ],
+    ),
+    ("translate.md", &[include_str!("../templates/legacy/translate.v1.md")]),
+];
+
+fn legacy_for(name: &str) -> &'static [&'static str] {
+    LEGACY_WORKFLOWS.iter().find(|(n, _)| *n == name).map(|(_, l)| *l).unwrap_or(&[])
+}
 
 pub fn render(source: &str, qt_ai_command: &str, root: &str) -> String {
     source.replace("{{QT_AI}}", qt_ai_command).replace("{{STORY_ROOT}}", root)
@@ -84,8 +106,9 @@ fn split_marker(content: &str) -> Option<(String, u64)> {
 }
 
 /// Ghi file mới (kèm dấu). File cũ chưa sửa tay — thân còn đúng fnv trong dấu, hoặc bản cũ không dấu
-/// nhưng còn đúng khuôn template — mà khác bản render hiện tại thì ghi đè. Trả về true nếu có ghi.
-fn write_or_refresh(target: &Path, source: &str, qt_ai_command: &str, root: &str) -> Result<bool> {
+/// nhưng còn đúng khuôn template hiện tại hay một bản trong `legacy` — mà khác bản render hiện tại thì
+/// ghi đè. Trả về true nếu có ghi.
+fn write_or_refresh(target: &Path, source: &str, legacy: &[&str], qt_ai_command: &str, root: &str) -> Result<bool> {
     let fresh = render(source, qt_ai_command, root);
     let stamped = stamp(&fresh);
     match fs::read_to_string(target) {
@@ -98,7 +121,9 @@ fn write_or_refresh(target: &Path, source: &str, qt_ai_command: &str, root: &str
                     normalize(&body) == normalize(&fresh)
                 }
                 None => {
-                    if !matches_template(source, &existing) {
+                    let known = matches_template(source, &existing)
+                        || legacy.iter().any(|old| matches_template(old, &existing));
+                    if !known {
                         return Ok(false);
                     }
                     false
@@ -122,13 +147,13 @@ fn write_or_refresh(target: &Path, source: &str, qt_ai_command: &str, root: &str
 pub fn copy_templates(root: &Path, qt_ai_command: &str) -> Result<Vec<String>> {
     let root_text = root.display().to_string();
     let mut written = Vec::new();
-    if write_or_refresh(&root.join("AGENTS.md"), AGENTS_MD, qt_ai_command, &root_text)? {
+    if write_or_refresh(&root.join("AGENTS.md"), AGENTS_MD, LEGACY_AGENTS, qt_ai_command, &root_text)? {
         written.push("AGENTS.md".to_string());
     }
     let workflows_dir = root.join(".agent").join("workflows");
     fs::create_dir_all(&workflows_dir).map_err(CoreError::io(&workflows_dir))?;
     for (name, source) in WORKFLOWS {
-        if write_or_refresh(&workflows_dir.join(name), source, qt_ai_command, &root_text)? {
+        if write_or_refresh(&workflows_dir.join(name), source, legacy_for(name), qt_ai_command, &root_text)? {
             written.push(name.to_string());
         }
     }
@@ -184,16 +209,16 @@ mod tests {
     fn template_doi_loi_thi_file_chua_sua_tay_duoc_lam_moi_file_sua_giua_than_thi_giu() {
         let dir = tempfile::tempdir().unwrap();
         let target = dir.path().join("AGENTS.md");
-        assert!(write_or_refresh(&target, TEMPLATE, "qt-ai", "D:\\t").unwrap());
+        assert!(write_or_refresh(&target, TEMPLATE, &[], "qt-ai", "D:\\t").unwrap());
         // Template đổi lời → khuôn cũ không còn khớp, nhưng dấu fnv nói file chưa ai sửa → ghi đè.
-        assert!(write_or_refresh(&target, TEMPLATE_V2, "qt-ai", "D:\\t").unwrap());
+        assert!(write_or_refresh(&target, TEMPLATE_V2, &[], "qt-ai", "D:\\t").unwrap());
         let text = fs::read_to_string(&target).unwrap();
         assert!(text.contains("Luật mới: thử lại 3 lượt."));
-        assert!(!write_or_refresh(&target, TEMPLATE_V2, "qt-ai", "D:\\t").unwrap(), "cùng bản thì không ghi");
+        assert!(!write_or_refresh(&target, TEMPLATE_V2, &[], "qt-ai", "D:\\t").unwrap(), "cùng bản thì không ghi");
         // Sửa giữa thân (dấu vẫn còn ở cuối) → fnv lệch → giữ nguyên dù template đổi tiếp.
         let edited = text.replace("Luật mới", "Luật tôi sửa");
         fs::write(&target, &edited).unwrap();
-        assert!(!write_or_refresh(&target, TEMPLATE, "qt-ai", "D:\\t").unwrap());
+        assert!(!write_or_refresh(&target, TEMPLATE, &[], "qt-ai", "D:\\t").unwrap());
         assert_eq!(fs::read_to_string(&target).unwrap(), edited);
     }
 
@@ -202,11 +227,60 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let target = dir.path().join("AGENTS.md");
         fs::write(&target, render(TEMPLATE, "qt-ai", "D:\\t")).unwrap();
-        assert!(write_or_refresh(&target, TEMPLATE, "qt-ai", "D:\\t").unwrap(), "chưa có dấu → ghi lại kèm dấu");
+        assert!(write_or_refresh(&target, TEMPLATE, &[], "qt-ai", "D:\\t").unwrap(), "chưa có dấu → ghi lại kèm dấu");
         assert!(split_marker(&fs::read_to_string(&target).unwrap()).is_some());
-        // Bản cũ không dấu mà template đã đổi lời → không nhận ra là "chưa sửa", giữ nguyên (giới hạn đã biết).
+        // Bản cũ không dấu mà template đã đổi lời: không có trong legacy thì coi là sửa tay, giữ nguyên;
+        // khai báo trong legacy thì nhận ra là chưa sửa → render bản mới kèm dấu.
         let old = dir.path().join("translate.md");
         fs::write(&old, render(TEMPLATE, "qt-ai", "D:\\t")).unwrap();
-        assert!(!write_or_refresh(&old, TEMPLATE_V2, "qt-ai", "D:\\t").unwrap());
+        assert!(!write_or_refresh(&old, TEMPLATE_V2, &[], "qt-ai", "D:\\t").unwrap());
+        assert!(write_or_refresh(&old, TEMPLATE_V2, &[TEMPLATE], "\"C:\\x\\qt-ai.exe\"", "C:\\b").unwrap());
+        let text = fs::read_to_string(&old).unwrap();
+        assert!(text.contains("Luật mới: thử lại 3 lượt.") && text.contains("C:\\b"));
+        assert!(split_marker(&text).is_some());
+    }
+
+    #[test]
+    fn truyen_tao_boi_app_truoc_1_0_6_duoc_lam_moi_tu_moi_ban_legacy_that() {
+        // Mỗi bản legacy thật render với giá trị máy khác → copy_templates phải nhận ra và ghi đè cả 3 file.
+        let cases: Vec<(&str, &str)> = LEGACY_AGENTS
+            .iter()
+            .map(|old| ("AGENTS.md", *old))
+            .chain(LEGACY_WORKFLOWS.iter().flat_map(|(name, list)| list.iter().map(move |old| (*name, *old))))
+            .collect();
+        assert_eq!(cases.len(), 5);
+        for (name, old) in cases {
+            let dir = tempfile::tempdir().unwrap();
+            let root = dir.path();
+            fs::create_dir_all(root.join(".agent").join("workflows")).unwrap();
+            let target = if name == "AGENTS.md" { root.join(name) } else { root.join(".agent").join("workflows").join(name) };
+            let rendered = render(old, "npm --prefix D:\\qt run -s qt-ai --", "/home/x/books/a");
+            fs::write(&target, rendered.replace('\n', "\r\n")).unwrap();
+            let written = copy_templates(root, "qt-ai").unwrap();
+            assert!(written.iter().any(|w| w == name), "{name}: {written:?}");
+            let text = fs::read_to_string(&target).unwrap();
+            assert!(!text.contains("/home/x/books/a"), "{name} vẫn giữ đường dẫn cũ");
+            assert!(split_marker(&text).is_some(), "{name} chưa có dấu");
+            assert!(copy_templates(root, "qt-ai").unwrap().is_empty(), "{name}: lần hai không ghi gì");
+        }
+    }
+
+    #[test]
+    fn legacy_khong_trung_ban_hien_tai_va_khong_trung_nhau() {
+        let all: Vec<&str> = LEGACY_AGENTS.iter().copied().chain([AGENTS_MD]).collect();
+        for (i, a) in all.iter().enumerate() {
+            for b in &all[i + 1..] {
+                assert_ne!(normalize(a), normalize(b), "AGENTS legacy trùng");
+            }
+        }
+        for (name, source) in WORKFLOWS {
+            let list = legacy_for(name);
+            for (i, old) in list.iter().enumerate() {
+                assert_ne!(normalize(old), normalize(source), "{name} legacy trùng bản hiện tại");
+                for other in &list[i + 1..] {
+                    assert_ne!(normalize(old), normalize(other), "{name} legacy trùng nhau");
+                }
+            }
+        }
     }
 }

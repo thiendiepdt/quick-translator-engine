@@ -64,7 +64,9 @@ Cùng folder truyện, cùng `state.json`; đổi động cơ giữa chừng v�
 `blocked by content safety filters` là bộ lọc đầu ra của Antigravity nhảy ngẫu nhiên theo lượt (cùng
 chương lượt sau thường qua, bản dịch không bị nhạt đi): AGENTS.md luật 6 bảo agent sinh lại tối đa 3 lượt,
 cả 3 đều bị chặn mới skip. AGENTS.md/workflows trong folder truyện có dòng dấu `<!-- qt-ai-template … -->`
-ở cuối: file chưa sửa tay được app làm mới khi mở truyện, kể cả khi luật đổi lời. Ở chế độ API, chương
+ở cuối: file chưa sửa tay được app làm mới khi mở truyện, kể cả khi luật đổi lời. Truyện do app trước
+1.0.6 tạo (chưa có dấu) được nhận ra qua các bản template cũ trong `crates/qt-ai-core/templates/legacy/`
+và làm mới lần đầu mở; file đã sửa tay giữ nguyên. Ở chế độ API, chương
 model từ chối được skip kèm lý do; lỗi mạng/429/5xx thử lại một lần rồi skip chương, hai chương liên
 tiếp lỗi thì dừng phiên (`api_failed`); lỗi cấu hình (400 model không có, 401/403 key sai) dừng ngay
 không skip. Phiên dừng vì lỗi thì chương đang dịch trả về hàng đợi, không kẹt "đang dịch". "AI điền hồ sơ" đi theo động cơ đang chọn: agy tra web + đọc
