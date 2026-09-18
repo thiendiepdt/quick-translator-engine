@@ -90,7 +90,11 @@ cargo test -p qt-ai-gui   # Tauri commands
 
 ## Build
 
-`npm run tauri build` → `src-tauri/target/release/bundle/{nsis,msi}/`. Sidecar `qt-ai.exe` được đặt cạnh app exe. AGENTS.md và workflow trong folder truyện chỉ ghi lệnh `qt-ai` trần; app chèn folder sidecar vào PATH của agy khi chạy phiên, nên folder truyện init ở máy này mang sang máy khác vẫn dịch được. Mỗi lần mở truyện, file template nào chưa sửa tay còn chứa đường dẫn cũ sẽ được render lại.
+`npm run tauri build` → `src-tauri/target/release/bundle/nsis/` (chỉ phát NSIS, cài per-user vào
+`%LOCALAPPDATA%\VNCVT AI Translator`, không UAC; không phát MSI nữa để updater không phải migrate WiX).
+`src-tauri/windows/hooks.nsh` tạo bù shortcut Start Menu sau khi cài nếu chưa có — installer chạy ở chế độ
+`/UPDATE` (updater gọi) vốn bỏ qua bước này, nên máy chạy bản portable hay exe rời update xong sẽ không có
+shortcut. Sidecar `qt-ai.exe` được đặt cạnh app exe. AGENTS.md và workflow trong folder truyện chỉ ghi lệnh `qt-ai` trần; app chèn folder sidecar vào PATH của agy khi chạy phiên, nên folder truyện init ở máy này mang sang máy khác vẫn dịch được. Mỗi lần mở truyện, file template nào chưa sửa tay còn chứa đường dẫn cũ sẽ được render lại.
 
 `npm run build:portable` → `dist-portable/VNCVT-AI-Translator-<version>-portable/` (+ `.zip` trên Windows): `VNCVT-AI-Translator.exe`
 và `qt-ai.exe`. Bản portable và bản cài đặt dùng chung `config.json` ở `%APPDATA%\com.vn-converter.qt-ai-gui\`
