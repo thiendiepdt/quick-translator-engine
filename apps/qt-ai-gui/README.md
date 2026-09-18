@@ -22,7 +22,7 @@ màn chọn truyện hiện "Đang dịch N/M truyện", dòng đang dịch có 
 
 **Chuyển nhanh**: cột "Phiên này" ngoài cùng bên phải liệt kê mọi truyện đã mở trong phiên app dưới dạng card (chữ cái
 đầu + tên cắt 2 dòng, hover có tooltip đủ tên/đường dẫn), đang dịch xếp trên kèm chấm nhấp nháy và thanh tiến độ, còn lại
-theo lần mở gần nhất; dài quá thì nút "Xem thêm N" nạp thêm 12 card mỗi lần. Bấm ô để chuyển, giữ nguyên trang đang xem. Nút lưới đầu cột (hoặc **Ctrl+K**) mở dialog
+theo thứ tự mở lần đầu (bấm qua lại không đổi chỗ); dài quá thì nút "Xem thêm N" nạp thêm 12 card mỗi lần. Bấm ô để chuyển, giữ nguyên trang đang xem. Nút lưới đầu cột (hoặc **Ctrl+K**) mở dialog
 "Chuyển truyện": tìm theo tên/folder, thẻ theo lưới (đang dịch → đang mở → thư viện → gần đây), "Xem thêm" 24 thẻ mỗi
 lần; folder chưa khởi tạo hiện mờ, mở từ màn chọn truyện.
 

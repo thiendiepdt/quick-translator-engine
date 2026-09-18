@@ -133,9 +133,9 @@ describe("openStory/closeStory", () => {
     expect(state.root).toBe(B);
     expect(state.page).toBe("story");
     expect(state.names).toEqual({ "d:\\lib\\a": "Alpha", "d:\\lib\\b": "Bravo" });
-    expect(state.opened).toEqual([B, A]); // mới mở nhất đứng đầu
+    expect(state.opened).toEqual([A, B]); // thứ tự mở lần đầu
     useStoryStore.getState().switchStory(snapshotFor("d:/lib/a/"));
-    expect(useStoryStore.getState().opened).toEqual(["d:/lib/a/", B]); // cùng truyện (khác chữ) không nhân đôi
+    expect(useStoryStore.getState().opened).toEqual([A, B]); // quay lại truyện cũ (khác chữ): không đổi chỗ, không nhân đôi
   });
 
   it("page mặc định translate, openStory reset về translate, setPage đổi", () => {

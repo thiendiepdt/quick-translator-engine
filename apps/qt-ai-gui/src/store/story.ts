@@ -43,7 +43,7 @@ interface PerStory {
 interface StoryState extends PerStory {
   screen: "picker" | "workbench";
   page: Page;
-  /** Root mọi truyện đã mở trong phiên app này, mới mở nhất đứng đầu (sidebar phải). Không lưu đĩa. */
+  /** Root mọi truyện đã mở trong phiên app này theo thứ tự mở lần đầu (sidebar phải). Không lưu đĩa. */
   opened: string[];
   root?: string;
   snapshot?: StorySnapshot;
@@ -139,7 +139,8 @@ function enterStory(state: StoryState, snapshot: StorySnapshot, page: Page): Par
     sessions,
     roots: state.roots[key] === snapshot.root ? state.roots : { ...state.roots, [key]: snapshot.root },
     names: state.names[key] === name ? state.names : { ...state.names, [key]: name },
-    opened: [snapshot.root, ...state.opened.filter((item) => !samePath(item, snapshot.root))],
+    // Giữ thứ tự mở lần đầu: bấm qua lại giữa các truyện thì ô trong cột phải không đổi chỗ.
+    opened: state.opened.some((item) => samePath(item, snapshot.root)) ? state.opened : [...state.opened, snapshot.root],
   };
 }
 

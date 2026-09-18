@@ -29,8 +29,8 @@ export function progressPercent(progress: Progress | undefined): number | undefi
 }
 
 /**
- * Sidebar phải: truyện đang dịch trước (theo tên), rồi mọi truyện đã mở trong phiên app theo lần mở
- * gần nhất (`opened` đã sắp mới nhất đứng đầu). Truyện đang dịch mà chưa mở lần nào cũng hiện.
+ * Sidebar phải: truyện đang dịch trước (theo tên), rồi mọi truyện đã mở trong phiên app theo thứ tự mở
+ * lần đầu (`opened`), nên bấm qua lại không làm ô đổi chỗ. Truyện đang dịch mà chưa mở lần nào cũng hiện.
  */
 export function dockEntries(state: {
   root?: string;

@@ -81,7 +81,7 @@ describe("StorySidebar", () => {
     expect(initials("", "D:\\lib\\ta-tuyet\\")).toBe("TT");
   });
 
-  it("dockEntries: đang dịch trước (theo tên), rồi các truyện đã mở theo lần mở gần nhất", () => {
+  it("dockEntries: đang dịch trước (theo tên), rồi các truyện đã mở theo thứ tự mở lần đầu", () => {
     const entries = dockEntries(useStoryStore.getState());
     expect(entries.map((e) => e.root)).toEqual([B, D, A, C]);
     expect(entries[0]).toMatchObject({ running: true, percent: 50, currentChapter: "0006", current: false });
