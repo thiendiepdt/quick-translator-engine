@@ -26,6 +26,11 @@
         "message": "Đại từ sai → dùng hắn/nàng"
       },
       {
+        "pattern": "(?<!\\p{L})(?:ông ta|ông ấy|bà ta|bà ấy)(?!\\p{L})",
+        "flags": "iu",
+        "message": "ông ta/bà ta cho nhân vật lớn tuổi trong bối cảnh cổ → hắn/lão, nàng/bà"
+      },
+      {
         "pattern": "(^|[“\"']|,\\s+)(?:mình|tôi)(?:\\s|[,.!?…])",
         "flags": "i",
         "message": "Dùng mình/tôi làm đại từ → thay bằng ta trong style mặc định"

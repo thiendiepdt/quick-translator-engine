@@ -172,6 +172,15 @@ describe("AI translation post-processing", () => {
     );
   });
 
+  it("flags ông ta/bà ta for elderly characters in the ancient setting, even capitalised at line start", () => {
+    const text = ["Ông ta vuốt râu.", "Bà ta cười lạnh.", "Ông nội hắn đã mất.", "Lão bà bà lắc đầu."].join("\n");
+    const hits = checkAiTranslationViolations(text)
+      .filter((item) => item.message.startsWith("ông ta/bà ta"))
+      .map((item) => item.line);
+    expect(hits).toEqual([1, 2]);
+    expect(checkAiTranslationViolations("Ông ta cười.", undefined, "modern")).toEqual([]);
+  });
+
   it("leaves clean prose alone", () => {
     const text = [
       "Nàng đậu nơi vương đình, hai mươi tám năm chẳng bay cũng chẳng hót.",

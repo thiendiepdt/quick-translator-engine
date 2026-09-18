@@ -45,6 +45,7 @@ const CHECK_RULES: Array<[RegExp, string, GenreSetting?]> = [
   [/(?<!\p{L})(?:vợ|chồng)(?!\p{L})/iu, "Dùng vợ/chồng → thay bằng thê tử/phu quân", "ancient"],
   [/(?<!\p{L})(?:đàn ông|đàn bà|phụ nữ)(?!\p{L})/iu, "Từ chỉ người đời thường trong bối cảnh cổ → nam nhân/nữ nhân (nam tử/nữ tử)", "ancient"],
   [/\banh ấy\b|\banh ta\b|\bcô ấy\b|\bchị ấy\b/i, "Đại từ sai → dùng hắn/nàng", "ancient"],
+  [/(?<!\p{L})(?:ông ta|ông ấy|bà ta|bà ấy)(?!\p{L})/iu, "ông ta/bà ta cho nhân vật lớn tuổi trong bối cảnh cổ → hắn/lão, nàng/bà", "ancient"],
   [/(^|[“"']|,\s+)(?:mình|tôi)(?:\s|[,.!?…])/i, "Dùng mình/tôi làm đại từ → thay bằng ta trong style mặc định", "ancient"],
   [/tinh thần đại chấn/, "精神大振 → dùng tinh thần phấn chấn hẳn lên"],
   [/mơ hồ nghiệm ra|mùi vị không bình thường/, "品出意味 → dùng nhận ra/nhận thấy điều bất thường"],

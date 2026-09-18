@@ -68,6 +68,7 @@ pub const DEFAULT_RULES: &[(&str, &str, &str, Option<&str>)] = &[
     (r"(?<!\p{L})(?:vợ|chồng)(?!\p{L})", "iu", "Dùng vợ/chồng → thay bằng thê tử/phu quân", Some("ancient")),
     (r"(?<!\p{L})(?:đàn ông|đàn bà|phụ nữ)(?!\p{L})", "iu", "Từ chỉ người đời thường trong bối cảnh cổ → nam nhân/nữ nhân (nam tử/nữ tử)", Some("ancient")),
     (r"\banh ấy\b|\banh ta\b|\bcô ấy\b|\bchị ấy\b", "i", "Đại từ sai → dùng hắn/nàng", Some("ancient")),
+    (r"(?<!\p{L})(?:ông ta|ông ấy|bà ta|bà ấy)(?!\p{L})", "iu", "ông ta/bà ta cho nhân vật lớn tuổi trong bối cảnh cổ → hắn/lão, nàng/bà", Some("ancient")),
     (r#"(^|[“"']|,\s+)(?:mình|tôi)(?:\s|[,.!?…])"#, "i", "Dùng mình/tôi làm đại từ → thay bằng ta trong style mặc định", Some("ancient")),
     (r"tinh thần đại chấn", "", "精神大振 → dùng tinh thần phấn chấn hẳn lên", None),
     (r"mơ hồ nghiệm ra|mùi vị không bình thường", "", "品出意味 → dùng nhận ra/nhận thấy điều bất thường", None),
@@ -218,5 +219,17 @@ mod tests {
                 "4:有别 → hữu biệt / khác biệt, không \"có biệt\"",
             ]
         );
+    }
+
+    #[test]
+    fn bat_ong_ta_ba_ta_trong_boi_canh_co_ke_ca_dau_dong_viet_hoa() {
+        let text = "Ông ta vuốt râu.\nBà ta cười lạnh.\nÔng nội hắn đã mất.\nLão bà bà lắc đầu.";
+        let lines: Vec<usize> = check_violations(text, &[], GenreSetting::Ancient)
+            .into_iter()
+            .filter(|v| v.message.starts_with("ông ta/bà ta"))
+            .map(|v| v.line)
+            .collect();
+        assert_eq!(lines, vec![1, 2]);
+        assert!(check_violations("Ông ta cười.", &[], GenreSetting::Modern).is_empty());
     }
 }

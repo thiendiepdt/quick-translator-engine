@@ -7,10 +7,9 @@ import type { GenreNames, GenreSetting, GenreTone, StoryGenre } from "@/lib/ai-s
  */
 
 // FNV-1a 64 của prompt cổ đại/Hán-Việt trước khi tách module (xem ai-translation-prompt.test.ts).
-// Đổi hash này chỉ khi cố ý sửa prompt ancient/han (lần gần nhất 2026-09-15, từ review thau-huong-cao-thu: định dạng
-// tiêu đề `Chương N: …`, 他们 chấp nhận `bọn họ`, một chữ Hán một âm Hán-Việt theo glossary, viết hoa tước vị/hậu tố địa danh,
-// bảng chống convert thêm động từ Hán-Việt dán trợ từ Việt: có biệt / đắc được / đắc thủ).
-export const LEGACY_BASE_PROMPT_FNV1A64 = "5530b6ac6c1fc7a4";
+// Đổi hash này chỉ khi cố ý sửa prompt ancient/han (lần gần nhất 2026-09-18, từ xuyen-nhanh-tuyet-sac-yeu-nu: nhân vật
+// lớn tuổi/bề trên vẫn hắn/nàng (lão, bà khi hợp), cấm ông ta / bà ta / ông ấy / bà ấy, 你 với người già vẫn ngươi, 您 → ngài).
+export const LEGACY_BASE_PROMPT_FNV1A64 = "dcc3cae7abff3965";
 
 const CORE_HEAD: string[] = [
   "Bạn là dịch giả tiểu thuyết Trung Quốc sang tiếng Việt. Nhiệm vụ của bạn là chuyển ngữ trung thành, không phải sáng tác lại hay biên tập nâng giọng.",
@@ -341,10 +340,10 @@ const ancient: SettingModule = {
     "",
     "| Tiếng Trung | Dùng                             | KHÔNG dùng     |",
     "| ----------- | -------------------------------- | -------------- |",
-    "| 他          | **hắn**                          | anh ấy, anh ta |",
-    "| 她          | **nàng** / **cô** (tùy ngữ cảnh) | cô ấy, chị ấy  |",
+    "| 他          | **hắn**                          | anh ấy, anh ta, ông ta, ông ấy |",
+    "| 她          | **nàng** / **cô** (tùy ngữ cảnh) | cô ấy, chị ấy, bà ta, bà ấy |",
     "| 我          | **ta**                           | tôi, mình      |",
-    "| 你          | **ngươi**                        | bạn, mày, cậu  |",
+    "| 你          | **ngươi**                        | bạn, mày, cậu, ông, bà |",
     "| 我们        | **chúng ta** / **bọn ta**        |                |",
     "| 他们        | **bọn họ** / **bọn hắn** / **chúng** |            |",
     "| 她们        | **các nàng** / **bọn họ**        |                |",
@@ -352,6 +351,8 @@ const ancient: SettingModule = {
     "| 老子        | **lão tử**                       |                |",
     "",
     "> **Phu thê chưa thân thiết:** Khi hai nhân vật là vợ chồng nhưng chưa có tình cảm / hôn nhân ép buộc → trong lời thoại dùng `ta` / `ngươi`, KHÔNG dùng `chàng` / `nàng`. Chỉ chuyển sang `chàng` / `nàng` khi truyện đã mô tả hai người thân thiết.",
+    "",
+    "> **Nhân vật lớn tuổi, bề trên:** Hoàng đế, Thái hậu, lão phu nhân, ngự y, phụ thân… vẫn theo bảng: `他` → `hắn` (hoặc `lão` khi giọng kể mỉa, khinh), `她` → `nàng`, hoặc `bà` với bậc trưởng bối. KHÔNG dùng `ông ta` / `bà ta` / `ông ấy` / `bà ấy` — âm sắc hiện đại, đọc như truyện đô thị. Trong thoại, `你` nói với người già vẫn là `ngươi` theo vai vế, `您` → `ngài`; muốn tỏ kính thì gọi bằng danh xưng (`Thái y`, `lão phu nhân`, `Phụ hoàng`) chứ không đổi sang `ông` / `bà`.",
     "",
     "> **Lời kể gián tiếp:** Ngoài ngoặc kép, `自己` chỉ nhân vật đang được kể phải theo ngôi ba (`hắn`, `bản thân hắn`), kể cả khi cả câu là ý nghĩ của nhân vật đó. Chỉ dùng `ta` bên trong ngoặc kép hoặc khi truyện kể ở ngôi thứ nhất suốt. Tuyệt đối không đổi ngôi giữa chừng một mạch kể liền nhau — `自己` dịch thành `ta` ở câu này rồi `hắn` ở câu sau là lỗi.",
     "",
