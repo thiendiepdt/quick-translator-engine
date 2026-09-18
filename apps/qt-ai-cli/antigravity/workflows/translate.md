@@ -19,4 +19,4 @@ Lặp cho tới khi hết chương hoặc chạm giới hạn chương/phiên (x
 4. `{{QT_AI}} accept {{STORY_ROOT}} <id>` — không tự ý dùng `--force`; force là quyết định của người dùng.
 5. Báo một dòng tiến độ (`x/y chương của phiên`) rồi quay lại bước 1.
 
-Model từ chối dịch vì chính sách nội dung → làm theo AGENTS.md luật 6 (skip kèm lý do).
+Bị `blocked by content safety filters` → sinh lại bản dịch tối đa 3 lượt theo AGENTS.md luật 6; chỉ skip (kèm lý do) khi cả 3 lượt đều bị chặn.
