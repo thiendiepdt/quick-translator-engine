@@ -60,7 +60,11 @@ Glossary tự động và AI điền dùng lượt "JSON mode" (`response_format
 (400/404/422, trả rỗng) thì app tự gọi lại bằng lượt text thường rồi bóc object JSON ra — log trang Dịch ghi
 "bỏ qua trích glossary — …" khi cả hai đường đều hỏng, và dòng "chốt (… +N glossary)" cho biết mỗi chương thêm bao nhiêu.
 
-Cùng folder truyện, cùng `state.json`; đổi động cơ giữa chừng vẫn tiếp được. Ở chế độ API, chương
+Cùng folder truyện, cùng `state.json`; đổi động cơ giữa chừng vẫn tiếp được. Ở chế độ agy, lỗi
+`blocked by content safety filters` là bộ lọc đầu ra của Antigravity nhảy ngẫu nhiên theo lượt (cùng
+chương lượt sau thường qua, bản dịch không bị nhạt đi): AGENTS.md luật 6 bảo agent sinh lại tối đa 3 lượt,
+cả 3 đều bị chặn mới skip. AGENTS.md/workflows trong folder truyện có dòng dấu `<!-- qt-ai-template … -->`
+ở cuối: file chưa sửa tay được app làm mới khi mở truyện, kể cả khi luật đổi lời. Ở chế độ API, chương
 model từ chối được skip kèm lý do; lỗi mạng/429/5xx thử lại một lần rồi skip chương, hai chương liên
 tiếp lỗi thì dừng phiên (`api_failed`); lỗi cấu hình (400 model không có, 401/403 key sai) dừng ngay
 không skip. Phiên dừng vì lỗi thì chương đang dịch trả về hàng đợi, không kẹt "đang dịch". "AI điền hồ sơ" đi theo động cơ đang chọn: agy tra web + đọc

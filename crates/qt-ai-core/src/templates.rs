@@ -3,7 +3,11 @@
 //!
 //! File render sẵn trong folder truyện chứa lệnh qt-ai và đường dẫn truyện; mang folder sang máy khác
 //! (hoặc dời folder) là hai giá trị đó chết → agent đi tìm binary khắp đĩa. Vì thế mỗi lần init/mở truyện,
-//! file nào vẫn đúng khuôn template (chưa sửa tay) thì render lại với giá trị hiện tại.
+//! file nào chưa sửa tay thì render lại với template và giá trị hiện tại.
+//!
+//! "Chưa sửa tay" nhận ra bằng dòng dấu `<!-- qt-ai-template <fnv> -->` ghi ở cuối file: fnv của phần thân
+//! lúc app ghi. Thân còn đúng fnv → app được phép ghi đè, kể cả khi template đã đổi lời (luật mới trong
+//! AGENTS.md tới được truyện cũ). File không có dấu (bản cũ) thì so khuôn template hiện tại như trước.
 
 use crate::error::{CoreError, Result};
 use crate::story_fs::write_text;
@@ -51,20 +55,63 @@ pub fn matches_template(template: &str, content: &str) -> bool {
     Regex::new(&pattern).map(|re| re.is_match(&normalize(content))).unwrap_or(false)
 }
 
-/// Ghi file mới; file cũ còn đúng khuôn template mà nội dung khác bản render hiện tại thì ghi đè.
-/// Trả về true nếu có ghi.
+const MARKER_PREFIX: &str = "<!-- qt-ai-template ";
+const MARKER_SUFFIX: &str = " -->";
+
+fn fingerprint(text: &str) -> u64 {
+    let mut hash: u64 = 0xcbf29ce484222325;
+    for byte in normalize(text).bytes() {
+        hash ^= u64::from(byte);
+        hash = hash.wrapping_mul(0x100000001b3);
+    }
+    hash
+}
+
+/// Thân file + dòng dấu fnv của thân.
+fn stamp(body: &str) -> String {
+    let body = if body.ends_with('\n') { body.to_string() } else { format!("{body}\n") };
+    format!("{body}{MARKER_PREFIX}{:016x}{MARKER_SUFFIX}\n", fingerprint(&body))
+}
+
+/// Tách (thân, fnv ghi trong dấu) nếu dòng cuối là dấu; không có dấu → None.
+fn split_marker(content: &str) -> Option<(String, u64)> {
+    let text = normalize(content);
+    let trimmed = text.trim_end_matches('\n');
+    let (body, last) = trimmed.rsplit_once('\n')?;
+    let hex = last.strip_prefix(MARKER_PREFIX)?.strip_suffix(MARKER_SUFFIX)?;
+    let hash = u64::from_str_radix(hex, 16).ok()?;
+    Some((format!("{body}\n"), hash))
+}
+
+/// Ghi file mới (kèm dấu). File cũ chưa sửa tay — thân còn đúng fnv trong dấu, hoặc bản cũ không dấu
+/// nhưng còn đúng khuôn template — mà khác bản render hiện tại thì ghi đè. Trả về true nếu có ghi.
 fn write_or_refresh(target: &Path, source: &str, qt_ai_command: &str, root: &str) -> Result<bool> {
     let fresh = render(source, qt_ai_command, root);
+    let stamped = stamp(&fresh);
     match fs::read_to_string(target) {
         Ok(existing) => {
-            if normalize(&existing) == normalize(&fresh) || !matches_template(source, &existing) {
+            let untouched = match split_marker(&existing) {
+                Some((body, hash)) => {
+                    if fingerprint(&body) != hash {
+                        return Ok(false);
+                    }
+                    normalize(&body) == normalize(&fresh)
+                }
+                None => {
+                    if !matches_template(source, &existing) {
+                        return Ok(false);
+                    }
+                    false
+                }
+            };
+            if untouched {
                 return Ok(false);
             }
-            write_text(target, &fresh)?;
+            write_text(target, &stamped)?;
             Ok(true)
         }
         Err(_) => {
-            write_text(target, &fresh)?;
+            write_text(target, &stamped)?;
             Ok(true)
         }
     }
@@ -127,6 +174,39 @@ mod tests {
         let agents = fs::read_to_string(root.join("AGENTS.md")).unwrap();
         assert!(agents.contains("    qt-ai <lệnh> "));
         assert!(!agents.contains("may-khac"));
+        assert!(agents.trim_end().ends_with(" -->"), "file app ghi có dòng dấu ở cuối");
         assert_eq!(fs::read_to_string(&translate).unwrap(), hand);
+    }
+
+    const TEMPLATE_V2: &str = "Chạy `{{QT_AI}} next {{STORY_ROOT}}` rồi\nthư mục: {{STORY_ROOT}}\nLuật mới: thử lại 3 lượt.\n";
+
+    #[test]
+    fn template_doi_loi_thi_file_chua_sua_tay_duoc_lam_moi_file_sua_giua_than_thi_giu() {
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("AGENTS.md");
+        assert!(write_or_refresh(&target, TEMPLATE, "qt-ai", "D:\\t").unwrap());
+        // Template đổi lời → khuôn cũ không còn khớp, nhưng dấu fnv nói file chưa ai sửa → ghi đè.
+        assert!(write_or_refresh(&target, TEMPLATE_V2, "qt-ai", "D:\\t").unwrap());
+        let text = fs::read_to_string(&target).unwrap();
+        assert!(text.contains("Luật mới: thử lại 3 lượt."));
+        assert!(!write_or_refresh(&target, TEMPLATE_V2, "qt-ai", "D:\\t").unwrap(), "cùng bản thì không ghi");
+        // Sửa giữa thân (dấu vẫn còn ở cuối) → fnv lệch → giữ nguyên dù template đổi tiếp.
+        let edited = text.replace("Luật mới", "Luật tôi sửa");
+        fs::write(&target, &edited).unwrap();
+        assert!(!write_or_refresh(&target, TEMPLATE, "qt-ai", "D:\\t").unwrap());
+        assert_eq!(fs::read_to_string(&target).unwrap(), edited);
+    }
+
+    #[test]
+    fn file_cu_khong_dau_con_dung_khuon_thi_duoc_dong_dau_khi_lam_moi() {
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("AGENTS.md");
+        fs::write(&target, render(TEMPLATE, "qt-ai", "D:\\t")).unwrap();
+        assert!(write_or_refresh(&target, TEMPLATE, "qt-ai", "D:\\t").unwrap(), "chưa có dấu → ghi lại kèm dấu");
+        assert!(split_marker(&fs::read_to_string(&target).unwrap()).is_some());
+        // Bản cũ không dấu mà template đã đổi lời → không nhận ra là "chưa sửa", giữ nguyên (giới hạn đã biết).
+        let old = dir.path().join("translate.md");
+        fs::write(&old, render(TEMPLATE, "qt-ai", "D:\\t")).unwrap();
+        assert!(!write_or_refresh(&old, TEMPLATE_V2, "qt-ai", "D:\\t").unwrap());
     }
 }
