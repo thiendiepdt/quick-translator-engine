@@ -255,7 +255,8 @@ mod tests {
             fs::create_dir_all(root.join(".agent").join("workflows")).unwrap();
             let target = if name == "AGENTS.md" { root.join(name) } else { root.join(".agent").join("workflows").join(name) };
             let rendered = render(old, "npm --prefix D:\\qt run -s qt-ai --", "/home/x/books/a");
-            fs::write(&target, rendered.replace('\n', "\r\n")).unwrap();
+            // File legacy trong repo có thể đã CRLF (autocrlf) → chuẩn hoá trước rồi mới giả CRLF của máy Windows.
+            fs::write(&target, normalize(&rendered).replace('\n', "\r\n")).unwrap();
             let written = copy_templates(root, "qt-ai").unwrap();
             assert!(written.iter().any(|w| w == name), "{name}: {written:?}");
             let text = fs::read_to_string(&target).unwrap();

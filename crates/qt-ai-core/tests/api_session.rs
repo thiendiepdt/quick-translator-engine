@@ -292,6 +292,23 @@ fn model_tu_choi_thi_skip_kem_ly_do_va_di_tiep() {
 }
 
 #[test]
+fn model_tra_khong_nhan_thi_ly_do_skip_va_log_co_dau_output() {
+    let dir = story(1);
+    let refusal = "Xin lỗi, tôi không thể dịch nội dung này vì có đề cập tới tự sát.\nBạn có thể cung cấp đoạn khác.";
+    // Hai lượt trong translate_full + một lượt thử lại ngoài = 4 lần gọi đều không nhãn.
+    let model = FakeModel::new((0..4).map(|_| Ok(refusal.to_string())).collect());
+    let (sink, events) = collect();
+    let handle = start_api_session(config(dir.path()), model.clone(), sink).unwrap();
+    assert_eq!(handle.join(), StopReason::Finished);
+    let state = load_state(&story_paths(dir.path())).unwrap();
+    assert_eq!(state.chapters["0001"].status, ChapterStatus::Skipped);
+    let reason = state.chapters["0001"].reason.clone().unwrap();
+    assert!(reason.contains("model trả: «Xin lỗi, tôi không thể dịch nội dung này vì có đề cập tới tự sát. Bạn") && reason.ends_with("…»"), "{reason}");
+    let logs = logs(&events.lock().unwrap());
+    assert!(logs.iter().any(|l| l.contains("0001: model trả không nhãn, đầu output: «Xin lỗi")), "{logs:?}");
+}
+
+#[test]
 fn loi_mang_thu_lai_mot_lan_roi_skip_hai_chuong_lien_tiep_thi_dung() {
     let dir = story(3);
     let net = || Err(ApiError::Network { provider: "Gemini", message: "timeout".into() });

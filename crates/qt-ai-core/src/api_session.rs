@@ -151,6 +151,16 @@ fn generate(chapter: &Chapter, step: ApiStep, label: &str, system: &str, user: &
     Ok(generated.text)
 }
 
+/// `limit` ký tự đầu của output, xuống dòng gộp thành khoảng trắng, bọc «…» để lọt vào log/lý do skip.
+fn output_head(text: &str, limit: usize) -> String {
+    let flat: String = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    let mut head: String = flat.chars().take(limit).collect();
+    if flat.chars().count() > limit {
+        head.push('…');
+    }
+    format!("«{head}»")
+}
+
 /// Bản draft có nhãn ghi ra work/<id>.draft.md — đúng dạng `assemble_draft` đọc.
 pub fn labeled_draft(draft: &[String]) -> String {
     let body = draft.iter().enumerate().map(|(index, text)| format!("[[{}]] {}", index + 1, text)).collect::<Vec<_>>().join("\n\n");
@@ -208,7 +218,11 @@ fn translate_full(chapter: &Chapter) -> std::result::Result<(Vec<String>, Option
         parsed = parse_labeled_translation(text, paragraphs.len());
     }
     let Some(parsed) = parsed else {
-        return Err(ApiError::BadOutput("không có nhãn [[n]] nào trong bản dịch".to_string()));
+        // Không có gì để ghép → không thể biết model từ chối hay dịch mà bỏ nhãn; ghi đầu output ra log
+        // và kèm vào lý do để người dùng thấy ngay.
+        let head = output_head(text, 200);
+        (chapter.log)(format!("{}: model trả không nhãn, đầu output: {head}", chapter.id));
+        return Err(ApiError::BadOutput(format!("không có nhãn [[n]] nào trong bản dịch — model trả: {}", output_head(text, 80))));
     };
     let mut draft: Vec<String> = parsed.iter().zip(paragraphs).map(|(p, raw)| p.clone().unwrap_or_else(|| raw.clone())).collect();
     let missing: Vec<usize> = parsed.iter().enumerate().filter(|(_, p)| p.is_none()).map(|(i, _)| i).collect();

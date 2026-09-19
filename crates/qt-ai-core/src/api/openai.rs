@@ -71,6 +71,8 @@ pub fn parse_stream<R: BufRead>(
     on_progress: &mut dyn FnMut(usize),
 ) -> Result<Generated, ApiError> {
     let mut output = String::new();
+    let mut refusal = String::new();
+    let mut filtered = false;
     let mut usage: Option<Usage> = None;
     read_sse(reader, cancel, |payload| {
         if let Some(message) = payload.pointer("/error/message").and_then(Value::as_str) {
@@ -79,7 +81,15 @@ pub fn parse_stream<R: BufRead>(
         if let Some(found) = usage_of(&payload) {
             usage = Some(found);
         }
+        // Bộ lọc nội dung phía hub/OpenAI: `finish_reason: content_filter` (Azure/OpenAI) hoặc
+        // `delta.refusal` (OpenAI) — là model từ chối, không phải sai định dạng, không thử lại.
+        if payload.pointer("/choices/0/finish_reason").and_then(Value::as_str) == Some("content_filter") {
+            filtered = true;
+        }
         let Some(delta) = payload.pointer("/choices/0/delta") else { return Ok(()) };
+        if let Some(text) = delta.get("refusal").and_then(Value::as_str) {
+            refusal.push_str(text);
+        }
         if let Some(text) = delta.get("content").and_then(Value::as_str) {
             if !text.is_empty() {
                 output.push_str(text);
@@ -88,6 +98,12 @@ pub fn parse_stream<R: BufRead>(
         }
         Ok(())
     })?;
+    if filtered {
+        return Err(ApiError::Blocked("content_filter".to_string()));
+    }
+    if !refusal.is_empty() && output.is_empty() {
+        return Err(ApiError::Blocked(refusal));
+    }
     if output.is_empty() {
         return Err(ApiError::Empty("OpenAI"));
     }
@@ -170,5 +186,50 @@ mod tests {
         );
         let payload = json!({ "choices": [{ "message": { "content": "{}" } }] });
         assert_eq!(parse_json_response(&payload).as_deref(), Some("{}"));
+    }
+
+    #[test]
+    fn parse_stream_content_filter_hoac_refusal_la_blocked() {
+        // Azure/OpenAI cắt giữa chừng: đã có content nhưng finish_reason content_filter → vẫn Blocked.
+        let filtered = format!(
+            "data: {}
+
+data: {}
+
+data: [DONE]
+
+",
+            json!({ "choices": [{ "delta": { "content": "[[1]] Nửa" } }] }),
+            json!({ "choices": [{ "delta": {}, "finish_reason": "content_filter" }] }),
+        );
+        assert_eq!(
+            parse_stream(Cursor::new(filtered), &AtomicBool::new(false), &mut |_| {}),
+            Err(ApiError::Blocked("content_filter".into()))
+        );
+        let refusal = format!(
+            "data: {}
+
+data: {}
+
+data: [DONE]
+
+",
+            json!({ "choices": [{ "delta": { "refusal": "I can't " } }] }),
+            json!({ "choices": [{ "delta": { "refusal": "help with that." }, "finish_reason": "stop" }] }),
+        );
+        assert_eq!(
+            parse_stream(Cursor::new(refusal), &AtomicBool::new(false), &mut |_| {}),
+            Err(ApiError::Blocked("I can't help with that.".into()))
+        );
+        // finish_reason stop bình thường thì không đổi gì.
+        let ok = format!(
+            "data: {}
+
+data: [DONE]
+
+",
+            json!({ "choices": [{ "delta": { "content": "x" }, "finish_reason": "stop" }] }),
+        );
+        assert_eq!(parse_stream(Cursor::new(ok), &AtomicBool::new(false), &mut |_| {}).unwrap().text, "x");
     }
 }
