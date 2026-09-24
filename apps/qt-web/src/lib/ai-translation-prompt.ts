@@ -7,9 +7,9 @@ import type { GenreNames, GenreSetting, GenreTone, StoryGenre } from "@/lib/ai-s
  */
 
 // FNV-1a 64 của prompt cổ đại/Hán-Việt trước khi tách module (xem ai-translation-prompt.test.ts).
-// Đổi hash này chỉ khi cố ý sửa prompt ancient/han (lần gần nhất 2026-09-18, từ xuyen-nhanh-tuyet-sac-yeu-nu: nhân vật
-// lớn tuổi/bề trên vẫn hắn/nàng (lão, bà khi hợp), cấm ông ta / bà ta / ông ấy / bà ấy, 你 với người già vẫn ngươi, 您 → ngài).
-export const LEGACY_BASE_PROMPT_FNV1A64 = "dcc3cae7abff3965";
+// Đổi hash này chỉ khi cố ý sửa prompt ancient/han (lần gần nhất 2026-09-23, từ ga-mu: bảng họ đọc khác âm thường
+// — 段将军 là Đoàn tướng quân, không phải Đoạn; họ + chức danh theo âm làm họ).
+export const LEGACY_BASE_PROMPT_FNV1A64 = "ca041b30e7e6e6ab";
 
 const CORE_HEAD: string[] = [
   "Bạn là dịch giả tiểu thuyết Trung Quốc sang tiếng Việt. Nhiệm vụ của bạn là chuyển ngữ trung thành, không phải sáng tác lại hay biên tập nâng giọng.",
@@ -685,6 +685,39 @@ const mixedSetting: SettingModule = {
 
 const SETTINGS: Record<GenreSetting, SettingModule> = { ancient, modern, mixed: mixedSetting };
 
+/**
+ * Họ có âm Hán-Việt khi làm họ khác âm của từ thường (chữ đa âm) — model ghép theo âm quen nhất nên
+ * 段将军 thành "Đoạn tướng quân". Dùng chung cho han và mixed. Đối chiếu hvdic.thivien.net + Bách gia tính.
+ */
+const SURNAME_TABLE: string[] = [
+  "#### Họ đọc khác âm thường",
+  "",
+  "Chữ đứng đầu tên người, hoặc đứng trước 将军/都尉/侯爷/公子/小姐/夫人/大人/掌柜/先生/老师 là **họ**: phiên theo âm làm họ, KHÔNG theo âm của từ thường (`段将军` → Đoàn tướng quân, không phải Đoạn tướng quân). Họ đã có trong glossary (kể cả nằm trong tên đầy đủ như `段不惊` → Đoàn Bất Kinh) thì mọi cụm họ + chức danh dùng đúng âm đó.",
+  "",
+  "| Họ | Đúng | SAI |",
+  "| --- | --- | --- |",
+  "| 段 | Đoàn | Đoạn |",
+  "| 单 | Thiện | Đơn |",
+  "| 仇 | Cừu | Thù |",
+  "| 乐 | Nhạc | Lạc |",
+  "| 区 | Âu | Khu |",
+  "| 任 | Nhậm | Nhiệm |",
+  "| 沈 | Thẩm | Trầm |",
+  "| 曾 | Tăng | Tằng |",
+  "| 翟 | Trạch | Địch |",
+  "| 缪 | Mậu | Mâu |",
+  "| 应 | Ưng | Ứng |",
+  "| 贾 | Giả | Cổ |",
+  "| 肖 | Tiêu | Tiếu |",
+  "| 从 | Tòng | Tùng / Thung |",
+  "| 覃 | Đàm | Tần |",
+  "| 尉迟 / 万俟 / 长孙 | Uất Trì / Mặc Kỳ / Trưởng Tôn | Úy Trì / Vạn Sĩ / Trường Tôn |",
+  "| 诸葛 / 单于 / 澹台 | Gia Cát / Thiền Vu / Đạm Đài | Chư Cát / Đơn Vu / Đàm Đài |",
+  "",
+  "Họ một âm nhưng hiếm, không tự bịa: 柴 Sài, 佟 Đông, 冼 Tiển, 芮 Nhuế, 佘 Xa, 甄 Chân, 晁 Triều, 嵇 Kê, 逯 Lục, 逄 Bàng, 靳 Cận, 蔺 Lận, 阎 Diêm, 聂 Nhiếp, 冉 Nhiễm, 芈 Mị, 嬴 Doanh. Tên đã quen với độc giả Việt (`燕青` Yến Thanh, `蔡` Thái) và glossary thắng bảng này.",
+  "",
+];
+
 /** Mục 3 cũ: phiên âm Hán-Việt. */
 const han: string[] = [
   "## 3. Nhân danh & Địa danh — Phiên âm Hán-Việt",
@@ -700,6 +733,7 @@ const han: string[] = [
   "| 水龙宗 | Thủy Long Tông | tông phái Rồng Nước |",
   "| 曾头市 | Tằng Đầu Thị   | thành phố Tăng Đầu  |",
   "",
+  ...SURNAME_TABLE,
   "---",
   "",
 ];
@@ -752,6 +786,7 @@ const mixed: string[] = [
   "- Chuỗi từ 3 chữ trở lên có ký tự phiên âm đặc trưng (`尔 斯 克 姆 特 娜 丽 德 洛 布 罗 伊 森 卡 蒂`) hoặc địa danh ngoài Trung Quốc → dạng gốc Latin / romaji (`艾米丽` → Emily, `纽约` → New York).",
   "- Không chắc → ưu tiên dạng gốc nếu bối cảnh câu là nước ngoài, Hán-Việt nếu là Trung Quốc; chốt một lần trong phần suy nghĩ, tên tự thêm vào glossary ghi đúng dạng đã chốt để chương sau theo.",
   "",
+  ...SURNAME_TABLE,
   ...FOREIGN_TABLE,
   "---",
   "",
