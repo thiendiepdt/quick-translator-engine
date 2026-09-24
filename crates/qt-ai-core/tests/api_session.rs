@@ -292,6 +292,36 @@ fn model_tu_choi_thi_skip_kem_ly_do_va_di_tiep() {
 }
 
 #[test]
+fn soat_bi_tu_choi_thi_chot_kem_canh_bao_khong_skip_chuong_da_dich() {
+    let dir = story(1);
+    let bad = format!("[[1]] Anh ấy ngẩng đầu nhìn về phía tòa tháp cao ở nơi xa.\n\n[[2]] {GOOD_2}");
+    let model = FakeModel::new(vec![Ok(bad), Err(ApiError::Blocked("content_filter".into()))]);
+    let (sink, events) = collect();
+    let handle = start_api_session(config(dir.path()), model.clone(), sink).unwrap();
+    assert_eq!(handle.join(), StopReason::Finished);
+    assert_eq!(model.calls().len(), 2, "dịch + một lượt soát bị chặn, không soát thêm");
+    let state = load_state(&story_paths(dir.path())).unwrap();
+    assert_eq!(state.chapters["0001"].status, ChapterStatus::Done);
+    assert!(state.chapters["0001"].warnings.is_some());
+    let lines = logs(&events.lock().unwrap());
+    assert!(lines.iter().any(|l| l.contains("0001: model từ chối soát (content_filter) — chốt kèm cảnh báo")), "{lines:?}");
+    assert!(lines.iter().any(|l| l.contains("soát 1 lần, 1 cảnh báo")), "{lines:?}");
+}
+
+#[test]
+fn dich_bo_sung_bi_tu_choi_thi_giu_nguyen_van_han_doan_thieu() {
+    let dir = story(1);
+    let model = FakeModel::new(vec![Ok(format!("[[1]] {GOOD_1}")), Err(ApiError::Blocked("SAFETY".into()))]);
+    let (sink, events) = collect();
+    let handle = start_api_session(config(dir.path()), model.clone(), sink).unwrap();
+    assert_eq!(handle.join(), StopReason::Finished);
+    let state = load_state(&story_paths(dir.path())).unwrap();
+    assert_ne!(state.chapters["0001"].status, ChapterStatus::Skipped, "{:?}", state.chapters["0001"]);
+    let lines = logs(&events.lock().unwrap());
+    assert!(lines.iter().any(|l| l.contains("0001: dịch bổ sung bị từ chối (SAFETY) — giữ nguyên văn Hán đoạn thiếu")), "{lines:?}");
+}
+
+#[test]
 fn model_tra_khong_nhan_thi_ly_do_skip_va_log_co_dau_output() {
     let dir = story(1);
     let refusal = "Xin lỗi, tôi không thể dịch nội dung này vì có đề cập tới tự sát.\nBạn có thể cung cấp đoạn khác.";

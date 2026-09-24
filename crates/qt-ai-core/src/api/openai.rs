@@ -82,7 +82,7 @@ pub fn parse_stream<R: BufRead>(
             usage = Some(found);
         }
         // Bộ lọc nội dung phía hub/OpenAI: `finish_reason: content_filter` (Azure/OpenAI) hoặc
-        // `delta.refusal` (OpenAI) — là model từ chối, không phải sai định dạng, không thử lại.
+        // `delta.refusal` (OpenAI).
         if payload.pointer("/choices/0/finish_reason").and_then(Value::as_str) == Some("content_filter") {
             filtered = true;
         }
@@ -98,16 +98,19 @@ pub fn parse_stream<R: BufRead>(
         }
         Ok(())
     })?;
+    // Đã có text thì trả text cho bước sau tự xét (thiếu nhãn/thiếu đoạn) — hub fronting Gemini hay gắn
+    // content_filter ở chunk cuối dù đã stream về gần đủ; coi là từ chối sẽ vứt cả chương đã dịch xong.
+    // Chỉ khi không có chữ nào mới là model từ chối thật (không thử lại). Cùng cách với đường Gemini.
+    if !output.is_empty() {
+        return Ok(Generated { text: output, usage });
+    }
     if filtered {
         return Err(ApiError::Blocked("content_filter".to_string()));
     }
-    if !refusal.is_empty() && output.is_empty() {
+    if !refusal.is_empty() {
         return Err(ApiError::Blocked(refusal));
     }
-    if output.is_empty() {
-        return Err(ApiError::Empty("OpenAI"));
-    }
-    Ok(Generated { text: output, usage })
+    Err(ApiError::Empty("OpenAI"))
 }
 
 /// `message.content` là chuỗi; vài hub trả mảng part `[{type:"text", text}]` — nối text lại.
@@ -189,47 +192,27 @@ mod tests {
     }
 
     #[test]
-    fn parse_stream_content_filter_hoac_refusal_la_blocked() {
-        // Azure/OpenAI cắt giữa chừng: đã có content nhưng finish_reason content_filter → vẫn Blocked.
-        let filtered = format!(
-            "data: {}
-
-data: {}
-
-data: [DONE]
-
-",
+    fn parse_stream_content_filter_hoac_refusal_chi_blocked_khi_khong_co_text() {
+        let sse = |chunks: &[Value]| {
+            chunks.iter().map(|c| format!("data: {c}\n\n")).collect::<String>() + "data: [DONE]\n\n"
+        };
+        let run = |text: String| parse_stream(Cursor::new(text), &AtomicBool::new(false), &mut |_| {});
+        // Hub gắn content_filter ở chunk cuối nhưng đã trả text → trả text, bước sau tự xét.
+        let filtered_with_text = sse(&[
             json!({ "choices": [{ "delta": { "content": "[[1]] Nửa" } }] }),
             json!({ "choices": [{ "delta": {}, "finish_reason": "content_filter" }] }),
-        );
-        assert_eq!(
-            parse_stream(Cursor::new(filtered), &AtomicBool::new(false), &mut |_| {}),
-            Err(ApiError::Blocked("content_filter".into()))
-        );
-        let refusal = format!(
-            "data: {}
-
-data: {}
-
-data: [DONE]
-
-",
+        ]);
+        assert_eq!(run(filtered_with_text).unwrap().text, "[[1]] Nửa");
+        // Không có chữ nào + content_filter → từ chối thật.
+        let filtered_empty = sse(&[json!({ "choices": [{ "delta": {}, "finish_reason": "content_filter" }] })]);
+        assert_eq!(run(filtered_empty), Err(ApiError::Blocked("content_filter".into())));
+        let refusal = sse(&[
             json!({ "choices": [{ "delta": { "refusal": "I can't " } }] }),
             json!({ "choices": [{ "delta": { "refusal": "help with that." }, "finish_reason": "stop" }] }),
-        );
-        assert_eq!(
-            parse_stream(Cursor::new(refusal), &AtomicBool::new(false), &mut |_| {}),
-            Err(ApiError::Blocked("I can't help with that.".into()))
-        );
+        ]);
+        assert_eq!(run(refusal), Err(ApiError::Blocked("I can't help with that.".into())));
         // finish_reason stop bình thường thì không đổi gì.
-        let ok = format!(
-            "data: {}
-
-data: [DONE]
-
-",
-            json!({ "choices": [{ "delta": { "content": "x" }, "finish_reason": "stop" }] }),
-        );
-        assert_eq!(parse_stream(Cursor::new(ok), &AtomicBool::new(false), &mut |_| {}).unwrap().text, "x");
+        let ok = sse(&[json!({ "choices": [{ "delta": { "content": "x" }, "finish_reason": "stop" }] })]);
+        assert_eq!(run(ok).unwrap().text, "x");
     }
 }

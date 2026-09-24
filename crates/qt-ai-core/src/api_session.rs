@@ -184,13 +184,21 @@ fn repair_missing(chapter: &Chapter, draft: &mut [String], missing: &[usize]) ->
     if missing.is_empty() {
         return Ok(());
     }
-    let output = generate(
+    let output = match generate(
         chapter,
         ApiStep::Translate,
         &format!("dịch bổ sung {} đoạn", missing.len()),
         chapter.system,
         &labeled_repair_payload(chapter.paragraphs, missing),
-    )?;
+    ) {
+        Ok(output) => output,
+        // Đoạn thiếu bị chặn riêng: giữ nguyên văn Hán (rule CJK bắt ở check), không vứt cả chương.
+        Err(ApiError::Blocked(reason)) => {
+            (chapter.log)(format!("{}: dịch bổ sung bị từ chối ({reason}) — giữ nguyên văn Hán đoạn thiếu", chapter.id));
+            return Ok(());
+        }
+        Err(error) => return Err(error),
+    };
     if let Some(parsed) = parse_labeled_translation(split_glossary_block(&output).0, chapter.paragraphs.len()) {
         for index in missing {
             if let Some(Some(text)) = parsed.get(*index) {
@@ -288,7 +296,16 @@ Giữ nguyên toàn bộ chữ, thứ tự câu, dấu câu và ngắt đoạn k
 Đoạn nào còn nguyên chữ Hán thì dịch đoạn đó theo đúng quy tắc.\n\n---\n\n{}",
         labeled_draft(draft)
     );
-    let output = generate(chapter, ApiStep::Review, &format!("soát lần {round}"), REVIEW_SYSTEM_PROMPT, &user)?;
+    let output = match generate(chapter, ApiStep::Review, &format!("soát lần {round}"), REVIEW_SYSTEM_PROMPT, &user) {
+        Ok(output) => output,
+        // Bản dịch đã có; bước soát bị chặn thì chốt kèm cảnh báo như model xét và giữ nguyên — đốt thêm
+        // vòng cũng bị chặn tiếp, còn skip là mất chương dịch xong.
+        Err(ApiError::Blocked(reason)) => {
+            log(format!("{id}: model từ chối soát ({reason}) — chốt kèm cảnh báo"));
+            return Ok(ReviewOutcome::Kept);
+        }
+        Err(error) => return Err(error),
+    };
     let Some(reviewed) = parse_labeled_translation(split_glossary_block(&output).0, draft.len()) else {
         log(format!("{id}: bản soát mất nhãn — bỏ"));
         return Ok(ReviewOutcome::Changed);
