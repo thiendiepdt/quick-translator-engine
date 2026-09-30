@@ -385,7 +385,7 @@ fn check_het_vong_con_thieu_doan_thi_error() {
 #[test]
 fn check_het_vong_chi_con_vi_pham_thi_pass_kem_canh_bao_accept_ghi_warnings() {
     let dir = story_with_draft(
-        "[[1]] Triệu Tĩnh Văn ngẩng đầu nhìn về phía 高塔 nơi xa.\n\n[[2]] Nàng im lặng hồi lâu không nói lời nào.",
+        "[[1]] Triệu Tĩnh Văn ngẩng đầu, trong não hải hiện lên tòa tháp cao nơi xa.\n\n[[2]] Nàng im lặng hồi lâu không nói lời nào.",
         None,
     );
     let paths = story_paths(dir.path());
@@ -395,13 +395,61 @@ fn check_het_vong_chi_con_vi_pham_thi_pass_kem_canh_bao_accept_ghi_warnings() {
     let result = run_check(dir.path(), "0001").unwrap();
     assert!(result.pass && result.accepted_with_warnings && !result.escalated_to_error);
     assert_eq!(result.issues.len(), 1);
-    assert!(result.issues[0].starts_with("[[1]] CJK"));
+    assert!(result.issues[0].starts_with("[[1]]") && result.issues[0].contains("não hải"), "{:?}", result.issues);
     assert_eq!(load_state(&paths).unwrap().chapters["0001"].status, ChapterStatus::Translating);
     let accepted = run_accept(dir.path(), "0001", false).unwrap();
     assert_eq!(accepted.warnings, result.issues);
     let chapter = &load_state(&paths).unwrap().chapters["0001"];
     assert_eq!(chapter.status, ChapterStatus::Done);
     assert_eq!(chapter.warnings.as_ref().unwrap(), &result.issues);
+}
+
+#[test]
+fn check_bao_doan_con_han_tu_theo_nhan() {
+    let dir = story_with_draft(
+        "[[1]] Triệu Tĩnh Văn ngẩng đầu nhìn tòa tháp cao nơi xa.\n\n[[2]] Nàng im lặng hồi lâu, tai濡目染 không nói lời nào.",
+        None,
+    );
+    let result = run_check(dir.path(), "0001").unwrap();
+    assert!(!result.pass);
+    assert_eq!(result.untranslated, vec![2]);
+    assert!(result.issues.iter().any(|i| i.starts_with("[[2]] CJK còn sót")), "{:?}", result.issues);
+}
+
+#[test]
+fn check_ngoac_kep_goc_trung_khong_tinh_la_han_tu() {
+    let dir = story_with_draft(
+        "[[1]] Triệu Tĩnh Văn ngẩng đầu nhìn tòa tháp cao nơi xa, tay cầm 《Kiếm Phổ》.\n\n[[2]] Nàng im lặng hồi lâu không nói lời nào.",
+        None,
+    );
+    assert!(run_check(dir.path(), "0001").unwrap().untranslated.is_empty());
+}
+
+#[test]
+fn check_het_vong_con_han_tu_thi_error_khong_chot_kem_canh_bao() {
+    let dir = story_with_draft(
+        "[[1]] Triệu Tĩnh Văn ngẩng đầu nhìn tòa tháp cao nơi xa.\n\n[[2]] Nàng im lặng hồi lâu, chạy得 không nói lời nào.",
+        None,
+    );
+    for _ in 0..3 {
+        assert!(!run_check(dir.path(), "0001").unwrap().pass);
+    }
+    let result = run_check(dir.path(), "0001").unwrap();
+    assert!(result.escalated_to_error && !result.pass && !result.accepted_with_warnings);
+    let chapter = &load_state(&story_paths(dir.path())).unwrap().chapters["0001"];
+    assert_eq!(chapter.status, ChapterStatus::Error);
+    assert!(chapter.reason.as_deref().unwrap().contains("còn chữ Hán ở [[2]]"), "{:?}", chapter.reason);
+}
+
+#[test]
+fn accept_khong_force_tu_choi_khi_con_han_tu() {
+    let dir = story_with_draft(
+        "[[1]] Triệu Tĩnh Văn ngẩng đầu nhìn tòa tháp cao nơi xa.\n\n[[2]] Nàng im lặng hồi lâu, chạy得 không nói lời nào.",
+        None,
+    );
+    let err = run_accept(dir.path(), "0001", false).unwrap_err();
+    assert!(matches!(err, CoreError::InvalidState(ref m) if m.contains("chưa qua check")), "{err:?}");
+    assert!(!story_paths(dir.path()).out_dir.join("0001.txt").exists());
 }
 
 #[test]

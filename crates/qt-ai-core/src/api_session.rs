@@ -4,7 +4,7 @@
 //! động cơ dùng chung folder truyện và đổi qua lại giữa chừng được.
 
 use crate::api::{format_tokens, ApiError, ApiStep, TextModel, Usage};
-use crate::check::check_violations;
+use crate::check::{check_violations, contains_han};
 use crate::commands::accept::run_accept;
 use crate::commands::check::run_check;
 use crate::commands::next::run_next;
@@ -181,26 +181,43 @@ fn chars_no_ws(draft: &[String]) -> usize {
 
 /// Dịch bổ sung đúng các đoạn `missing` (0-based) và ghi đè vào `draft` khi model trả về.
 fn repair_missing(chapter: &Chapter, draft: &mut [String], missing: &[usize]) -> std::result::Result<(), ApiError> {
-    if missing.is_empty() {
+    // Đoạn thiếu bị chặn riêng: giữ nguyên văn Hán (check thấy đoạn còn Hán, dịch lại tiếp), không vứt cả chương.
+    retranslate(chapter, draft, missing, "dịch bổ sung", "giữ nguyên văn Hán đoạn thiếu")
+}
+
+/// Dịch lại từ raw các đoạn `indices` (0-based) còn chữ Hán. Bị chặn thì giữ bản cũ; hết vòng mà vẫn còn
+/// Hán thì check chuyển chương sang error, không bao giờ chốt kèm cảnh báo.
+fn repair_untranslated(chapter: &Chapter, draft: &mut [String], indices: &[usize]) -> std::result::Result<(), ApiError> {
+    (chapter.log)(format!("{}: còn chữ Hán ở {} đoạn — dịch lại", chapter.id, indices.len()));
+    retranslate(chapter, draft, indices, "dịch lại", "giữ bản cũ")
+}
+
+fn retranslate(
+    chapter: &Chapter,
+    draft: &mut [String],
+    indices: &[usize],
+    action: &str,
+    when_blocked: &str,
+) -> std::result::Result<(), ApiError> {
+    if indices.is_empty() {
         return Ok(());
     }
     let output = match generate(
         chapter,
         ApiStep::Translate,
-        &format!("dịch bổ sung {} đoạn", missing.len()),
+        &format!("{action} {} đoạn", indices.len()),
         chapter.system,
-        &labeled_repair_payload(chapter.paragraphs, missing),
+        &labeled_repair_payload(chapter.paragraphs, indices),
     ) {
         Ok(output) => output,
-        // Đoạn thiếu bị chặn riêng: giữ nguyên văn Hán (rule CJK bắt ở check), không vứt cả chương.
         Err(ApiError::Blocked(reason)) => {
-            (chapter.log)(format!("{}: dịch bổ sung bị từ chối ({reason}) — giữ nguyên văn Hán đoạn thiếu", chapter.id));
+            (chapter.log)(format!("{}: {action} bị từ chối ({reason}) — {when_blocked}", chapter.id));
             return Ok(());
         }
         Err(error) => return Err(error),
     };
     if let Some(parsed) = parse_labeled_translation(split_glossary_block(&output).0, chapter.paragraphs.len()) {
-        for index in missing {
+        for index in indices {
             if let Some(Some(text)) = parsed.get(*index) {
                 draft[*index] = text.clone();
             }
@@ -284,7 +301,8 @@ enum ReviewOutcome {
     Kept,
 }
 
-/// Soát tối thiểu theo danh sách vấn đề của check; chỉ nhận bản soát khi còn đủ nhãn và ít vi phạm hơn.
+/// Soát tối thiểu theo danh sách vấn đề của check; chỉ nhận bản soát khi còn đủ nhãn và ít vi phạm hơn
+/// (đoạn còn chữ Hán xét trước, rồi mới tới tổng vi phạm).
 /// Model trả y hệt bản cũ nghĩa là đã xét từng vi phạm và thấy đúng ngữ cảnh — lặp thêm chỉ tốn tiền.
 fn review(chapter: &Chapter, round: u32, draft: &mut [String], issues: &[String]) -> std::result::Result<ReviewOutcome, ApiError> {
     let (id, log, story) = (chapter.id, chapter.log, chapter.story);
@@ -319,9 +337,13 @@ Giữ nguyên toàn bộ chữ, thứ tự câu, dấu câu và ngắt đoạn k
         log(format!("{id}: model giữ nguyên bản dịch (vi phạm đúng ngữ cảnh) — chốt kèm cảnh báo"));
         return Ok(ReviewOutcome::Kept);
     }
-    let before = check_violations(&final_text(draft), &story.check_rules, story.genre.setting).len();
-    let after = check_violations(&final_text(&reviewed), &story.check_rules, story.genre.setting).len();
-    if after >= before {
+    let score = |text: &[String]| {
+        let han = text.iter().filter(|p| contains_han(p)).count();
+        (han, check_violations(&final_text(text), &story.check_rules, story.genre.setting).len())
+    };
+    let (before_han, before) = score(draft);
+    let (after_han, after) = score(&reviewed);
+    if (after_han, after) >= (before_han, before) {
         log(format!("{id}: bản soát không giảm vi phạm ({before} → {after}) — bỏ"));
         return Ok(ReviewOutcome::Changed);
     }
@@ -389,6 +411,11 @@ pub fn translate_chapter(
             if chars_no_ws(&again) > chars_no_ws(&draft) {
                 draft = again;
             }
+        } else if !check.untranslated.is_empty() {
+            // Còn chữ Hán: dịch lại từ raw đúng đoạn đó. Không đưa vào soát — model soát hay giữ nguyên
+            // ("đúng ngữ cảnh") và chương bị chốt kèm cảnh báo với Hán tự lọt ra out.
+            let indices: Vec<usize> = check.untranslated.iter().map(|label| label - 1).collect();
+            repair_untranslated(&chapter, &mut draft, &indices)?;
         } else if review(&chapter, rounds, &mut draft, &check.issues)? == ReviewOutcome::Kept {
             // Đủ đoạn, đủ dài, chỉ còn vi phạm rule mà model đã xét và giữ → chốt kèm cảnh báo ngay,
             // không đốt thêm vòng soát y hệt.

@@ -139,6 +139,13 @@ fn rules_for(setting: GenreSetting) -> impl Iterator<Item = &'static RuleSpec> {
     DEFAULT_RULES.iter().filter(move |(_, _, _, tag)| tag.is_none_or(|t| t == setting.as_str()))
 }
 
+/// Còn chữ Hán (Script=Han — không tính 《》【】「」 vốn là Common). Check coi là lỗi cứng như thiếu đoạn:
+/// không bao giờ chốt kèm cảnh báo.
+pub fn contains_han(text: &str) -> bool {
+    static HAN: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    HAN.get_or_init(|| regex::Regex::new(r"\p{Han}").unwrap()).is_match(text)
+}
+
 /// Rule cứng chạy trong mọi trường hợp — sót Hán tự là lỗi tuyệt đối.
 const MANDATORY_RULES: &[(&str, &str, &str)] = &[(r"\p{Script=Han}", "u", "CJK còn sót (chưa dịch hết!)")];
 

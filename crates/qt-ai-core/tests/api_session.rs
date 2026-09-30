@@ -195,6 +195,73 @@ fn ban_soat_y_het_ban_cu_thi_chot_kem_canh_bao_ngay_khong_dot_them_vong() {
 }
 
 #[test]
+fn con_han_tu_thi_dich_lai_dung_doan_do_khong_dua_vao_soat() {
+    let dir = story(1);
+    let bad = format!("[[1]] Triệu Tĩnh Văn tai濡目染 ngẩng đầu nhìn về phía tòa tháp cao.\n\n[[2]] {GOOD_2}");
+    // Model soát kiểu cũ sẽ trả y nguyên → trước đây chốt kèm cảnh báo, Hán tự lọt ra out.
+    let model = FakeModel::new(vec![Ok(bad.clone()), Ok(format!("[[1]] {GOOD_1}"))]);
+    let (sink, events) = collect();
+    let handle = start_api_session(config(dir.path()), model.clone(), sink).unwrap();
+    assert_eq!(handle.join(), StopReason::Finished);
+    let calls = model.calls();
+    assert_eq!(calls.len(), 2);
+    assert!(calls[1].1.contains("[[1]] 赵静文抬头看向远方的高塔。"), "gửi lại raw đoạn 1: {}", calls[1].1);
+    assert!(!calls[1].1.contains("[[2]]"), "chỉ dịch lại đoạn còn Hán: {}", calls[1].1);
+    let state = load_state(&story_paths(dir.path())).unwrap();
+    assert_eq!(state.chapters["0001"].status, ChapterStatus::Done);
+    assert!(state.chapters["0001"].warnings.is_none());
+    let out = fs::read_to_string(dir.path().join("out").join("0001.txt")).unwrap();
+    assert!(out.starts_with(GOOD_1), "{out}");
+    let lines = logs(&events.lock().unwrap());
+    assert!(lines.iter().any(|l| l.contains("0001: còn chữ Hán ở 1 đoạn — dịch lại")), "{lines:?}");
+}
+
+#[test]
+fn han_tu_dich_lai_mai_van_con_thi_error_khong_ghi_out() {
+    let dir = story(1);
+    let bad = format!("[[1]] Triệu Tĩnh Văn tai濡目染 ngẩng đầu nhìn về phía tòa tháp cao.\n\n[[2]] {GOOD_2}");
+    let still = "[[1]] Triệu Tĩnh Văn tai濡目染 ngẩng đầu nhìn về phía tòa tháp cao.".to_string();
+    let model = FakeModel::new(vec![Ok(bad), Ok(still.clone()), Ok(still.clone()), Ok(still)]);
+    let (sink, _) = collect();
+    let handle = start_api_session(config(dir.path()), model.clone(), sink).unwrap();
+    assert_eq!(handle.join(), StopReason::Finished);
+    assert_eq!(model.calls().len(), 4, "dịch + 3 lượt dịch lại đoạn còn Hán");
+    let state = load_state(&story_paths(dir.path())).unwrap();
+    assert_eq!(state.chapters["0001"].status, ChapterStatus::Error);
+    assert!(!dir.path().join("out").join("0001.txt").exists());
+}
+
+#[test]
+fn dich_lai_doan_han_bi_chan_thi_error_khong_chot_kem_canh_bao() {
+    let dir = story(1);
+    let bad = format!("[[1]] Triệu Tĩnh Văn tai濡目染 ngẩng đầu nhìn về phía tòa tháp cao.\n\n[[2]] {GOOD_2}");
+    let blocked = || Err(ApiError::Blocked("content_filter".into()));
+    let model = FakeModel::new(vec![Ok(bad), blocked(), blocked(), blocked()]);
+    let (sink, _) = collect();
+    let handle = start_api_session(config(dir.path()), model.clone(), sink).unwrap();
+    assert_eq!(handle.join(), StopReason::Finished);
+    let state = load_state(&story_paths(dir.path())).unwrap();
+    assert_eq!(state.chapters["0001"].status, ChapterStatus::Error, "{:?}", state.chapters["0001"]);
+    assert!(!dir.path().join("out").join("0001.txt").exists());
+}
+
+#[test]
+fn ban_soat_dua_han_tu_vao_thi_bo_du_giam_tong_vi_pham() {
+    let dir = story(1);
+    // 2 vi phạm mềm → bản soát còn 1 vi phạm nhưng là Hán tự: tổng giảm vẫn phải bỏ, Hán tự nặng hơn mọi lỗi mềm.
+    let bad = format!("[[1]] Anh ấy ngẩng đầu, não hải trống rỗng, nhìn tòa tháp cao nơi xa.\n\n[[2]] {GOOD_2}");
+    let worse = format!("[[1]] Hắn ngẩng đầu, 脑海 trống rỗng, nhìn tòa tháp cao nơi xa.\n\n[[2]] {GOOD_2}");
+    let model = FakeModel::new(vec![Ok(bad), Ok(worse), Ok(good())]);
+    let (sink, events) = collect();
+    let handle = start_api_session(config(dir.path()), model.clone(), sink).unwrap();
+    assert_eq!(handle.join(), StopReason::Finished);
+    let lines = logs(&events.lock().unwrap());
+    assert!(lines.iter().any(|l| l.contains("bản soát không giảm vi phạm")), "{lines:?}");
+    let out = fs::read_to_string(dir.path().join("out").join("0001.txt")).unwrap();
+    assert!(!out.contains("脑海"), "{out}");
+}
+
+#[test]
 fn log_token_tung_luot_va_tong_khi_chot() {
     let dir = story(1);
     let bad = format!("[[1]] Anh ấy ngẩng đầu nhìn về phía tòa tháp cao ở nơi xa.\n\n[[2]] {GOOD_2}");

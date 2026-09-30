@@ -1,4 +1,4 @@
-use crate::check::{check_violations, Violation};
+use crate::check::{check_violations, contains_han, Violation};
 use crate::error::{CoreError, Result};
 use crate::paragraphs::{labeled_repair_payload, paragraphs_of, parse_labeled_translation};
 use crate::story_fs::{
@@ -12,6 +12,8 @@ pub struct CheckResult {
     pub pass: bool,
     /// Nhãn 1-based của đoạn thiếu.
     pub missing: Vec<usize>,
+    /// Nhãn 1-based của đoạn còn chữ Hán — lỗi cứng như thiếu đoạn, không chốt kèm cảnh báo.
+    pub untranslated: Vec<usize>,
     pub violations: Vec<Violation>,
     pub ratio: f64,
     /// Hết vòng review mà chỉ còn vi phạm rule (đủ đoạn, đủ dài): giống web, chương pass kèm cảnh báo.
@@ -103,12 +105,20 @@ fn check_chapter(root: &Path, id: &str, record: bool) -> Result<CheckResult> {
 
     let missing: Vec<usize> =
         parsed.iter().enumerate().filter(|(_, p)| p.is_none()).map(|(i, _)| i + 1).collect();
+    let untranslated: Vec<usize> = parsed
+        .iter()
+        .enumerate()
+        .filter(|(_, p)| p.as_deref().is_some_and(contains_han))
+        .map(|(i, _)| i + 1)
+        .collect();
     let violations = check_violations(&final_text, &story.check_rules, story.genre.setting);
     let raw_length = char_count_no_ws(&paragraphs.concat());
     let translated_length = char_count_no_ws(&final_text);
     let ratio = if raw_length > 0 { translated_length as f64 / raw_length as f64 } else { 1.0 };
     let too_short = ratio < state.settings.min_length_ratio;
     let clean = missing.is_empty() && violations.is_empty() && !too_short;
+    // Chỉ còn vi phạm rule mềm mới được chốt kèm cảnh báo; thiếu đoạn, quá ngắn, còn chữ Hán thì không.
+    let only_soft = missing.is_empty() && !too_short && untranslated.is_empty();
 
     let mut issues: Vec<String> = missing.iter().map(|label| format!("[[{label}]] thiếu đoạn")).collect();
     issues.extend(
@@ -129,14 +139,14 @@ fn check_chapter(root: &Path, id: &str, record: bool) -> Result<CheckResult> {
     let mut review_path = None;
 
     if !clean && !record {
-        // Chỉ chấm: đủ đoạn, đủ dài, còn vi phạm rule → coi như qua kèm cảnh báo (accept --force sẽ ghi).
-        if missing.is_empty() && !too_short {
+        // Chỉ chấm: đủ đoạn, đủ dài, hết chữ Hán, còn vi phạm rule → coi như qua kèm cảnh báo.
+        if only_soft {
             pass = true;
             accepted_with_warnings = true;
         }
     } else if !clean {
         if chapter.review_round >= state.settings.max_review_rounds {
-            if missing.is_empty() && !too_short {
+            if only_soft {
                 // Giống web: hết vòng soát mà chỉ còn vi phạm rule thì vẫn chốt, kèm cảnh báo.
                 pass = true;
                 accepted_with_warnings = true;
@@ -147,10 +157,16 @@ fn check_chapter(root: &Path, id: &str, record: bool) -> Result<CheckResult> {
                     ChapterState {
                         status: ChapterStatus::Error,
                         reason: Some(format!(
-                            "Quá {} vòng review vẫn chưa đạt (thiếu {} đoạn, {} vi phạm, ratio {ratio:.2}).",
+                            "Quá {} vòng review vẫn chưa đạt (thiếu {} đoạn, {} vi phạm, ratio {ratio:.2}{}).",
                             state.settings.max_review_rounds,
                             missing.len(),
-                            violations.len()
+                            violations.len(),
+                            if untranslated.is_empty() {
+                                String::new()
+                            } else {
+                                let labels = untranslated.iter().map(|l| format!("[[{l}]]")).collect::<Vec<_>>();
+                                format!("; còn chữ Hán ở {}", labels.join(", "))
+                            }
                         )),
                         updated_at: now_ms(),
                         ..chapter.clone()
@@ -190,7 +206,7 @@ fn check_chapter(root: &Path, id: &str, record: bool) -> Result<CheckResult> {
     if record {
         let review_round = state.chapters.get(id).map(|c| c.review_round).unwrap_or(chapter.review_round);
         let report = serde_json::json!({
-            "pass": pass, "acceptedWithWarnings": accepted_with_warnings, "missing": missing,
+            "pass": pass, "acceptedWithWarnings": accepted_with_warnings, "missing": missing, "untranslated": untranslated,
             "violationCount": violations.len(), "ratio": ratio, "reviewRound": review_round, "checkedAt": now_ms(),
         });
         write_text(
@@ -199,5 +215,5 @@ fn check_chapter(root: &Path, id: &str, record: bool) -> Result<CheckResult> {
         )?;
     }
 
-    Ok(CheckResult { pass, missing, violations, ratio, accepted_with_warnings, issues, escalated_to_error, review_path })
+    Ok(CheckResult { pass, missing, untranslated, violations, ratio, accepted_with_warnings, issues, escalated_to_error, review_path })
 }
