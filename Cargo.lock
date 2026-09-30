@@ -2852,7 +2852,7 @@ dependencies = [
 
 [[package]]
 name = "qt-ai-gui"
-version = "1.0.12"
+version = "1.0.13"
 dependencies = [
  "qt-ai-core",
  "serde",
