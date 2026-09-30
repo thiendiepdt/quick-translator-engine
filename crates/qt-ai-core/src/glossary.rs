@@ -100,6 +100,36 @@ pub fn sanitize_extracted(
     pairs
 }
 
+/// Tên `names` mà mỗi chữ Hán ứng đúng một tiếng (段誉 → Đoàn Dự): cặp (chữ, tiếng viết thường).
+fn aligned_readings<'a>(source: &'a str, target: &'a str) -> Option<Vec<(char, String)>> {
+    let chars: Vec<char> = source.chars().collect();
+    let syllables: Vec<&str> = target.split_whitespace().collect();
+    if chars.len() < 2 || chars.len() != syllables.len() || !chars.iter().all(|c| HAN.is_match(&c.to_string())) {
+        return None;
+    }
+    Some(chars.into_iter().zip(syllables.iter().map(|s| s.to_lowercase())).collect())
+}
+
+/// Bỏ tên `names` mới có chữ Hán phiên khác mọi âm glossary đã chốt cho chữ đó (段誉 Đoàn Dự có sẵn thì
+/// không học 段延庆 Đoạn Duyên Khánh) — auto-glossary học theo bản dịch, học cả lỗi thì chương sau lỗi theo.
+pub fn drop_conflicting_readings(pairs: Vec<ExtractedPair>, glossary: &Glossary) -> Vec<ExtractedPair> {
+    let mut readings: std::collections::HashMap<char, HashSet<String>> = std::collections::HashMap::new();
+    for (source, target) in glossary.get("names").into_iter().flatten() {
+        for (ch, reading) in aligned_readings(source, target).into_iter().flatten() {
+            readings.entry(ch).or_default().insert(reading);
+        }
+    }
+    pairs
+        .into_iter()
+        .filter(|pair| {
+            pair.category != "names"
+                || aligned_readings(&pair.source, &pair.target).into_iter().flatten().all(|(ch, reading)| {
+                    readings.get(&ch).is_none_or(|known| known.contains(&reading))
+                })
+        })
+        .collect()
+}
+
 /// Chỉ thêm key mới (entry sẵn có luôn thắng), nối cuối nhóm, ghi nhật ký nguồn gốc.
 pub fn append_auto_glossary(story: &StoryConfig, pairs: &[ExtractedPair], chapter: &str) -> StoryConfig {
     let mut updated = story.clone();

@@ -142,8 +142,85 @@ fn rules_for(setting: GenreSetting) -> impl Iterator<Item = &'static RuleSpec> {
 /// Còn chữ Hán (Script=Han — không tính 《》【】「」 vốn là Common). Check coi là lỗi cứng như thiếu đoạn:
 /// không bao giờ chốt kèm cảnh báo.
 pub fn contains_han(text: &str) -> bool {
+    han().is_match(text)
+}
+
+fn han() -> &'static regex::Regex {
     static HAN: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
-    HAN.get_or_init(|| regex::Regex::new(r"\p{Han}").unwrap()).is_match(text)
+    HAN.get_or_init(|| regex::Regex::new(r"\p{Han}").unwrap())
+}
+
+/// Bỏ dấu tiếng Việt, giữ hoa/thường và đúng một ký tự ra cho một ký tự vào (đ → d) — vị trí trên chuỗi
+/// đã bỏ dấu trùng vị trí trên chuỗi gốc.
+fn fold_vietnamese(c: char) -> char {
+    const GROUPS: &[(&str, char)] = &[
+        ("àáảãạăằắẳẵặâầấẩẫậ", 'a'),
+        ("ÀÁẢÃẠĂẰẮẲẴẶÂẦẤẨẪẬ", 'A'),
+        ("èéẻẽẹêềếểễệ", 'e'),
+        ("ÈÉẺẼẸÊỀẾỂỄỆ", 'E'),
+        ("ìíỉĩị", 'i'),
+        ("ÌÍỈĨỊ", 'I'),
+        ("òóỏõọôồốổỗộơờớởỡợ", 'o'),
+        ("ÒÓỎÕỌÔỒỐỔỖỘƠỜỚỞỠỢ", 'O'),
+        ("ùúủũụưừứửữự", 'u'),
+        ("ÙÚỦŨỤƯỪỨỬỮỰ", 'U'),
+        ("ỳýỷỹỵ", 'y'),
+        ("ỲÝỶỸỴ", 'Y'),
+        ("đ", 'd'),
+        ("Đ", 'D'),
+    ];
+    GROUPS.iter().find(|(group, _)| group.contains(c)).map_or(c, |(_, base)| *base)
+}
+
+/// Tên trong bản dịch lệch dấu so với glossary: key có trong raw của đoạn, target không có trong bản dịch
+/// của đoạn, nhưng có cụm chỉ khác dấu thanh (段锋 → `Đoàn Phong`, bản dịch viết `Đoạn Phong`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GlossaryDrift {
+    /// Chỉ số đoạn 0-based.
+    pub paragraph: usize,
+    pub source: String,
+    pub target: String,
+    pub found: String,
+}
+
+/// Chỉ xét entry ≥2 chữ Hán và target ≥2 tiếng — một tiếng bỏ dấu khớp quá nhiều từ thường. Cụm trùng
+/// target của entry khác có mặt trong đoạn raw thì bỏ qua (李贤 Lý Hiền / 李显 Lý Hiển là hai người).
+pub fn glossary_drifts(raw: &[String], translated: &[Option<String>], glossary: &crate::story::Glossary) -> Vec<GlossaryDrift> {
+    let entries: Vec<(&str, &str)> = glossary
+        .iter()
+        .filter(|(group, _)| group.as_str() != "addressing" && group.as_str() != "signature_phrases")
+        .flat_map(|(_, entries)| entries.iter().map(|(source, target)| (source.trim(), target.trim())))
+        .filter(|(source, target)| {
+            han().find_iter(source).count() >= 2 && target.split_whitespace().count() >= 2
+        })
+        .collect();
+    let mut drifts = Vec::new();
+    for (index, (raw_paragraph, text)) in raw.iter().zip(translated).enumerate() {
+        let Some(text) = text else { continue };
+        let present: HashSet<&str> =
+            entries.iter().filter(|(source, _)| raw_paragraph.contains(source)).map(|(_, target)| *target).collect();
+        if present.is_empty() {
+            continue;
+        }
+        let chars: Vec<char> = text.chars().collect();
+        let folded: Vec<char> = chars.iter().copied().map(fold_vietnamese).collect();
+        for (source, target) in entries.iter().filter(|(source, _)| raw_paragraph.contains(source)) {
+            if text.contains(target) {
+                continue;
+            }
+            let needle: Vec<char> = target.chars().map(fold_vietnamese).collect();
+            let found = (0..=folded.len().saturating_sub(needle.len()))
+                .filter(|&at| folded.len() >= needle.len() && folded[at..at + needle.len()] == needle[..])
+                .filter(|&at| at == 0 || !chars[at - 1].is_alphanumeric())
+                .filter(|&at| chars.get(at + needle.len()).is_none_or(|c| !c.is_alphanumeric()))
+                .map(|at| chars[at..at + needle.len()].iter().collect::<String>())
+                .find(|span| !present.contains(span.as_str()));
+            if let Some(found) = found {
+                drifts.push(GlossaryDrift { paragraph: index, source: source.to_string(), target: target.to_string(), found });
+            }
+        }
+    }
+    drifts
 }
 
 /// Rule cứng chạy trong mọi trường hợp — sót Hán tự là lỗi tuyệt đối.

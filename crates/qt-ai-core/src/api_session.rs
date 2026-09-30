@@ -4,7 +4,7 @@
 //! động cơ dùng chung folder truyện và đổi qua lại giữa chừng được.
 
 use crate::api::{format_tokens, ApiError, ApiStep, TextModel, Usage};
-use crate::check::{check_violations, contains_han};
+use crate::check::{check_violations, contains_han, glossary_drifts};
 use crate::commands::accept::run_accept;
 use crate::commands::check::run_check;
 use crate::commands::next::run_next;
@@ -13,9 +13,9 @@ use crate::commands::skip::run_skip;
 use crate::error::{CoreError, Result};
 use crate::glossary::{collect_glossary_keys, glossary_key_touches_source};
 use crate::paragraphs::{labeled_repair_payload, labeled_source_payload, paragraphs_of, parse_labeled_translation};
-use crate::prompt::build_system_prompt;
+use crate::prompt::{build_system_prompt, merge_story_glossary};
 use crate::session::{read_progress, spawn_runner, LogStream, SessionEvent, SessionHandle, Sink, StopReason};
-use crate::story::{natural_chapter_compare, StoryConfig};
+use crate::story::{natural_chapter_compare, Glossary, StoryConfig};
 use crate::story_fs::{
     load_state, load_story_config, read_raw_chapter, resolve_root, story_paths, work_file, write_text,
     ChapterStatus, StoryPaths, WorkKind,
@@ -107,6 +107,8 @@ struct Chapter<'a> {
     system: &'a str,
     paragraphs: &'a [String],
     story: &'a StoryConfig,
+    /// Glossary app + truyện đã gộp — check dùng để bắt tên lệch, soát dùng để chấm bản soát.
+    glossary: &'a Glossary,
     cancel: &'a AtomicBool,
     log: Log<'a>,
     /// Token cộng dồn mọi lượt gọi của chương (provider không báo thì giữ 0).
@@ -302,7 +304,7 @@ enum ReviewOutcome {
 }
 
 /// Soát tối thiểu theo danh sách vấn đề của check; chỉ nhận bản soát khi còn đủ nhãn và ít vi phạm hơn
-/// (đoạn còn chữ Hán xét trước, rồi mới tới tổng vi phạm).
+/// (đoạn còn chữ Hán xét trước, rồi mới tới tổng vi phạm rule + tên lệch glossary).
 /// Model trả y hệt bản cũ nghĩa là đã xét từng vi phạm và thấy đúng ngữ cảnh — lặp thêm chỉ tốn tiền.
 fn review(chapter: &Chapter, round: u32, draft: &mut [String], issues: &[String]) -> std::result::Result<ReviewOutcome, ApiError> {
     let (id, log, story) = (chapter.id, chapter.log, chapter.story);
@@ -339,7 +341,9 @@ Giữ nguyên toàn bộ chữ, thứ tự câu, dấu câu và ngắt đoạn k
     }
     let score = |text: &[String]| {
         let han = text.iter().filter(|p| contains_han(p)).count();
-        (han, check_violations(&final_text(text), &story.check_rules, story.genre.setting).len())
+        let parsed: Vec<Option<String>> = text.iter().cloned().map(Some).collect();
+        let drifts = glossary_drifts(chapter.paragraphs, &parsed, chapter.glossary).len();
+        (han, check_violations(&final_text(text), &story.check_rules, story.genre.setting).len() + drifts)
     };
     let (before_han, before) = score(draft);
     let (after_han, after) = score(&reviewed);
@@ -366,6 +370,7 @@ pub fn translate_chapter(
     let story = load_story_config(&paths)?;
     let base_glossary = crate::base::BaseStore::from_env().glossary(story.genre.setting);
     let system = build_system_prompt(&base_glossary, Some(&story), Some(&raw));
+    let glossary = merge_story_glossary(&base_glossary, Some(&story));
     let min_ratio = load_state(&paths)?.settings.min_length_ratio;
     let chapter = Chapter {
         model,
@@ -373,6 +378,7 @@ pub fn translate_chapter(
         system: &system,
         paragraphs: &paragraphs,
         story: &story,
+        glossary: &glossary,
         cancel,
         log,
         usage: Mutex::new(Usage::default()),

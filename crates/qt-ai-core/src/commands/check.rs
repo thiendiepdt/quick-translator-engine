@@ -1,4 +1,4 @@
-use crate::check::{check_violations, contains_han, Violation};
+use crate::check::{check_violations, contains_han, glossary_drifts, Violation};
 use crate::error::{CoreError, Result};
 use crate::paragraphs::{labeled_repair_payload, paragraphs_of, parse_labeled_translation};
 use crate::story_fs::{
@@ -36,6 +36,30 @@ fn violation_label(parsed: &[Option<String>], violation: &Violation) -> usize {
     let defined: Vec<usize> = parsed.iter().enumerate().filter(|(_, p)| p.is_some()).map(|(i, _)| i).collect();
     let position = (violation.line + 1) / 2; // Math.ceil(line / 2)
     defined.get(position.saturating_sub(1)).map(|index| index + 1).unwrap_or(position)
+}
+
+/// Tên lệch glossary quy về `Violation` cùng hệ dòng với final_text (đoạn thứ k còn lại ở dòng 2k−1) để
+/// `violation_label` đưa về đúng nhãn.
+fn glossary_drift_violations(
+    paragraphs: &[String],
+    parsed: &[Option<String>],
+    glossary: &crate::story::Glossary,
+) -> Vec<Violation> {
+    glossary_drifts(paragraphs, parsed, glossary)
+        .into_iter()
+        .map(|drift| {
+            let position = parsed[..=drift.paragraph].iter().filter(|p| p.is_some()).count();
+            let text = parsed[drift.paragraph].as_deref().unwrap_or("");
+            Violation {
+                line: 2 * position - 1,
+                message: format!(
+                    "Tên lệch glossary: {} là `{}`, bản dịch viết `{}`",
+                    drift.source, drift.target, drift.found
+                ),
+                text: text.trim().chars().take(120).collect(),
+            }
+        })
+        .collect()
 }
 
 fn build_violations_section(id: &str, parsed: &[Option<String>], violations: &[Violation]) -> String {
@@ -111,7 +135,10 @@ fn check_chapter(root: &Path, id: &str, record: bool) -> Result<CheckResult> {
         .filter(|(_, p)| p.as_deref().is_some_and(contains_han))
         .map(|(i, _)| i + 1)
         .collect();
-    let violations = check_violations(&final_text, &story.check_rules, story.genre.setting);
+    let mut violations = check_violations(&final_text, &story.check_rules, story.genre.setting);
+    let base_glossary = crate::base::BaseStore::from_env().glossary(story.genre.setting);
+    let glossary = crate::prompt::merge_story_glossary(&base_glossary, Some(&story));
+    violations.extend(glossary_drift_violations(&paragraphs, &parsed, &glossary));
     let raw_length = char_count_no_ws(&paragraphs.concat());
     let translated_length = char_count_no_ws(&final_text);
     let ratio = if raw_length > 0 { translated_length as f64 / raw_length as f64 } else { 1.0 };

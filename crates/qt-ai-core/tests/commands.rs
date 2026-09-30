@@ -452,6 +452,77 @@ fn accept_khong_force_tu_choi_khi_con_han_tu() {
     assert!(!story_paths(dir.path()).out_dir.join("0001.txt").exists());
 }
 
+const RAW_DOAN: &str = "段锋带着人进了城。\n\n李贤和李显并肩走来。\n\n段锋点了点头。";
+
+/// Chương 0001 với raw cho trước, glossary truyện nhóm names, draft đã ghi.
+fn story_with_glossary(raw: &str, names: &[(&str, &str)], draft: &str) -> TempDir {
+    let dir = make_story_dir(&[("0001", raw)]);
+    run_init(dir.path(), "qt-ai").unwrap();
+    let paths = story_paths(dir.path());
+    let mut story = load_story_config(&paths).unwrap();
+    let group = story.glossary.entry("names".to_string()).or_default();
+    for (source, target) in names {
+        group.insert(source.to_string(), target.to_string());
+    }
+    save_story_config(&paths, &story).unwrap();
+    run_next(dir.path()).unwrap();
+    fs::write(work_file(&paths, "0001", WorkKind::Draft), draft).unwrap();
+    dir
+}
+
+#[test]
+fn check_bat_ten_lech_dau_so_voi_glossary_theo_doan() {
+    let dir = story_with_glossary(
+        RAW_DOAN,
+        &[("段锋", "Đoàn Phong")],
+        "[[1]] Đoàn Phong dẫn người vào thành.\n\n[[2]] Lý Hiền và Lý Hiển sóng vai đi tới.\n\n[[3]] Đoạn Phong gật gật đầu.",
+    );
+    let result = run_check(dir.path(), "0001").unwrap();
+    assert!(!result.pass);
+    assert_eq!(result.issues, vec!["[[3]] Tên lệch glossary: 段锋 là `Đoàn Phong`, bản dịch viết `Đoạn Phong` — \"Đoạn Phong gật gật đầu.\""]);
+}
+
+#[test]
+fn check_khong_bat_ten_lech_khi_la_target_cua_entry_khac_trong_doan() {
+    // 李贤 Lý Hiền và 李显 Lý Hiển là hai người: "Lý Hiển" đúng là 李显, không phải viết sai 李贤.
+    let dir = story_with_glossary(
+        RAW_DOAN,
+        &[("段锋", "Đoàn Phong"), ("李贤", "Lý Hiền"), ("李显", "Lý Hiển")],
+        "[[1]] Đoàn Phong dẫn người vào thành.\n\n[[2]] Lý Hiển và Lý Hiền sóng vai đi tới.\n\n[[3]] Đoàn Phong gật gật đầu.",
+    );
+    let result = run_check(dir.path(), "0001").unwrap();
+    assert!(result.pass, "{:?}", result.issues);
+}
+
+#[test]
+fn check_khong_bat_ten_lech_khi_key_khong_nam_trong_raw_cua_doan_do() {
+    // Đoạn 2 không có 段锋 trong raw → "Đoạn" ở đó không bị so với entry.
+    let dir = story_with_glossary(
+        "段锋带着人进了城。\n\n这一段路很长。",
+        &[("段锋", "Đoàn Phong")],
+        "[[1]] Đoàn Phong dẫn người vào thành.\n\n[[2]] Đoạn Phong cảnh đường này rất dài.",
+    );
+    assert!(run_check(dir.path(), "0001").unwrap().pass);
+}
+
+#[test]
+fn accept_khong_hoc_ten_moi_trai_am_ho_da_chot() {
+    let raw = "段誉看向段延庆。\n\n段正淳也来了。";
+    let glossary = r#"{"entries":[{"source":"段延庆","target":"Đoạn Duyên Khánh","category":"names"},{"source":"段正淳","target":"Đoàn Chính Thuần","category":"names"}]}"#;
+    let dir = story_with_glossary(
+        raw,
+        &[("段誉", "Đoàn Dự")],
+        "[[1]] Đoàn Dự nhìn về phía Đoạn Duyên Khánh.\n\n[[2]] Đoàn Chính Thuần cũng đã tới.",
+    );
+    let paths = story_paths(dir.path());
+    fs::write(work_file(&paths, "0001", WorkKind::Glossary), glossary).unwrap();
+    let result = run_accept(dir.path(), "0001", false).unwrap();
+    assert_eq!(result.added_glossary, 1);
+    let story = load_story_config(&paths).unwrap();
+    assert_eq!(story.glossary["names"]["段正淳"], "Đoàn Chính Thuần");
+    assert!(!story.glossary["names"].contains_key("段延庆"), "段 đã chốt Đoàn, không học Đoạn");
+}
+
 #[test]
 fn check_draft_mat_sach_nhan_coi_nhu_thieu_toan_bo() {
     let dir = story_with_draft("Bản dịch không có nhãn nào cả.", None);

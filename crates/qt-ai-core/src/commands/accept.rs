@@ -1,7 +1,8 @@
 use crate::commands::check::{assemble_draft, run_check_readonly};
 use crate::error::{CoreError, Result};
 use crate::glossary::{
-    append_auto_glossary, collect_glossary_keys, resolve_auto_glossary_enabled, sanitize_extracted,
+    append_auto_glossary, collect_glossary_keys, drop_conflicting_readings, resolve_auto_glossary_enabled,
+    sanitize_extracted,
 };
 use crate::paragraphs::{format_translation, strip_markers};
 use crate::prompt::TranslationGlossary;
@@ -51,7 +52,7 @@ pub fn run_accept(root: &Path, id: &str, force: bool) -> Result<AcceptResult> {
             .unwrap_or(Value::Array(vec![]));
         let raw = read_raw_chapter(&paths, id)?;
         let existing = collect_glossary_keys(&TranslationGlossary::new(), &story.glossary);
-        let pairs = sanitize_extracted(&entries, &raw, &output, &existing);
+        let pairs = drop_conflicting_readings(sanitize_extracted(&entries, &raw, &output, &existing), &story.glossary);
         if !pairs.is_empty() {
             story = append_auto_glossary(&story, &pairs, id);
             added_glossary = pairs.len();

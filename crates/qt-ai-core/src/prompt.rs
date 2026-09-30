@@ -78,7 +78,7 @@ fn non_empty_record(value: &StringMap) -> Option<StringMap> {
     (!entries.is_empty()).then_some(entries)
 }
 
-fn merge_story_glossary(workspace: &TranslationGlossary, story: Option<&StoryConfig>) -> TranslationGlossary {
+pub fn merge_story_glossary(workspace: &TranslationGlossary, story: Option<&StoryConfig>) -> TranslationGlossary {
     let Some(story) = story else { return workspace.clone() };
     let mut merged = workspace.clone();
     for (key, entries) in &story.glossary {

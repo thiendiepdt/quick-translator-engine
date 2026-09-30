@@ -3,7 +3,7 @@ use qt_ai_core::api::{ApiError, ApiStep, Generated, TextModel, Usage};
 use qt_ai_core::api_session::*;
 use qt_ai_core::commands::init::run_init;
 use qt_ai_core::session::{SessionEvent, StopReason};
-use qt_ai_core::story_fs::{load_state, load_story_config, story_paths, work_file, ChapterStatus, WorkKind};
+use qt_ai_core::story_fs::{load_state, load_story_config, save_story_config, story_paths, work_file, ChapterStatus, WorkKind};
 use std::collections::VecDeque;
 use std::fs;
 use std::path::Path;
@@ -259,6 +259,28 @@ fn ban_soat_dua_han_tu_vao_thi_bo_du_giam_tong_vi_pham() {
     assert!(lines.iter().any(|l| l.contains("bản soát không giảm vi phạm")), "{lines:?}");
     let out = fs::read_to_string(dir.path().join("out").join("0001.txt")).unwrap();
     assert!(!out.contains("脑海"), "{out}");
+}
+
+#[test]
+fn ten_lech_glossary_thi_soat_va_nhan_ban_sua_ten() {
+    let dir = story(1);
+    let paths = story_paths(dir.path());
+    let mut story = load_story_config(&paths).unwrap();
+    story.glossary.entry("names".to_string()).or_default().insert("赵静文".into(), "Triệu Tĩnh Văn".into());
+    save_story_config(&paths, &story).unwrap();
+    let drift = format!("[[1]] Triệu Tịnh Văn ngẩng đầu nhìn về phía tòa tháp cao ở nơi xa.\n\n[[2]] {GOOD_2}");
+    let model = FakeModel::new(vec![Ok(drift), Ok(good())]);
+    let (sink, _) = collect();
+    let handle = start_api_session(config(dir.path()), model.clone(), sink).unwrap();
+    assert_eq!(handle.join(), StopReason::Finished);
+    let calls = model.calls();
+    assert_eq!(calls.len(), 2, "dịch + một lượt soát");
+    assert!(calls[1].1.contains("[[1]] Tên lệch glossary: 赵静文 là `Triệu Tĩnh Văn`, bản dịch viết `Triệu Tịnh Văn`"), "{}", calls[1].1);
+    let state = load_state(&paths).unwrap();
+    assert_eq!(state.chapters["0001"].status, ChapterStatus::Done);
+    assert!(state.chapters["0001"].warnings.is_none(), "{:?}", state.chapters["0001"].warnings);
+    let out = fs::read_to_string(dir.path().join("out").join("0001.txt")).unwrap();
+    assert!(out.starts_with(GOOD_1), "{out}");
 }
 
 #[test]
