@@ -1,6 +1,6 @@
 use crate::error::{CoreError, Result};
 use crate::paragraphs::{labeled_source_payload, paragraphs_of};
-use crate::prompt::build_system_prompt;
+use crate::prompt::build_chapter_prompt;
 use crate::story::{natural_chapter_compare, StoryConfig};
 use crate::story_fs::{
     load_state, load_story_config, read_raw_chapter, resolve_root, save_state, story_paths, work_file,
@@ -22,7 +22,10 @@ fn agent_instructions(id: &str) -> String {
         "2. Ghi đề xuất TÊN RIÊNG mới (nhân vật, địa danh, đồ vật/vũ khí, sinh vật, công pháp/kỹ năng)".to_string(),
         format!("   xuất hiện trong raw nhưng chưa có trong từ điển của prompt vào work/{id}.glossary.json, dạng:"),
         r#"   {"entries": [{"source": "chữ Hán trong raw", "target": "chép nguyên văn từ bản dịch", "category": "names|places|items|creatures|skills"}]}"#.to_string(),
-        r#"   Thêm cặp xưng hô mới trong thoại: {"source": "甲→乙", "target": "X–Y", "category": "addressing"} (甲 tự xưng X, gọi 乙 là Y; mỗi chiều một mục)."#.to_string(),
+        r#"   Tên NGƯỜI (category names) thêm "gender": "nam" hoặc "nữ" khi raw có căn cứ (她/他, 女/男, 姐/哥…); không chắc thì bỏ trường này."#.to_string(),
+        r#"   Nhân vật đã có trong từ điển nhưng chưa nằm ở mục "Nhân vật có mặt trong chương" mà chương này lộ giới: khai {"source": "tên Hán", "category": "names", "gender": "nam|nữ"}."#.to_string(),
+        r#"   Thêm cặp xưng hô mới trong thoại: {"source": "甲→乙", "target": "X–Y", "category": "addressing"} (甲, 乙 là tên nhân vật; 甲 tự xưng X, gọi 乙 là Y; mỗi chiều một mục)."#.to_string(),
+        r#"   Cặp ĐÃ CÓ mà chương này cho thấy quan hệ hai người đã khác lúc chốt cặp (đã là người yêu, đính hôn, vợ chồng, nhận người thân, kết nghĩa, trở mặt) nên đã dịch bằng cặp khác: khai lại cặp đó với target đúng như vừa dịch và "note": "lý do ngắn", cả hai chiều."#.to_string(),
         "   Chữ Hán nào đã có âm Hán-Việt trong từ điển của prompt thì tên mới chứa chữ đó phải phiên cùng âm (họ 段 đã là Đoàn thì không đề xuất Đoạn).".to_string(),
         r#"   Bỏ qua từ chung, chức danh, đại từ. Không có gì mới thì ghi {"entries": []}."#.to_string(),
         format!("3. Chạy: qt-ai check {id} (xem AGENTS.md để biết lệnh đầy đủ)."),
@@ -34,7 +37,8 @@ fn agent_instructions(id: &str) -> String {
 fn write_prompt_file(paths: &StoryPaths, story: &StoryConfig, id: &str) -> Result<PathBuf> {
     let source = read_raw_chapter(paths, id)?;
     let base_glossary = crate::base::BaseStore::from_env().glossary(story.genre.setting);
-    let system = build_system_prompt(&base_glossary, Some(story), Some(&source));
+    let cast = crate::cast::load_cast(paths);
+    let system = build_chapter_prompt(&base_glossary, story, &cast, id, &source);
     let payload = labeled_source_payload(&paragraphs_of(&source));
     let prompt = format!("{system}\n\n---\n\n{payload}\n\n---\n\n{}\n", agent_instructions(id));
     let prompt_path = work_file(paths, id, WorkKind::Prompt);

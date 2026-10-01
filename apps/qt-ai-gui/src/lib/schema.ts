@@ -53,6 +53,48 @@ export const storyConfigSchema = z.object({
   autoGlossary: autoGlossarySchema,
 });
 
+/** `cast.json` — bảng nhân vật (giới tính) + mốc đổi xưng hô; file riêng cạnh story.json. */
+export const genderSchema = z.enum(["male", "female"]);
+export const entrySourceSchema = z.enum(["auto", "user"]);
+export const castSchema = z.object({
+  version: z.number().default(1),
+  characters: z
+    .record(
+      z.string(),
+      z.object({
+        gender: genderSchema.optional(),
+        source: entrySourceSchema.default("auto"),
+        chapter: z.string().optional(),
+        disputed: z.array(z.string()).optional(),
+      }),
+    )
+    .default({}),
+  addressing: z
+    .record(
+      z.string(),
+      z.object({
+        pinned: z.boolean().default(false),
+        changes: z
+          .array(
+            z.object({
+              from: z.string(),
+              target: z.string(),
+              note: z.string().optional(),
+              source: entrySourceSchema.default("auto"),
+            }),
+          )
+          .default([]),
+      }),
+    )
+    .default({}),
+});
+export const scanCastViewSchema = z.object({
+  asked: z.number(),
+  filled: z.number(),
+  failedBatches: z.number(),
+  cast: castSchema,
+});
+
 export const harnessSettingsSchema = z.object({
   minLengthRatio: z.number().min(0.1).max(3),
   maxReviewRounds: z.number().int().min(0).max(10),

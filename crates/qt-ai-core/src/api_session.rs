@@ -13,7 +13,7 @@ use crate::commands::skip::run_skip;
 use crate::error::{CoreError, Result};
 use crate::glossary::{collect_glossary_keys, glossary_key_touches_source};
 use crate::paragraphs::{labeled_repair_payload, labeled_source_payload, paragraphs_of, parse_labeled_translation};
-use crate::prompt::{build_system_prompt, merge_story_glossary};
+use crate::prompt::{build_chapter_prompt, merge_story_glossary};
 use crate::session::{read_progress, spawn_runner, LogStream, SessionEvent, SessionHandle, Sink, StopReason};
 use crate::story::{natural_chapter_compare, Glossary, StoryConfig};
 use crate::story_fs::{
@@ -35,7 +35,8 @@ target phải chép nguyên văn từ bản dịch, không tự nghĩ phương �
 category chỉ được là một trong: \"names\", \"places\", \"items\", \"creatures\", \"skills\". \
 Bỏ qua từ chung, chức danh, đại từ.\
  Chữ Hán nào đã có âm Hán-Việt trong từ điển sẵn có thì tên mới chứa chữ đó phải phiên cùng âm (họ 段 đã là Đoàn thì không đề xuất Đoạn). \
-Thêm các CẶP XƯNG HÔ mới trong thoại với category \"addressing\": source là \"甲→乙\" (hai tên Hán như trong raw), \
+Tên NGƯỜI (category \"names\") thêm \"gender\": \"nam\" hoặc \"nữ\" khi raw có căn cứ (她/他, 女/男, 姐/哥…); không chắc thì bỏ trường này. \
+Thêm các CẶP XƯNG HÔ mới trong thoại với category \"addressing\": source là \"甲→乙\" (hai TÊN NHÂN VẬT như trong raw), \
 target là \"X–Y\" với X là cách 甲 tự xưng và Y là cách 甲 gọi 乙 trong bản dịch (ví dụ \"anh–em\", \"ta–ngươi\", \"tôi–cậu\"); \
 mỗi chiều một mục, chỉ ghi cặp chưa có trong danh sách loại trừ. \
 Không có gì mới thì trả entries rỗng. \
@@ -51,8 +52,13 @@ const GLOSSARY_INLINE_INSTRUCTION: &str = "Sau đoạn dịch cuối cùng, xu�
 (nhân vật, địa danh, đồ vật/vũ khí, sinh vật, công pháp/kỹ năng) xuất hiện trong raw mà CHƯA có trong \"Từ điển riêng của truyện\"; \
 target chép nguyên văn cách bạn vừa dịch; category chỉ được là \"names\", \"places\", \"items\", \"creatures\", \"skills\". \
 Bỏ qua từ chung, chức danh, đại từ.\
- Chữ Hán nào đã có âm Hán-Việt trong từ điển sẵn có thì tên mới chứa chữ đó phải phiên cùng âm (họ 段 đã là Đoàn thì không đề xuất Đoạn). Cặp xưng hô mới trong thoại ghi category \"addressing\": source \"甲→乙\" (hai tên Hán như trong raw), \
+ Chữ Hán nào đã có âm Hán-Việt trong từ điển sẵn có thì tên mới chứa chữ đó phải phiên cùng âm (họ 段 đã là Đoàn thì không đề xuất Đoạn). Tên NGƯỜI (category \"names\") thêm \"gender\": \"nam\" hoặc \"nữ\" khi raw có căn cứ (她/他, 女/男, 姐/哥…); không chắc thì bỏ trường này. \
+Nhân vật đã có trong từ điển nhưng chưa nằm ở mục \"Nhân vật có mặt trong chương\" mà chương này lộ giới: khai {\"source\": \"tên Hán\", \"category\": \"names\", \"gender\": \"...\"}. \
+Cặp xưng hô mới trong thoại ghi category \"addressing\": source \"甲→乙\" (hai TÊN NHÂN VẬT như trong raw, không dùng chức danh chung như 保安/助理), \
 target \"X–Y\" với X là cách 甲 tự xưng và Y là cách 甲 gọi 乙 trong bản dịch; mỗi chiều một mục. \
+Cặp ĐÃ CÓ trong mục \"Cặp xưng hô đang dùng\" mà chương này cho thấy quan hệ hai người đã khác lúc chốt cặp \
+(đã là người yêu, đính hôn, vợ chồng, nhận người thân, kết nghĩa, trở mặt thành thù) nên bạn đã dịch bằng cặp khác: \
+khai lại cặp đó với target đúng như vừa dịch và \"note\": \"lý do ngắn\", cả hai chiều; giận dỗi nhất thời, đóng kịch, nói đùa thì không khai. \
 Không có gì mới thì {\"entries\": []}. Khối này nằm ngoài bản dịch, không có nhãn [[n]].";
 
 /// Tách khối `[[glossary]]` cuối output lượt dịch: (phần bản dịch, mảng entries nếu parse được).
@@ -109,6 +115,7 @@ struct Chapter<'a> {
     story: &'a StoryConfig,
     /// Glossary app + truyện đã gộp — check dùng để bắt tên lệch, soát dùng để chấm bản soát.
     glossary: &'a Glossary,
+    cast: &'a crate::cast::Cast,
     cancel: &'a AtomicBool,
     log: Log<'a>,
     /// Token cộng dồn mọi lượt gọi của chương (provider không báo thì giữ 0).
@@ -343,7 +350,10 @@ Giữ nguyên toàn bộ chữ, thứ tự câu, dấu câu và ngắt đoạn k
         let han = text.iter().filter(|p| contains_han(p)).count();
         let parsed: Vec<Option<String>> = text.iter().cloned().map(Some).collect();
         let drifts = glossary_drifts(chapter.paragraphs, &parsed, chapter.glossary).len();
-        (han, check_violations(&final_text(text), &story.check_rules, story.genre.setting).len() + drifts)
+        let no_names = crate::story::StringMap::new();
+        let names = chapter.glossary.get("names").unwrap_or(&no_names);
+        let addressing = crate::cast::addressing_issues(chapter.paragraphs, &parsed, names, chapter.cast).len();
+        (han, check_violations(&final_text(text), &story.check_rules, story.genre.setting).len() + drifts + addressing)
     };
     let (before_han, before) = score(draft);
     let (after_han, after) = score(&reviewed);
@@ -353,6 +363,13 @@ Giữ nguyên toàn bộ chữ, thứ tự câu, dấu câu và ngắt đoạn k
     }
     draft.clone_from_slice(&reviewed);
     Ok(ReviewOutcome::Changed)
+}
+
+/// Đổi xưng hô theo mốc chương, khai giới ngược — người dùng cần thấy ngay trong log để hoàn tác nếu sai.
+fn log_cast_notes(chapter: &Chapter, notes: &[String]) {
+    for note in notes {
+        (chapter.log)(format!("{}: {note}", chapter.id));
+    }
 }
 
 /// Dịch một chương đang ở trạng thái translating tới khi accept/error. Lỗi API trả về nguyên để
@@ -369,7 +386,8 @@ pub fn translate_chapter(
     let paragraphs = paragraphs_of(&raw);
     let story = load_story_config(&paths)?;
     let base_glossary = crate::base::BaseStore::from_env().glossary(story.genre.setting);
-    let system = build_system_prompt(&base_glossary, Some(&story), Some(&raw));
+    let cast = crate::cast::load_cast(&paths);
+    let system = build_chapter_prompt(&base_glossary, &story, &cast, id, &raw);
     let glossary = merge_story_glossary(&base_glossary, Some(&story));
     let min_ratio = load_state(&paths)?.settings.min_length_ratio;
     let chapter = Chapter {
@@ -379,6 +397,7 @@ pub fn translate_chapter(
         paragraphs: &paragraphs,
         story: &story,
         glossary: &glossary,
+        cast: &cast,
         cancel,
         log,
         usage: Mutex::new(Usage::default()),
@@ -396,6 +415,7 @@ pub fn translate_chapter(
         let check = run_check(root, id)?;
         if check.pass {
             let accepted = run_accept(root, id, false)?;
+            log_cast_notes(&chapter, &accepted.cast_notes);
             return Ok(ChapterOutcome::Accepted {
                 review_rounds: rounds,
                 warnings: accepted.warnings.len(),
@@ -426,6 +446,7 @@ pub fn translate_chapter(
             // Đủ đoạn, đủ dài, chỉ còn vi phạm rule mà model đã xét và giữ → chốt kèm cảnh báo ngay,
             // không đốt thêm vòng soát y hệt.
             let accepted = run_accept(root, id, true)?;
+            log_cast_notes(&chapter, &accepted.cast_notes);
             return Ok(ChapterOutcome::Accepted {
                 review_rounds: rounds,
                 warnings: accepted.warnings.len(),

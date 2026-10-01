@@ -89,6 +89,9 @@ fn run(argv: &[String]) -> Result<i32, CoreError> {
             let Some(id) = rest.first() else { return Ok(usage()) };
             let result = run_accept(root, id, rest.iter().any(|a| a == "--force"))?;
             println!("Đã chốt {} (+{} glossary mới).", result.out_path.display(), result.added_glossary);
+            for note in &result.cast_notes {
+                println!("Bảng nhân vật: {note}");
+            }
             if !result.warnings.is_empty() {
                 println!("Kèm {} cảnh báo — xem qt-ai status.", result.warnings.len());
             }

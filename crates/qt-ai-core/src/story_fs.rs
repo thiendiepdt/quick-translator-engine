@@ -14,6 +14,8 @@ pub struct StoryPaths {
     pub root: PathBuf,
     pub story_json: PathBuf,
     pub state_json: PathBuf,
+    /// Bảng nhân vật + mốc xưng hô — file riêng để bản app cũ (normalize bỏ field lạ) không làm mất.
+    pub cast_json: PathBuf,
     pub raw_dir: PathBuf,
     pub out_dir: PathBuf,
     pub work_dir: PathBuf,
@@ -24,6 +26,7 @@ pub fn story_paths(root: &Path) -> StoryPaths {
         root: root.to_path_buf(),
         story_json: root.join("story.json"),
         state_json: root.join("state.json"),
+        cast_json: root.join("cast.json"),
         raw_dir: root.join("raw"),
         out_dir: root.join("out"),
         work_dir: root.join("work"),

@@ -307,6 +307,27 @@ fn next_phat_chuong_dau_prompt_du_3_phan_state_translating() {
 }
 
 #[test]
+fn next_prompt_co_muc_xung_ho_theo_cast_json() {
+    let dir = make_story_dir(&[("0001", "贺静昭点头。贺老师很擅长包饺子。")]);
+    run_init(dir.path(), "qt-ai").unwrap();
+    let paths = story_paths(dir.path());
+    let mut story = load_story_config(&paths).unwrap();
+    story.glossary.entry("names".to_string()).or_default().insert("贺静昭".into(), "Hạ Tĩnh Chiêu".into());
+    save_story_config(&paths, &story).unwrap();
+    let mut cast = qt_ai_core::cast::Cast::default();
+    cast.characters.insert(
+        "贺静昭".into(),
+        qt_ai_core::cast::Character { gender: Some(qt_ai_core::cast::Gender::Female), ..Default::default() },
+    );
+    qt_ai_core::cast::save_cast(&paths, &cast).unwrap();
+    let next = run_next(dir.path()).unwrap();
+    let prompt = fs::read_to_string(next.prompt_path).unwrap();
+    assert!(prompt.contains("# Xưng hô") && prompt.contains("- 贺静昭 (Hạ Tĩnh Chiêu): nữ"), "{prompt}");
+    assert!(prompt.contains("\"gender\": \"nam\" hoặc \"nữ\""), "chỉ dẫn agent khai giới");
+    assert!(prompt.contains("quan hệ hai người đã khác lúc chốt cặp"), "chỉ dẫn agent khai đổi cặp theo trạng thái quan hệ");
+}
+
+#[test]
 fn next_het_hang_doi_thi_bao() {
     let dir = make_story_dir(&[]);
     run_init(dir.path(), "qt-ai").unwrap();
@@ -524,6 +545,27 @@ fn accept_khong_hoc_ten_moi_trai_am_ho_da_chot() {
 }
 
 #[test]
+fn check_bat_sai_gioi_va_loi_goi_tho_theo_nhan() {
+    let dir = story_with_glossary(
+        "贺静昭帮忙洗菜。\n\n“贺老师很擅长包饺子。”\n\n“学弟，你不要吓学姐好不好！”",
+        &[("贺静昭", "Hạ Tĩnh Chiêu")],
+        "[[1]] Hạ Tĩnh Chiêu giúp rửa rau.\n\n[[2]] “Thầy Hạ rất khéo gói sủi cảo.”\n\n[[3]] “Đàn em, cậu đừng dọa đàn chị có được không!”",
+    );
+    let paths = story_paths(dir.path());
+    let mut cast = qt_ai_core::cast::Cast::default();
+    cast.characters.insert(
+        "贺静昭".into(),
+        qt_ai_core::cast::Character { gender: Some(qt_ai_core::cast::Gender::Female), ..Default::default() },
+    );
+    qt_ai_core::cast::save_cast(&paths, &cast).unwrap();
+    let result = run_check(dir.path(), "0001").unwrap();
+    assert!(!result.pass);
+    assert_eq!(result.issues.len(), 2, "{:?}", result.issues);
+    assert!(result.issues[0].starts_with("[[2]] Sai giới: 贺老师 là 贺静昭 (nữ) → `cô Hạ`, bản dịch viết `Thầy Hạ`"), "{:?}", result.issues);
+    assert!(result.issues[1].starts_with("[[3]] Danh xưng thô trong thoại: `Đàn em`"), "{:?}", result.issues);
+}
+
+#[test]
 fn check_draft_mat_sach_nhan_coi_nhu_thieu_toan_bo() {
     let dir = story_with_draft("Bản dịch không có nhãn nào cả.", None);
     assert_eq!(run_check(dir.path(), "0001").unwrap().missing, vec![1, 2]);
@@ -562,6 +604,159 @@ fn accept_check_fail_thi_tu_choi_force_thi_qua_va_ghi_warnings() {
     let forced = run_accept(dir.path(), "0001", true).unwrap();
     assert!(forced.out_path.exists());
     assert!(forced.warnings.iter().any(|w| w == "[[2]] thiếu đoạn"));
+}
+
+// ---- accept: học giới, siết cặp xưng hô mới, đổi cặp theo mốc chương ----
+
+use qt_ai_core::cast::{load_cast, save_cast, AddressChange, AddressTimeline, Cast, Character, EntrySource, Gender};
+
+const RAW_CAST: &str = "许浪看着苏雨。她笑了。\n\n保安走过来。他点头。";
+const DRAFT_CAST: &str = "[[1]] Hứa Lãng nhìn Tô Vũ. Cô cười.\n\n[[2]] Bảo vệ đi tới. Hắn gật đầu.";
+
+/// Chương `id` với glossary truyện (names + addressing) cho trước, draft sạch, glossary.json đề xuất.
+fn story_for_accept(names: &[(&str, &str)], addressing: &[(&str, &str)], entries: &str) -> TempDir {
+    let dir = story_with_glossary(RAW_CAST, names, DRAFT_CAST);
+    let paths = story_paths(dir.path());
+    let mut story = load_story_config(&paths).unwrap();
+    let group = story.glossary.entry("addressing".to_string()).or_default();
+    for (source, target) in addressing {
+        group.insert(source.to_string(), target.to_string());
+    }
+    save_story_config(&paths, &story).unwrap();
+    fs::write(work_file(&paths, "0001", WorkKind::Glossary), format!("{{\"entries\":{entries}}}")).unwrap();
+    dir
+}
+
+#[test]
+fn accept_hoc_gioi_tinh_khi_raw_co_can_cu() {
+    let entries = r#"[
+        {"source":"苏雨","target":"Tô Vũ","category":"names","gender":"nữ"},
+        {"source":"许浪","category":"names","gender":"nam"},
+        {"source":"不在","category":"names","gender":"nữ"}
+    ]"#;
+    let dir = story_for_accept(&[("许浪", "Hứa Lãng")], &[], entries);
+    run_accept(dir.path(), "0001", false).unwrap();
+    let cast = load_cast(&story_paths(dir.path()));
+    assert_eq!(cast.gender_of("苏雨"), Some(Gender::Female));
+    assert_eq!(cast.characters["苏雨"].chapter, "0001");
+    assert_eq!(cast.gender_of("许浪"), Some(Gender::Male), "nhân vật đã có trong từ điển được khai lại giới");
+    assert!(!cast.characters.contains_key("不在"), "tên không có trong raw/từ điển thì bỏ");
+}
+
+#[test]
+fn accept_khong_hoc_gioi_thieu_can_cu_va_ghi_tranh_chap_khi_khai_nguoc() {
+    // Raw không có 她/女… nào → khai "nữ" cho 许浪 bị bỏ (chưa có giới) hoặc ghi tranh chấp (đã có giới).
+    let dir = make_story_dir(&[("0001", "许浪点头。他笑了。\n\n许浪走了。")]);
+    run_init(dir.path(), "qt-ai").unwrap();
+    let paths = story_paths(dir.path());
+    let mut story = load_story_config(&paths).unwrap();
+    story.glossary.entry("names".to_string()).or_default().insert("许浪".into(), "Hứa Lãng".into());
+    save_story_config(&paths, &story).unwrap();
+    run_next(dir.path()).unwrap();
+    fs::write(work_file(&paths, "0001", WorkKind::Draft), "[[1]] Hứa Lãng gật đầu. Hắn cười.\n\n[[2]] Hứa Lãng đi rồi.").unwrap();
+    fs::write(work_file(&paths, "0001", WorkKind::Glossary), r#"{"entries":[{"source":"许浪","category":"names","gender":"nữ"}]}"#).unwrap();
+    run_accept(dir.path(), "0001", false).unwrap();
+    assert_eq!(load_cast(&paths).gender_of("许浪"), None, "không có 她/女 trong raw → không nhận nữ");
+}
+
+#[test]
+fn accept_khai_gioi_nguoc_voi_bang_thi_giu_cu_va_ghi_disputed() {
+    let entries = r#"[{"source":"苏雨","category":"names","gender":"nam"}]"#;
+    let dir = story_for_accept(&[("许浪", "Hứa Lãng"), ("苏雨", "Tô Vũ")], &[], entries);
+    let paths = story_paths(dir.path());
+    let mut cast = Cast::default();
+    cast.characters.insert("苏雨".into(), Character { gender: Some(Gender::Female), ..Default::default() });
+    save_cast(&paths, &cast).unwrap();
+    let result = run_accept(dir.path(), "0001", false).unwrap();
+    let cast = load_cast(&paths);
+    assert_eq!(cast.gender_of("苏雨"), Some(Gender::Female));
+    assert_eq!(cast.characters["苏雨"].disputed, vec!["0001"]);
+    assert!(result.cast_notes.iter().any(|n| n.contains("苏雨") && n.contains("khai giới ngược")), "{:?}", result.cast_notes);
+}
+
+#[test]
+fn accept_chi_hoc_cap_giua_nhan_vat_co_ten_hop_gioi_va_dao_cap_nguoc() {
+    let entries = r#"[
+        {"source":"苏雨","target":"Tô Vũ","category":"names","gender":"nữ"},
+        {"source":"保安→许浪","target":"tôi–cậu","category":"addressing"},
+        {"source":"许浪→苏雨","target":"tôi–anh","category":"addressing"},
+        {"source":"苏雨→许浪","target":"cậu–tớ","category":"addressing"}
+    ]"#;
+    let dir = story_for_accept(&[("许浪", "Hứa Lãng")], &[], entries);
+    let paths = story_paths(dir.path());
+    run_accept(dir.path(), "0001", false).unwrap();
+    let story = load_story_config(&paths).unwrap();
+    let addressing = &story.glossary["addressing"];
+    assert!(!addressing.contains_key("保安→许浪"), "保安 không phải nhân vật có tên");
+    assert!(!addressing.contains_key("许浪→苏雨"), "gọi nữ là anh → trái giới vừa học, bỏ");
+    assert_eq!(addressing["苏雨→许浪"], "tớ–cậu", "cặp viết ngược được đảo");
+    assert!(story.auto_glossary_log.iter().all(|e| e.source != "保安→许浪" && e.source != "许浪→苏雨"));
+}
+
+#[test]
+fn accept_nhan_doi_cap_co_ly_do_ghi_moc_chuong_va_dich_lai_thi_thay_moc_cu() {
+    let entries = r#"[
+        {"source":"许浪→苏雨","target":"anh–em","category":"addressing","note":"thành người yêu"},
+        {"source":"苏雨→许浪","target":"em–anh","category":"addressing"}
+    ]"#;
+    let dir = story_for_accept(
+        &[("许浪", "Hứa Lãng"), ("苏雨", "Tô Vũ")],
+        &[("许浪→苏雨", "tôi–cô"), ("苏雨→许浪", "tôi–anh")],
+        entries,
+    );
+    let paths = story_paths(dir.path());
+    let result = run_accept(dir.path(), "0001", false).unwrap();
+    let cast = load_cast(&paths);
+    assert_eq!(
+        cast.addressing["许浪→苏雨"].changes,
+        vec![AddressChange { from: "0001".into(), target: "anh–em".into(), note: "thành người yêu".into(), source: EntrySource::Auto }]
+    );
+    assert!(!cast.addressing.contains_key("苏雨→许浪"), "đổi cặp không có note thì không nhận");
+    assert_eq!(load_story_config(&paths).unwrap().glossary["addressing"]["许浪→苏雨"], "tôi–cô", "story.json giữ cặp gốc");
+    assert!(result.cast_notes.iter().any(|n| n == "đổi xưng hô 许浪→苏雨: tôi–cô → anh–em (thành người yêu)"), "{:?}", result.cast_notes);
+
+    // Dịch lại cùng chương, model khai mốc khác → thay mục cùng `from`, không chồng thêm.
+    run_retry(dir.path(), "0001").unwrap();
+    run_next(dir.path()).unwrap();
+    fs::write(work_file(&paths, "0001", WorkKind::Draft), DRAFT_CAST).unwrap();
+    fs::write(
+        work_file(&paths, "0001", WorkKind::Glossary),
+        r#"{"entries":[{"source":"许浪→苏雨","target":"anh–bà xã","category":"addressing","note":"cưới"}]}"#,
+    )
+    .unwrap();
+    run_accept(dir.path(), "0001", false).unwrap();
+    let changes = &load_cast(&paths).addressing["许浪→苏雨"].changes;
+    assert_eq!(changes.len(), 1);
+    assert_eq!(changes[0].target, "anh–bà xã");
+}
+
+#[test]
+fn accept_khong_doi_cap_da_ghim_trai_gioi_hoac_dao_ve_gia_tri_truoc() {
+    let entries = r#"[
+        {"source":"许浪→苏雨","target":"tôi–cô","category":"addressing","note":"cãi nhau"},
+        {"source":"苏雨→许浪","target":"em–chị","category":"addressing","note":"thân"},
+        {"source":"许浪→保安","target":"anh–em","category":"addressing","note":"thân"}
+    ]"#;
+    let dir = story_for_accept(
+        &[("许浪", "Hứa Lãng"), ("苏雨", "Tô Vũ")],
+        &[("许浪→苏雨", "tôi–cô"), ("苏雨→许浪", "tôi–anh"), ("许浪→保安", "tôi–chú")],
+        entries,
+    );
+    let paths = story_paths(dir.path());
+    let mut cast = Cast::default();
+    cast.characters.insert("许浪".into(), Character { gender: Some(Gender::Male), ..Default::default() });
+    // 许浪→苏雨 đã đổi anh–em từ chương trước; giờ model đòi về tôi–cô (giá trị ngay trước) → bỏ.
+    cast.addressing.insert(
+        "许浪→苏雨".into(),
+        AddressTimeline { pinned: false, changes: vec![AddressChange { from: "0000".into(), target: "anh–em".into(), note: "yêu".into(), source: EntrySource::Auto }] },
+    );
+    cast.addressing.insert("许浪→保安".into(), AddressTimeline { pinned: true, changes: vec![] });
+    save_cast(&paths, &cast).unwrap();
+    run_accept(dir.path(), "0001", false).unwrap();
+    let cast = load_cast(&paths);
+    assert_eq!(cast.addressing["许浪→苏雨"].changes.len(), 1, "không đảo về giá trị ngay trước");
+    assert!(!cast.addressing.contains_key("苏雨→许浪"), "gọi 许浪 (nam) là chị → trái giới");
+    assert!(cast.addressing["许浪→保安"].changes.is_empty(), "cặp ghim không tự đổi");
 }
 
 #[test]

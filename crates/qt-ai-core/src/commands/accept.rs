@@ -1,3 +1,4 @@
+use crate::cast::{apply_address_changes, filter_new_pairs, learn_genders, load_cast, save_cast};
 use crate::commands::check::{assemble_draft, run_check_readonly};
 use crate::error::{CoreError, Result};
 use crate::glossary::{
@@ -19,6 +20,8 @@ pub struct AcceptResult {
     pub out_path: PathBuf,
     pub added_glossary: usize,
     pub warnings: Vec<String>,
+    /// Ghi chú bảng nhân vật khi chốt: đổi xưng hô theo mốc chương, khai giới ngược.
+    pub cast_notes: Vec<String>,
 }
 
 pub fn run_accept(root: &Path, id: &str, force: bool) -> Result<AcceptResult> {
@@ -41,6 +44,7 @@ pub fn run_accept(root: &Path, id: &str, force: bool) -> Result<AcceptResult> {
 
     let mut story = load_story_config(&paths)?;
     let mut added_glossary = 0;
+    let mut cast_notes = Vec::new();
     let glossary_path = work_file(&paths, id, WorkKind::Glossary);
     if glossary_path.exists() && resolve_auto_glossary_enabled(story.auto_glossary, true) {
         // Đề xuất hỏng → bỏ qua, không chặn accept.
@@ -53,6 +57,22 @@ pub fn run_accept(root: &Path, id: &str, force: bool) -> Result<AcceptResult> {
         let raw = read_raw_chapter(&paths, id)?;
         let existing = collect_glossary_keys(&TranslationGlossary::new(), &story.glossary);
         let pairs = drop_conflicting_readings(sanitize_extracted(&entries, &raw, &output, &existing), &story.glossary);
+        // Bảng nhân vật: học giới trước rồi mới xét cặp xưng hô (cặp trái giới vừa học cũng bị bỏ).
+        let base_glossary = crate::base::BaseStore::from_env().glossary(story.genre.setting);
+        let merged = crate::prompt::merge_story_glossary(&base_glossary, Some(&story));
+        let mut names: std::collections::HashSet<String> =
+            merged.get("names").map(|group| group.keys().cloned().collect()).unwrap_or_default();
+        names.extend(pairs.iter().filter(|pair| pair.category == "names").map(|pair| pair.source.clone()));
+        let mut cast = load_cast(&paths);
+        let before = cast.clone();
+        cast_notes.extend(learn_genders(&entries, &raw, &names, &mut cast, id));
+        let pairs = filter_new_pairs(pairs, &names, &cast);
+        let no_pairs = crate::story::StringMap::new();
+        let addressing = story.glossary.get("addressing").unwrap_or(&no_pairs);
+        cast_notes.extend(apply_address_changes(&entries, &raw, addressing, &mut cast, id));
+        if cast != before {
+            save_cast(&paths, &cast)?;
+        }
         if !pairs.is_empty() {
             story = append_auto_glossary(&story, &pairs, id);
             added_glossary = pairs.len();
@@ -86,5 +106,5 @@ pub fn run_accept(root: &Path, id: &str, force: bool) -> Result<AcceptResult> {
     for kind in WORK_KINDS {
         let _ = fs::remove_file(work_file(&paths, id, kind)); // force: true
     }
-    Ok(AcceptResult { out_path, added_glossary, warnings: check.issues })
+    Ok(AcceptResult { out_path, added_glossary, warnings: check.issues, cast_notes })
 }

@@ -1,6 +1,7 @@
 mod agy_cmds;
 mod app_config;
 mod base_cmds;
+mod cast_cmds;
 mod error;
 mod library_cmds;
 mod sidecar;
@@ -91,6 +92,10 @@ pub fn run() {
             base_cmds::base_get,
             base_cmds::base_save,
             base_cmds::base_reset,
+            cast_cmds::cast_load,
+            cast_cmds::cast_save,
+            cast_cmds::cast_clean_addressing,
+            cast_cmds::cast_scan,
             story_cmds::open_story,
             story_cmds::init_story,
             story_cmds::story_snapshot,

@@ -5,6 +5,7 @@ import { FormProvider, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
 import { AiFillDialog } from "@/components/ai-fill-dialog";
+import { CastPanel } from "@/components/cast-panel";
 import { CheckRulesEditor } from "@/components/check-rules-editor";
 import { GlossaryEditor } from "@/components/glossary-editor";
 import { GlossaryExportDialog } from "@/components/glossary-export-dialog";
@@ -34,6 +35,7 @@ const SECTIONS = [
   { id: "info", label: "Thông tin" },
   { id: "style", label: "Style" },
   { id: "glossary", label: "Glossary" },
+  { id: "cast", label: "Nhân vật" },
   { id: "rules", label: "Rule kiểm tra" },
   { id: "prompt", label: "Prompt" },
 ] as const;
@@ -66,6 +68,7 @@ function Section({ id, active, title, children }: { id: SectionId; active: Secti
 export function StoryPage() {
   const root = useStoryStore((s) => s.root);
   const story = useStoryStore((s) => s.snapshot?.story);
+  const chapters = useStoryStore((s) => s.snapshot?.chapters);
   const running = useStoryStore(selectCurrentRunning);
   const setSnapshot = useStoryStore((s) => s.setSnapshot);
   const form = useForm<StoryFormValues>({
@@ -306,6 +309,17 @@ export function StoryPage() {
                   <GlossaryEditor key={key} name={`glossary.${key}`} label={GLOSSARY_LABELS[key]} />
                 ))}
                 <GlossaryExportDialog open={exportOpen} onOpenChange={setExportOpen} glossary={glossaryValues} />
+              </Section>
+              <Section id="cast" active={active} title="Nhân vật & xưng hô">
+                {/* Đọc glossary ĐÃ LƯU (không phải form): cast.json bám theo tên trong story.json trên đĩa. */}
+                <CastPanel
+                  root={currentRoot}
+                  names={currentStory.glossary.names}
+                  addressing={currentStory.glossary.addressing}
+                  chapterIds={(chapters ?? []).map((chapter) => chapter.id)}
+                  running={running}
+                  onStoryChanged={() => void storySnapshot(currentRoot).then(setSnapshot)}
+                />
               </Section>
               <Section id="rules" active={active} title="Rule kiểm tra">
                 <CheckRulesEditor defaults={defaults} />

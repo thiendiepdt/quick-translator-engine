@@ -7,12 +7,14 @@ import {
   aiFillResultSchema,
   appConfigSchema,
   baseViewSchema,
+  castSchema,
   chapterViewSchema,
   exportOutcomeSchema,
   harnessSettingsSchema,
   importOutcomeSchema,
   recentSummarySchema,
   retryRangeOutcomeSchema,
+  scanCastViewSchema,
   deleteOutcomeSchema,
   sessionStatusSchema,
   storyConfigSchema,
@@ -22,6 +24,7 @@ import {
 import type {
   AppConfig,
   BaseKind,
+  Cast,
   CheckRule,
   GenreNames,
   GenreSetting,
@@ -70,6 +73,13 @@ export const readChapter = (root: string, id: string) =>
   call("read_chapter", { root, id }, (v) => chapterViewSchema.parse(v));
 export const saveStory = (root: string, story: StoryConfig) =>
   call("save_story", { root, story }, (v) => storyConfigSchema.parse(v));
+export const castLoad = (root: string) => call("cast_load", { root }, (v) => castSchema.parse(v));
+export const castSave = (root: string, cast: Cast) => call("cast_save", { root, cast }, (v) => castSchema.parse(v));
+/** Quét bù giới tính bằng API key (một lượt JSON mỗi 40 tên) — chỉ điền tên chưa rõ giới. */
+export const castScan = (root: string) => call("cast_scan", { root }, (v) => scanCastViewSchema.parse(v));
+/** Xoá khỏi story.json các cặp xưng hô trái giới đã chốt; trả các key đã xoá. */
+export const castCleanAddressing = (root: string) =>
+  call("cast_clean_addressing", { root }, (v) => z.array(z.string()).parse(v));
 export const saveSettings = (root: string, settings: HarnessSettings) =>
   call("save_settings", { root, settings }, (v) => harnessSettingsSchema.parse(v));
 export const chapterRetry = (root: string, id: string) => call("chapter_retry", { root, id }, noop);

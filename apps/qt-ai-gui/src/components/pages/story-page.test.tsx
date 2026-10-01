@@ -10,6 +10,10 @@ vi.mock("@/lib/api", () => ({
   saveStory: vi.fn(),
   storySnapshot: vi.fn(),
   aiFillStory: vi.fn(),
+  castLoad: vi.fn(() => Promise.resolve({ version: 1, characters: { 赵静文: { gender: "female", source: "auto" } }, addressing: {} })),
+  castSave: vi.fn(),
+  castScan: vi.fn(),
+  castCleanAddressing: vi.fn(),
   pickSaveFile: vi.fn(),
   writeTextFile: vi.fn(),
   storyDefaults: vi.fn((genre: { setting: string }) =>
@@ -70,6 +74,14 @@ describe("StoryPage", () => {
     await user.click(screen.getByRole("tab", { name: "Thông tin" }));
     expect(screen.getByLabelText("Tên truyện")).toHaveValue("Truyện A sửa");
     expect(screen.getByText("Có thay đổi chưa lưu")).toBeInTheDocument();
+  });
+
+  it("tab Nhân vật hiện bảng giới tính theo glossary names đã lưu", async () => {
+    const user = userEvent.setup();
+    render(<StoryPage />);
+    await user.click(screen.getByRole("tab", { name: "Nhân vật" }));
+    expect(await screen.findByLabelText("Giới tính 赵静文")).toHaveValue("female");
+    expect(screen.getByRole("button", { name: "Lưu bảng nhân vật" })).toBeDisabled();
   });
 
   it("tab Glossary có nút Export Names.txt… mở dialog với glossary đang hiển thị (kể cả sửa chưa lưu)", async () => {

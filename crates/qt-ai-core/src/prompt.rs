@@ -199,6 +199,37 @@ pub fn build_system_prompt(
     format!("{base}{story_context}{glossary_section}{style_section}{}", prompt_suffix())
 }
 
+/// Prompt dịch một chương của qt-ai: `build_system_prompt` (port web, không đổi) với nhóm `addressing`
+/// rút khỏi JSON từ điển, cộng mục `# Xưng hô` chèn ngay trước suffix — nhân vật có mặt đã rõ giới và
+/// cặp xưng hô hiệu lực tại chương này (theo mốc trong cast.json), chỉ gồm cặp cả hai bên có mặt.
+pub fn build_chapter_prompt(
+    workspace: &TranslationGlossary,
+    story: &StoryConfig,
+    cast: &crate::cast::Cast,
+    chapter_id: &str,
+    source_text: &str,
+) -> String {
+    let merged = merge_story_glossary(workspace, Some(story));
+    let empty = StringMap::new();
+    let pairs = crate::cast::chapter_addressing(
+        &crate::cast::effective_addressing(merged.get("addressing").unwrap_or(&empty), cast, chapter_id),
+        source_text,
+    );
+    let present = crate::cast::present_characters(merged.get("names").unwrap_or(&empty), cast, source_text);
+    let reviews = crate::cast::pairs_to_review(&pairs, cast, source_text);
+    let section = crate::cast::addressing_section(&present, &pairs, &reviews, story.genre.setting);
+
+    let mut workspace = workspace.clone();
+    workspace.shift_remove("addressing");
+    let mut story = story.clone();
+    story.glossary.shift_remove("addressing");
+    let prompt = build_system_prompt(&workspace, Some(&story), Some(source_text));
+    match prompt.strip_suffix(prompt_suffix()) {
+        Some(head) => format!("{head}{section}{}", prompt_suffix()),
+        None => format!("{prompt}{section}"),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

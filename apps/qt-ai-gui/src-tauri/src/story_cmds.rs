@@ -211,6 +211,16 @@ pub fn save_chapter_output_inner(root: &Path, id: &str, text: &str) -> CmdResult
 pub fn save_story_inner(root: &Path, story: Value) -> CmdResult<StoryConfig> {
     let paths = story_paths(root);
     let config = StoryConfig::normalize(&story);
+    // Cặp xưng hô người dùng sửa/thêm tay được ghim trong cast.json — harness không tự đổi theo mốc chương nữa.
+    let no_pairs = qt_ai_core::story::StringMap::new();
+    let old_pairs = load_story_config(&paths).ok().and_then(|old| old.glossary.get("addressing").cloned());
+    if let Some(old_pairs) = old_pairs {
+        let mut cast = qt_ai_core::cast::load_cast(&paths);
+        let new_pairs = config.glossary.get("addressing").unwrap_or(&no_pairs);
+        if qt_ai_core::cast::pin_edited_pairs(&old_pairs, new_pairs, &mut cast) {
+            qt_ai_core::cast::save_cast(&paths, &cast)?;
+        }
+    }
     save_story_config(&paths, &config)?;
     Ok(config)
 }
@@ -432,6 +442,21 @@ mod tests {
         fs::write(dir.path().join("raw").join("0002.txt"), "第二章").unwrap();
         run_init(dir.path(), "qt-ai").unwrap();
         dir
+    }
+
+    #[test]
+    fn save_story_ghim_cap_xung_ho_nguoi_dung_sua() {
+        let dir = story();
+        let paths = story_paths(dir.path());
+        let mut config = load_story_config(&paths).unwrap();
+        config.glossary.entry("addressing".to_string()).or_default().insert("a→b".into(), "tôi–cô".into());
+        save_story_inner(dir.path(), serde_json::to_value(&config).unwrap()).unwrap();
+        let cast = qt_ai_core::cast::load_cast(&paths);
+        assert!(cast.addressing["a→b"].pinned, "cặp người dùng thêm tay được ghim");
+        // Lưu lại không đổi gì → không ghi thêm.
+        let before = fs::read_to_string(&paths.cast_json).unwrap();
+        save_story_inner(dir.path(), serde_json::to_value(&config).unwrap()).unwrap();
+        assert_eq!(fs::read_to_string(&paths.cast_json).unwrap(), before);
     }
 
     #[test]

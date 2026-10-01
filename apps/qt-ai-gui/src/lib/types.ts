@@ -8,6 +8,8 @@ import {
   type apiSettingsSchema,
   type appConfigSchema,
   type baseViewSchema,
+  type castSchema,
+  type genderSchema,
   type checkRuleSchema,
   type engineSchema,
   type chapterRowSchema,
@@ -33,6 +35,8 @@ export { GLOSSARY_KEYS };
 export type GlossaryKey = (typeof GLOSSARY_KEYS)[number];
 export type ChapterStatus = z.infer<typeof chapterStatusSchema>;
 export type StoryConfig = z.infer<typeof storyConfigSchema>;
+export type Cast = z.infer<typeof castSchema>;
+export type Gender = z.infer<typeof genderSchema>;
 export type StoryGenre = z.infer<typeof storyGenreSchema>;
 export type GenreSetting = StoryGenre["setting"];
 export type GenreNames = StoryGenre["names"];

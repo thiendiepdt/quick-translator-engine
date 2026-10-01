@@ -36,6 +36,11 @@ fn sanitize_addressing(source: &str, target: &str, raw: &str) -> Option<(String,
     Some((sides.join(ADDRESSING_ARROW), parts.join("–")))
 }
 
+/// Cửa công khai của `sanitize_addressing` cho lớp cast (đổi cặp đã có) — cùng luật hình thức với cặp mới.
+pub fn parse_addressing_entry(source: &str, target: &str, raw: &str) -> Option<(String, String)> {
+    sanitize_addressing(source, target, raw)
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExtractedPair {
     pub source: String,

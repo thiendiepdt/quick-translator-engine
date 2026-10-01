@@ -284,6 +284,64 @@ fn ten_lech_glossary_thi_soat_va_nhan_ban_sua_ten() {
 }
 
 #[test]
+fn sai_gioi_theo_cast_thi_soat_va_nhan_ban_sua() {
+    let dir = story(1);
+    let paths = story_paths(dir.path());
+    fs::write(dir.path().join("raw").join("0001.txt"), "赵静文抬头看向远方的高塔。\n\n“赵老师沉默了很久没有说话。”").unwrap();
+    let mut story = load_story_config(&paths).unwrap();
+    story.glossary.entry("names".to_string()).or_default().insert("赵静文".into(), "Triệu Tĩnh Văn".into());
+    save_story_config(&paths, &story).unwrap();
+    let mut cast = qt_ai_core::cast::Cast::default();
+    cast.characters.insert(
+        "赵静文".into(),
+        qt_ai_core::cast::Character { gender: Some(qt_ai_core::cast::Gender::Female), ..Default::default() },
+    );
+    qt_ai_core::cast::save_cast(&paths, &cast).unwrap();
+    let wrong = format!("[[1]] {GOOD_1}\n\n[[2]] “Thầy Triệu im lặng rất lâu, không nói một lời nào.”");
+    let fixed = format!("[[1]] {GOOD_1}\n\n[[2]] “Cô Triệu im lặng rất lâu, không nói một lời nào.”");
+    let model = FakeModel::new(vec![Ok(wrong), Ok(fixed)]);
+    let (sink, _) = collect();
+    let handle = start_api_session(config(dir.path()), model.clone(), sink).unwrap();
+    assert_eq!(handle.join(), StopReason::Finished);
+    let calls = model.calls();
+    assert_eq!(calls.len(), 2, "dịch + một lượt soát");
+    assert!(calls[0].0.contains("- 赵静文 (Triệu Tĩnh Văn): nữ"), "prompt dịch có bảng nhân vật");
+    assert!(calls[1].1.contains("[[2]] Sai giới: 赵老师 là 赵静文 (nữ) → `cô Triệu`"), "{}", calls[1].1);
+    let state = load_state(&paths).unwrap();
+    assert_eq!(state.chapters["0001"].status, ChapterStatus::Done);
+    assert!(state.chapters["0001"].warnings.is_none(), "{:?}", state.chapters["0001"].warnings);
+    let out = fs::read_to_string(dir.path().join("out").join("0001.txt")).unwrap();
+    assert!(out.contains("Cô Triệu"), "{out}");
+}
+
+#[test]
+fn khoi_glossary_khai_gioi_va_doi_cap_thi_ghi_cast_json_va_log() {
+    let dir = story(1);
+    let paths = story_paths(dir.path());
+    fs::write(dir.path().join("raw").join("0001.txt"), "赵静文抬头看向李明。\n\n她沉默了很久没有说话。").unwrap();
+    let mut story = load_story_config(&paths).unwrap();
+    story.glossary.entry("names".to_string()).or_default().insert("李明".into(), "Lý Minh".into());
+    story.glossary.entry("addressing".to_string()).or_default().insert("赵静文→李明".into(), "tôi–anh".into());
+    save_story_config(&paths, &story).unwrap();
+    let with_block = format!(
+        "{}\n\n[[glossary]]\n{{\"entries\":[{{\"source\":\"赵静文\",\"target\":\"Triệu Tĩnh Văn\",\"category\":\"names\",\"gender\":\"nữ\"}},{{\"source\":\"赵静文→李明\",\"target\":\"em–anh\",\"category\":\"addressing\",\"note\":\"thành người yêu\"}}]}}",
+        good()
+    );
+    let model = FakeModel::new(vec![Ok(with_block)]);
+    let (sink, events) = collect();
+    let handle = start_api_session(config(dir.path()), model.clone(), sink).unwrap();
+    assert_eq!(handle.join(), StopReason::Finished);
+    let calls = model.calls();
+    assert!(calls[0].1.contains("\"gender\": \"nam\" hoặc \"nữ\""), "chỉ dẫn khai giới: {}", calls[0].1);
+    assert!(calls[0].1.contains("quan hệ hai người đã khác lúc chốt cặp") && calls[0].1.contains("\"note\""), "chỉ dẫn khai đổi cặp");
+    let cast = qt_ai_core::cast::load_cast(&paths);
+    assert_eq!(cast.gender_of("赵静文"), Some(qt_ai_core::cast::Gender::Female));
+    assert_eq!(cast.addressing["赵静文→李明"].changes[0].target, "em–anh");
+    let lines = logs(&events.lock().unwrap());
+    assert!(lines.iter().any(|l| l.contains("0001: đổi xưng hô 赵静文→李明: tôi–anh → em–anh (thành người yêu)")), "{lines:?}");
+}
+
+#[test]
 fn log_token_tung_luot_va_tong_khi_chot() {
     let dir = story(1);
     let bad = format!("[[1]] Anh ấy ngẩng đầu nhìn về phía tòa tháp cao ở nơi xa.\n\n[[2]] {GOOD_2}");
