@@ -15,6 +15,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
     <Sonner
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
+      // Giữa cạnh dưới: góc trên phải là chỗ các nút thao tác (Bắt đầu dịch, Xoá…), toast đè lên là vướng tay.
+      position="bottom-center"
       // Nút X hiện khi rê chuột: toast lỗi dài không phải chờ hết giờ hay kéo sang phải mới tắt.
       closeButton
       toastOptions={{ closeButtonAriaLabel: "Đóng thông báo" }}

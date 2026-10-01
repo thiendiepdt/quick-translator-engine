@@ -30,7 +30,7 @@ createRoot(root).render(
     >
       <TooltipProvider>
         <App />
-        <Toaster position="top-right" richColors />
+        <Toaster richColors />
       </TooltipProvider>
     </ThemeProvider>
   </StrictMode>,

@@ -27,4 +27,14 @@ describe("Toaster", () => {
     expect(await screen.findByText(/Đã dừng theo yêu cầu/)).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "Đóng thông báo" })).toBeInTheDocument();
   });
+
+  it("thông báo hiện ở giữa cạnh dưới, không đè lên các nút thao tác phía trên", async () => {
+    render(<Toaster />);
+    act(() => {
+      toast.success("Đã bắt đầu phiên dịch");
+    });
+    const list = (await screen.findByText("Đã bắt đầu phiên dịch")).closest("ol");
+    expect(list).toHaveAttribute("data-y-position", "bottom");
+    expect(list).toHaveAttribute("data-x-position", "center");
+  });
 });
