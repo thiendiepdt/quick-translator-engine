@@ -155,19 +155,56 @@ fn present_characters_theo_ten_ten_bo_ho_va_ho_kem_chuc_danh() {
 }
 
 #[test]
-fn chapter_prompt_khong_cast_van_co_luat_chung_va_giu_nguyen_phan_con_lai() {
-    let story = story("modern", &[("许浪", "Hứa Lãng")], &[]);
+fn chapter_prompt_khong_cast_khong_tu_dien_thi_chi_them_luat_xung_ho_truoc_suffix() {
+    let story = story("modern", &[], &[]);
     let source = "许浪醒了。";
     let plain = build_system_prompt(&TranslationGlossary::new(), Some(&story), Some(source));
     let got = build_chapter_prompt(&TranslationGlossary::new(), &story, &Cast::default(), "0001", source);
     let head = plain.strip_suffix(prompt_suffix()).unwrap();
-    assert!(got.starts_with(head) && got.ends_with(prompt_suffix()), "mục mới chèn ngay trước suffix");
+    assert!(got.starts_with(head) && got.ends_with(prompt_suffix()));
     let section = &got[head.len()..got.len() - prompt_suffix().len()];
     assert!(section.starts_with("\n# Xưng hô\n"), "{section}");
     assert!(section.contains("Danh xưng làm đại từ") && section.contains("Em đừng dọa chị được không"));
     assert!(section.contains("Độc thoại nội tâm") && section.contains("`mình`"));
     assert!(section.contains("老师 ngoài trường học"));
-    assert!(!section.contains("Nhân vật có mặt") && !section.contains("Cặp xưng hô đang dùng"));
+    assert!(!got.contains("# Từ điển riêng của truyện") && !got.contains("# Nhân vật và xưng hô trong chương"));
+}
+
+#[test]
+fn chapter_prompt_phan_tinh_dung_truoc_phan_dong_theo_chuong() {
+    let mut story = story(
+        "modern",
+        &[("贺静昭", "Hạ Tĩnh Chiêu"), ("宋时安", "Tống Thời An"), ("莫衡", "Mạc Hành")],
+        &[("宋时安→贺静昭", "tôi–cô Hạ"), ("宋时安→莫衡", "em–thầy Mạc")],
+    );
+    story.summary = "Tóm tắt truyện.".into();
+    story.style.voice = "Giọng kể hóm hỉnh.".into();
+    let cast = cast_with(&[("贺静昭", Gender::Female), ("宋时安", Gender::Male), ("莫衡", Gender::Male)]);
+    let a = build_chapter_prompt(&TranslationGlossary::new(), &story, &cast, "0001", "宋时安看着贺静昭。");
+    let b = build_chapter_prompt(&TranslationGlossary::new(), &story, &cast, "0002", "宋时安和莫衡走了。");
+
+    // Thứ tự: thông tin truyện → style → luật xưng hô (tĩnh) → từ điển → nhân vật/cặp trong chương (động) → suffix.
+    let at = |text: &str, marker: &str| text.find(marker).unwrap_or_else(|| panic!("thiếu {marker}"));
+    let order = [
+        "\n# Thông tin truyện\n",
+        "\n# Style đặc thù của truyện\n",
+        "\n# Xưng hô\n",
+        "\n# Từ điển riêng của truyện\n",
+        "\n# Nhân vật và xưng hô trong chương\n",
+    ];
+    let positions: Vec<usize> = order.iter().map(|marker| at(&a, marker)).collect();
+    assert!(positions.windows(2).all(|pair| pair[0] < pair[1]), "{positions:?}");
+    assert!(a.ends_with(prompt_suffix()));
+
+    // Hai chương khác nhau chung y hệt đoạn đầu tới hết phần tĩnh — phần nhà cung cấp cache được.
+    let dynamic_start = at(&a, "\n# Từ điển riêng của truyện\n");
+    assert_eq!(dynamic_start, at(&b, "\n# Từ điển riêng của truyện\n"));
+    assert_eq!(a[..dynamic_start], b[..dynamic_start]);
+    // Phần động thì khác: mỗi chương chỉ có người và cặp của chương đó.
+    assert!(a[dynamic_start..].contains("贺静昭") && !a[dynamic_start..].contains("莫衡"));
+    assert!(b[dynamic_start..].contains("莫衡") && !b[dynamic_start..].contains("贺静昭"));
+    // Luật tĩnh không lặp lại ở phần động.
+    assert_eq!(a.matches("Danh xưng làm đại từ").count(), 1);
 }
 
 #[test]

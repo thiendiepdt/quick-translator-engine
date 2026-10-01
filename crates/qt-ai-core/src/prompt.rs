@@ -199,9 +199,10 @@ pub fn build_system_prompt(
     format!("{base}{story_context}{glossary_section}{style_section}{}", prompt_suffix())
 }
 
-/// Prompt dịch một chương của qt-ai: `build_system_prompt` (port web, không đổi) với nhóm `addressing`
-/// rút khỏi JSON từ điển, cộng mục `# Xưng hô` chèn ngay trước suffix — nhân vật có mặt đã rõ giới và
-/// cặp xưng hô hiệu lực tại chương này (theo mốc trong cast.json), chỉ gồm cặp cả hai bên có mặt.
+/// Prompt dịch một chương của qt-ai, xếp phần TĨNH trước phần ĐỘNG để đoạn đầu giống hệt nhau giữa các
+/// chương của một truyện (nhà cung cấp cache được): base + thông tin truyện + style + luật xưng hô, rồi mới
+/// tới từ điển lọc theo chương, nhân vật có mặt và cặp xưng hô hiệu lực (theo mốc trong cast.json), cuối cùng
+/// là suffix. `build_system_prompt` (port web) không đổi: gọi nó với từ điển rỗng để lấy phần tĩnh.
 pub fn build_chapter_prompt(
     workspace: &TranslationGlossary,
     story: &StoryConfig,
@@ -209,7 +210,7 @@ pub fn build_chapter_prompt(
     chapter_id: &str,
     source_text: &str,
 ) -> String {
-    let merged = merge_story_glossary(workspace, Some(story));
+    let mut merged = merge_story_glossary(workspace, Some(story));
     let empty = StringMap::new();
     let pairs = crate::cast::chapter_addressing(
         &crate::cast::effective_addressing(merged.get("addressing").unwrap_or(&empty), cast, chapter_id),
@@ -217,17 +218,30 @@ pub fn build_chapter_prompt(
     );
     let present = crate::cast::present_characters(merged.get("names").unwrap_or(&empty), cast, source_text);
     let reviews = crate::cast::pairs_to_review(&pairs, cast, source_text);
-    let section = crate::cast::addressing_section(&present, &pairs, &reviews, story.genre.setting);
+    let setting = story.genre.setting;
 
-    let mut workspace = workspace.clone();
-    workspace.shift_remove("addressing");
-    let mut story = story.clone();
-    story.glossary.shift_remove("addressing");
-    let prompt = build_system_prompt(&workspace, Some(&story), Some(source_text));
-    match prompt.strip_suffix(prompt_suffix()) {
-        Some(head) => format!("{head}{section}{}", prompt_suffix()),
-        None => format!("{prompt}{section}"),
-    }
+    merged.shift_remove("addressing");
+    let mut glossary = filter_glossary_for_source(&merged, source_text);
+    glossary.retain(|_, entries| !entries.is_empty());
+    let glossary_section = if glossary.is_empty() {
+        String::new()
+    } else {
+        format!(
+            "\n# Từ điển riêng của truyện\n\nCác mục này được ưu tiên và phải dùng nhất quán:\n\n{}\n",
+            json_pretty(&glossary)
+        )
+    };
+
+    let mut bare = story.clone();
+    bare.glossary.clear();
+    let fixed = build_system_prompt(&TranslationGlossary::new(), Some(&bare), Some(source_text));
+    let fixed = fixed.strip_suffix(prompt_suffix()).unwrap_or(&fixed);
+    format!(
+        "{fixed}{}{glossary_section}{}{}",
+        crate::cast::addressing_rules_section(setting),
+        crate::cast::chapter_addressing_section(&present, &pairs, &reviews, setting),
+        prompt_suffix()
+    )
 }
 
 #[cfg(test)]

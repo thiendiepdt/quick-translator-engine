@@ -376,19 +376,25 @@ pub fn pairs_to_review(pairs: &StringMap, cast: &Cast, source: &str) -> Vec<Pair
     reviews
 }
 
-/// Mục `# Xưng hô` harness chèn vào prompt chương (trước suffix): luật chung, nhân vật có mặt đã rõ
-/// giới, cặp xưng hô đang hiệu lực, và các đôi cần xét lại. Nằm ngoài base để truyện dùng base sửa tay/prompt
-/// riêng cũng nhận.
-pub fn addressing_section(
+/// Luật xưng hô chung của bối cảnh — phần TĨNH (giống nhau ở mọi chương của truyện), đứng trước từ điển
+/// để nằm trong đoạn đầu prompt mà nhà cung cấp cache được. Nằm ngoài base để truyện dùng base sửa
+/// tay/prompt riêng cũng nhận.
+pub fn addressing_rules_section(setting: GenreSetting) -> String {
+    format!(
+        "\n# Xưng hô\n\nCác luật này đứng trên mọi bảng đại từ và bảng kính ngữ phía trên.\n\n{}\n",
+        addressing_rules(setting)
+    )
+}
+
+/// Phần ĐỘNG theo chương: nhân vật có mặt đã rõ giới, cặp xưng hô đang hiệu lực, các đôi cần xét lại.
+/// Rỗng khi chương không có gì để liệt kê.
+pub fn chapter_addressing_section(
     present: &[PresentCharacter],
     pairs: &StringMap,
     reviews: &[PairReview],
     setting: GenreSetting,
 ) -> String {
-    let mut section = format!(
-        "\n# Xưng hô\n\nCác luật này đứng trên mọi bảng đại từ và bảng kính ngữ phía trên.\n\n{}\n",
-        addressing_rules(setting)
-    );
+    let mut section = String::new();
     if !present.is_empty() {
         let list: Vec<String> =
             present.iter().map(|c| format!("- {} ({}): {}", c.source, c.name, c.gender.label())).collect();
@@ -427,7 +433,11 @@ pub fn addressing_section(
             list.join("\n")
         ));
     }
-    section
+    if section.is_empty() {
+        section
+    } else {
+        format!("\n# Nhân vật và xưng hô trong chương\n{section}")
+    }
 }
 
 /// Vấn đề xưng hô ở một đoạn (chỉ số 0-based) — check quy về `Violation`, soát dùng để chấm bản soát.
