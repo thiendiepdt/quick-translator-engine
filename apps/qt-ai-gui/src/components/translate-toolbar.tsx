@@ -177,7 +177,7 @@ export function TranslateToolbar() {
           type="button"
           variant="outline"
           className="h-9"
-          title="Dịch lại toàn bộ hoặc một khoảng chương"
+          title="Dịch lại toàn bộ hoặc một khoảng chương; trong hộp này có Reset cả truyện"
           disabled={running || !snapshot}
           onClick={() => setRetryOpen(true)}
         >

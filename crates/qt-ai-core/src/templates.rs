@@ -142,6 +142,40 @@ fn write_or_refresh(target: &Path, source: &str, legacy: &[&str], qt_ai_command:
     }
 }
 
+/// File đã bị sửa tay: có dấu mà thân lệch fnv, hoặc không dấu và không khớp khuôn template nào.
+fn hand_edited(existing: &str, source: &str, legacy: &[&str]) -> bool {
+    match split_marker(existing) {
+        Some((body, hash)) => fingerprint(&body) != hash,
+        None => !(matches_template(source, existing) || legacy.iter().any(|old| matches_template(old, existing))),
+    }
+}
+
+/// Reset truyện: ép AGENTS.md + workflows về template hiện tại như một truyện vừa tạo. File đã sửa tay được
+/// chép sang `<tên>.bak` cạnh đó trước khi ghi đè. Trả về tên các file có bản sửa tay đã lưu.
+pub fn force_templates(root: &Path, qt_ai_command: &str) -> Result<Vec<String>> {
+    let root_text = root.display().to_string();
+    let workflows_dir = root.join(".agent").join("workflows");
+    fs::create_dir_all(&workflows_dir).map_err(CoreError::io(&workflows_dir))?;
+    let mut targets = vec![("AGENTS.md", root.join("AGENTS.md"), AGENTS_MD, LEGACY_AGENTS)];
+    for (name, source) in WORKFLOWS {
+        targets.push((name, workflows_dir.join(name), source, legacy_for(name)));
+    }
+    let mut backups = Vec::new();
+    for (name, target, source, legacy) in targets {
+        if let Ok(existing) = fs::read_to_string(&target) {
+            if hand_edited(&existing, source, legacy) {
+                let mut bak = target.as_os_str().to_owned();
+                bak.push(".bak");
+                let bak = std::path::PathBuf::from(bak);
+                fs::copy(&target, &bak).map_err(CoreError::io(&bak))?;
+                backups.push(name.to_string());
+            }
+        }
+        write_text(&target, &stamp(&render(source, qt_ai_command, &root_text)))?;
+    }
+    Ok(backups)
+}
+
 /// Copy template vào folder truyện. File đã sửa tay thì giữ nguyên; file còn đúng khuôn thì cập nhật
 /// lệnh qt-ai/đường dẫn. Trả về tên các file đã ghi.
 pub fn copy_templates(root: &Path, qt_ai_command: &str) -> Result<Vec<String>> {

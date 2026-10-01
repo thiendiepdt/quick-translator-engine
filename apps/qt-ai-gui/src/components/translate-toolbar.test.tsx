@@ -16,6 +16,7 @@ vi.mock("@/lib/api", () => ({
   sessionStart: vi.fn(),
   sessionStop: vi.fn(),
   storySnapshot: vi.fn(),
+  storyReset: vi.fn(),
 }));
 
 const ROOT = "D:\\t";
@@ -84,6 +85,17 @@ describe("TranslateToolbar · cảnh báo hổng chương", () => {
     useStoryStore.setState({ sessions: { [pathKey(ROOT)]: { status: "running", sessionNo: 1 } } });
     render(<TranslateToolbar />);
     expect(screen.getByRole("button", { name: "Xoá…" })).toBeDisabled();
+  });
+
+  it("Reset nằm trong hộp Dịch lại…, không nằm trên thanh công cụ; bấm thì đóng hộp đó và mở xác nhận reset", async () => {
+    const user = userEvent.setup();
+    render(<TranslateToolbar />);
+    expect(screen.queryByRole("button", { name: /^Reset/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Dịch lại…" }));
+    await user.click(screen.getByRole("button", { name: "Reset cả truyện…" }));
+    expect(screen.queryByRole("dialog", { name: "Dịch lại nhiều chương" })).not.toBeInTheDocument();
+    const dialog = screen.getByRole("dialog", { name: "Reset truyện" });
+    expect(dialog).toHaveTextContent("cả 4 chương, trong đó 2 chương đã dịch xong");
   });
 
   it("báo chương chưa dịch đứng trước chương done cuối; bấm số thứ tự thì chọn chương đó", async () => {

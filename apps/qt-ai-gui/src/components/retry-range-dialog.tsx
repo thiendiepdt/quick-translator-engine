@@ -1,8 +1,9 @@
-import { RotateCcw } from "lucide-react";
+import { History, RotateCcw } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { ChapterRefHint } from "@/components/chapter-ref-hint";
+import { ResetStoryDialog } from "@/components/reset-story-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -33,6 +34,7 @@ export function RetryRangeDialog({ root, chapters, open, onOpenChange }: Props) 
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [busy, setBusy] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
   // Ô nhập nhận số thứ tự (1-based, như cột # trong danh sách) hoặc nguyên mã chương.
   const fromIndex = resolveChapterRef(chapters, from);
   const toIndex = resolveChapterRef(chapters, to);
@@ -62,74 +64,96 @@ export function RetryRangeDialog({ root, chapters, open, onOpenChange }: Props) 
   }
 
   return (
-    <Dialog open={open} onOpenChange={(value) => !busy && onOpenChange(value)}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Dịch lại nhiều chương</DialogTitle>
-          <DialogDescription>
-            Gõ số thứ tự như cột # trong danh sách (1–{chapters.length}) hoặc nguyên mã chương. Để trống cả hai ô là
-            dịch lại toàn bộ truyện. Chương đã dịch xong sẽ giữ bản cũ thành out/&lt;id&gt;.txt.bak (đè bản .bak cũ),
-            chương đang chờ sẵn bỏ qua. Xong thì bấm Bắt đầu dịch.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="retry-from">Từ chương</Label>
-            <Input
-              id="retry-from"
-              inputMode="numeric"
-              value={from}
-              onChange={(e) => setFrom(e.target.value)}
-              className="font-mono"
-              placeholder="Đầu"
-              disabled={busy}
-            />
-            <ChapterRefHint text={from} id={fromId} />
+    <>
+      <Dialog open={open} onOpenChange={(value) => !busy && onOpenChange(value)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Dịch lại nhiều chương</DialogTitle>
+            <DialogDescription>
+              Gõ số thứ tự như cột # trong danh sách (1–{chapters.length}) hoặc nguyên mã chương. Để trống cả hai ô là
+              dịch lại toàn bộ truyện. Chương đã dịch xong sẽ giữ bản cũ thành out/&lt;id&gt;.txt.bak (đè bản .bak cũ),
+              chương đang chờ sẵn bỏ qua. Xong thì bấm Bắt đầu dịch.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="retry-from">Từ chương</Label>
+              <Input
+                id="retry-from"
+                inputMode="numeric"
+                value={from}
+                onChange={(e) => setFrom(e.target.value)}
+                className="font-mono"
+                placeholder="Đầu"
+                disabled={busy}
+              />
+              <ChapterRefHint text={from} id={fromId} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="retry-to">Đến chương</Label>
+              <Input
+                id="retry-to"
+                inputMode="numeric"
+                value={to}
+                onChange={(e) => setTo(e.target.value)}
+                className="font-mono"
+                placeholder="Cuối"
+                disabled={busy}
+              />
+              <ChapterRefHint text={to} id={toId} />
+            </div>
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="retry-to">Đến chương</Label>
-            <Input
-              id="retry-to"
-              inputMode="numeric"
-              value={to}
-              onChange={(e) => setTo(e.target.value)}
-              className="font-mono"
-              placeholder="Cuối"
-              disabled={busy}
-            />
-            <ChapterRefHint text={to} id={toId} />
+          <div className="rounded-md bg-muted p-3 text-sm">
+            {!preview.valid ? (
+              <p className="text-destructive">Khoảng không hợp lệ: số thứ tự/mã không tồn tại hoặc "từ" đứng sau "đến".</p>
+            ) : (
+              <p>
+                {whole ? "Toàn bộ truyện: " : "Trong khoảng: "}
+                <strong className="tabular-nums">{preview.targets.length}</strong> chương sẽ về hàng đợi
+                {preview.done > 0 && (
+                  <>
+                    , trong đó <strong className="tabular-nums">{preview.done}</strong> chương đã dịch xong mất bản hiện
+                    có (giữ .bak)
+                  </>
+                )}
+                {preview.queued > 0 && <>; {preview.queued} chương đang chờ sẵn bỏ qua</>}.
+              </p>
+            )}
           </div>
-        </div>
-        <div className="rounded-md bg-muted p-3 text-sm">
-          {!preview.valid ? (
-            <p className="text-destructive">Khoảng không hợp lệ: số thứ tự/mã không tồn tại hoặc "từ" đứng sau "đến".</p>
-          ) : (
-            <p>
-              {whole ? "Toàn bộ truyện: " : "Trong khoảng: "}
-              <strong className="tabular-nums">{preview.targets.length}</strong> chương sẽ về hàng đợi
-              {preview.done > 0 && (
-                <>
-                  , trong đó <strong className="tabular-nums">{preview.done}</strong> chương đã dịch xong mất bản hiện
-                  có (giữ .bak)
-                </>
-              )}
-              {preview.queued > 0 && <>; {preview.queued} chương đang chờ sẵn bỏ qua</>}.
-            </p>
-          )}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" disabled={busy} onClick={() => onOpenChange(false)}>
-            Huỷ
-          </Button>
-          <Button
-            variant={preview.done > 0 ? "destructive" : "default"}
-            disabled={busy || !preview.valid || preview.targets.length === 0}
-            onClick={() => void run()}
-          >
-            <RotateCcw /> Dịch lại {preview.valid ? preview.targets.length : 0} chương
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <DialogFooter>
+            {/* Reset nằm ở đây thay vì thanh công cụ: phải qua hai bước mới tới, không ấn nhầm cạnh Bắt đầu dịch. */}
+            <Button
+              variant="ghost"
+              className="mr-auto text-destructive hover:text-destructive"
+              disabled={busy}
+              title="Đưa truyện về như lúc vừa tạo (giữ raw, out, export) để dịch lại từ đầu"
+              onClick={() => {
+                onOpenChange(false);
+                setResetOpen(true);
+              }}
+            >
+              <History /> Reset cả truyện…
+            </Button>
+            <Button variant="outline" disabled={busy} onClick={() => onOpenChange(false)}>
+              Huỷ
+            </Button>
+            <Button
+              variant={preview.done > 0 ? "destructive" : "default"}
+              disabled={busy || !preview.valid || preview.targets.length === 0}
+              onClick={() => void run()}
+            >
+              <RotateCcw /> Dịch lại {preview.valid ? preview.targets.length : 0} chương
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <ResetStoryDialog
+        root={root}
+        total={chapters.length}
+        done={chapters.filter((chapter) => chapter.status === "done").length}
+        open={resetOpen}
+        onOpenChange={setResetOpen}
+      />
+    </>
   );
 }

@@ -369,6 +369,20 @@ pub fn chapters_delete(state: State<'_, AppState>, root: String, ids: Vec<String
     Ok(DeleteOutcomeView { removed: outcome.removed, kept_outputs: outcome.kept_outputs })
 }
 
+/// Reset truyện về như lúc vừa tạo (chỉ giữ tên + link; raw/, out/, export/ và cài đặt harness còn nguyên) để
+/// dịch lại từ đầu sau khi app đổi lớn. Chặn khi phiên đang chạy: runner đang ghi state/work của truyện.
+#[tauri::command]
+pub fn story_reset(state: State<'_, AppState>, root: String) -> CmdResult<StorySnapshot> {
+    if session_running(&state, &root) {
+        return Err(CommandError::new(
+            "session_locked",
+            "Truyện này đang có phiên dịch chạy — bấm Dừng trước khi reset truyện.",
+        ));
+    }
+    qt_ai_core::commands::reset::run_reset(Path::new(&root), &qt_ai_command())?;
+    snapshot(Path::new(&root), false)
+}
+
 #[tauri::command]
 pub fn chapter_skip(root: String, id: String, reason: String) -> CmdResult<()> {
     Ok(run_skip(Path::new(&root), &id, &reason)?)

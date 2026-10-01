@@ -10,6 +10,7 @@ vi.mock("@/lib/api", () => ({
   saveStory: vi.fn(),
   storySnapshot: vi.fn(),
   aiFillStory: vi.fn(),
+  storyReset: vi.fn(),
   castLoad: vi.fn(() => Promise.resolve({ version: 1, characters: { 赵静文: { gender: "female", source: "auto" } }, addressing: {} })),
   castSave: vi.fn(),
   castScan: vi.fn(),
@@ -82,6 +83,41 @@ describe("StoryPage", () => {
     await user.click(screen.getByRole("tab", { name: "Nhân vật" }));
     expect(await screen.findByLabelText("Giới tính 赵静文")).toHaveValue("female");
     expect(screen.getByRole("button", { name: "Lưu bảng nhân vật" })).toBeDisabled();
+  });
+
+  it("Reset truyện… hỏi lại, nêu rõ cái mất cái giữ, xác nhận thì gọi lệnh và nạp snapshot mới", async () => {
+    const user = userEvent.setup();
+    const { storyReset } = await import("@/lib/api");
+    const fresh = storySnapshotSchema.parse({
+      ...snapshot,
+      story: { ...snapshot.story, glossary: { ...snapshot.story.glossary, names: {} } },
+    });
+    vi.mocked(storyReset).mockResolvedValue(fresh);
+    render(<StoryPage />);
+    await user.click(screen.getByRole("button", { name: "Reset truyện…" }));
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveTextContent("raw/, out/ và export/ giữ nguyên");
+    expect(dialog).toHaveTextContent("glossary, bảng nhân vật");
+    expect(dialog).toHaveTextContent("AGENTS.md và workflow của agent ghi lại theo template mới");
+    expect(storyReset).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Reset truyện" }));
+    expect(storyReset).toHaveBeenCalledWith(snapshot.root);
+    expect(useStoryStore.getState().snapshot?.story.glossary.names).toEqual({});
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("reset khi đang mở tab Nhân vật thì nạp lại bảng nhân vật từ đĩa, không giữ bảng cũ trong bộ nhớ", async () => {
+    const user = userEvent.setup();
+    const { storyReset, castLoad } = await import("@/lib/api");
+    vi.mocked(storyReset).mockResolvedValue(snapshot);
+    render(<StoryPage />);
+    await user.click(screen.getByRole("tab", { name: "Nhân vật" }));
+    await screen.findByLabelText("Giới tính 赵静文");
+    const before = vi.mocked(castLoad).mock.calls.length;
+    await user.click(screen.getByRole("button", { name: "Reset truyện…" }));
+    await user.click(screen.getByRole("button", { name: "Reset truyện" }));
+    await screen.findByLabelText("Giới tính 赵静文");
+    expect(vi.mocked(castLoad).mock.calls.length).toBe(before + 1);
   });
 
   it("tab Glossary có nút Export Names.txt… mở dialog với glossary đang hiển thị (kể cả sửa chưa lưu)", async () => {

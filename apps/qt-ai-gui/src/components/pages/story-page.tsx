@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Download, Save, Sparkles, Upload } from "lucide-react";
+import { Download, History, Save, Sparkles, Upload } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
@@ -10,6 +10,7 @@ import { CheckRulesEditor } from "@/components/check-rules-editor";
 import { GlossaryEditor } from "@/components/glossary-editor";
 import { GlossaryExportDialog } from "@/components/glossary-export-dialog";
 import { PromptEditor } from "@/components/prompt-editor";
+import { ResetStoryDialog } from "@/components/reset-story-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -88,6 +89,9 @@ export function StoryPage() {
   const defaults = useStoryDefaults(genre);
   const [fillOpen, setFillOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
+  // Tăng sau mỗi lần reset để CastPanel dựng lại và đọc cast.json mới từ đĩa.
+  const [castEpoch, setCastEpoch] = useState(0);
   const [active, setActive] = useState<SectionId>("info");
   const fileInput = useRef<HTMLInputElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
@@ -313,6 +317,7 @@ export function StoryPage() {
               <Section id="cast" active={active} title="Nhân vật & xưng hô">
                 {/* Đọc glossary ĐÃ LƯU (không phải form): cast.json bám theo tên trong story.json trên đĩa. */}
                 <CastPanel
+                  key={castEpoch}
                   root={currentRoot}
                   names={currentStory.glossary.names}
                   addressing={currentStory.glossary.addressing}
@@ -350,12 +355,31 @@ export function StoryPage() {
           <Button type="button" variant="ghost" size="sm" onClick={exportJson}>
             <Download /> Xuất JSON
           </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="text-destructive hover:text-destructive"
+            disabled={running}
+            title="Đưa truyện về như lúc vừa tạo (giữ raw, out, export) để dịch lại từ đầu"
+            onClick={() => setResetOpen(true)}
+          >
+            <History /> Reset truyện…
+          </Button>
           <div className="flex-1" />
           {dirty && <span className="text-xs text-muted-foreground">Có thay đổi chưa lưu</span>}
           <Button type="submit" disabled={running || !dirty || form.formState.isSubmitting}>
             <Save /> Lưu
           </Button>
         </footer>
+        <ResetStoryDialog
+          root={currentRoot}
+          total={chapters?.length ?? 0}
+          done={(chapters ?? []).filter((chapter) => chapter.status === "done").length}
+          open={resetOpen}
+          onOpenChange={setResetOpen}
+          onReset={() => setCastEpoch((epoch) => epoch + 1)}
+        />
         <AiFillDialog
           root={currentRoot}
           initialName={form.getValues("name")}

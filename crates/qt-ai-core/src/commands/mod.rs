@@ -7,3 +7,4 @@ pub mod retry;
 pub mod delete;
 pub mod status;
 pub mod export;
+pub mod reset;

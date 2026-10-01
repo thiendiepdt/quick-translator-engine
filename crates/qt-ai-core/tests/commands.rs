@@ -5,6 +5,7 @@ use qt_ai_core::commands::delete::run_delete;
 use qt_ai_core::commands::export::{run_export, ExportOptions};
 use qt_ai_core::commands::init::run_init;
 use qt_ai_core::commands::next::run_next;
+use qt_ai_core::commands::reset::run_reset;
 use qt_ai_core::commands::retry::{retry_backup_path, run_retry, run_retry_ids, run_retry_range};
 use qt_ai_core::commands::skip::run_skip;
 use qt_ai_core::commands::status::run_status;
@@ -813,6 +814,98 @@ fn e2e_hai_chuong_glossary_hoc_tu_chuong_1_lot_vao_prompt_chuong_2() {
     }
     assert!(fs::read_to_string(paths.out_dir.join("0001.txt")).unwrap().contains("Triệu Tĩnh Văn"));
     assert!(matches!(run_next(root), Err(CoreError::InvalidState(_))));
+}
+
+#[test]
+fn reset_dua_truyen_ve_nhu_moi_tao_giu_ten_link_raw_out_export() {
+    let dir = make_story_dir(&[("0001", RAW2), ("0002", "第二章")]);
+    let root = dir.path();
+    run_init(root, "qt-ai").unwrap();
+    let paths = story_paths(root);
+    let mut story = load_story_config(&paths).unwrap();
+    story.name = "Truyện A".into();
+    story.source_url = "https://nguon/a".into();
+    story.protagonist = "Triệu Tĩnh Văn".into();
+    story.summary = "tóm tắt cũ".into();
+    story.custom_prompt = "prompt riêng".into();
+    story.glossary.entry("names".to_string()).or_default().insert("段延庆".into(), "Đoạn Duyên Khánh".into());
+    save_story_config(&paths, &story).unwrap();
+    let mut state = load_state(&paths).unwrap();
+    state.settings.max_review_rounds = 5;
+    save_state(&paths, &state).unwrap();
+    // Chương 1 đã dịch xong; chương 2 đang dịch dở (còn prompt trong work/).
+    run_next(root).unwrap();
+    fs::write(work_file(&paths, "0001", WorkKind::Draft), GOOD_DRAFT).unwrap();
+    run_accept(root, "0001", false).unwrap();
+    run_next(root).unwrap();
+    assert!(work_file(&paths, "0002", WorkKind::Prompt).exists());
+    fs::write(paths.out_dir.join("0001.txt.bak"), "bản cũ hơn").unwrap();
+    fs::create_dir_all(root.join("export")).unwrap();
+    fs::write(root.join("export").join("truyen.txt"), "bản gộp").unwrap();
+    fs::write(&paths.cast_json, r#"{"version":1,"characters":{"赵静文":{"gender":"female"}},"addressing":{}}"#).unwrap();
+    let translated = fs::read_to_string(paths.out_dir.join("0001.txt")).unwrap();
+
+    let outcome = run_reset(root, "qt-ai").unwrap();
+    assert_eq!(outcome.chapters, 2);
+
+    // Hồ sơ về trắng, chỉ giữ tên + link.
+    let mut expected = StoryConfig::empty();
+    expected.name = "Truyện A".into();
+    expected.source_url = "https://nguon/a".into();
+    assert_eq!(load_story_config(&paths).unwrap(), expected);
+    // Mọi chương về hàng đợi; cài đặt harness của người dùng giữ nguyên.
+    let state = load_state(&paths).unwrap();
+    assert_eq!(state.chapters.len(), 2);
+    assert!(state.chapters.values().all(|c| c.status == ChapterStatus::Queued && c.review_round == 0 && c.warnings.is_none()));
+    assert_eq!(state.settings.max_review_rounds, 5);
+    // raw/, out/ (kể cả .bak), export/ còn nguyên.
+    assert_eq!(fs::read_to_string(paths.raw_dir.join("0001.txt")).unwrap(), RAW2);
+    assert_eq!(fs::read_to_string(paths.out_dir.join("0001.txt")).unwrap(), translated);
+    assert_eq!(fs::read_to_string(paths.out_dir.join("0001.txt.bak")).unwrap(), "bản cũ hơn");
+    assert_eq!(fs::read_to_string(root.join("export").join("truyen.txt")).unwrap(), "bản gộp");
+    // work/ sạch; bảng nhân vật gỡ.
+    assert_eq!(fs::read_dir(&paths.work_dir).unwrap().count(), 0);
+    assert!(!paths.cast_json.exists());
+    // Bản trước reset còn trong .bak để cứu khi lỡ tay.
+    assert!(fs::read_to_string(root.join("story.json.bak")).unwrap().contains("Đoạn Duyên Khánh"));
+    assert!(fs::read_to_string(root.join("state.json.bak")).unwrap().contains("\"done\""));
+    assert!(fs::read_to_string(root.join("cast.json.bak")).unwrap().contains("赵静文"));
+    // Truyện dịch lại được ngay.
+    assert_eq!(run_next(root).unwrap().chapter_id, "0001");
+}
+
+#[test]
+fn reset_ep_agents_md_va_workflow_ve_template_ban_sua_tay_luu_bak() {
+    let dir = make_story_dir(&[("0001", RAW2)]);
+    let root = dir.path();
+    run_init(root, "qt-ai").unwrap();
+    let agents = root.join("AGENTS.md");
+    let translate = root.join(".agent").join("workflows").join("translate.md");
+    let setup = root.join(".agent").join("workflows").join("setup-story.md");
+    let pristine_agents = fs::read_to_string(&agents).unwrap();
+    let pristine_translate = fs::read_to_string(&translate).unwrap();
+    let pristine_setup = fs::read_to_string(&setup).unwrap();
+    fs::write(&agents, format!("{pristine_agents}\nLuật riêng của tao.\n")).unwrap();
+    fs::write(&translate, "Workflow tự viết lại hoàn toàn.\n").unwrap();
+
+    let outcome = run_reset(root, "qt-ai").unwrap();
+
+    // Cả ba file về đúng bản app ghi cho truyện mới.
+    assert_eq!(fs::read_to_string(&agents).unwrap(), pristine_agents);
+    assert_eq!(fs::read_to_string(&translate).unwrap(), pristine_translate);
+    assert_eq!(fs::read_to_string(&setup).unwrap(), pristine_setup);
+    // Bản sửa tay nằm cạnh đó dạng .bak; file chưa sửa tay không sinh .bak.
+    assert!(fs::read_to_string(root.join("AGENTS.md.bak")).unwrap().contains("Luật riêng của tao."));
+    assert_eq!(fs::read_to_string(translate.with_extension("md.bak")).unwrap(), "Workflow tự viết lại hoàn toàn.\n");
+    assert!(!setup.with_extension("md.bak").exists());
+    assert_eq!(outcome.template_backups, vec!["AGENTS.md", "translate.md"]);
+}
+
+#[test]
+fn reset_truyen_chua_init_thi_bao_loi_khong_tao_gi() {
+    let dir = make_story_dir(&[("0001", RAW2)]);
+    assert!(matches!(run_reset(dir.path(), "qt-ai").unwrap_err(), CoreError::StoryNotFound(_)));
+    assert!(!dir.path().join("state.json").exists());
 }
 
 #[test]

@@ -91,6 +91,8 @@ export const chaptersRetry = (root: string, range: { from?: string; to?: string 
 export const chaptersRetryIds = (root: string, ids: string[]) =>
   call("chapters_retry_ids", { root, ids }, (v) => retryRangeOutcomeSchema.parse(v));
 /** Xoá hẳn chương: gỡ state, xoá raw/ + work/; out/<id>.txt giữ nguyên (keptOutputs). */
+/** Reset truyện về như lúc vừa tạo: chỉ giữ tên + link; raw/, out/, export/ còn nguyên; mọi chương về hàng đợi. */
+export const storyReset = (root: string) => call("story_reset", { root }, (v) => storySnapshotSchema.parse(v));
 export const chaptersDelete = (root: string, ids: string[]) =>
   call("chapters_delete", { root, ids }, (v) => deleteOutcomeSchema.parse(v));
 export const chapterSkip = (root: string, id: string, reason: string) =>

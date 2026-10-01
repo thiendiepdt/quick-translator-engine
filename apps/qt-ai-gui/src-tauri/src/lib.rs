@@ -107,6 +107,7 @@ pub fn run() {
             story_cmds::chapters_retry,
             story_cmds::chapters_retry_ids,
             story_cmds::chapters_delete,
+            story_cmds::story_reset,
             story_cmds::chapter_skip,
             story_cmds::chapter_force_accept,
             story_cmds::export_chapters,
