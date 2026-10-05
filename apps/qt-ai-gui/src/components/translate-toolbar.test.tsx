@@ -66,6 +66,7 @@ describe("TranslateToolbar · cảnh báo hổng chương", () => {
       snapshot: {
         root: ROOT,
         story: { title: "T" },
+        counts: { total: 4, queued: 1, translating: 0, done: 2, error: 0, skipped: 1, withWarnings: 0 },
         chapters: [
           { id: "c1", status: "done", reviewRound: 0, reason: null, warnings: [] },
           { id: "c2", status: "skipped", reviewRound: 0, reason: "model từ chối", warnings: [] },

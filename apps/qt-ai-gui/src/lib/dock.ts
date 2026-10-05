@@ -1,6 +1,6 @@
 import { pathKey, samePath } from "@/lib/paths";
 import type { Progress } from "@/lib/types";
-import { runningRoots, type SessionState } from "@/store/story";
+import { runningRoots, type SessionState, type StoryIssues } from "@/store/story";
 
 export interface DockEntry {
   root: string;
@@ -10,6 +10,16 @@ export interface DockEntry {
   /** Tiến độ live (0–100) khi đang dịch; undefined nếu chưa có event progress. */
   percent?: number;
   currentChapter?: string | null;
+  /** Chương bỏ qua / lỗi biết được gần nhất — > 0 thì thẻ truyện hiện dòng nhắc. */
+  skipped: number;
+  error: number;
+}
+
+/** "3 bỏ qua · 1 lỗi"; không có gì thì chuỗi rỗng. */
+export function issuesLabel(entry: Pick<DockEntry, "skipped" | "error">): string {
+  return [entry.skipped > 0 ? `${entry.skipped} bỏ qua` : "", entry.error > 0 ? `${entry.error} lỗi` : ""]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 /** Hai chữ cái đầu: hai từ đầu của tên truyện, không có tên thì lấy từ tên folder cuối. */
@@ -39,6 +49,7 @@ export function dockEntries(state: {
   roots: Record<string, string>;
   names: Record<string, string>;
   progress: Record<string, Progress>;
+  issues: Record<string, StoryIssues>;
 }): DockEntry[] {
   const running = runningRoots(state);
   const entry = (root: string): DockEntry => {
@@ -52,6 +63,8 @@ export function dockEntries(state: {
       running: isRunning,
       percent: isRunning ? progressPercent(progress) : undefined,
       currentChapter: isRunning ? (progress?.current ?? null) : undefined,
+      skipped: state.issues[key]?.skipped ?? 0,
+      error: state.issues[key]?.error ?? 0,
     };
   };
   const top = running.map(entry).sort((a, b) => (a.name || a.root).localeCompare(b.name || b.root, "vi"));

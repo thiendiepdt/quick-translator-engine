@@ -269,7 +269,7 @@ describe("StoryPicker · Thư viện", () => {
       vi.mocked(sessionStart).mockResolvedValue({ running: [] });
       vi.mocked(openStory).mockReset();
       vi.mocked(openStory).mockImplementation((root: string) =>
-        Promise.resolve({ root, story: { name: "A" }, sessionRunning: false } as never),
+        Promise.resolve({ root, story: { name: "A" }, counts: { skipped: 0, error: 0 }, sessionRunning: false } as never),
       );
       vi.mocked(libraryList).mockResolvedValue(rows);
       // C đang dịch, giới hạn 3 → còn 2 chỗ cho 3 truyện chưa xong (A, B, D).

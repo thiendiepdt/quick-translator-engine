@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SIDEBAR_PAGE, StorySidebar } from "@/components/story-sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { openStory } from "@/lib/api";
-import { dockEntries, initials } from "@/lib/dock";
+import { dockEntries, initials, issuesLabel } from "@/lib/dock";
 import { storySnapshotSchema } from "@/lib/schema";
 import { useStoryStore } from "@/store/story";
 
@@ -72,6 +72,7 @@ describe("StorySidebar", () => {
         "d:\\lib\\bravo": { done: 5, queued: 5, translating: 0, error: 0, skipped: 0, warnings_count: 0, current: "0006" },
       },
       logs: {},
+      issues: {},
     });
   });
 
@@ -107,6 +108,46 @@ describe("StorySidebar", () => {
     await waitFor(() => expect(useStoryStore.getState().root).toBe(B));
     expect(useStoryStore.getState().page).toBe("story"); // giữ trang, không về Dịch
     expect(screen.getAllByRole("listitem")[0]).toHaveAttribute("aria-current", "true");
+  });
+
+  it("truyện có chương bỏ qua/lỗi hiện dòng nhắc trên thẻ, kể cả truyện đang không mở; hết thì dòng nhắc mất", () => {
+    expect(issuesLabel({ skipped: 3, error: 1 })).toBe("3 bỏ qua · 1 lỗi");
+    expect(issuesLabel({ skipped: 0, error: 0 })).toBe("");
+    const store = useStoryStore.getState();
+    // Phiên của Bravo (đang dịch, không mở) báo tiến độ có chương bỏ qua.
+    store.applySessionEvent(B, {
+      type: "progress",
+      done: 5,
+      queued: 3,
+      translating: 0,
+      error: 0,
+      skipped: 2,
+      warnings_count: 0,
+      current: "0008",
+    });
+    // Truyện đang mở nạp lại snapshot có chương lỗi.
+    const current = snapshot(A, "Alpha Beta");
+    store.setSnapshot({ ...current, counts: { ...current.counts, total: 4, skipped: 1, error: 3 } });
+    ui();
+    const items = screen.getAllByRole("listitem");
+    expect(items[0]).toHaveAccessibleName("Bravo — Đang dịch · 0008 · 50% — Cần xem: 2 bỏ qua");
+    expect(items[0]).toHaveTextContent("2 bỏ qua");
+    expect(items[2]).toHaveAccessibleName("Alpha Beta — Đang mở — Cần xem: 1 bỏ qua · 3 lỗi");
+    expect(items[1]).toHaveAccessibleName("Delta — Đang dịch"); // không có gì cần xem thì không thêm chữ
+    expect(screen.getAllByText(/bỏ qua/)).toHaveLength(2);
+
+    // Người dùng dịch lại hết chương bỏ qua → dòng nhắc biến mất.
+    store.applySessionEvent(B, {
+      type: "progress",
+      done: 7,
+      queued: 3,
+      translating: 0,
+      error: 0,
+      skipped: 0,
+      warnings_count: 0,
+      current: null,
+    });
+    expect(dockEntries(useStoryStore.getState()).find((e) => e.root === B)).toMatchObject({ skipped: 0, error: 0 });
   });
 
   it("danh sách dài: hiện 12 ô rồi nút +N nạp thêm", async () => {

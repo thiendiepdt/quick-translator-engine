@@ -1,4 +1,4 @@
-import { ChevronDown, LayoutGrid } from "lucide-react";
+import { ChevronDown, LayoutGrid, TriangleAlert } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -6,7 +6,7 @@ import { StorySwitcherDialog } from "@/components/story-switcher-dialog";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { openStory as openStoryApi } from "@/lib/api";
-import { dockEntries, initials } from "@/lib/dock";
+import { dockEntries, initials, issuesLabel } from "@/lib/dock";
 import { samePath } from "@/lib/paths";
 import { cn } from "@/lib/utils";
 import { useStoryStore } from "@/store/story";
@@ -25,13 +25,14 @@ export function StorySidebar() {
   const roots = useStoryStore((s) => s.roots);
   const names = useStoryStore((s) => s.names);
   const progress = useStoryStore((s) => s.progress);
+  const issues = useStoryStore((s) => s.issues);
   const switchStory = useStoryStore((s) => s.switchStory);
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [limit, setLimit] = useState(SIDEBAR_PAGE);
   const entries = useMemo(
-    () => dockEntries({ root, opened, sessions, roots, names, progress }),
-    [root, opened, sessions, roots, names, progress],
+    () => dockEntries({ root, opened, sessions, roots, names, progress, issues }),
+    [root, opened, sessions, roots, names, progress, issues],
   );
   const visible = entries.slice(0, limit);
   const hidden = entries.length - visible.length;
@@ -97,13 +98,16 @@ export function StorySidebar() {
             : item.current
               ? "Đang mở"
               : "Đã mở trong phiên này";
+          // Chương bỏ qua/lỗi không tự được dịch lại — nhắc ngay trên thẻ để khỏi phải mở từng truyện ra xem.
+          const flagged = issuesLabel(item);
+          const attention = flagged ? `Cần xem: ${flagged}` : "";
           return (
             <Tooltip key={item.root}>
               <TooltipTrigger asChild>
                 <button
                   type="button"
                   role="listitem"
-                  aria-label={`${label} — ${detail}`}
+                  aria-label={`${label} — ${detail}${attention ? ` — ${attention}` : ""}`}
                   aria-current={item.current ? "true" : undefined}
                   disabled={busy}
                   onClick={() => void switchTo(item.root)}
@@ -144,12 +148,26 @@ export function StorySidebar() {
                     ) : (
                       <span className="truncate font-mono text-[10px] text-muted-foreground">{folder}</span>
                     )}
+                    {flagged && (
+                      <span
+                        className={cn(
+                          "flex items-center gap-1 text-[10px] leading-none font-medium",
+                          item.error > 0 ? "text-status-error" : "text-status-warning",
+                        )}
+                      >
+                        <TriangleAlert className="size-3 shrink-0" aria-hidden />
+                        <span className="truncate">{flagged}</span>
+                      </span>
+                    )}
                   </span>
                 </button>
               </TooltipTrigger>
               <TooltipContent side="left">
                 <p className="font-medium">{label}</p>
                 <p className="text-xs opacity-80">{detail}</p>
+                {attention && (
+                  <p className="text-xs">{attention} — mở truyện, lọc Bỏ qua/Lỗi để dịch lại hoặc xử lý.</p>
+                )}
                 <p className="font-mono text-[10px] opacity-60">{item.root}</p>
               </TooltipContent>
             </Tooltip>

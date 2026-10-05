@@ -30,6 +30,19 @@ export function touchRecent(recent: string[], root: string): string[] {
   return [root, ...recent.filter((item) => item !== root)].slice(0, MAX_RECENT);
 }
 
+/** Chương chưa có bản dịch mà phiên sẽ không tự quay lại — người dùng phải xem (dịch lại, sửa, xoá). */
+export interface StoryIssues {
+  skipped: number;
+  error: number;
+}
+
+/** Ghi số chương bỏ qua/lỗi của một truyện; không đổi thì trả đúng object cũ để selector không render lại. */
+function withIssues(issues: Record<string, StoryIssues>, key: string, skipped: number, error: number) {
+  const current = issues[key];
+  if (current ? current.skipped === skipped && current.error === error : skipped === 0 && error === 0) return issues;
+  return { ...issues, [key]: { skipped, error } };
+}
+
 /** Phiên/tiến độ/log tách theo truyện, khoá bằng `pathKey(root)`; `roots` giữ root đúng chữ để hiện. */
 interface PerStory {
   sessions: Record<string, SessionState>;
@@ -38,6 +51,9 @@ interface PerStory {
   roots: Record<string, string>;
   /** Tên truyện (story.name) ghi lúc mở, để dock/dialog gọi tên truyện đang dịch dù đã đóng nó. */
   names: Record<string, string>;
+  /** Số chương bỏ qua/lỗi biết được gần nhất (snapshot lúc mở/nạp lại, event progress của phiên) — thẻ truyện
+   * ở cột phải dùng để nhắc, kể cả với truyện đang không mở. */
+  issues: Record<string, StoryIssues>;
 }
 
 interface StoryState extends PerStory {
@@ -79,7 +95,11 @@ export function applySessionEventPure(state: PerStory, root: string, event: Sess
       return { roots, sessions: { ...state.sessions, [key]: { status: "running", sessionNo: event.session_no } } };
     case "progress": {
       const { type: _type, ...progress } = event;
-      return { roots, progress: { ...state.progress, [key]: progress } };
+      return {
+        roots,
+        progress: { ...state.progress, [key]: progress },
+        issues: withIssues(state.issues, key, progress.skipped, progress.error),
+      };
     }
     case "agy_log": {
       logSeq += 1;
@@ -139,6 +159,7 @@ function enterStory(state: StoryState, snapshot: StorySnapshot, page: Page): Par
     sessions,
     roots: state.roots[key] === snapshot.root ? state.roots : { ...state.roots, [key]: snapshot.root },
     names: state.names[key] === name ? state.names : { ...state.names, [key]: name },
+    issues: withIssues(state.issues, key, snapshot.counts.skipped, snapshot.counts.error),
     // Giữ thứ tự mở lần đầu: bấm qua lại giữa các truyện thì ô trong cột phải không đổi chỗ.
     opened: state.opened.some((item) => samePath(item, snapshot.root)) ? state.opened : [...state.opened, snapshot.root],
   };
@@ -154,6 +175,7 @@ export const useStoryStore = create<StoryState>()((set) => ({
   logs: {},
   roots: {},
   names: {},
+  issues: {},
   opened: [],
   baseVersion: 0,
   bumpBaseVersion: () => set((state) => ({ baseVersion: state.baseVersion + 1 })),
@@ -164,7 +186,11 @@ export const useStoryStore = create<StoryState>()((set) => ({
   switchStory: (snapshot) => set((state) => enterStory(state, snapshot, state.page)),
   closeStory: () => set({ screen: "picker", root: undefined, snapshot: undefined, selectedId: undefined }),
   setPage: (page) => set({ page }),
-  setSnapshot: (snapshot) => set({ snapshot }),
+  setSnapshot: (snapshot) =>
+    set((state) => ({
+      snapshot,
+      issues: withIssues(state.issues, pathKey(snapshot.root), snapshot.counts.skipped, snapshot.counts.error),
+    })),
   select: (id) => set({ selectedId: id }),
   setStatusFilter: (statusFilter) => set({ statusFilter }),
   setSearchQuery: (searchQuery) => set({ searchQuery }),
