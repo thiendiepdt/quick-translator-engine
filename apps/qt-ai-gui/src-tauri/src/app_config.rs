@@ -99,6 +99,8 @@ pub struct AppConfig {
     pub theme_mode: String,
     /// Chiều ngang vùng đọc: narrow | normal | wide | full (UI kiểm tra giá trị, Rust chỉ lưu).
     pub reading_width: String,
+    /// Trang đọc đánh số từng đoạn ở tab Bản dịch và Gốc (số trùng nhãn [[n]] trong cảnh báo). Mặc định bật.
+    pub line_numbers: bool,
 }
 
 impl Default for AppConfig {
@@ -115,6 +117,7 @@ impl Default for AppConfig {
             palette: "editorial".to_string(),
             theme_mode: "system".to_string(),
             reading_width: "normal".to_string(),
+            line_numbers: true,
         }
     }
 }

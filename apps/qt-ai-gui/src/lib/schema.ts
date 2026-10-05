@@ -251,6 +251,8 @@ export const appConfigSchema = z.object({
   palette: z.string().default("editorial"),
   themeMode: z.string().default("system"),
   readingWidth: z.string().default("normal"),
+  /** Trang đọc đánh số từng đoạn ở tab Bản dịch và Gốc; mặc định bật. */
+  lineNumbers: z.boolean().default(true),
 });
 
 /** "builtin" = bản cứng trong binary; "file" = người dùng đã sửa ở Cài đặt → Bản mặc định. */

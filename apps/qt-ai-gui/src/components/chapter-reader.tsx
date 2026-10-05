@@ -4,6 +4,7 @@ import {
   ChevronRight,
   Copy,
   FolderOpen,
+  ListOrdered,
   Pencil,
   RotateCcw,
   Save,
@@ -11,7 +12,7 @@ import {
   SkipForward,
   Trash2,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { LogPanel } from "@/components/log-panel";
@@ -28,7 +29,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useReadingWidth } from "@/hooks/use-reading-width";
+import { useLineNumbers, useReadingWidth } from "@/hooks/use-reading-width";
 import {
   chapterForceAccept,
   chapterRetry,
@@ -41,12 +42,134 @@ import {
 } from "@/lib/api";
 import { describeDelete } from "@/lib/chapters";
 import { copyText } from "@/lib/clipboard";
-import { isReadingWidth, READING_WIDTH_LABELS, READING_WIDTHS } from "@/lib/reading";
+import {
+  countChars,
+  countWords,
+  hasHan,
+  isReadingWidth,
+  numberLines,
+  READING_WIDTH_LABELS,
+  READING_WIDTHS,
+  splitHan,
+} from "@/lib/reading";
 import { STATUS_LABELS, type ChapterRow, type ChapterStatus, type ChapterView } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { selectCurrentRunning, useStoryStore } from "@/store/story";
 
 const TAB_LABELS = { output: "bản dịch", draft: "nháp", review: "yêu cầu sửa", raw: "bản gốc" } as const;
+
+const COUNT_FORMAT = new Intl.NumberFormat("vi-VN");
+const RATIO_FORMAT = new Intl.NumberFormat("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/**
+ * Độ dài hai bản cạnh thanh tab. Gốc tiếng Trung đếm theo ký tự (mỗi chữ Hán một chữ); bản dịch đếm theo chữ
+ * (tiếng). Tooltip thêm số ký tự bản dịch và tỉ lệ ký tự dịch/gốc — con số harness so với ngưỡng "quá ngắn".
+ */
+function LengthStats({ raw, output }: { raw: string; output: string | null | undefined }) {
+  const rawChars = useMemo(() => countChars(raw), [raw]);
+  const translated = useMemo(
+    () => (output == null ? undefined : { words: countWords(output), chars: countChars(output) }),
+    [output],
+  );
+  const detail = [
+    `Gốc: ${COUNT_FORMAT.format(rawChars)} ký tự, không tính khoảng trắng.`,
+    translated
+      ? `Bản dịch: ${COUNT_FORMAT.format(translated.words)} chữ (${COUNT_FORMAT.format(translated.chars)} ký tự).`
+      : "",
+    translated && rawChars > 0 ? `Tỉ lệ ký tự dịch/gốc: ${RATIO_FORMAT.format(translated.chars / rawChars)}.` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  return (
+    <p className="text-xs text-muted-foreground tabular-nums" title={detail} aria-label="Độ dài chương">
+      Gốc {COUNT_FORMAT.format(rawChars)} chữ
+      {translated && <> · Dịch {COUNT_FORMAT.format(translated.words)} chữ</>}
+    </p>
+  );
+}
+
+/**
+ * Văn bản vẽ theo từng dòng. `numbers`: đánh số đoạn ở lề trái — số nằm ngoài vùng chọn (không dính vào khi bôi
+ * đen chép) và trùng nhãn [[n]] của harness, nên cảnh báo "[[12]] …" chỉ đúng dòng số 12 ở cả Bản dịch lẫn Gốc.
+ * `flagHan` (bản dịch): dòng còn sót chữ Hán được tô nền, riêng các chữ Hán tô đậm hơn, kèm thanh báo liệt kê
+ * số dòng ở đầu để nhảy tới — chương dài không phải cuộn dò.
+ */
+function ReadingText({ text, numbers, flagHan }: { text: string; numbers: boolean; flagHan: boolean }) {
+  const lines = useMemo(() => numberLines(text), [text]);
+  const body = useRef<HTMLDivElement>(null);
+  const flagged = flagHan ? lines.filter((line) => line.n !== undefined && hasHan(line.text)) : [];
+  return (
+    <>
+      {flagged.length > 0 && (
+        <div
+          role="alert"
+          className="mb-4 flex flex-wrap items-center gap-1.5 rounded-md border border-status-error/40 bg-status-error/10 px-3 py-2 font-sans text-sm text-status-error"
+        >
+          <AlertTriangle className="size-4 shrink-0" aria-hidden />
+          <span>{flagged.length} dòng còn sót chữ Hán:</span>
+          {flagged.map((line) => (
+            <button
+              key={line.n}
+              type="button"
+              aria-label={`Tới dòng ${line.n}`}
+              onClick={() => body.current?.querySelector(`[data-line="${line.n}"]`)?.scrollIntoView?.({ block: "center" })}
+              className="rounded border border-status-error/40 px-1.5 font-mono text-xs tabular-nums hover:bg-status-error/15"
+            >
+              {line.n}
+            </button>
+          ))}
+        </div>
+      )}
+      <div
+        ref={body}
+        // items-baseline: số ở lề (cỡ chữ nhỏ hơn) nằm cùng đường chân chữ với dòng đầu của đoạn.
+        className={cn("grid items-baseline gap-x-4", numbers ? "grid-cols-[auto_minmax(0,1fr)]" : "grid-cols-1")}
+        data-testid="reading-text"
+      >
+        {lines.map((line, index) => {
+          const han = flagHan && hasHan(line.text);
+          return (
+            // Dòng trống giữ nguyên để khoảng cách đoạn giống hệt bản <pre>.
+            <div key={index} className="contents">
+              {numbers && (
+                <span
+                  aria-hidden
+                  className={cn(
+                    "text-right font-mono text-[0.7em] tabular-nums select-none",
+                    han ? "font-semibold text-status-error" : "text-muted-foreground",
+                  )}
+                >
+                  {line.n ?? ""}
+                </span>
+              )}
+              <span
+                data-line={line.n}
+                data-han={han || undefined}
+                className={cn("whitespace-pre-wrap", han && "rounded bg-status-error/10 outline outline-status-error/30")}
+              >
+                {line.text === "" ? (
+                  <br />
+                ) : han ? (
+                  splitHan(line.text).map((part, at) =>
+                    part.han ? (
+                      <mark key={at} className="rounded bg-status-error/25 px-0.5 font-semibold text-status-error">
+                        {part.text}
+                      </mark>
+                    ) : (
+                      part.text
+                    ),
+                  )
+                ) : (
+                  line.text
+                )}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
+}
 
 const STATUS_TONE: Record<ChapterStatus, string> = {
   queued: "bg-status-queued/30 text-foreground",
@@ -71,6 +194,7 @@ export function ChapterReader({ root, row, ordinal, hasPrev, hasNext, onPrev, on
   const running = useStoryStore(selectCurrentRunning);
   const setSnapshot = useStoryStore((s) => s.setSnapshot);
   const { width, setWidth } = useReadingWidth();
+  const { lineNumbers, setLineNumbers } = useLineNumbers();
   // View gắn key theo (chương, trạng thái, vòng soát): đổi chương → key lệch → hiện "Đang đọc…"
   // mà không cần reset state đồng bộ trong effect.
   const viewKey = `${root}|${row.id}|${row.status}|${row.reviewRound}`;
@@ -230,18 +354,30 @@ export function ChapterReader({ root, row, ordinal, hasPrev, hasNext, onPrev, on
             <TabsTrigger value="raw">Gốc</TabsTrigger>
             <TabsTrigger value="log">Log</TabsTrigger>
           </TabsList>
-          <Select value={width} onValueChange={(v) => isReadingWidth(v) && void setWidth(v)}>
-            <SelectTrigger size="sm" className="mb-1 w-32" aria-label="Chiều ngang văn bản">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {READING_WIDTHS.map((item) => (
-                <SelectItem key={item} value={item}>
-                  {READING_WIDTH_LABELS[item]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="mb-1 flex items-center gap-2">
+            {view && !view.rawMissing && <LengthStats raw={view.raw} output={view.output} />}
+            <Button
+              size="sm"
+              variant={lineNumbers ? "secondary" : "ghost"}
+              aria-pressed={lineNumbers}
+              title="Đánh số từng đoạn ở tab Bản dịch và Gốc — số trùng với nhãn [[n]] trong cảnh báo và yêu cầu sửa"
+              onClick={() => void setLineNumbers(!lineNumbers)}
+            >
+              <ListOrdered /> Số dòng
+            </Button>
+            <Select value={width} onValueChange={(v) => isReadingWidth(v) && void setWidth(v)}>
+              <SelectTrigger size="sm" className="w-32" aria-label="Chiều ngang văn bản">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {READING_WIDTHS.map((item) => (
+                  <SelectItem key={item} value={item}>
+                    {READING_WIDTH_LABELS[item]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         {(["output", "draft", "review", "raw"] as const).map((key) => (
           <TabsContent key={key} value={key} className="fine-scrollbar min-h-0 flex-1 overflow-y-auto">
@@ -294,6 +430,11 @@ export function ChapterReader({ root, row, ordinal, hasPrev, hasNext, onPrev, on
                   disabled={saving}
                   className="min-h-[60vh] resize-y font-[inherit] text-[length:inherit] leading-[inherit]"
                 />
+              ) : view && key === "output" ? (
+                // Bản dịch luôn vẽ theo dòng để tô được dòng sót chữ Hán, bật hay tắt số dòng cũng vậy.
+                <ReadingText text={view.output ?? ""} numbers={lineNumbers} flagHan />
+              ) : view && key === "raw" && lineNumbers && !view.rawMissing ? (
+                <ReadingText text={view.raw} numbers flagHan={false} />
               ) : (
                 <pre className="font-[inherit] whitespace-pre-wrap">
                   {view

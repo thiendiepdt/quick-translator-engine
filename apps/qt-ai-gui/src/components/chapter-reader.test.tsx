@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ChapterReader } from "@/components/chapter-reader";
-import { chapterRetry, chaptersDelete, readChapter, saveChapterOutput, storySnapshot } from "@/lib/api";
+import { appConfigSet, chapterRetry, chaptersDelete, readChapter, saveChapterOutput, storySnapshot } from "@/lib/api";
 import { appConfigSchema } from "@/lib/schema";
 import { useStoryStore } from "@/store/story";
 
@@ -155,6 +155,95 @@ describe("ChapterReader", () => {
     expect(await screen.findByText("Bản người sửa.")).toBeInTheDocument();
     expect(screen.queryByRole("textbox", { name: "Bản dịch đang sửa" })).not.toBeInTheDocument();
   }, 15000);
+
+  it("nút Số dòng bật/tắt đánh số đoạn ở Bản dịch và Gốc, lưu vào AppConfig; số không lẫn vào nội dung chép", async () => {
+    vi.mocked(readChapter).mockResolvedValueOnce({
+      id: "0002",
+      status: "done",
+      raw: "第1章 甲\n\n二。\n三。",
+      rawMissing: false,
+      output: "Chương 1: A\n\nĐoạn hai.\n\nĐoạn ba.\n",
+      draft: "[[1]] nháp",
+      review: null,
+      warnings: [],
+      reason: null,
+    });
+    // Config mới (hoặc config cũ chưa có trường này) mặc định bật; ở đây tắt trước để thử cả hai chiều.
+    expect(config.lineNumbers).toBe(true);
+    useStoryStore.setState({ config: { ...config, lineNumbers: false } });
+    const user = userEvent.setup();
+    const writeText = vi.fn(() => Promise.resolve());
+    vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
+    render(<ChapterReader root={ROOT} row={row} hasPrev hasNext onPrev={vi.fn()} onNext={vi.fn()} />);
+    await waitFor(() => expect(screen.getByText(/Đoạn hai\./)).toBeInTheDocument());
+    const toggle = screen.getByRole("button", { name: "Số dòng" });
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByTestId("reading-text").querySelectorAll("[aria-hidden]")).toHaveLength(0);
+
+    await user.click(toggle);
+    await waitFor(() => expect(appConfigSet).toHaveBeenLastCalledWith(expect.objectContaining({ lineNumbers: true })));
+    expect(useStoryStore.getState().config?.lineNumbers).toBe(true);
+    expect(screen.getByRole("button", { name: "Số dòng" })).toHaveAttribute("aria-pressed", "true");
+    const gutter = (panel: HTMLElement) =>
+      [...panel.querySelectorAll("[aria-hidden]")].map((cell) => cell.textContent).filter((text) => text !== "");
+    const output = screen.getByTestId("reading-text");
+    expect(gutter(output)).toEqual(["1", "2", "3"]);
+    expect(within(output).getByText("Đoạn ba.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Chép bản dịch" }));
+    expect(writeText).toHaveBeenCalledWith("Chương 1: A\n\nĐoạn hai.\n\nĐoạn ba.\n");
+
+    // Gốc: cùng cách đếm nên dòng 3 của gốc ứng với dòng 3 của bản dịch. Nháp đã có nhãn [[n]] nên không đánh số.
+    await user.click(screen.getByRole("tab", { name: "Gốc" }));
+    expect(gutter(screen.getByTestId("reading-text"))).toEqual(["1", "2", "3"]);
+    expect(within(screen.getByTestId("reading-text")).getByText("三。")).toBeInTheDocument();
+    // Gốc toàn chữ Hán: không tô, không báo.
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Nháp" }));
+    expect(screen.queryByTestId("reading-text")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Số dòng" }));
+    await waitFor(() => expect(useStoryStore.getState().config?.lineNumbers).toBe(false));
+    vi.unstubAllGlobals();
+  });
+
+  it("bản dịch còn sót chữ Hán: tô dòng + tô riêng chữ Hán, thanh báo liệt kê số dòng; tắt số dòng vẫn tô", async () => {
+    vi.mocked(readChapter).mockResolvedValueOnce({
+      id: "0002",
+      status: "done",
+      raw: "第1章 甲\n\n二。\n\n三。\n\n四。",
+      rawMissing: false,
+      output: "Chương 1: A\n\nNàng nói: 好的, đi thôi.\n\n【Hệ thống】 Đoạn sạch.\n\n魔法 mở đầu.\n",
+      draft: null,
+      review: null,
+      warnings: [],
+      reason: null,
+    });
+    const user = userEvent.setup();
+    render(<ChapterReader root={ROOT} row={row} hasPrev hasNext onPrev={vi.fn()} onNext={vi.fn()} />);
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("2 dòng còn sót chữ Hán:");
+    // Độ dài: gốc đếm ký tự không khoảng trắng, bản dịch đếm chữ; tooltip có số ký tự và tỉ lệ dịch/gốc.
+    const stats = screen.getByLabelText("Độ dài chương");
+    expect(stats).toHaveTextContent("Gốc 10 chữ · Dịch 15 chữ");
+    expect(stats).toHaveAttribute(
+      "title",
+      "Gốc: 10 ký tự, không tính khoảng trắng. Bản dịch: 15 chữ (53 ký tự). Tỉ lệ ký tự dịch/gốc: 5,30.",
+    );
+    expect(within(alert).getAllByRole("button").map((button) => button.textContent)).toEqual(["2", "4"]);
+    const body = screen.getByTestId("reading-text");
+    const flagged = [...body.querySelectorAll("[data-han]")];
+    expect(flagged.map((line) => line.getAttribute("data-line"))).toEqual(["2", "4"]);
+    expect([...body.querySelectorAll("mark")].map((mark) => mark.textContent)).toEqual(["好的", "魔法"]);
+    // Dòng sạch (kể cả có ngoặc 【】) không bị tô; nội dung dòng bị tô vẫn nguyên chữ.
+    expect(body.querySelector('[data-line="3"]')).not.toHaveAttribute("data-han");
+    expect(body.querySelector('[data-line="2"]')).toHaveTextContent("Nàng nói: 好的, đi thôi.");
+    await user.click(within(alert).getByRole("button", { name: "Tới dòng 4" }));
+
+    await user.click(screen.getByRole("button", { name: "Số dòng" }));
+    await waitFor(() => expect(useStoryStore.getState().config?.lineNumbers).toBe(false));
+    expect(screen.getByTestId("reading-text").querySelectorAll("[data-han]")).toHaveLength(2);
+    expect(screen.getByRole("alert")).toHaveTextContent("2 dòng còn sót chữ Hán:");
+  });
 
   it("nút Chép đưa nội dung tab hiện tại vào clipboard", async () => {
     const user = userEvent.setup();

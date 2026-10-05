@@ -165,6 +165,7 @@ describe("openStory/closeStory", () => {
       palette: "editorial",
       themeMode: "system",
       readingWidth: "normal",
+      lineNumbers: false,
     };
     useStoryStore.getState().setConfig(config);
     useStoryStore.getState().openStory(snapshot);

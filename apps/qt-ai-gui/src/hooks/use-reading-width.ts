@@ -19,3 +19,19 @@ export function useReadingWidth() {
   }
   return { width, setWidth };
 }
+
+/** Bật/tắt đánh số đoạn ở trang đọc (mặc định bật), lưu trong AppConfig như chiều ngang. */
+export function useLineNumbers() {
+  const config = useStoryStore((s) => s.config);
+  const setConfig = useStoryStore((s) => s.setConfig);
+  const lineNumbers = config?.lineNumbers ?? true;
+  async function setLineNumbers(next: boolean) {
+    if (!config || next === lineNumbers) return;
+    try {
+      setConfig(await appConfigSet({ ...config, lineNumbers: next }));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Không lưu được tuỳ chọn số dòng");
+    }
+  }
+  return { lineNumbers, setLineNumbers };
+}
