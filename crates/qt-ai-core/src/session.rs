@@ -1,6 +1,7 @@
 //! Runner phiên agy — port auto-translate.ps1: mỗi phiên `agy -p` là một context sạch; poll state.json
 //! để báo tiến độ; cầu dao hết queue / không tiến độ / agy lỗi 2 lần / max phiên; cancel giết process tree.
 
+use crate::agy_data::{clean, Scope, APP_PROMPT_MARK};
 use crate::commands::status::count_chapters;
 use crate::error::{CoreError, Result};
 use crate::story_fs::{load_state, now_ms, story_paths, ChapterStatus};
@@ -90,6 +91,9 @@ pub struct SessionConfig {
     /// Folder chứa binary `qt-ai` — chèn đầu PATH của agy để AGENTS.md chỉ cần ghi `qt-ai` trần,
     /// folder truyện mang sang máy khác vẫn chạy.
     pub extra_path: Option<PathBuf>,
+    /// Thư mục dữ liệu của agy (`agy_data::default_data_dir`) — có thì hội thoại agy của truyện này bị xoá
+    /// ngay sau mỗi lượt chạy; None = không đụng tới.
+    pub agy_data_dir: Option<PathBuf>,
 }
 
 /// PATH hiện tại với `dir` chèn lên đầu.
@@ -105,7 +109,7 @@ pub type Sink = Arc<dyn Fn(SessionEvent) + Send + Sync>;
 pub fn build_translate_prompt(root: &Path) -> String {
     let workflow = root.join(".agent").join("workflows").join("translate.md");
     format!(
-        "Mở file {} (đường dẫn tuyệt đối, tồn tại sẵn, KHÔNG cần tìm kiếm) rồi làm đúng theo nó: dịch tới khi chạm giới hạn chương/phiên hoặc hết hàng đợi thì dừng. Thư mục truyện: {}",
+        "Mở file {}{APP_PROMPT_MARK}: dịch tới khi chạm giới hạn chương/phiên hoặc hết hàng đợi thì dừng. Thư mục truyện: {}",
         workflow.display(),
         root.display()
     )
@@ -237,6 +241,21 @@ fn run_child(
     Ok(code)
 }
 
+/// Mỗi lượt `agy -p` để lại một hội thoại vài MB trong thư mục dữ liệu của agy và agy không tự xoá — dọn hội
+/// thoại của truyện này ngay khi agy thoát. Dọn không được thì thôi, không phải lý do dừng dịch.
+fn sweep_conversations(config: &SessionConfig, sink: &Sink) {
+    let Some(data_dir) = &config.agy_data_dir else { return };
+    let report = clean(data_dir, Scope::Story(&config.root));
+    if report.removed > 0 {
+        let line = format!(
+            "[qt-ai] Đã dọn {} hội thoại agy của truyện này ({:.1} MB).",
+            report.removed,
+            report.freed_bytes as f64 / 1_048_576.0
+        );
+        sink(SessionEvent::AgyLog { line, stream: LogStream::Stdout });
+    }
+}
+
 /// Một lượt agy đồng bộ với prompt tuỳ ý (dùng cho "AI điền hồ sơ"). Trả exit code của agy.
 /// `run_child` cần `Sink` (Arc + Send) vì thread đọc stdout/stderr; gom event qua channel rồi
 /// phát lại cho `sink` của caller sau khi lượt chạy xong.
@@ -245,7 +264,9 @@ pub fn run_once(config: &SessionConfig, prompt: &str, sink: &dyn Fn(SessionEvent
     let forward: Sink = Arc::new(move |event| {
         let _ = tx.send(event);
     });
-    let code = run_child(config, prompt, &forward, None, None)?;
+    let code = run_child(config, prompt, &forward, None, None);
+    sweep_conversations(config, &forward);
+    let code = code?;
     drop(forward); // đóng channel để vòng for dưới kết thúc
     for event in rx {
         sink(event);
@@ -294,7 +315,9 @@ fn session_loop(config: SessionConfig, sink: Sink, cancel: Arc<AtomicBool>) -> S
         }
         sink(SessionEvent::Started { session_no });
         let prompt = build_translate_prompt(&config.root);
-        let code = match run_child(&config, &prompt, &sink, Some(&cancel), Some(&child_slot)) {
+        let outcome = run_child(&config, &prompt, &sink, Some(&cancel), Some(&child_slot));
+        sweep_conversations(&config, &sink);
+        let code = match outcome {
             Ok(Some(code)) => code,
             Ok(None) => return StopReason::UserCancelled,
             Err(e) => return StopReason::Internal { message: e.to_string() },

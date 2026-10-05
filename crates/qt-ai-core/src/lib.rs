@@ -11,6 +11,7 @@ pub mod story_fs;
 pub mod templates;
 pub mod commands;
 pub mod agy;
+pub mod agy_data;
 pub mod process;
 pub mod session;
 pub mod api;

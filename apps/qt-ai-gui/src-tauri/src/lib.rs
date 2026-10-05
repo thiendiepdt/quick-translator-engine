@@ -87,6 +87,8 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             agy_cmds::agy_status,
+            agy_cmds::agy_data_stats,
+            agy_cmds::agy_data_clean,
             agy_cmds::app_config_get,
             agy_cmds::app_config_set,
             base_cmds::base_get,
@@ -176,6 +178,8 @@ mod tests {
         .join("\n");
         let heavy = [
             "agy_status",
+            "agy_data_stats",
+            "agy_data_clean",
             "base_get",
             "base_save",
             "base_reset",

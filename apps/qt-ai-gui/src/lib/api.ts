@@ -11,6 +11,8 @@ import {
   chapterViewSchema,
   exportOutcomeSchema,
   harnessSettingsSchema,
+  agyDataCleanedSchema,
+  agyDataStatsSchema,
   importOutcomeSchema,
   libraryRescanSchema,
   recentSummarySchema,
@@ -122,6 +124,10 @@ export const baseReset = (kind: BaseKind, setting: GenreSetting, names?: GenreNa
   call("base_reset", { kind, setting, names }, (v) => baseViewSchema.parse(v));
 export const agyStatus = (configured?: string) =>
   call("agy_status", { configured: configured ?? null }, (v) => agyStatusSchema.parse(v));
+/** Đếm hội thoại agy do app sinh ra đang nằm trên đĩa (vài trăm cái thì mất vài giây). */
+export const agyDataStats = () => call("agy_data_stats", undefined, (v) => agyDataStatsSchema.parse(v));
+/** Xoá hội thoại agy do app sinh ra; truyện đang dịch và hội thoại vừa ghi được giữ lại. */
+export const agyDataClean = () => call("agy_data_clean", undefined, (v) => agyDataCleanedSchema.parse(v));
 export const appConfigGet = () => call("app_config_get", undefined, (v) => appConfigSchema.parse(v));
 export const appConfigSet = (config: AppConfig) =>
   call("app_config_set", { config }, (v) => appConfigSchema.parse(v));

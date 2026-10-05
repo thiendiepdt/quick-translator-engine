@@ -22,6 +22,7 @@ import {
   type harnessSettingsSchema,
   type progressSchema,
   type recentSummarySchema,
+  type agyDataStatsSchema,
   type importOutcomeSchema,
   type sessionEventSchema,
   type stopReasonSchema,
@@ -93,6 +94,7 @@ export type ExportOutcome = z.infer<typeof exportOutcomeSchema>;
 export type RetryRangeOutcome = z.infer<typeof retryRangeOutcomeSchema>;
 export type DeleteOutcome = z.infer<typeof deleteOutcomeSchema>;
 export type RecentSummary = z.infer<typeof recentSummarySchema>;
+export type AgyDataStats = z.infer<typeof agyDataStatsSchema>;
 export type ImportOutcome = z.infer<typeof importOutcomeSchema>;
 
 export const GLOSSARY_LABELS: Record<GlossaryKey, string> = {

@@ -25,6 +25,7 @@ fn config(root: &Path) -> SessionConfig {
         max_sessions: 50,
         poll_interval: Duration::from_millis(50),
         extra_path: None,
+        agy_data_dir: None,
     }
 }
 

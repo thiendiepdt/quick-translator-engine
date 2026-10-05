@@ -2,6 +2,7 @@ use crate::app_config::AppConfig;
 use crate::error::{blocking, CmdResult};
 use crate::AppState;
 use qt_ai_core::agy::{agy_models, agy_version, find_agy};
+use qt_ai_core::agy_data::{self, CleanReport, DataStats, Scope};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager, Runtime, State};
@@ -36,6 +37,53 @@ pub async fn agy_status<R: Runtime>(app: AppHandle<R>, configured: Option<String
         let from_config = state.config.lock().unwrap().agy_path.clone();
         let chosen = configured.or(from_config);
         Ok(probe_agy(chosen.as_deref().map(Path::new)))
+    })
+    .await
+}
+
+/// Hội thoại agy đang nằm trên đĩa. `data_dir` None = máy chưa từng chạy agy CLI.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AgyDataStats {
+    pub data_dir: Option<String>,
+    #[serde(flatten)]
+    pub stats: DataStats,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AgyDataCleaned {
+    #[serde(flatten)]
+    pub report: CleanReport,
+    /// Số liệu sau khi dọn.
+    pub stats: AgyDataStats,
+}
+
+fn data_stats() -> AgyDataStats {
+    match agy_data::default_data_dir() {
+        Some(dir) => AgyDataStats { stats: agy_data::stats(&dir), data_dir: Some(dir.display().to_string()) },
+        None => AgyDataStats { data_dir: None, stats: DataStats::default() },
+    }
+}
+
+/// Đếm hội thoại agy do app sinh ra (và phần còn lại) — mở từng file hội thoại nên vài trăm cái mất vài giây.
+#[tauri::command]
+pub async fn agy_data_stats() -> CmdResult<AgyDataStats> {
+    blocking(|| Ok(data_stats())).await
+}
+
+/// Xoá hội thoại agy do app sinh ra, trừ của truyện đang có phiên chạy và hội thoại vừa ghi (xem
+/// `agy_data::Scope::All`). Phiên dịch tự dọn truyện của nó sau mỗi lượt; lệnh này dọn phần tồn từ trước.
+#[tauri::command]
+pub async fn agy_data_clean<R: Runtime>(app: AppHandle<R>) -> CmdResult<AgyDataCleaned> {
+    blocking(move || {
+        let state = app.state::<AppState>();
+        let busy_roots: Vec<PathBuf> = state.sessions.lock().unwrap().running_roots().into_iter().map(PathBuf::from).collect();
+        let report = match agy_data::default_data_dir() {
+            Some(dir) => agy_data::clean(&dir, Scope::All { busy_roots: &busy_roots }),
+            None => CleanReport::default(),
+        };
+        Ok(AgyDataCleaned { report, stats: data_stats() })
     })
     .await
 }

@@ -49,6 +49,7 @@ pub fn session_config(root: &Path, agy: PathBuf, model: Option<String>, max_sess
         max_sessions,
         poll_interval: Duration::from_secs(2),
         extra_path: qt_ai_dir(),
+        agy_data_dir: qt_ai_core::agy_data::default_data_dir(),
     }
 }
 
@@ -138,8 +139,9 @@ pub async fn session_stop<R: Runtime>(app: AppHandle<R>, root: String) -> CmdRes
 pub fn build_setup_prompt(root: &Path, name: &str, source_url: &str) -> String {
     let workflow = root.join(".agent").join("workflows").join("setup-story.md");
     format!(
-        "Mở file {} (đường dẫn tuyệt đối, tồn tại sẵn, KHÔNG cần tìm kiếm) rồi làm đúng theo nó với input: tên truyện tiếng Việt = \"{}\", link truyện tiếng Trung = \"{}\". KHÔNG hỏi lại người dùng; ghi kết quả thẳng vào story.json trong thư mục truyện {} (bỏ bước trình duyệt — giao diện sẽ hiện diff cho người dùng duyệt).",
+        "Mở file {}{} với input: tên truyện tiếng Việt = \"{}\", link truyện tiếng Trung = \"{}\". KHÔNG hỏi lại người dùng; ghi kết quả thẳng vào story.json trong thư mục truyện {} (bỏ bước trình duyệt — giao diện sẽ hiện diff cho người dùng duyệt).",
         workflow.display(),
+        qt_ai_core::agy_data::APP_PROMPT_MARK,
         name,
         source_url,
         root.display()

@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { BookA, FileText, FolderSearch, ListChecks } from "lucide-react";
+import { BookA, FileText, FolderSearch, ListChecks, LoaderCircle, Trash2 } from "lucide-react";
 import { useEffect, useState, type ComponentProps, type ReactNode } from "react";
 import { useForm, type FieldPath, type FieldPathValue, type UseFormReturn } from "react-hook-form";
 import { toast } from "sonner";
@@ -16,12 +16,28 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useReadingWidth } from "@/hooks/use-reading-width";
 import { useThemeActions } from "@/hooks/use-theme";
-import { agyStatus, appConfigSet, pickAgyFile, pickFolder, saveSettings, storySnapshot } from "@/lib/api";
+import {
+  agyDataClean,
+  agyDataStats,
+  agyStatus,
+  appConfigSet,
+  pickAgyFile,
+  pickFolder,
+  saveSettings,
+  storySnapshot,
+} from "@/lib/api";
 import { apiSettingsFromForm, engineFormFromConfig, engineFormSchema } from "@/lib/engine-form";
 import { READING_WIDTH_LABELS, READING_WIDTHS } from "@/lib/reading";
 import { DEFAULT_API_MODELS, GEMINI_EFFORTS, OPENAI_EFFORTS } from "@/lib/schema";
 import { THEME_MODE_LABELS, THEME_MODES } from "@/lib/theme";
-import { API_PROVIDER_LABELS, ENGINE_LABELS, type ApiProvider, type BaseKind, type Engine } from "@/lib/types";
+import {
+  API_PROVIDER_LABELS,
+  ENGINE_LABELS,
+  type AgyDataStats,
+  type ApiProvider,
+  type BaseKind,
+  type Engine,
+} from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { selectCurrentRunning, useStoryStore } from "@/store/story";
 
@@ -163,6 +179,99 @@ function EngineCard({ form, running }: { form: UseFormReturn<SettingsForm>; runn
             </>
           )}
         </div>
+      )}
+    </Card>
+  );
+}
+
+const SIZE_FORMAT = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 });
+function formatSize(bytes: number): string {
+  const mb = bytes / (1024 * 1024);
+  return mb >= 1024 ? `${SIZE_FORMAT.format(mb / 1024)} GB` : `${SIZE_FORMAT.format(mb)} MB`;
+}
+
+/**
+ * Card "Hội thoại agy": mỗi lượt `agy -p` để lại một hội thoại vài MB trong thư mục dữ liệu của agy và agy
+ * không tự xoá. Phiên dịch tự dọn hội thoại của truyện nó sau mỗi lượt; card này cho thấy còn tồn bao nhiêu
+ * và dọn phần tồn từ trước. Đo mất vài giây khi có vài trăm hội thoại nên chạy sau khi trang đã hiện.
+ */
+function AgyDataCard() {
+  const [stats, setStats] = useState<AgyDataStats | undefined>();
+  const [failed, setFailed] = useState(false);
+  const [cleaning, setCleaning] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    agyDataStats()
+      .then((next) => {
+        if (!cancelled) setStats(next);
+      })
+      .catch(() => {
+        if (!cancelled) setFailed(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function clean() {
+    setCleaning(true);
+    try {
+      const result = await agyDataClean();
+      setStats(result.stats);
+      const kept = result.kept > 0 ? `; giữ lại ${result.kept} hội thoại của truyện đang dịch hoặc vừa ghi xong` : "";
+      if (result.removed > 0) {
+        toast.success(`Đã xoá ${result.removed} hội thoại agy, lấy lại ${formatSize(result.freedBytes)}${kept}`);
+      } else {
+        toast.message(`Chưa xoá được hội thoại nào${kept}`);
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Không dọn được hội thoại agy");
+    } finally {
+      setCleaning(false);
+    }
+  }
+
+  return (
+    <Card
+      title="Hội thoại agy"
+      description="Mỗi lượt dịch bằng agy để lại một hội thoại vài MB trong thư mục dữ liệu của agy. App tự xoá hội thoại của truyện sau mỗi lượt; nút dưới dọn phần tồn từ trước."
+    >
+      {failed ? (
+        <p className="text-sm text-destructive">Không đo được thư mục dữ liệu của agy.</p>
+      ) : !stats ? (
+        <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
+          <LoaderCircle className="size-4 animate-spin" /> Đang đo hội thoại agy…
+        </p>
+      ) : stats.dataDir === null ? (
+        <p className="text-sm text-muted-foreground">Máy này chưa có dữ liệu agy CLI.</p>
+      ) : (
+        <>
+          <div className="flex items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm">
+                Do app sinh ra: <span className="font-medium tabular-nums">{stats.appCount}</span> hội thoại ·{" "}
+                <span className="font-medium tabular-nums">{formatSize(stats.appBytes)}</span>
+              </p>
+              <p className="truncate font-mono text-xs text-muted-foreground" title={stats.dataDir}>
+                {stats.dataDir}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={cleaning || stats.appCount === 0}
+              onClick={() => void clean()}
+            >
+              {cleaning ? <LoaderCircle className="animate-spin" /> : <Trash2 />} Dọn hội thoại của app
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Hội thoại bạn tự chat bằng agy ({stats.otherCount} · {formatSize(stats.otherBytes)}) không bao giờ bị xoá.
+            Hội thoại của truyện đang dịch và hội thoại ghi trong 10 phút gần đây được giữ lại.
+          </p>
+        </>
       )}
     </Card>
   );
@@ -341,6 +450,7 @@ export function SettingsPage() {
               File nằm trong thư mục cấu hình app, mục <code>base/</code>. Về mặc định = xoá file.
             </p>
           </Card>
+          <AgyDataCard />
           <form id={FORM_ID} onSubmit={(e) => void submit(e)} className="flex flex-col gap-6">
             <EngineCard form={form} running={running} />
             <Card title="App" description="Giới hạn phiên chung; đường dẫn agy và model chỉ dùng khi động cơ là agy.">

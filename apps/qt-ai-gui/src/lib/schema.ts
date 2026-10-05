@@ -149,6 +149,21 @@ export const agyStatusSchema = z.object({
   message: z.string().nullable(),
 });
 
+/** Hội thoại agy trên đĩa (Rust `agy_data_stats`). `dataDir` null = máy chưa từng chạy agy CLI. */
+export const agyDataStatsSchema = z.object({
+  dataDir: z.string().nullable(),
+  appCount: z.number(),
+  appBytes: z.number(),
+  otherCount: z.number(),
+  otherBytes: z.number(),
+});
+export const agyDataCleanedSchema = z.object({
+  removed: z.number(),
+  freedBytes: z.number(),
+  kept: z.number(),
+  stats: agyDataStatsSchema,
+});
+
 export const engineSchema = z.enum(["agy", "api"]);
 export const apiProviderSchema = z.enum(["gemini", "openai"]);
 

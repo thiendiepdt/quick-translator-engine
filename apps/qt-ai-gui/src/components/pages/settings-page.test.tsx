@@ -3,11 +3,16 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SettingsPage } from "@/components/pages/settings-page";
-import { appConfigSet, baseGet } from "@/lib/api";
+import { agyDataClean, agyDataStats, appConfigSet, baseGet } from "@/lib/api";
 import { appConfigSchema, storySnapshotSchema } from "@/lib/schema";
 import { useStoryStore } from "@/store/story";
 
+vi.mock("sonner", () => ({ toast: { message: vi.fn(), success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/lib/api", () => ({
+  agyDataClean: vi.fn(),
+  agyDataStats: vi.fn(() =>
+    Promise.resolve({ dataDir: null, appCount: 0, appBytes: 0, otherCount: 0, otherBytes: 0 }),
+  ),
   agyStatus: vi.fn(),
   appConfigSet: vi.fn((config: unknown) => Promise.resolve(config)),
   baseGet: vi.fn(),
@@ -141,5 +146,61 @@ describe("SettingsPage · Động cơ dịch", () => {
     expect(screen.getByLabelText("API key")).toHaveValue("sk-hub");
     expect(screen.getByLabelText("Model")).toHaveValue("gemini-3.7-flash");
     expect(screen.getByLabelText("Base URL")).toHaveValue("http://192.0.2.10/v1");
+  });
+});
+
+describe("SettingsPage · Hội thoại agy", () => {
+  const GB = 1024 * 1024 * 1024;
+  const before = {
+    dataDir: "C:\\Users\\x\\.gemini\\antigravity-cli",
+    appCount: 518,
+    appBytes: 3.5 * GB,
+    otherCount: 2,
+    otherBytes: 12 * 1024 * 1024,
+  };
+
+  beforeEach(() => {
+    useStoryStore.setState({ root: snapshot.root, snapshot, config, sessions: {} });
+    vi.mocked(agyDataClean).mockReset();
+  });
+
+  it("hiện số hội thoại app sinh ra + dung lượng; bấm dọn thì gọi lệnh, báo kết quả và cập nhật số", async () => {
+    vi.mocked(agyDataStats).mockResolvedValue(before);
+    vi.mocked(agyDataClean).mockResolvedValue({
+      removed: 515,
+      freedBytes: 3.4 * GB,
+      kept: 3,
+      stats: { ...before, appCount: 3, appBytes: 0.1 * GB },
+    });
+    const { toast } = await import("sonner");
+    const user = userEvent.setup();
+    render(<SettingsPage />);
+    expect(screen.getByText(/Đang đo hội thoại agy/)).toBeInTheDocument();
+    expect(await screen.findByText("518")).toBeInTheDocument();
+    expect(screen.getByText("3,5 GB")).toBeInTheDocument();
+    expect(screen.getByText(/Hội thoại bạn tự chat bằng agy \(2 · 12 MB\) không bao giờ bị xoá/)).toBeInTheDocument();
+    expect(agyDataClean).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Dọn hội thoại của app" }));
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenLastCalledWith(
+        "Đã xoá 515 hội thoại agy, lấy lại 3,4 GB; giữ lại 3 hội thoại của truyện đang dịch hoặc vừa ghi xong",
+      ),
+    );
+    expect(agyDataClean).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("102,4 MB")).toBeInTheDocument();
+    expect(screen.queryByText("518")).not.toBeInTheDocument();
+  });
+
+  it("không còn hội thoại nào của app thì nút dọn tắt; máy chưa có agy thì nói rõ", async () => {
+    vi.mocked(agyDataStats).mockResolvedValue({ ...before, appCount: 0, appBytes: 0 });
+    const { unmount } = render(<SettingsPage />);
+    expect(await screen.findByRole("button", { name: "Dọn hội thoại của app" })).toBeDisabled();
+    unmount();
+
+    vi.mocked(agyDataStats).mockResolvedValue({ dataDir: null, appCount: 0, appBytes: 0, otherCount: 0, otherBytes: 0 });
+    render(<SettingsPage />);
+    expect(await screen.findByText("Máy này chưa có dữ liệu agy CLI.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Dọn hội thoại của app" })).not.toBeInTheDocument();
   });
 });
