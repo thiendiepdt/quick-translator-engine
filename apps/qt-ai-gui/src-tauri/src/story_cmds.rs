@@ -13,7 +13,7 @@ use qt_ai_core::commands::status::count_chapters;
 use qt_ai_core::prompt::prompt_suffix;
 use qt_ai_core::story::{natural_chapter_compare, CheckRule, StoryConfig, StoryGenre};
 use qt_ai_core::story_fs::{
-    load_state, load_story_config, read_raw_chapter, read_text, save_state, save_story_config, story_paths, write_text,
+    load_state, load_story_config, read_raw_chapter, read_text, save_state, save_story_config, story_paths, write_atomic,
     work_file, HarnessSettings, WorkKind,
 };
 use serde::Serialize;
@@ -205,7 +205,7 @@ pub fn save_chapter_output_inner(root: &Path, id: &str, text: &str) -> CmdResult
     if !out.is_file() {
         return Err(CommandError::new("invalid_state", format!("Chương {id} chưa có bản dịch trong out/ để sửa.")));
     }
-    Ok(write_text(&out, text)?)
+    Ok(write_atomic(&out, text)?)
 }
 
 pub fn save_story_inner(root: &Path, story: Value) -> CmdResult<StoryConfig> {

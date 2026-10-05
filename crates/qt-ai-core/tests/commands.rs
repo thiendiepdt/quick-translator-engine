@@ -101,6 +101,46 @@ fn story_fs_state_round_trip_va_validate() {
 }
 
 #[test]
+fn story_fs_state_hong_tu_dung_lai_tu_raw_va_out() {
+    let dir = make_story_dir(&[("1", "一"), ("2", "二"), ("3", "三"), ("10", "十")]);
+    let paths = story_paths(dir.path());
+    fs::create_dir_all(&paths.out_dir).unwrap();
+    fs::write(paths.out_dir.join("1.txt"), "Chương một.\n").unwrap();
+    // Mất điện lúc đang ghi: file đủ kích thước nhưng toàn byte 0 — không tính là đã dịch.
+    fs::write(paths.out_dir.join("2.txt"), vec![0u8; 32]).unwrap();
+    fs::write(paths.out_dir.join("10.txt"), "Chương mười.\n").unwrap();
+    // out/ của chương không còn raw không được kéo vào state.
+    fs::write(paths.out_dir.join("99.txt"), "Mồ côi.\n").unwrap();
+    fs::write(&paths.state_json, vec![0u8; 64]).unwrap();
+
+    let state = load_state(&paths).unwrap();
+    let statuses: Vec<(&str, ChapterStatus)> =
+        state.chapters.iter().map(|(id, chapter)| (id.as_str(), chapter.status)).collect();
+    assert_eq!(
+        statuses,
+        vec![
+            ("1", ChapterStatus::Done),
+            ("2", ChapterStatus::Queued),
+            ("3", ChapterStatus::Queued),
+            ("10", ChapterStatus::Done)
+        ]
+    );
+    assert_eq!(state.settings, HarnessSettings::default());
+    // File hỏng giữ lại bên cạnh; state.json trên đĩa đã là bản dựng lại nên lần sau đọc thẳng.
+    assert_eq!(fs::read(paths.root.join("state.json.corrupt")).unwrap(), vec![0u8; 64]);
+    assert!(fs::read_to_string(&paths.state_json).unwrap().contains("\"done\""));
+    assert_eq!(load_state(&paths).unwrap(), state);
+    assert!(!paths.root.join("state.json.tmp").exists());
+
+    // File cụt giữa chừng cũng dựng lại; JSON hợp lệ nhưng sai schema thì vẫn báo lỗi, không tự đè.
+    fs::write(&paths.state_json, r#"{"version":1,"chapters":{"1":{"sta"#).unwrap();
+    assert_eq!(load_state(&paths).unwrap().chapters.len(), 4);
+    fs::write(&paths.state_json, r#"{"version":2,"chapters":{}}"#).unwrap();
+    assert!(matches!(load_state(&paths), Err(qt_ai_core::CoreError::InvalidState(_))));
+    assert_eq!(fs::read_to_string(&paths.state_json).unwrap(), r#"{"version":2,"chapters":{}}"#);
+}
+
+#[test]
 fn story_fs_work_file_va_resolve_root() {
     let paths = story_paths(Path::new("x"));
     assert_eq!(work_file(&paths, "0001", WorkKind::Prompt), Path::new("x").join("work").join("0001.prompt.md"));

@@ -9,7 +9,7 @@ use crate::paragraphs::{format_translation, strip_markers};
 use crate::prompt::TranslationGlossary;
 use crate::story_fs::{
     load_state, load_story_config, now_ms, read_raw_chapter, read_text, resolve_root, save_state,
-    save_story_config, story_paths, work_file, write_text, ChapterState, ChapterStatus, WorkKind, WORK_KINDS,
+    save_story_config, story_paths, work_file, write_atomic, ChapterState, ChapterStatus, WorkKind, WORK_KINDS,
 };
 use serde_json::Value;
 use std::fs;
@@ -40,7 +40,8 @@ pub fn run_accept(root: &Path, id: &str, force: bool) -> Result<AcceptResult> {
     let draft = assemble_draft(root, id)?;
     let output = format_translation(&strip_markers(&draft.final_text));
     let out_path = paths.out_dir.join(format!("{id}.txt"));
-    write_text(&out_path, &output)?;
+    // Atomic + ép xuống đĩa: state chỉ được ghi done sau khi bản dịch đã nằm chắc trên đĩa.
+    write_atomic(&out_path, &output)?;
 
     let mut story = load_story_config(&paths)?;
     let mut added_glossary = 0;

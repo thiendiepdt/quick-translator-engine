@@ -6,6 +6,7 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -128,12 +129,15 @@ pub fn write_text(path: &Path, content: &str) -> Result<()> {
     fs::write(path, content).map_err(CoreError::io(path))
 }
 
-/// Ghi atomic: file tạm cùng thư mục rồi rename đè.
+/// Ghi atomic: file tạm cùng thư mục, ép dữ liệu xuống đĩa rồi mới rename đè. Thiếu bước ép, máy mất điện
+/// ngay sau rename để lại file đủ kích thước nhưng toàn byte 0 (tên file đã đổi, dữ liệu còn trong RAM).
 pub fn write_atomic(path: &Path, content: &str) -> Result<()> {
     let mut tmp = path.as_os_str().to_owned();
     tmp.push(".tmp");
     let tmp = PathBuf::from(tmp);
-    fs::write(&tmp, content).map_err(CoreError::io(&tmp))?;
+    let mut file = fs::File::create(&tmp).map_err(CoreError::io(&tmp))?;
+    file.write_all(content.as_bytes()).and_then(|_| file.sync_all()).map_err(CoreError::io(&tmp))?;
+    drop(file);
     fs::rename(&tmp, path).map_err(CoreError::io(path))
 }
 
@@ -201,8 +205,38 @@ fn chapter_state_from(value: &Value) -> Option<ChapterState> {
     Some(ChapterState { status, review_round, reason, warnings, updated_at })
 }
 
+/// File bản dịch còn chữ thật — file rỗng hay toàn byte 0 (mất điện lúc đang ghi) không tính.
+fn has_translation(out: &Path) -> bool {
+    fs::read(out).map(|bytes| bytes.iter().any(|byte| *byte != 0 && !byte.is_ascii_whitespace())).unwrap_or(false)
+}
+
+/// state.json không parse nổi (toàn byte 0, cụt giữa chừng…) → dựng lại từ đĩa như một lần init: chương có
+/// out/<id>.txt còn chữ là done, còn lại về hàng đợi. Cài đặt harness về mặc định; cảnh báo, số vòng soát và
+/// lý do skip của từng chương không lấy lại được. File hỏng giữ ở `state.json.corrupt`.
+fn rebuild_state(paths: &StoryPaths) -> Result<StoryState> {
+    let mut state = StoryState::new();
+    for id in list_raw_chapter_ids(paths)? {
+        let out = paths.out_dir.join(format!("{id}.txt"));
+        let mut chapter = ChapterState::fresh(ChapterStatus::Queued);
+        if has_translation(&out) {
+            chapter.status = ChapterStatus::Done;
+            let modified = fs::metadata(&out).and_then(|meta| meta.modified()).ok();
+            if let Some(ms) = modified.and_then(|time| time.duration_since(UNIX_EPOCH).ok()) {
+                chapter.updated_at = ms.as_millis() as u64;
+            }
+        }
+        state.chapters.insert(id, chapter);
+    }
+    let mut corrupt = paths.state_json.as_os_str().to_owned();
+    corrupt.push(".corrupt");
+    let _ = fs::copy(&paths.state_json, PathBuf::from(corrupt));
+    save_state(paths, &state)?;
+    Ok(state)
+}
+
 /// Lenient như bản TS: version phải là 1; settings thiếu field nào lấy mặc định field đó;
-/// chương sai schema bị bỏ qua thay vì làm hỏng cả file.
+/// chương sai schema bị bỏ qua thay vì làm hỏng cả file. File không phải JSON thì tự dựng lại
+/// (`rebuild_state`) thay vì báo lỗi — người dùng không có cách nào khác để mở lại truyện.
 pub fn load_state(paths: &StoryPaths) -> Result<StoryState> {
     if !paths.state_json.exists() {
         return Err(CoreError::StoryNotFound(format!(
@@ -210,9 +244,10 @@ pub fn load_state(paths: &StoryPaths) -> Result<StoryState> {
             paths.root.display()
         )));
     }
-    let text = read_text(&paths.state_json)?;
-    let parsed: Value =
-        serde_json::from_str(&text).map_err(|e| CoreError::InvalidState(format!("state.json hỏng: {e}")))?;
+    let bytes = fs::read(&paths.state_json).map_err(CoreError::io(&paths.state_json))?;
+    let Ok(parsed) = serde_json::from_slice::<Value>(&bytes) else {
+        return rebuild_state(paths);
+    };
     let record = match parsed.as_object() {
         Some(object) if object.get("version").and_then(Value::as_u64) == Some(1) => object,
         _ => {

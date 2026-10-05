@@ -133,7 +133,8 @@ impl AppConfig {
             std::fs::create_dir_all(parent).map_err(|e| CommandError::new("io", e.to_string()))?;
         }
         let json = serde_json::to_string_pretty(self).map_err(|e| CommandError::new("internal", e.to_string()))?;
-        std::fs::write(path, json).map_err(|e| CommandError::new("io", e.to_string()))
+        // Atomic + ép xuống đĩa: file hỏng thì `load` lặng lẽ về default, mất cả API key.
+        Ok(qt_ai_core::story_fs::write_atomic(path, &json)?)
     }
 
     pub fn touch_recent(&mut self, root: &str) {
