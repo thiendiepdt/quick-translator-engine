@@ -252,6 +252,16 @@ export const recentSummarySchema = z.object({
   name: z.string().nullable(),
   done: z.number().nullable(),
   total: z.number().nullable(),
+  /** Chương còn phải dịch (queued + translating); > 0 là truyện chưa dịch xong. */
+  pending: z.number().nullable().optional(),
+});
+
+/** Kết quả quét raw/ của cả thư viện (Rust `library_rescan`). */
+export const libraryRescanSchema = z.object({
+  changed: z.array(z.object({ root: z.string(), name: z.string().nullable(), added: z.number(), removed: z.number() })),
+  skippedRunning: z.array(z.string()),
+  failed: z.array(z.string()),
+  stories: z.array(recentSummarySchema),
 });
 
 export const progressSchema = z.object({

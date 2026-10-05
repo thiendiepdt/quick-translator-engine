@@ -84,6 +84,8 @@ pub struct RecentSummary {
     pub name: Option<String>,
     pub done: Option<usize>,
     pub total: Option<usize>,
+    /// Chương còn phải dịch (queued + translating) — > 0 là truyện chưa dịch xong, phiên có việc để làm.
+    pub pending: Option<usize>,
 }
 
 /// Tóm tắt từng folder gần đây; folder hỏng/mất → chỉ có root (UI hiện mờ).

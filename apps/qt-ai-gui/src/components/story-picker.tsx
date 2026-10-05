@@ -1,4 +1,4 @@
-import { FolderOpen, FolderPlus, LibraryBig, RefreshCw, Search, Sparkles, Square, X } from "lucide-react";
+import { FolderOpen, FolderPlus, FolderSync, LibraryBig, Play, RefreshCw, Search, Sparkles, Square, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -18,17 +18,27 @@ import {
   appConfigSet,
   initStory,
   libraryList,
+  libraryRescan,
   openStory,
   pickFolder,
   recentSummaries,
+  sessionStart,
   sessionStop,
 } from "@/lib/api";
 import { storyLabel } from "@/hooks/use-session-events";
 import { pathKey, samePath } from "@/lib/paths";
 import { filterByQuery, PAGE_SIZE } from "@/lib/switcher";
+import { engineLabel } from "@/lib/types";
 import type { Progress, RecentSummary } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { runningRoots, useStoryStore } from "@/store/story";
+
+/** Lỗi bắt đầu phiên mà truyện kế tiếp cũng sẽ gặp y hệt (hết chỗ, thiếu key, thiếu agy) — dừng cả lượt. */
+const BATCH_STOP_KINDS = ["session_limit", "api_key_missing", "agy_missing"];
+/** Số tên truyện liệt kê trong hộp xác nhận "Dịch tất cả". */
+const BATCH_NAMES = 8;
+
+const displayName = (item: { root: string; name: string | null }) => item.name?.trim() || storyLabel(item.root);
 
 function StoryRow({
   item,
@@ -142,6 +152,8 @@ export function StoryPicker() {
   const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [batchOpen, setBatchOpen] = useState(false);
   // Thư viện dài: lọc theo tên/folder và vẽ theo khúc PAGE_SIZE dòng để không lag khi hàng trăm truyện.
   const [query, setQuery] = useState("");
   const [limit, setLimit] = useState(PAGE_SIZE);
@@ -191,6 +203,75 @@ export function StoryPicker() {
       toast.error(error instanceof Error ? error.message : "Không quét được thư viện");
     } finally {
       setRefreshing(false);
+    }
+  }
+
+  /** Quét raw/ của mọi truyện trong thư viện (raw import từ ngoài app) — như bấm Quét lại trong từng truyện. */
+  async function rescanLibrary() {
+    setScanning(true);
+    try {
+      const result = await libraryRescan();
+      setLibrary(result.stories);
+      const grown = result.changed.filter((item) => item.added > 0);
+      const added = grown.reduce((sum, item) => sum + item.added, 0);
+      const removed = result.changed.reduce((sum, item) => sum + item.removed, 0);
+      const names = grown.map(displayName);
+      const changes = [
+        grown.length > 0
+          ? `${grown.length} truyện có chương mới (+${added} chương): ${names.slice(0, 3).join(", ")}${names.length > 3 ? "…" : ""}`
+          : "",
+        removed > 0 ? `gỡ ${removed} chương raw đã mất` : "",
+      ].filter(Boolean);
+      const parts = [
+        changes.length > 0 ? changes.join("; ") : "không truyện nào có chương mới",
+        result.skippedRunning.length > 0 ? `bỏ qua ${result.skippedRunning.length} truyện đang dịch` : "",
+      ].filter(Boolean);
+      toast.message(`Quét thư viện: ${parts.join("; ")}`);
+      if (result.failed.length > 0) {
+        toast.error(
+          `Không quét được ${result.failed.length} truyện: ${result.failed.slice(0, 3).join("; ")}${result.failed.length > 3 ? "…" : ""}`,
+        );
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Không quét được thư viện");
+    } finally {
+      setScanning(false);
+    }
+  }
+
+  /**
+   * Bắt đầu phiên cho các truyện trong `batch` rồi vào truyện đầu tiên. Truyện đầu được mở TRƯỚC khi phiên
+   * của nó chạy: open_story quét raw/ và ghi state.json, không được chen vào lúc phiên đang ghi.
+   */
+  async function startBatch() {
+    const targets = batch;
+    setBatchOpen(false);
+    if (targets.length === 0) return;
+    setBusy(true);
+    try {
+      const first = await openStory(targets[0].root);
+      const model = useStoryStore.getState().config?.model ?? undefined;
+      const started: string[] = [];
+      const failed: string[] = [];
+      for (const item of targets) {
+        try {
+          await sessionStart(item.root, model);
+          started.push(item.root);
+        } catch (error) {
+          failed.push(`${displayName(item)}: ${error instanceof Error ? error.message : "không bắt đầu được"}`);
+          if (error instanceof ApiError && BATCH_STOP_KINDS.includes(error.kind)) break;
+        }
+      }
+      if (failed.length > 0) {
+        toast.error(failed.length === 1 ? failed[0] : `${failed.length} truyện không bắt đầu được — ${failed[0]}`);
+      }
+      if (started.length === 0) return;
+      toast.success(`Đã bắt đầu dịch ${started.length} truyện`);
+      open({ ...first, sessionRunning: started.some((root) => samePath(root, first.root)) });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Không bắt đầu được");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -281,6 +362,16 @@ export function StoryPicker() {
   const libraryFiltered = useMemo(() => filterByQuery(libraryRows, query), [libraryRows, query]);
   const libraryVisible = libraryFiltered.slice(0, limit);
   const showSearch = libraryRows.length > 8;
+  // "Dịch tất cả": truyện thư viện còn chương chờ mà chưa có phiên, theo thứ tự danh sách; số bắt đầu được
+  // lần này bị chặn bởi chỗ trống dưới giới hạn song song.
+  const unfinished = useMemo(
+    () => libraryRows.filter((item) => (item.pending ?? 0) > 0 && !running.some((root) => samePath(root, item.root))),
+    [libraryRows, running],
+  );
+  const slots = Math.max(0, maxParallel - running.length);
+  const batch = unfinished.slice(0, slots);
+  const batchChapters = batch.reduce((sum, item) => sum + (item.pending ?? 0), 0);
+  const engine = useStoryStore((s) => engineLabel(s.config));
   const recentRows: RecentSummary[] = recent
     .filter((root) => !libraryRows.some((item) => samePath(item.root, root)))
     .map((root) => summaries.find((s) => s.root === root) ?? { root, name: null, done: null, total: null });
@@ -315,6 +406,23 @@ export function StoryPicker() {
           <Button size="lg" variant="outline" disabled={busy} onClick={() => void pickAndOpen()}>
             <FolderOpen /> Mở folder truyện
           </Button>
+          {libraryRoot && (
+            <Button
+              size="lg"
+              variant="outline"
+              disabled={busy || batch.length === 0}
+              title={
+                unfinished.length === 0
+                  ? "Thư viện không có truyện nào còn chương chờ dịch mà chưa chạy"
+                  : slots === 0
+                    ? `Đang chạy đủ ${maxParallel} truyện — dừng bớt hoặc nâng "Số truyện dịch song song" trong Cài đặt`
+                    : "Bắt đầu phiên dịch cho mọi truyện còn chương chờ, rồi mở truyện đầu tiên"
+              }
+              onClick={() => setBatchOpen(true)}
+            >
+              <Play /> Dịch tất cả truyện chưa xong{unfinished.length > 0 ? ` (${unfinished.length})` : ""}
+            </Button>
+          )}
         </div>
 
         <section className="mt-8">
@@ -334,6 +442,16 @@ export function StoryPicker() {
                   onClick={() => void refreshLibrary()}
                 >
                   <RefreshCw className={cn(refreshing && "animate-spin")} /> Làm mới
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={busy || scanning}
+                  title="Quét raw/ của mọi truyện trong thư viện, đưa chương mới vào hàng đợi (truyện đang dịch bỏ qua)"
+                  aria-label="Quét chương mới cho cả thư viện"
+                  onClick={() => void rescanLibrary()}
+                >
+                  <FolderSync className={cn(scanning && "animate-pulse")} /> Quét chương mới
                 </Button>
                 <Button variant="ghost" size="sm" disabled={busy} onClick={() => void chooseLibrary()}>
                   Đổi
@@ -435,6 +553,42 @@ export function StoryPicker() {
           }}
         />
       )}
+      <Dialog open={batchOpen} onOpenChange={setBatchOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Dịch tất cả truyện chưa xong?</DialogTitle>
+            <DialogDescription>
+              Bắt đầu phiên dịch cho {batch.length} truyện ({batchChapters} chương còn chờ) bằng {engine}, rồi mở truyện
+              đầu tiên.
+            </DialogDescription>
+          </DialogHeader>
+          <ul className="fine-scrollbar max-h-48 list-disc overflow-auto pl-5 text-sm">
+            {batch.slice(0, BATCH_NAMES).map((item) => (
+              <li key={item.root}>
+                {displayName(item)} <span className="text-muted-foreground tabular-nums">· {item.pending} chương</span>
+              </li>
+            ))}
+            {batch.length > BATCH_NAMES && (
+              <li className="text-muted-foreground">… và {batch.length - BATCH_NAMES} truyện nữa</li>
+            )}
+          </ul>
+          {unfinished.length > batch.length && (
+            <p role="status" className="text-sm text-status-warning">
+              Còn {unfinished.length - batch.length} truyện chưa xong không được bắt đầu lần này: giới hạn {maxParallel}{" "}
+              truyện dịch song song, đang chạy {running.length}. Bấm lại khi có truyện xong, hoặc nâng giới hạn trong Cài
+              đặt.
+            </p>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBatchOpen(false)}>
+              Bỏ
+            </Button>
+            <Button disabled={busy || batch.length === 0} onClick={() => void startBatch()}>
+              <Play /> Bắt đầu dịch {batch.length} truyện
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog
         open={pendingLibrary !== undefined}
         onOpenChange={(value) => {

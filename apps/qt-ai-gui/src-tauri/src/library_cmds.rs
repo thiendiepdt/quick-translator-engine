@@ -6,7 +6,7 @@ use crate::sidecar::qt_ai_command;
 use crate::story_cmds::{snapshot, RecentSummary, StorySnapshot};
 use crate::summary_cache::SummaryCache;
 use crate::AppState;
-use qt_ai_core::commands::init::run_init;
+use qt_ai_core::commands::init::{raw_drift, run_init};
 use qt_ai_core::story_fs::{load_story_config, save_story_config, story_paths};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
@@ -177,6 +177,76 @@ pub fn import_chapters_inner(root: &Path, sources: &[PathBuf], qt_ai: &str) -> C
     Ok(counts)
 }
 
+/// Một truyện có raw/ lệch state.json lúc quét cả thư viện.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct RescanChange {
+    pub root: String,
+    pub name: Option<String>,
+    /// Chương raw mới vào hàng đợi.
+    pub added: usize,
+    /// Chương bị gỡ vì raw đã mất (out/ giữ nguyên).
+    pub removed: usize,
+}
+
+#[derive(Debug, Clone, Default, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct RescanReport {
+    pub changed: Vec<RescanChange>,
+    /// Truyện đang có phiên dịch — không quét, phiên đang ghi state.json.
+    pub skipped_running: Vec<String>,
+    /// `<folder>: <lỗi>` — state.json sai schema, raw/ không đọc được…
+    pub failed: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LibraryRescan {
+    #[serde(flatten)]
+    pub report: RescanReport,
+    /// Danh sách thư viện sau khi quét.
+    pub stories: Vec<RecentSummary>,
+}
+
+/// Quét raw/ của mọi truyện đã init trong thư viện, như bấm "Quét lại" trong từng truyện: chương raw mới vào
+/// hàng đợi, chương mất raw bị gỡ (out/ giữ). Truyện không lệch gì thì không đụng tới — state.json giữ mtime
+/// nên thứ tự thư viện (mới sửa lên đầu) không bị xáo. Folder chưa init và truyện đang dịch bỏ qua.
+pub fn rescan_library_inner(library_root: &Path, is_running: &dyn Fn(&str) -> bool, qt_ai: &str) -> RescanReport {
+    let mut report = RescanReport::default();
+    let Ok(entries) = std::fs::read_dir(library_root) else { return report };
+    let mut roots: Vec<PathBuf> = entries.filter_map(|e| e.ok()).map(|e| e.path()).filter(|p| p.is_dir()).collect();
+    roots.sort();
+    for root in roots {
+        let paths = story_paths(&root);
+        if !paths.state_json.is_file() {
+            continue;
+        }
+        let root_text = root.display().to_string();
+        if is_running(&root_text) {
+            report.skipped_running.push(root_text);
+            continue;
+        }
+        let scan = || -> CmdResult<Option<RescanChange>> {
+            let (added, removed) = raw_drift(&root)?;
+            if added == 0 && removed == 0 {
+                return Ok(None);
+            }
+            run_init(&root, qt_ai)?;
+            let name = load_story_config(&paths).ok().map(|story| story.name).filter(|n| !n.trim().is_empty());
+            Ok(Some(RescanChange { root: root_text.clone(), name, added, removed }))
+        };
+        match scan() {
+            Ok(Some(change)) => report.changed.push(change),
+            Ok(None) => {}
+            Err(error) => {
+                let folder = root.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+                report.failed.push(format!("{folder}: {}", error.message));
+            }
+        }
+    }
+    report
+}
+
 fn session_running(state: &State<'_, AppState>, root: &str) -> bool {
     state.sessions.lock().unwrap().is_running(root)
 }
@@ -227,6 +297,28 @@ pub async fn rescan_story<R: Runtime>(app: AppHandle<R>, root: String) -> CmdRes
         let path = Path::new(&root);
         run_init(path, &qt_ai_command())?;
         snapshot(path, session_running(&state, &root))
+    })
+    .await
+}
+
+/// Quét raw/ của mọi truyện trong thư viện (xem `rescan_library_inner`) rồi trả danh sách mới kèm báo cáo.
+#[tauri::command]
+pub async fn library_rescan<R: Runtime>(app: AppHandle<R>) -> CmdResult<LibraryRescan> {
+    blocking(move || {
+        let state = app.state::<AppState>();
+        let library = state
+            .config
+            .lock()
+            .unwrap()
+            .library_root
+            .clone()
+            .ok_or_else(|| CommandError::new("invalid_state", "Chưa chọn thư viện (folder cha chứa truyện)."))?;
+        let library = Path::new(&library);
+        if !library.is_dir() {
+            return Err(CommandError::new("invalid_state", format!("Thư viện {} không tồn tại.", library.display())));
+        }
+        let report = rescan_library_inner(library, &|root| session_running(&state, root), &qt_ai_command());
+        Ok(LibraryRescan { report, stories: list_library(Some(library), &state.summaries) })
     })
     .await
 }
@@ -310,6 +402,59 @@ mod tests {
         assert_eq!(rows[2].total, None);
         assert!(list_library(None, &SummaryCache::new()).is_empty());
         assert!(list_library(Some(&lib.path().join("none")), &SummaryCache::new()).is_empty());
+    }
+
+    #[test]
+    fn rescan_library_chi_dung_truyen_lech_raw_bo_qua_dang_dich_va_chua_init() {
+        let lib = tempfile::tempdir().unwrap();
+        let story = |slug: &str, chapters: &[&str]| {
+            let root = create_story_inner(lib.path(), slug, slug, "", "qt-ai").unwrap();
+            for id in chapters {
+                fs::write(root.join("raw").join(format!("{id}.txt")), "章").unwrap();
+            }
+            run_init(&root, "qt-ai").unwrap();
+            root
+        };
+        let same = story("a-khong-doi", &["0001", "0002"]);
+        let grown = story("b-them-raw", &["0001"]);
+        let shrunk = story("c-mat-raw", &["0001", "0002"]);
+        let running = story("d-dang-dich", &["0001"]);
+        let broken = story("e-hong", &["0001"]);
+        fs::create_dir_all(lib.path().join("f-chua-init").join("raw")).unwrap();
+        fs::write(lib.path().join("f-chua-init").join("raw").join("0001.txt"), "章").unwrap();
+
+        fs::write(grown.join("raw").join("0002.txt"), "章").unwrap();
+        fs::write(grown.join("raw").join("0003.txt"), "章").unwrap();
+        fs::remove_file(shrunk.join("raw").join("0002.txt")).unwrap();
+        fs::write(running.join("raw").join("0002.txt"), "章").unwrap();
+        fs::write(broken.join("state.json"), r#"{"version":2}"#).unwrap();
+        let untouched = fs::metadata(same.join("state.json")).unwrap().modified().unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(30));
+
+        let report = rescan_library_inner(lib.path(), &|root| root.ends_with("d-dang-dich"), "qt-ai");
+        assert_eq!(
+            report.changed,
+            vec![
+                RescanChange { root: grown.display().to_string(), name: Some("b-them-raw".into()), added: 2, removed: 0 },
+                RescanChange { root: shrunk.display().to_string(), name: Some("c-mat-raw".into()), added: 0, removed: 1 },
+            ]
+        );
+        assert_eq!(report.skipped_running, vec![running.display().to_string()]);
+        assert_eq!(report.failed.len(), 1);
+        assert!(report.failed[0].starts_with("e-hong: "), "{:?}", report.failed);
+
+        let state = load_state(&story_paths(&grown)).unwrap();
+        assert_eq!(state.chapters.len(), 3);
+        assert_eq!(state.chapters["0003"].status, ChapterStatus::Queued);
+        assert_eq!(load_state(&story_paths(&shrunk)).unwrap().chapters.len(), 1);
+        // Truyện đang dịch và truyện không lệch gì: state.json không bị ghi lại.
+        assert_eq!(load_state(&story_paths(&running)).unwrap().chapters.len(), 1);
+        assert_eq!(fs::metadata(same.join("state.json")).unwrap().modified().unwrap(), untouched);
+        assert!(!lib.path().join("f-chua-init").join("state.json").exists());
+        // Phiên của d dừng rồi thì lần quét sau mới lấy chương của nó; quét nữa thì không còn gì lệch.
+        let later = rescan_library_inner(lib.path(), &|_| false, "qt-ai");
+        assert_eq!(later.changed.iter().map(|c| (c.root.as_str(), c.added)).collect::<Vec<_>>(), vec![(running.to_str().unwrap(), 1)]);
+        assert!(rescan_library_inner(lib.path(), &|_| false, "qt-ai").changed.is_empty());
     }
 
     #[test]

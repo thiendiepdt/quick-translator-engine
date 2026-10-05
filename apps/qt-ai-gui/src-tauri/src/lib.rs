@@ -123,6 +123,7 @@ pub fn run() {
             library_cmds::library_list,
             library_cmds::create_story,
             library_cmds::rescan_story,
+            library_cmds::library_rescan,
             library_cmds::import_chapters,
         ])
         .run(tauri::generate_context!())
@@ -181,6 +182,7 @@ mod tests {
             "library_list",
             "create_story",
             "rescan_story",
+            "library_rescan",
             "import_chapters",
             "session_start",
             "session_stop",

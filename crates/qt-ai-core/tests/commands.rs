@@ -3,7 +3,7 @@ use qt_ai_core::commands::accept::run_accept;
 use qt_ai_core::commands::check::run_check;
 use qt_ai_core::commands::delete::run_delete;
 use qt_ai_core::commands::export::{run_export, ExportOptions};
-use qt_ai_core::commands::init::run_init;
+use qt_ai_core::commands::init::{raw_drift, run_init};
 use qt_ai_core::commands::next::run_next;
 use qt_ai_core::commands::reset::run_reset;
 use qt_ai_core::commands::retry::{retry_backup_path, run_retry, run_retry_ids, run_retry_range};
@@ -138,6 +138,24 @@ fn story_fs_state_hong_tu_dung_lai_tu_raw_va_out() {
     fs::write(&paths.state_json, r#"{"version":2,"chapters":{}}"#).unwrap();
     assert!(matches!(load_state(&paths), Err(qt_ai_core::CoreError::InvalidState(_))));
     assert_eq!(fs::read_to_string(&paths.state_json).unwrap(), r#"{"version":2,"chapters":{}}"#);
+}
+
+#[test]
+fn raw_drift_dem_chuong_raw_moi_va_chuong_mat_raw() {
+    let dir = make_story_dir(&[("1", "一"), ("2", "二")]);
+    // Chưa init: không có state.json để so.
+    assert!(matches!(raw_drift(dir.path()), Err(CoreError::StoryNotFound(_))));
+    run_init(dir.path(), "qt-ai").unwrap();
+    assert_eq!(raw_drift(dir.path()).unwrap(), (0, 0));
+    fs::write(dir.path().join("raw").join("3.txt"), "三").unwrap();
+    fs::write(dir.path().join("raw").join("4.txt"), "四").unwrap();
+    fs::remove_file(dir.path().join("raw").join("1.txt")).unwrap();
+    assert_eq!(raw_drift(dir.path()).unwrap(), (2, 1));
+    // Chỉ đếm, không ghi: state.json vẫn còn chương 1, chưa có chương 3.
+    let state = load_state(&story_paths(dir.path())).unwrap();
+    assert!(state.chapters.contains_key("1") && !state.chapters.contains_key("3"));
+    run_init(dir.path(), "qt-ai").unwrap();
+    assert_eq!(raw_drift(dir.path()).unwrap(), (0, 0));
 }
 
 #[test]

@@ -34,9 +34,10 @@ pub fn summarize_uncached(root: &Path) -> RecentSummary {
                 name: Some(story.name).filter(|n| !n.trim().is_empty()),
                 done: Some(counts.done),
                 total: Some(counts.total),
+                pending: Some(counts.queued + counts.translating),
             }
         }
-        _ => RecentSummary { root: root.display().to_string(), name: None, done: None, total: None },
+        _ => RecentSummary { root: root.display().to_string(), name: None, done: None, total: None, pending: None },
     }
 }
 
@@ -95,6 +96,7 @@ mod tests {
         let first = cache.summarize(&root);
         assert_eq!(first.name.as_deref(), Some("Tên A"));
         assert_eq!(first.total, Some(1));
+        assert_eq!(first.pending, Some(1));
         assert_eq!(cache.hits(), 0);
 
         // Cùng truyện, khác dấu cuối (Windows: khác cả hoa thường — Linux/macOS phân biệt hoa thường nên

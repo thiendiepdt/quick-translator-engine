@@ -5,7 +5,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { StoryPicker } from "@/components/story-picker";
 import { samePath } from "@/lib/paths";
-import { appConfigSet, libraryList, pickFolder, recentSummaries } from "@/lib/api";
+import {
+  ApiError,
+  appConfigSet,
+  libraryList,
+  libraryRescan,
+  openStory,
+  pickFolder,
+  recentSummaries,
+  sessionStart,
+} from "@/lib/api";
 import { appConfigSchema } from "@/lib/schema";
 import { useStoryStore } from "@/store/story";
 
@@ -22,9 +31,11 @@ vi.mock("@/lib/api", () => ({
   createStory: vi.fn(),
   initStory: vi.fn(),
   libraryList: vi.fn(() => Promise.resolve([])),
+  libraryRescan: vi.fn(),
   openStory: vi.fn(),
   pickFolder: vi.fn(),
   recentSummaries: vi.fn(() => Promise.resolve([])),
+  sessionStart: vi.fn(() => Promise.resolve({ running: [] })),
   sessionStop: vi.fn(() => Promise.resolve({ running: [] })),
   slugifyName: vi.fn((name: string) => Promise.resolve(name.toLowerCase())),
 }));
@@ -207,6 +218,145 @@ describe("StoryPicker · Thư viện", () => {
     await user.click(screen.getByRole("button", { name: "Dừng dịch D:\\lib\\a" }));
     await waitFor(() => expect(sessionStop).toHaveBeenCalledWith("D:\\lib\\a"));
     await waitFor(() => expect(screen.queryByText(/Đang dịch 1\/2/)).not.toBeInTheDocument());
+  });
+
+  it("nút Quét chương mới quét raw/ cả thư viện, cập nhật số chương và toast truyện có chương mới", async () => {
+    useStoryStore.setState({ screen: "picker", config: { ...config, libraryRoot: "D:\\lib", recent: [] } });
+    const a = { root: "D:\\lib\\truyen-a", name: "Truyện A", done: 2, total: 10, pending: 8 };
+    vi.mocked(libraryList).mockResolvedValue([a]);
+    vi.mocked(libraryRescan).mockResolvedValue({
+      changed: [
+        { root: a.root, name: "Truyện A", added: 5, removed: 0 },
+        { root: "D:\\lib\\c", name: null, added: 0, removed: 2 },
+      ],
+      skippedRunning: ["D:\\lib\\b"],
+      failed: ["e-hong: state.json sai schema"],
+      stories: [{ ...a, total: 15, pending: 13 }],
+    });
+    const user = userEvent.setup();
+    render(<StoryPicker />);
+    expect(await screen.findByText("2/10")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Quét chương mới cho cả thư viện" }));
+    expect(await screen.findByText("2/15")).toBeInTheDocument();
+    expect(toast.message).toHaveBeenLastCalledWith(
+      "Quét thư viện: 1 truyện có chương mới (+5 chương): Truyện A; gỡ 2 chương raw đã mất; bỏ qua 1 truyện đang dịch",
+    );
+    expect(toast.error).toHaveBeenLastCalledWith("Không quét được 1 truyện: e-hong: state.json sai schema");
+
+    vi.mocked(libraryRescan).mockResolvedValue({ changed: [], skippedRunning: [], failed: [], stories: [a] });
+    await user.click(screen.getByRole("button", { name: "Quét chương mới cho cả thư viện" }));
+    await waitFor(() =>
+      expect(toast.message).toHaveBeenLastCalledWith("Quét thư viện: không truyện nào có chương mới"),
+    );
+  });
+
+  describe("Dịch tất cả truyện chưa xong", () => {
+    const rows = [
+      { root: "D:\\lib\\a", name: "A", done: 2, total: 10, pending: 8 },
+      { root: "D:\\lib\\xong", name: "Xong", done: 5, total: 5, pending: 0 },
+      // Chỉ còn chương lỗi/bỏ qua: done < total nhưng phiên không có gì để dịch.
+      { root: "D:\\lib\\loi", name: "Lỗi", done: 3, total: 4, pending: 0 },
+      { root: "D:\\lib\\b", name: "B", done: 0, total: 5, pending: 5 },
+      { root: "D:\\lib\\c", name: "C", done: 1, total: 4, pending: 3 },
+      { root: "D:\\lib\\d", name: "D", done: 0, total: 1, pending: 1 },
+      { root: "D:\\lib\\chua-init", name: null, done: null, total: null, pending: null },
+    ];
+
+    beforeEach(() => {
+      vi.mocked(toast.error).mockClear();
+      vi.mocked(sessionStart).mockReset();
+      vi.mocked(sessionStart).mockResolvedValue({ running: [] });
+      vi.mocked(openStory).mockReset();
+      vi.mocked(openStory).mockImplementation((root: string) =>
+        Promise.resolve({ root, story: { name: "A" }, sessionRunning: false } as never),
+      );
+      vi.mocked(libraryList).mockResolvedValue(rows);
+      // C đang dịch, giới hạn 3 → còn 2 chỗ cho 3 truyện chưa xong (A, B, D).
+      useStoryStore.setState({
+        screen: "picker",
+        root: undefined,
+        config: { ...config, libraryRoot: "D:\\lib", recent: [], maxParallel: 3 },
+        sessions: { "d:\\lib\\c": { status: "running", sessionNo: 1 } },
+        roots: { "d:\\lib\\c": "D:\\lib\\c" },
+        progress: {},
+      });
+    });
+
+    it("xác nhận rồi bắt đầu phiên cho các truyện còn chương chờ trong giới hạn song song, vào truyện đầu tiên", async () => {
+      const user = userEvent.setup();
+      render(<StoryPicker />);
+      await screen.findByText("A");
+      await user.click(screen.getByRole("button", { name: "Dịch tất cả truyện chưa xong (3)" }));
+
+      expect(await screen.findByText(/Bắt đầu phiên dịch cho 2 truyện \(13 chương còn chờ\) bằng API · Gemini/)).toBeInTheDocument();
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Còn 1 truyện chưa xong không được bắt đầu lần này: giới hạn 3 truyện dịch song song, đang chạy 1.",
+      );
+      expect(sessionStart).not.toHaveBeenCalled();
+
+      await user.click(screen.getByRole("button", { name: "Bắt đầu dịch 2 truyện" }));
+      await waitFor(() => expect(useStoryStore.getState().screen).toBe("workbench"));
+      expect(vi.mocked(sessionStart).mock.calls).toEqual([
+        ["D:\\lib\\a", undefined],
+        ["D:\\lib\\b", undefined],
+      ]);
+      // Truyện đầu được mở (open_story quét raw/, ghi state.json) trước khi phiên của nó chạy.
+      expect(openStory).toHaveBeenCalledExactlyOnceWith("D:\\lib\\a");
+      expect(vi.mocked(openStory).mock.invocationCallOrder[0]).toBeLessThan(
+        vi.mocked(sessionStart).mock.invocationCallOrder[0],
+      );
+      const state = useStoryStore.getState();
+      expect(state.root).toBe("D:\\lib\\a");
+      expect(state.page).toBe("translate");
+      expect(state.sessions["d:\\lib\\a"]).toEqual({ status: "running", sessionNo: 0 });
+      expect(toast.success).toHaveBeenLastCalledWith("Đã bắt đầu dịch 2 truyện");
+      expect(toast.error).not.toHaveBeenCalled();
+    });
+
+    it("thiếu API key thì dừng cả lượt ngay truyện đầu, không vào truyện nào", async () => {
+      vi.mocked(sessionStart).mockRejectedValue(new ApiError("api_key_missing", "Chưa nhập API key Gemini"));
+      const user = userEvent.setup();
+      render(<StoryPicker />);
+      await screen.findByText("A");
+      await user.click(screen.getByRole("button", { name: "Dịch tất cả truyện chưa xong (3)" }));
+      await user.click(await screen.findByRole("button", { name: "Bắt đầu dịch 2 truyện" }));
+      await waitFor(() => expect(toast.error).toHaveBeenLastCalledWith("A: Chưa nhập API key Gemini"));
+      expect(sessionStart).toHaveBeenCalledTimes(1);
+      expect(useStoryStore.getState().screen).toBe("picker");
+    });
+
+    it("một truyện không bắt đầu được (lỗi riêng) thì các truyện sau vẫn chạy", async () => {
+      vi.mocked(sessionStart).mockImplementation((root: string) =>
+        root.endsWith("a")
+          ? Promise.reject(new ApiError("session_locked", "Truyện đang có phiên khác chạy (PID 1)."))
+          : Promise.resolve({ running: [] }),
+      );
+      const user = userEvent.setup();
+      render(<StoryPicker />);
+      await screen.findByText("A");
+      await user.click(screen.getByRole("button", { name: "Dịch tất cả truyện chưa xong (3)" }));
+      await user.click(await screen.findByRole("button", { name: "Bắt đầu dịch 2 truyện" }));
+      await waitFor(() => expect(toast.success).toHaveBeenLastCalledWith("Đã bắt đầu dịch 1 truyện"));
+      expect(toast.error).toHaveBeenLastCalledWith("A: Truyện đang có phiên khác chạy (PID 1).");
+      expect(sessionStart).toHaveBeenCalledTimes(2);
+      // Vẫn vào truyện đầu danh sách, nhưng nó không được đánh dấu đang dịch.
+      expect(useStoryStore.getState().root).toBe("D:\\lib\\a");
+      expect(useStoryStore.getState().sessions["d:\\lib\\a"]).toBeUndefined();
+    });
+
+    it("đã chạy đủ giới hạn hoặc không còn truyện nào chờ thì nút tắt", async () => {
+      useStoryStore.setState({ config: { ...config, libraryRoot: "D:\\lib", recent: [], maxParallel: 1 } });
+      const { unmount } = render(<StoryPicker />);
+      await screen.findByText("A");
+      expect(screen.getByRole("button", { name: "Dịch tất cả truyện chưa xong (3)" })).toBeDisabled();
+      unmount();
+
+      vi.mocked(libraryList).mockResolvedValue(rows.filter((row) => !row.pending));
+      render(<StoryPicker />);
+      await screen.findByText("Xong");
+      expect(screen.getByRole("button", { name: "Dịch tất cả truyện chưa xong" })).toBeDisabled();
+    });
   });
 
   it("samePath bỏ qua hoa thường và dấu gạch cuối", () => {

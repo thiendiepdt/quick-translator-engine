@@ -12,6 +12,7 @@ import {
   exportOutcomeSchema,
   harnessSettingsSchema,
   importOutcomeSchema,
+  libraryRescanSchema,
   recentSummarySchema,
   retryRangeOutcomeSchema,
   scanCastViewSchema,
@@ -139,6 +140,8 @@ export const libraryList = (root?: string) =>
 export const createStory = (name: string, slug: string, sourceUrl: string) =>
   call("create_story", { name, slug, sourceUrl }, (v) => storySnapshotSchema.parse(v));
 export const rescanStory = (root: string) => call("rescan_story", { root }, (v) => storySnapshotSchema.parse(v));
+/** Quét raw/ của mọi truyện trong thư viện: chương mới vào hàng đợi; truyện đang dịch bỏ qua. */
+export const libraryRescan = () => call("library_rescan", undefined, (v) => libraryRescanSchema.parse(v));
 export const importChapters = (root: string, paths: string[]) =>
   call("import_chapters", { root, paths }, (v) => importOutcomeSchema.parse(v));
 

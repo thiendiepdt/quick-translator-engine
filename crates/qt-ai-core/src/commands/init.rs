@@ -9,6 +9,18 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 
+/// raw/ lệch state.json bao nhiêu: (chương raw mới chưa vào state, chương trong state đã mất raw).
+/// (0, 0) là `run_init` không còn gì để làm với danh sách chương — quét cả thư viện dùng để khỏi ghi lại
+/// state.json của truyện không đổi.
+pub fn raw_drift(root: &Path) -> Result<(usize, usize)> {
+    let paths = story_paths(&resolve_root(root));
+    let state = load_state(&paths)?;
+    let raw_ids: BTreeSet<String> = list_raw_chapter_ids(&paths)?.into_iter().collect();
+    let added = raw_ids.iter().filter(|id| !state.chapters.contains_key(*id)).count();
+    let removed = state.chapters.keys().filter(|id| !raw_ids.contains(*id)).count();
+    Ok((added, removed))
+}
+
 /// Dựng khung folder truyện. Idempotent: giữ state/story sẵn có, thêm chương raw mới thành queued và
 /// gỡ chương có file raw đã mất (đổi tên/xoá) — kể cả chương done, nhưng out/<id>.txt giữ nguyên trên đĩa
 /// (bản dịch không bị xoá, chỉ không còn trong danh sách/export).
