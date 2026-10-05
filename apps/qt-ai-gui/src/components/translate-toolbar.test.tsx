@@ -22,6 +22,23 @@ vi.mock("@/lib/api", () => ({
 const ROOT = "D:\\t";
 const config = appConfigSchema.parse({ agyPath: null, model: null, maxSessions: 50, recent: [] });
 
+describe("TranslateToolbar · chờ quota agy", () => {
+  it("phiên đang chờ quota hiện giờ tự dịch tiếp thay cho 'Phiên N', nút Dừng vẫn bấm được", () => {
+    const until = new Date();
+    until.setHours(23, 58, 0, 0);
+    useStoryStore.setState({
+      config,
+      root: ROOT,
+      roots: { [pathKey(ROOT)]: ROOT },
+      sessions: { [pathKey(ROOT)]: { status: "running", sessionNo: 4, waitUntil: until.getTime() } },
+    });
+    render(<TranslateToolbar />);
+    expect(screen.getByRole("status")).toHaveTextContent("Hết quota agy — tự dịch tiếp lúc 23:58. Bấm Dừng nếu không muốn chờ.");
+    expect(screen.queryByText(/Phiên 4/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Dừng" })).toBeEnabled();
+  });
+});
+
 describe("TranslateToolbar · nút Dừng", () => {
   beforeEach(() => {
     useStoryStore.setState({

@@ -1,7 +1,7 @@
 //! Runner phiên agy — port auto-translate.ps1: mỗi phiên `agy -p` là một context sạch; poll state.json
 //! để báo tiến độ; cầu dao hết queue / không tiến độ / agy lỗi 2 lần / max phiên; cancel giết process tree.
 
-use crate::agy_data::{clean, Scope, APP_PROMPT_MARK};
+use crate::agy_data::{clean, quota_reset_since, Scope, APP_PROMPT_MARK};
 use crate::commands::status::count_chapters;
 use crate::error::{CoreError, Result};
 use crate::story_fs::{load_state, now_ms, story_paths, ChapterStatus};
@@ -13,7 +13,7 @@ use std::process::{Child, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Progress {
@@ -69,6 +69,8 @@ pub enum StopReason {
     ApiFailed { message: String },
     UserCancelled,
     MaxSessions,
+    /// agy hết quota (máy chủ trả RESOURCE_EXHAUSTED) và phiên không được phép tự chờ. `reset_at`: ms epoch.
+    QuotaExhausted { reset_at: u64 },
     Internal { message: String },
 }
 
@@ -78,6 +80,8 @@ pub enum SessionEvent {
     Started { session_no: u32 },
     Progress(Progress),
     AgyLog { line: String, stream: LogStream },
+    /// Hết quota agy: phiên đang chờ tới `until` (ms epoch) rồi tự chạy tiếp. Lượt kế phát `Started` như thường.
+    QuotaWait { until: u64 },
     Stopped(StopReason),
 }
 
@@ -94,6 +98,9 @@ pub struct SessionConfig {
     /// Thư mục dữ liệu của agy (`agy_data::default_data_dir`) — có thì hội thoại agy của truyện này bị xoá
     /// ngay sau mỗi lượt chạy; None = không đụng tới.
     pub agy_data_dir: Option<PathBuf>,
+    /// agy hết quota thì chờ tới giờ reset rồi tự chạy tiếp thay vì dừng phiên. Cần `agy_data_dir` để đọc giờ
+    /// reset từ hội thoại agy vừa ghi.
+    pub resume_on_quota: bool,
 }
 
 /// PATH hiện tại với `dir` chèn lên đầu.
@@ -299,10 +306,44 @@ impl SessionHandle {
     }
 }
 
+/// Số lần `poll_interval` chờ thêm sau giờ quota reset (2s × 30 = 1 phút): đồng hồ máy lệch hay máy chủ mở
+/// quota trễ vài giây thì lượt chạy lại không đâm ngay vào lỗi cũ.
+const QUOTA_MARGIN_POLLS: u32 = 30;
+
+fn describe_wait(ms: u64) -> String {
+    let minutes = ms.div_ceil(60_000);
+    match (minutes / 60, minutes % 60) {
+        (0, minutes) => format!("{} phút", minutes.max(1)),
+        (hours, 0) => format!("{hours} giờ"),
+        (hours, minutes) => format!("{hours} giờ {minutes} phút"),
+    }
+}
+
+/// Chờ tới giờ quota reset (cộng biên an toàn) rồi cho vòng phiên chạy tiếp. false = người dùng bấm Dừng.
+fn wait_for_quota(config: &SessionConfig, sink: &Sink, cancel: &AtomicBool, reset_at: u64) -> bool {
+    let margin = (config.poll_interval * QUOTA_MARGIN_POLLS).as_millis() as u64;
+    let until = reset_at.max(now_ms()) + margin;
+    sink(SessionEvent::QuotaWait { until });
+    let line = format!("[qt-ai] Hết quota agy — chờ khoảng {} rồi tự dịch tiếp.", describe_wait(until - now_ms()));
+    sink(SessionEvent::AgyLog { line, stream: LogStream::Stdout });
+    while now_ms() < until {
+        if cancel.load(Ordering::SeqCst) {
+            return false;
+        }
+        thread::sleep(config.poll_interval.min(Duration::from_secs(1)));
+    }
+    true
+}
+
 fn session_loop(config: SessionConfig, sink: Sink, cancel: Arc<AtomicBool>) -> StopReason {
     let child_slot = Mutex::new(None);
     let mut consecutive_failures = 0;
-    for session_no in 1..=config.max_sessions {
+    let mut session_no = 0;
+    loop {
+        if session_no >= config.max_sessions {
+            return StopReason::MaxSessions;
+        }
+        session_no += 1;
         let before = match read_progress(&config.root) {
             Ok(p) => p,
             Err(e) => return StopReason::Internal { message: e.to_string() },
@@ -315,13 +356,35 @@ fn session_loop(config: SessionConfig, sink: Sink, cancel: Arc<AtomicBool>) -> S
         }
         sink(SessionEvent::Started { session_no });
         let prompt = build_translate_prompt(&config.root);
+        let round_started = SystemTime::now();
         let outcome = run_child(&config, &prompt, &sink, Some(&cancel), Some(&child_slot));
+        // Giờ quota reset nằm trong hội thoại agy vừa ghi — đọc trước khi dọn hội thoại đó.
+        let quota_reset =
+            config.agy_data_dir.as_deref().and_then(|dir| quota_reset_since(dir, &config.root, round_started));
         sweep_conversations(&config, &sink);
         let code = match outcome {
             Ok(Some(code)) => code,
             Ok(None) => return StopReason::UserCancelled,
             Err(e) => return StopReason::Internal { message: e.to_string() },
         };
+        let after = match read_progress(&config.root) {
+            Ok(p) => p,
+            Err(e) => return StopReason::Internal { message: e.to_string() },
+        };
+        let progressed = after.settled() > before.settled();
+        // Lượt hỏng (agy lỗi hoặc không chốt thêm chương nào) vì hết quota: không phải lỗi cần dừng để người
+        // dùng xem. Lượt đó không tính vào giới hạn số phiên, cũng không tính là một lần agy lỗi.
+        if let Some(reset_at) = quota_reset.filter(|_| code != 0 || !progressed) {
+            if !config.resume_on_quota {
+                return StopReason::QuotaExhausted { reset_at };
+            }
+            if !wait_for_quota(&config, &sink, &cancel, reset_at) {
+                return StopReason::UserCancelled;
+            }
+            session_no -= 1;
+            consecutive_failures = 0;
+            continue;
+        }
         if code != 0 {
             consecutive_failures += 1;
             if consecutive_failures >= 2 {
@@ -330,15 +393,10 @@ fn session_loop(config: SessionConfig, sink: Sink, cancel: Arc<AtomicBool>) -> S
             continue; // lần đầu lỗi (rate limit nhất thời?) → thử thêm một phiên
         }
         consecutive_failures = 0;
-        let after = match read_progress(&config.root) {
-            Ok(p) => p,
-            Err(e) => return StopReason::Internal { message: e.to_string() },
-        };
-        if after.settled() <= before.settled() {
+        if !progressed {
             return StopReason::NoProgress;
         }
     }
-    StopReason::MaxSessions
 }
 
 /// Chạy `run` trên thread riêng dưới lock `work/.session.lock`; panic → Internal; luôn phát Stopped.

@@ -101,6 +101,8 @@ pub struct AppConfig {
     pub reading_width: String,
     /// Trang đọc đánh số từng đoạn ở tab Bản dịch và Gốc (số trùng nhãn [[n]] trong cảnh báo). Mặc định bật.
     pub line_numbers: bool,
+    /// Phiên agy hết quota thì chờ tới giờ quota reset rồi tự dịch tiếp, thay vì dừng. Mặc định tắt.
+    pub resume_on_quota: bool,
 }
 
 impl Default for AppConfig {
@@ -118,6 +120,7 @@ impl Default for AppConfig {
             theme_mode: "system".to_string(),
             reading_width: "normal".to_string(),
             line_numbers: true,
+            resume_on_quota: false,
         }
     }
 }

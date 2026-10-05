@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { appConfigSchema, sessionEventSchema, storyConfigSchema, storySnapshotSchema } from "@/lib/schema";
+import { clockLabel, stopReasonLabel } from "@/lib/types";
 
 const story = {
   name: "A",
@@ -84,6 +85,26 @@ describe("schema", () => {
     expect(() => bad({ openai: { effort: { translate: "ultra" } } })).toThrow();
     expect(() => bad({ gemini: { effort: { translate: "xhigh" } } })).toThrow(); // xhigh chỉ có ở OpenAI
     expect(bad({ gemini: { effort: { glossary: "low" } } }).api.gemini.effort.glossary).toBe("low");
+  });
+
+  it("parse quota_wait, stopped quota_exhausted và config resumeOnQuota mặc định tắt", () => {
+    expect(sessionEventSchema.parse({ type: "quota_wait", until: 1791229542000 })).toEqual({
+      type: "quota_wait",
+      until: 1791229542000,
+    });
+    expect(sessionEventSchema.parse({ type: "stopped", kind: "quota_exhausted", reset_at: 1791229482000 })).toEqual({
+      type: "stopped",
+      kind: "quota_exhausted",
+      reset_at: 1791229482000,
+    });
+    const config = appConfigSchema.parse({ agyPath: null, model: null, maxSessions: 50, recent: [] });
+    expect(config.resumeOnQuota).toBe(false);
+    expect(config.lineNumbers).toBe(true);
+    // Cùng ngày chỉ hiện giờ; khác ngày kèm ngày/tháng.
+    const at = new Date(2026, 9, 6, 2, 45).getTime();
+    expect(clockLabel(at, new Date(2026, 9, 6, 0, 10).getTime())).toBe("02:45");
+    expect(clockLabel(at, new Date(2026, 9, 5, 23, 50).getTime())).toBe("02:45 ngày 06/10");
+    expect(stopReasonLabel({ kind: "quota_exhausted", reset_at: at })).toContain("Hết quota agy — quota mở lại lúc 02:45");
   });
 
   it("parse stopped api_failed", () => {

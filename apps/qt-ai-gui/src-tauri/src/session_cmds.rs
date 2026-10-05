@@ -41,7 +41,13 @@ pub struct AiFillResult {
     pub log: Vec<String>,
 }
 
-pub fn session_config(root: &Path, agy: PathBuf, model: Option<String>, max_sessions: u32) -> SessionConfig {
+pub fn session_config(
+    root: &Path,
+    agy: PathBuf,
+    model: Option<String>,
+    max_sessions: u32,
+    resume_on_quota: bool,
+) -> SessionConfig {
     SessionConfig {
         root: root.to_path_buf(),
         agy,
@@ -50,6 +56,7 @@ pub fn session_config(root: &Path, agy: PathBuf, model: Option<String>, max_sess
         poll_interval: Duration::from_secs(2),
         extra_path: qt_ai_dir(),
         agy_data_dir: qt_ai_core::agy_data::default_data_dir(),
+        resume_on_quota,
     }
 }
 
@@ -94,9 +101,9 @@ pub fn session_state(state: State<'_, AppState>) -> CmdResult<SessionStatus> {
 pub async fn session_start<R: Runtime>(app: AppHandle<R>, root: String, model: Option<String>) -> CmdResult<SessionStatus> {
     blocking(move || {
         let state = app.state::<AppState>();
-        let (engine, api, max_sessions, max_parallel) = {
+        let (engine, api, max_sessions, max_parallel, resume_on_quota) = {
             let config = state.config.lock().unwrap();
-            (config.engine, config.api.clone(), config.max_sessions, config.max_parallel as usize)
+            (config.engine, config.api.clone(), config.max_sessions, config.max_parallel as usize, config.resume_on_quota)
         };
         state.sessions.lock().unwrap().check_can_start(&root, max_parallel)?;
         let event_root = root.clone();
@@ -107,7 +114,7 @@ pub async fn session_start<R: Runtime>(app: AppHandle<R>, root: String, model: O
         let handle: SessionHandle = match engine {
             Engine::Agy => {
                 let agy = resolve_agy(&state)?;
-                start_session(session_config(Path::new(&root), agy, model, max_sessions), sink)?
+                start_session(session_config(Path::new(&root), agy, model, max_sessions, resume_on_quota), sink)?
             }
             Engine::Api => {
                 let model = Arc::new(HttpModel::new(resolve_api(&api)?));
@@ -206,7 +213,7 @@ fn fill_story_via_agy(state: &State<'_, AppState>, root_path: &Path, name: &str,
 
     let agy = resolve_agy(state)?;
     let model = state.config.lock().unwrap().model.clone();
-    let config = session_config(root_path, agy, model, 1);
+    let config = session_config(root_path, agy, model, 1, false);
     let log = Arc::new(Mutex::new(Vec::<String>::new()));
     let log_sink = log.clone();
     let outcome = run_once(&config, &build_setup_prompt(root_path, name, source_url), &move |event| {
@@ -298,8 +305,9 @@ mod tests {
 
     #[test]
     fn session_config_lay_max_sessions_tu_app_config_va_poll_2s() {
-        let config = session_config(Path::new("D:\\truyen"), PathBuf::from("agy.exe"), Some("m".into()), 7);
+        let config = session_config(Path::new("D:\\truyen"), PathBuf::from("agy.exe"), Some("m".into()), 7, true);
         assert_eq!(config.max_sessions, 7);
+        assert!(config.resume_on_quota);
         assert_eq!(config.poll_interval, Duration::from_secs(2));
         assert_eq!(config.model.as_deref(), Some("m"));
     }

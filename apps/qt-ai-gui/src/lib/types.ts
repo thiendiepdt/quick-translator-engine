@@ -137,6 +137,14 @@ export const STATUS_LABELS: Record<ChapterStatus, string> = {
   skipped: "Bỏ qua",
 };
 
+/** "02:45" theo giờ máy; khác ngày hôm nay thì kèm ngày: "02:45 ngày 07/10". */
+export function clockLabel(ms: number, now: number = Date.now()): string {
+  const at = new Date(ms);
+  const pad = (value: number) => String(value).padStart(2, "0");
+  const time = `${pad(at.getHours())}:${pad(at.getMinutes())}`;
+  return at.toDateString() === new Date(now).toDateString() ? time : `${time} ngày ${pad(at.getDate())}/${pad(at.getMonth() + 1)}`;
+}
+
 export function stopReasonLabel(reason: StopReason): string {
   switch (reason.kind) {
     case "finished":
@@ -151,6 +159,8 @@ export function stopReasonLabel(reason: StopReason): string {
       return "Đã dừng theo yêu cầu.";
     case "max_sessions":
       return "Đã chạy đủ số phiên tối đa trong Cài đặt.";
+    case "quota_exhausted":
+      return `Hết quota agy — quota mở lại lúc ${clockLabel(reason.reset_at)}. Bật "Tự dịch tiếp khi quota agy reset" trong Cài đặt để app tự chạy lại.`;
     case "internal":
       return `Lỗi nội bộ: ${reason.message}`;
   }

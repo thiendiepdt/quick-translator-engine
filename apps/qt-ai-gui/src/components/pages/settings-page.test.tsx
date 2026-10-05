@@ -108,6 +108,17 @@ describe("SettingsPage · Động cơ dịch", () => {
     expect(screen.getByRole("button", { name: "Lưu App + Truyện này" })).toBeDisabled();
   });
 
+  it("ô 'Tự dịch tiếp khi quota agy reset' mặc định tắt; tick rồi Lưu thì ghi resumeOnQuota vào AppConfig", async () => {
+    const user = userEvent.setup();
+    vi.mocked(appConfigSet).mockClear();
+    render(<SettingsPage />);
+    const box = screen.getByLabelText("Tự dịch tiếp khi quota agy reset");
+    expect(box).not.toBeChecked();
+    await user.click(box);
+    await user.click(screen.getByRole("button", { name: "Lưu App + Truyện này" }));
+    await waitFor(() => expect(appConfigSet).toHaveBeenCalledWith(expect.objectContaining({ resumeOnQuota: true })));
+  });
+
   it("đang dịch: sửa xong nút Lưu vẫn khoá kèm lời nhắc dừng dịch", async () => {
     useStoryStore.getState().openStory({ ...snapshot, sessionRunning: true });
     const user = userEvent.setup();

@@ -46,6 +46,7 @@ const settingsFormSchema = engineFormSchema.extend({
   model: z.string(),
   maxSessions: z.number().int().min(1).max(1000),
   maxParallel: z.number().int().min(1).max(20),
+  resumeOnQuota: z.boolean(),
   chaptersPerSession: z.number().int().min(1).max(100),
   maxReviewRounds: z.number().int().min(0).max(10),
   minLengthRatio: z.number().min(0.1).max(3),
@@ -299,6 +300,7 @@ export function SettingsPage() {
         model: config.model ?? "",
         maxSessions: config.maxSessions,
         maxParallel: config.maxParallel,
+        resumeOnQuota: config.resumeOnQuota,
         chaptersPerSession: settings.chaptersPerSession,
         maxReviewRounds: settings.maxReviewRounds,
         minLengthRatio: settings.minLengthRatio,
@@ -317,6 +319,7 @@ export function SettingsPage() {
         model: values.model.trim() || null,
         maxSessions: values.maxSessions,
         maxParallel: values.maxParallel,
+        resumeOnQuota: values.resumeOnQuota,
       });
       setConfig(next);
       if (next.engine === "agy") setAgy(await agyStatus(next.agyPath ?? undefined));
@@ -477,6 +480,16 @@ export function SettingsPage() {
                 min: 1,
                 max: 1000,
               })}
+              <div className="flex flex-col gap-1.5">
+                <label className="flex items-center gap-2 text-sm font-medium">
+                  <input type="checkbox" {...form.register("resumeOnQuota")} />
+                  Tự dịch tiếp khi quota agy reset
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  Hết quota agy thì phiên không dừng mà chờ tới giờ quota mở lại rồi tự chạy tiếp (app phải mở, máy không
+                  ngủ). Tắt thì phiên dừng và báo giờ quota mở lại. Chỉ áp dụng cho động cơ agy; mặc định tắt.
+                </p>
+              </div>
             </Card>
             <Card title="Truyện này" description="Ghi vào state.json của truyện đang mở.">
               {field("chaptersPerSession", "Chương / phiên", "Agent dừng sau số chương này để giữ context sạch; mặc định 10.", {

@@ -76,6 +76,22 @@ describe("applySessionEvent theo truyện", () => {
     expect(runningRoots(state)).toEqual([A]);
   });
 
+  it("quota_wait: phiên vẫn running kèm giờ chờ, giữ số phiên; started lượt kế xoá giờ chờ", () => {
+    const store = useStoryStore.getState();
+    store.applySessionEvent(A, { type: "started", session_no: 3 });
+    store.applySessionEvent(A, { type: "quota_wait", until: 1_791_229_542_000 });
+    expect(sessionOf(useStoryStore.getState(), A)).toEqual({ status: "running", sessionNo: 3, waitUntil: 1_791_229_542_000 });
+    expect(isRunning(useStoryStore.getState(), A)).toBe(true);
+    store.applySessionEvent(A, { type: "started", session_no: 3 });
+    expect(sessionOf(useStoryStore.getState(), A)).toEqual({ status: "running", sessionNo: 3 });
+    // Hết quota mà không bật tự chạy lại: dừng với lý do riêng.
+    store.applySessionEvent(A, { type: "stopped", kind: "quota_exhausted", reset_at: 1_791_229_482_000 });
+    expect(sessionOf(useStoryStore.getState(), A)).toEqual({
+      status: "stopped",
+      reason: { kind: "quota_exhausted", reset_at: 1_791_229_482_000 },
+    });
+  });
+
   it("agy_log nối vào ring buffer 2000 dòng riêng từng truyện; clearLogs chỉ xoá truyện đó", () => {
     for (let i = 0; i < 2100; i += 1) {
       useStoryStore.getState().applySessionEvent(A, { type: "agy_log", line: `l${i}`, stream: "stdout" });
@@ -166,6 +182,7 @@ describe("openStory/closeStory", () => {
       themeMode: "system",
       readingWidth: "normal",
       lineNumbers: false,
+      resumeOnQuota: false,
     };
     useStoryStore.getState().setConfig(config);
     useStoryStore.getState().openStory(snapshot);

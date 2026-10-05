@@ -150,6 +150,18 @@ describe("StorySidebar", () => {
     expect(dockEntries(useStoryStore.getState()).find((e) => e.root === B)).toMatchObject({ skipped: 0, error: 0 });
   });
 
+  it("truyện đang chờ quota agy: thẻ ghi giờ tự dịch tiếp thay cho phần trăm", () => {
+    const until = new Date();
+    until.setHours(23, 58, 0, 0);
+    useStoryStore.getState().applySessionEvent(B, { type: "quota_wait", until: until.getTime() });
+    ui();
+    const items = screen.getAllByRole("listitem");
+    expect(items[0]).toHaveAccessibleName("Bravo — Chờ quota agy · tự dịch tiếp lúc 23:58");
+    expect(items[0]).toHaveTextContent("chờ 23:58");
+    expect(items[1]).toHaveAccessibleName("Delta — Đang dịch");
+    expect(dockEntries(useStoryStore.getState())[0]).toMatchObject({ running: true, waitUntil: until.getTime() });
+  });
+
   it("danh sách dài: hiện 12 ô rồi nút +N nạp thêm", async () => {
     const many = Array.from({ length: 30 }, (_, i) => `D:\\lib\\t${String(i).padStart(2, "0")}`);
     useStoryStore.setState({ opened: many, sessions: {}, roots: {}, names: {}, progress: {}, root: many[0] });

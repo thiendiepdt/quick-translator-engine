@@ -8,7 +8,8 @@ export type Page = "translate" | "story" | "export" | "settings";
 
 export type SessionState =
   | { status: "idle" }
-  | { status: "running"; sessionNo: number }
+  /** `waitUntil` (ms epoch): agy hết quota, phiên đang chờ tới giờ đó rồi tự chạy tiếp. */
+  | { status: "running"; sessionNo: number; waitUntil?: number }
   | { status: "stopped"; reason: StopReason };
 
 export interface LogLine {
@@ -100,6 +101,11 @@ export function applySessionEventPure(state: PerStory, root: string, event: Sess
         progress: { ...state.progress, [key]: progress },
         issues: withIssues(state.issues, key, progress.skipped, progress.error),
       };
+    }
+    case "quota_wait": {
+      const current = state.sessions[key];
+      const sessionNo = current?.status === "running" ? current.sessionNo : 0;
+      return { roots, sessions: { ...state.sessions, [key]: { status: "running", sessionNo, waitUntil: event.until } } };
     }
     case "agy_log": {
       logSeq += 1;

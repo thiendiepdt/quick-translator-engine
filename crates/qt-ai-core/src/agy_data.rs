@@ -307,9 +307,108 @@ pub fn clean(data_dir: &Path, scope: Scope<'_>) -> CleanReport {
     report
 }
 
+/// `2026-10-05T19:44:42Z` (có thể kèm phần lẻ giây) → ms từ epoch.
+fn parse_utc_timestamp(text: &str) -> Option<u64> {
+    let bytes = text.as_bytes();
+    if bytes.len() < 19 || bytes[4] != b'-' || bytes[7] != b'-' || bytes[10] != b'T' || bytes[13] != b':' || bytes[16] != b':' {
+        return None;
+    }
+    let field = |range: std::ops::Range<usize>| text.get(range)?.parse::<i64>().ok();
+    let (year, month, day) = (field(0..4)?, field(5..7)?, field(8..10)?);
+    let (hour, minute, second) = (field(11..13)?, field(14..16)?, field(17..19)?);
+    if !(1..=12).contains(&month) || !(1..=31).contains(&day) || hour > 23 || minute > 59 || second > 60 {
+        return None;
+    }
+    // Số ngày từ 1970-01-01 theo lịch Gregory (thuật toán days_from_civil).
+    let shifted_year = if month <= 2 { year - 1 } else { year };
+    let era = shifted_year.div_euclid(400);
+    let year_of_era = shifted_year.rem_euclid(400);
+    let day_of_year = (153 * ((month + 9) % 12) + 2) / 5 + day - 1;
+    let day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
+    let days = era * 146_097 + day_of_era - 719_468;
+    u64::try_from((days * 86_400 + hour * 3600 + minute * 60 + second) * 1000).ok()
+}
+
+/// `2h47m27s` / `47m27s` / `27s` → ms.
+fn parse_go_duration(text: &str) -> Option<u64> {
+    let (mut total, mut digits) = (0u64, String::new());
+    for c in text.chars() {
+        match c {
+            '0'..='9' => digits.push(c),
+            'h' | 'm' | 's' => {
+                let value: u64 = digits.parse().ok()?;
+                total += value * if c == 'h' { 3_600_000 } else if c == 'm' { 60_000 } else { 1000 };
+                digits.clear();
+            }
+            _ => return None,
+        }
+    }
+    (digits.is_empty() && total > 0).then_some(total)
+}
+
+/// Giờ quota reset (ms epoch) ghi trong nội dung thô của một file hội thoại, nếu lượt đó chết vì hết quota. Máy
+/// chủ trả `RESOURCE_EXHAUSTED … Resets in 2h47m27s.` kèm `"quotaResetTimeStamp": "2026-10-05T19:44:42Z"`; agy
+/// lưu nguyên văn vào hội thoại. Ưu tiên mốc tuyệt đối; chỉ có "Resets in" thì tính từ lúc file được ghi.
+fn quota_reset_in(bytes: &[u8], written_ms: u64) -> Option<u64> {
+    find(bytes, b"RESOURCE_EXHAUSTED")?;
+    const STAMP: &[u8] = b"\"quotaResetTimeStamp\": \"";
+    const RELATIVE: &[u8] = b"Resets in ";
+    let after = |marker: &[u8]| {
+        let mut found = Vec::new();
+        let mut rest = bytes;
+        while let Some(at) = find(rest, marker) {
+            rest = &rest[at + marker.len()..];
+            let end = rest.iter().position(|byte| !byte.is_ascii_alphanumeric() && !b"-:".contains(byte)).unwrap_or(rest.len());
+            found.push(String::from_utf8_lossy(&rest[..end.min(40)]).into_owned());
+        }
+        found
+    };
+    let absolute = after(STAMP).iter().filter_map(|stamp| parse_utc_timestamp(stamp)).max();
+    absolute.or_else(|| after(RELATIVE).iter().filter_map(|span| parse_go_duration(span)).max().map(|span| written_ms + span))
+}
+
+/// Lượt agy vừa chạy cho truyện `root` (hội thoại ghi từ `since` trở đi) có chết vì hết quota không — trả giờ
+/// quota reset (ms epoch). Phải gọi TRƯỚC khi dọn hội thoại của lượt đó.
+pub fn quota_reset_since(data_dir: &Path, root: &Path, since: SystemTime) -> Option<u64> {
+    let window = SystemTime::now().duration_since(since).unwrap_or(Duration::ZERO) + Duration::from_secs(2);
+    scan(data_dir)
+        .into_iter()
+        .filter(|conversation| conversation.app && conversation.idle <= window)
+        .filter(|conversation| conversation.workspace.as_deref().is_some_and(|dir| same_path(dir, root)))
+        .filter_map(|conversation| {
+            let [db, wal, _] = conversation_files(data_dir, &conversation.id);
+            let written = SystemTime::now().checked_sub(conversation.idle)?.duration_since(SystemTime::UNIX_EPOCH).ok()?;
+            let written_ms = written.as_millis() as u64;
+            [db, wal].iter().filter_map(|path| fs::read(path).ok()).filter_map(|bytes| quota_reset_in(&bytes, written_ms)).max()
+        })
+        .max()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn doc_gio_quota_reset_tu_loi_resource_exhausted_trong_hoi_thoai() {
+        assert_eq!(parse_utc_timestamp("1970-01-01T00:00:00Z"), Some(0));
+        assert_eq!(parse_utc_timestamp("2026-10-05T19:44:42Z"), Some(1_791_229_482_000));
+        assert_eq!(parse_utc_timestamp("2024-02-29T12:00:00.123Z"), Some(1_709_208_000_000));
+        assert_eq!(parse_utc_timestamp("2026-13-05T19:44:42Z"), None);
+        assert_eq!(parse_utc_timestamp("hom nay"), None);
+        assert_eq!(parse_go_duration("2h47m27s"), Some(10_047_000));
+        assert_eq!(parse_go_duration("47m27s"), Some(2_847_000));
+        assert_eq!(parse_go_duration("27s"), Some(27_000));
+        assert_eq!(parse_go_duration("2h47"), None);
+
+        let error = br#"junk {"error": {"code": 429, "message": "Individual quota reached. Please upgrade your subscription to increase your limits. Resets in 2h47m27s.", "status": "RESOURCE_EXHAUSTED", "details": [{"metadata": {"quotaResetTimeStamp": "2026-10-05T19:44:42Z"}}]}} junk "quotaResetTimeStamp": "2026-10-05T18:00:00Z""#;
+        assert_eq!(quota_reset_in(error, 5_000), Some(1_791_229_482_000), "mốc tuyệt đối muộn nhất");
+        // Chỉ có dòng "Resets in": tính từ lúc file được ghi.
+        let relative = b"RESOURCE_EXHAUSTED (code 429): Individual quota reached. Resets in 2h47m27s.B";
+        assert_eq!(quota_reset_in(relative, 5_000), Some(10_052_000));
+        // Có chữ quota nhưng không phải lỗi hết quota, hoặc có lỗi mà không có giờ reset.
+        assert_eq!(quota_reset_in(br#"ghi chu: "quotaResetTimeStamp": "2026-10-05T19:44:42Z""#, 0), None);
+        assert_eq!(quota_reset_in(b"RESOURCE_EXHAUSTED khong ro gio", 0), None);
+    }
 
     #[test]
     fn workspace_tu_blob_theo_do_dai_varint_va_giai_ma_phan_tram() {

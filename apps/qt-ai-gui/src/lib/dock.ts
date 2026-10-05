@@ -10,6 +10,8 @@ export interface DockEntry {
   /** Tiến độ live (0–100) khi đang dịch; undefined nếu chưa có event progress. */
   percent?: number;
   currentChapter?: string | null;
+  /** Hết quota agy: phiên đang chờ tới giờ này (ms epoch) rồi tự chạy tiếp. */
+  waitUntil?: number;
   /** Chương bỏ qua / lỗi biết được gần nhất — > 0 thì thẻ truyện hiện dòng nhắc. */
   skipped: number;
   error: number;
@@ -56,6 +58,7 @@ export function dockEntries(state: {
     const key = pathKey(root);
     const isRunning = running.some((r) => samePath(r, root));
     const progress = state.progress[key];
+    const session = state.sessions[key];
     return {
       root,
       name: state.names[key] ?? "",
@@ -63,6 +66,7 @@ export function dockEntries(state: {
       running: isRunning,
       percent: isRunning ? progressPercent(progress) : undefined,
       currentChapter: isRunning ? (progress?.current ?? null) : undefined,
+      waitUntil: session?.status === "running" ? session.waitUntil : undefined,
       skipped: state.issues[key]?.skipped ?? 0,
       error: state.issues[key]?.error ?? 0,
     };

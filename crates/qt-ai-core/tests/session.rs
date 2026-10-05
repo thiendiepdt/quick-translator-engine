@@ -26,6 +26,7 @@ fn config(root: &Path) -> SessionConfig {
         poll_interval: Duration::from_millis(50),
         extra_path: None,
         agy_data_dir: None,
+        resume_on_quota: false,
     }
 }
 

@@ -8,6 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { openStory as openStoryApi } from "@/lib/api";
 import { dockEntries, initials, issuesLabel } from "@/lib/dock";
 import { samePath } from "@/lib/paths";
+import { clockLabel } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useStoryStore } from "@/store/story";
 
@@ -93,11 +94,13 @@ export function StorySidebar() {
         {visible.map((item) => {
           const label = item.name || item.root;
           const folder = item.root.replace(/[\\/]+$/, "").split(/[\\/]/).pop() ?? item.root;
-          const detail = item.running
-            ? `Đang dịch${item.currentChapter ? ` · ${item.currentChapter}` : ""}${item.percent !== undefined ? ` · ${item.percent}%` : ""}`
-            : item.current
-              ? "Đang mở"
-              : "Đã mở trong phiên này";
+          const detail = item.waitUntil
+            ? `Chờ quota agy · tự dịch tiếp lúc ${clockLabel(item.waitUntil)}`
+            : item.running
+              ? `Đang dịch${item.currentChapter ? ` · ${item.currentChapter}` : ""}${item.percent !== undefined ? ` · ${item.percent}%` : ""}`
+              : item.current
+                ? "Đang mở"
+                : "Đã mở trong phiên này";
           // Chương bỏ qua/lỗi không tự được dịch lại — nhắc ngay trên thẻ để khỏi phải mở từng truyện ra xem.
           const flagged = issuesLabel(item);
           const attention = flagged ? `Cần xem: ${flagged}` : "";
@@ -141,9 +144,15 @@ export function StorySidebar() {
                         <span className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
                           <span className="block h-full bg-status-done" style={{ width: `${item.percent ?? 0}%` }} />
                         </span>
-                        <span className="shrink-0 text-[10px] tabular-nums text-status-translating">
-                          {item.percent !== undefined ? `${item.percent}%` : "…"}
-                        </span>
+                        {item.waitUntil ? (
+                          <span className="shrink-0 text-[10px] tabular-nums text-status-warning">
+                            chờ {clockLabel(item.waitUntil)}
+                          </span>
+                        ) : (
+                          <span className="shrink-0 text-[10px] tabular-nums text-status-translating">
+                            {item.percent !== undefined ? `${item.percent}%` : "…"}
+                          </span>
+                        )}
                       </span>
                     ) : (
                       <span className="truncate font-mono text-[10px] text-muted-foreground">{folder}</span>

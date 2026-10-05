@@ -28,7 +28,7 @@ import {
 import { storyLabel } from "@/hooks/use-session-events";
 import { pathKey, samePath } from "@/lib/paths";
 import { filterByQuery, PAGE_SIZE } from "@/lib/switcher";
-import { engineLabel } from "@/lib/types";
+import { clockLabel, engineLabel } from "@/lib/types";
 import type { Progress, RecentSummary } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { runningRoots, useStoryStore } from "@/store/story";
@@ -47,6 +47,7 @@ function StoryRow({
   onOpen,
   onForget,
   onStop,
+  waitUntil,
 }: {
   item: RecentSummary;
   busy: boolean;
@@ -56,6 +57,8 @@ function StoryRow({
   onForget?: () => void;
   /** Có = truyện đang dịch, hiện nhãn + nút Dừng. */
   onStop?: () => void;
+  /** Hết quota agy: phiên đang chờ tới giờ này (ms epoch) rồi tự chạy tiếp. */
+  waitUntil?: number;
 }) {
   const done = live?.done ?? item.done ?? 0;
   const percent = item.total ? Math.round((done / item.total) * 100) : 0;
@@ -74,8 +77,15 @@ function StoryRow({
               <p className="flex items-center gap-2 truncate font-medium">
                 <span className="truncate">{item.name}</span>
                 {onStop && (
-                  <span className="shrink-0 rounded-full bg-status-translating/15 px-2 py-0.5 text-[11px] font-medium text-status-translating">
-                    Đang dịch{live?.current ? ` · ${live.current}` : ""}
+                  <span
+                    className={cn(
+                      "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium",
+                      waitUntil ? "bg-status-warning/15 text-status-warning" : "bg-status-translating/15 text-status-translating",
+                    )}
+                  >
+                    {waitUntil
+                      ? `Chờ quota · tự dịch tiếp lúc ${clockLabel(waitUntil)}`
+                      : `Đang dịch${live?.current ? ` · ${live.current}` : ""}`}
                   </span>
                 )}
               </p>
@@ -335,10 +345,15 @@ export function StoryPicker() {
     }
   }
 
-  const rowProps = (item: RecentSummary) =>
-    isRunning(item.root)
-      ? { live: progress[pathKey(item.root)], onStop: () => void stop(item.root) }
-      : {};
+  const rowProps = (item: RecentSummary) => {
+    if (!isRunning(item.root)) return {};
+    const session = sessions[pathKey(item.root)];
+    return {
+      live: progress[pathKey(item.root)],
+      onStop: () => void stop(item.root),
+      waitUntil: session?.status === "running" ? session.waitUntil : undefined,
+    };
+  };
 
   const saveLibrary = useCallback(
     async (root: string) => {

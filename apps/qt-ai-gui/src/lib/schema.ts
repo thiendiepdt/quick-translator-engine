@@ -253,6 +253,8 @@ export const appConfigSchema = z.object({
   readingWidth: z.string().default("normal"),
   /** Trang đọc đánh số từng đoạn ở tab Bản dịch và Gốc; mặc định bật. */
   lineNumbers: z.boolean().default(true),
+  /** Phiên agy hết quota thì chờ tới giờ reset rồi tự dịch tiếp; mặc định tắt. */
+  resumeOnQuota: z.boolean().default(false),
 });
 
 /** "builtin" = bản cứng trong binary; "file" = người dùng đã sửa ở Cài đặt → Bản mặc định. */
@@ -311,6 +313,8 @@ export const stopReasonSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("api_failed"), message: z.string() }),
   z.object({ kind: z.literal("user_cancelled") }),
   z.object({ kind: z.literal("max_sessions") }),
+  /** agy hết quota và không bật tự chạy lại; `reset_at` là ms epoch lúc quota mở lại. */
+  z.object({ kind: z.literal("quota_exhausted"), reset_at: z.number() }),
   z.object({ kind: z.literal("internal"), message: z.string() }),
 ]);
 
@@ -324,6 +328,7 @@ const stoppedEventSchema = z.discriminatedUnion("kind", [
   z.object({ type: z.literal("stopped"), kind: z.literal("api_failed"), message: z.string() }),
   z.object({ type: z.literal("stopped"), kind: z.literal("user_cancelled") }),
   z.object({ type: z.literal("stopped"), kind: z.literal("max_sessions") }),
+  z.object({ type: z.literal("stopped"), kind: z.literal("quota_exhausted"), reset_at: z.number() }),
   z.object({ type: z.literal("stopped"), kind: z.literal("internal"), message: z.string() }),
 ]);
 
@@ -331,6 +336,8 @@ export const sessionEventSchema = z.union([
   z.object({ type: z.literal("started"), session_no: z.number() }),
   progressSchema.extend({ type: z.literal("progress") }),
   z.object({ type: z.literal("agy_log"), line: z.string(), stream: z.enum(["stdout", "stderr"]) }),
+  /** Hết quota agy: phiên chờ tới `until` (ms epoch) rồi tự chạy tiếp. */
+  z.object({ type: z.literal("quota_wait"), until: z.number() }),
   stoppedEventSchema,
 ]);
 

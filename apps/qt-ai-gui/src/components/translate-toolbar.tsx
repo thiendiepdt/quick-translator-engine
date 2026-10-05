@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { chaptersRetryIds, rescanStory, sessionStart, sessionStop, storySnapshot } from "@/lib/api";
 import { filterChapters, gapsBeforeFrontier } from "@/lib/chapters";
-import { engineLabel, STATUS_LABELS } from "@/lib/types";
+import { clockLabel, engineLabel, STATUS_LABELS } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { selectCurrentProgress, selectCurrentSession, useStoryStore } from "@/store/story";
 
@@ -252,13 +252,19 @@ export function TranslateToolbar() {
             />
           </>
         )}
-        {running && (
-          <span className="ml-auto inline-flex items-center gap-2 text-xs text-primary">
-            <span className="size-2 animate-pulse rounded-full bg-status-translating" aria-hidden />
-            Phiên {session.sessionNo}
-            {progress?.current ? ` · đang dịch ${progress.current}` : ""}
-          </span>
-        )}
+        {running &&
+          (session.waitUntil ? (
+            <span role="status" className="ml-auto inline-flex items-center gap-2 text-xs font-medium text-status-warning">
+              <span className="size-2 rounded-full bg-status-warning" aria-hidden />
+              Hết quota agy — tự dịch tiếp lúc {clockLabel(session.waitUntil)}. Bấm Dừng nếu không muốn chờ.
+            </span>
+          ) : (
+            <span className="ml-auto inline-flex items-center gap-2 text-xs text-primary">
+              <span className="size-2 animate-pulse rounded-full bg-status-translating" aria-hidden />
+              Phiên {session.sessionNo}
+              {progress?.current ? ` · đang dịch ${progress.current}` : ""}
+            </span>
+          ))}
       </div>
       {gapInfo && (
         <p
