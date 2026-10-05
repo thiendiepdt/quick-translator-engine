@@ -149,6 +149,19 @@ export const agyStatusSchema = z.object({
   message: z.string().nullable(),
 });
 
+/** Một tên tiêu đề lặp ở từ hai chương raw trở lên (Rust `titles::TitleGroup`). */
+export const titleGroupSchema = z.object({
+  source: z.string(),
+  target: z.string(),
+  settled: z.boolean(),
+  chapters: z.number(),
+  translated: z.number(),
+  variants: z.array(z.object({ text: z.string(), count: z.number() })),
+  pending: z.number(),
+});
+export const titleSurveySchema = z.object({ groups: z.array(titleGroupSchema), unparsed: z.number() });
+export const titlesAppliedSchema = z.object({ changed: z.number(), survey: titleSurveySchema });
+
 /** Hội thoại agy trên đĩa (Rust `agy_data_stats`). `dataDir` null = máy chưa từng chạy agy CLI. */
 export const agyDataStatsSchema = z.object({
   dataDir: z.string().nullable(),

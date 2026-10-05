@@ -22,7 +22,7 @@ fn backup_path(path: &Path) -> PathBuf {
 /// Đưa truyện về như lúc vừa tạo để dịch lại từ đầu sau khi app đổi lớn: hồ sơ chỉ còn tên + link, glossary
 /// và bảng nhân vật xoá sạch, mọi chương về hàng đợi, work/ dọn. `raw/`, `out/` (kể cả .bak), `export/` và
 /// cài đặt harness giữ nguyên; bản dịch cũ trong out/ chỉ bị đè khi chương đó được dịch lại. Bản trước reset
-/// nằm ở `story.json.bak`, `state.json.bak`, `cast.json.bak`. AGENTS.md + workflows bị ép về template hiện tại,
+/// nằm ở `story.json.bak`, `state.json.bak`, `cast.json.bak`, `titles.json.bak`. AGENTS.md + workflows bị ép về template hiện tại,
 /// bản sửa tay lưu `.bak` cạnh đó.
 pub fn run_reset(root: &Path, qt_ai_command: &str) -> Result<ResetOutcome> {
     let paths = story_paths(&resolve_root(root));
@@ -34,6 +34,11 @@ pub fn run_reset(root: &Path, qt_ai_command: &str) -> Result<ResetOutcome> {
     if paths.cast_json.exists() {
         let cast_bak = backup_path(&paths.cast_json);
         fs::rename(&paths.cast_json, &cast_bak).map_err(CoreError::io(&cast_bak))?;
+    }
+    // Sổ tiêu đề đã chốt cũng là kết quả của lần dịch cũ.
+    if paths.titles_json.exists() {
+        let titles_bak = backup_path(&paths.titles_json);
+        fs::rename(&paths.titles_json, &titles_bak).map_err(CoreError::io(&titles_bak))?;
     }
     let mut story = StoryConfig::empty();
     story.name = old_story.name;

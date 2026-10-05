@@ -9,6 +9,7 @@ mod session_cmds;
 mod session_registry;
 mod story_cmds;
 mod summary_cache;
+mod title_cmds;
 
 use app_config::AppConfig;
 use session_registry::SessionRegistry;
@@ -126,6 +127,8 @@ pub fn run() {
             library_cmds::create_story,
             library_cmds::rescan_story,
             library_cmds::library_rescan,
+            title_cmds::titles_survey,
+            title_cmds::titles_apply,
             library_cmds::import_chapters,
         ])
         .run(tauri::generate_context!())
@@ -174,6 +177,7 @@ mod tests {
             include_str!("library_cmds.rs"),
             include_str!("session_cmds.rs"),
             include_str!("story_cmds.rs"),
+            include_str!("title_cmds.rs"),
         ]
         .join("\n");
         let heavy = [
@@ -187,6 +191,8 @@ mod tests {
             "create_story",
             "rescan_story",
             "library_rescan",
+            "titles_survey",
+            "titles_apply",
             "import_chapters",
             "session_start",
             "session_stop",

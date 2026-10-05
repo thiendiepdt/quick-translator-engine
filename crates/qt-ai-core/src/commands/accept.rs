@@ -11,6 +11,7 @@ use crate::story_fs::{
     load_state, load_story_config, now_ms, read_raw_chapter, read_text, resolve_root, save_state,
     save_story_config, story_paths, work_file, write_atomic, ChapterState, ChapterStatus, WorkKind, WORK_KINDS,
 };
+use crate::titles::{first_line, load_titles, replace_first_line, save_titles, settle_title};
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -38,10 +39,22 @@ pub fn run_accept(root: &Path, id: &str, force: bool) -> Result<AcceptResult> {
     }
 
     let draft = assemble_draft(root, id)?;
-    let output = format_translation(&strip_markers(&draft.final_text));
+    let mut output = format_translation(&strip_markers(&draft.final_text));
+    // Tiêu đề lặp (truyện chia phần): tên đã chốt bản dịch thì dùng lại y nguyên, đuôi số viết theo một luật.
+    let mut titles = load_titles(&paths);
+    let titles_before = titles.clone();
+    let raw_title = read_raw_chapter(&paths, id).ok().and_then(|raw| first_line(&raw));
+    if let (Some(raw_title), Some(current)) = (raw_title, first_line(&output)) {
+        if let Some(line) = settle_title(&mut titles, &raw_title, &current) {
+            output = replace_first_line(&output, &line);
+        }
+    }
     let out_path = paths.out_dir.join(format!("{id}.txt"));
     // Atomic + ép xuống đĩa: state chỉ được ghi done sau khi bản dịch đã nằm chắc trên đĩa.
     write_atomic(&out_path, &output)?;
+    if titles != titles_before {
+        save_titles(&paths, &titles)?;
+    }
 
     let mut story = load_story_config(&paths)?;
     let mut added_glossary = 0;

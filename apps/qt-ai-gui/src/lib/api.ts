@@ -23,6 +23,8 @@ import {
   storyConfigSchema,
   storyDefaultsSchema,
   storySnapshotSchema,
+  titleSurveySchema,
+  titlesAppliedSchema,
 } from "@/lib/schema";
 import type {
   AppConfig,
@@ -76,6 +78,11 @@ export const readChapter = (root: string, id: string) =>
   call("read_chapter", { root, id }, (v) => chapterViewSchema.parse(v));
 export const saveStory = (root: string, story: StoryConfig) =>
   call("save_story", { root, story }, (v) => storyConfigSchema.parse(v));
+/** Tên tiêu đề lặp của truyện + các kiểu dịch đang có trong out/. */
+export const titlesSurvey = (root: string) => call("titles_survey", { root }, (v) => titleSurveySchema.parse(v));
+/** Chốt bản dịch cho các tên trong `targets` rồi ghi lại dòng tiêu đề của mọi chương đã dịch cho khớp. */
+export const titlesApply = (root: string, targets: Record<string, string>) =>
+  call("titles_apply", { root, targets }, (v) => titlesAppliedSchema.parse(v));
 export const castLoad = (root: string) => call("cast_load", { root }, (v) => castSchema.parse(v));
 export const castSave = (root: string, cast: Cast) => call("cast_save", { root, cast }, (v) => castSchema.parse(v));
 /** Quét bù giới tính bằng API key (một lượt JSON mỗi 40 tên) — chỉ điền tên chưa rõ giới. */

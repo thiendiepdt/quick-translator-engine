@@ -23,6 +23,8 @@ import {
   type progressSchema,
   type recentSummarySchema,
   type agyDataStatsSchema,
+  type titleGroupSchema,
+  type titleSurveySchema,
   type importOutcomeSchema,
   type sessionEventSchema,
   type stopReasonSchema,
@@ -95,6 +97,8 @@ export type RetryRangeOutcome = z.infer<typeof retryRangeOutcomeSchema>;
 export type DeleteOutcome = z.infer<typeof deleteOutcomeSchema>;
 export type RecentSummary = z.infer<typeof recentSummarySchema>;
 export type AgyDataStats = z.infer<typeof agyDataStatsSchema>;
+export type TitleGroup = z.infer<typeof titleGroupSchema>;
+export type TitleSurvey = z.infer<typeof titleSurveySchema>;
 export type ImportOutcome = z.infer<typeof importOutcomeSchema>;
 
 export const GLOSSARY_LABELS: Record<GlossaryKey, string> = {
