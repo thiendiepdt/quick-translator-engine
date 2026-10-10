@@ -1,0 +1,227 @@
+{
+ "slug": "ky-quai-bat-dau-dap-tan-bat-xich-phu-nhan",
+ "ten": "Kỳ Quái: Bắt Đầu Đập Tan Bát Xích Phu Nhân",
+ "setting": "modern",
+ "the_loai_thuc_te": "Đô thị kinh dị hiện đại + hệ thống săn quỷ + võ đạo quốc thuật, sảng văn, có chút hài tưng tửng; quái vật lấy từ truyền thuyết đô thị Nhật/Trung/Âu",
+ "ngoi_ke": "ngôi 3",
+ "so_chuong_dich": 137,
+ "chuong_doc": [
+  "0001_7077362075420492292",
+  "0069_7089719190050832927",
+  "0136_7101896583436108301",
+  "0137_7101985319859421737"
+ ],
+ "diem": {
+  "xung_ho": 7.5,
+  "giong_van": 7.5,
+  "de_hieu": 7.5,
+  "kho_khan": 7.5,
+  "thuat_ngu": 6.0
+ },
+ "ly_do_diem": {
+  "xung_ho": "Các cặp chính ổn và khớp glossary (Sài Vi Mị gọi 'sếp–anh', đối đầu thì 'tao–mày', Từ Trường Khanh gọi Mộ Dung Thành là 'ông'); trừ điểm vì nhân vật nam phụ hiền như người cha khách hàng cũng bị gọi 'hắn', cùng vài chỗ trộn 'lão thân' với 'tôi'.",
+  "giong_van": "Nhịp nhanh, hợp đô thị hiện đại, không thấy từ cổ trang lạc chỗ; trừ điểm vì Hán Việt convert như 'khủng bố', 'cự lực', 'khí tức', 'vạn thú chi vương' dồn vào các cảnh đánh nhau ở chương mới.",
+  "de_hieu": "Phần lớn câu trôi, ý đủ; còn vài chỗ sai sắc thái ('hủy diệt nhân đạo'), vài câu giữ trật tự từ tiếng Trung và vài câu cụt theo nguyên bản.",
+  "kho_khan": "Xử lý lóng tốt ('vãi chưởng', 'con sen', 'ăn chùa', 'tiền tỉ dễ gần', 'cưỡi tên lửa'); trừ điểm vì 苟 thành 'cẩu' khó hiểu và 卧槽 bị dịch phẳng.",
+  "thuat_ngu": "Không còn sót chữ Hán và tên chính nhất quán; nhưng glossary tự mâu thuẫn (Hàng Ma/Trừ ma), phiên âm sai (Tiểu Mị, Xưng Tử Quỷ), thuật ngữ bị trôi giữa các chương (Ting/Đinh, tuyến ba/cấp ba, quỷ sơ sinh/Quỷ Anh), và cách gọi quái vật Nhật lẫn lộn giữa phiên âm Hán Việt (Trinh Tử) với tên gốc (Kayako, Hanako)."
+ },
+ "loi": [
+  {
+   "the": "CALQUE",
+   "muc_do": "cao",
+   "he_thong": true,
+   "dem": "62 lần/22 file (dồn ở 0099–0137)",
+   "chuong": "0136_7101896583436108301",
+   "dong": 17,
+   "raw": "带着凶悍暴戾，疯狂嗜血的恐怖威压",
+   "hien_tai": "mang theo uy áp khủng bố hung hãn tàn bạo, điên cuồng khát máu",
+   "de_xuat": "mang theo luồng uy áp kinh hoàng, hung tợn tàn bạo, điên cuồng khát máu",
+   "vi_sao": "恐怖 dịch thành 'khủng bố' (tiếng Việt nghĩa là khủng bố/khủng bố chính trị) là văn convert; tần suất tăng ở các chương mới, tức prompt hiện tại không chặn."
+  },
+  {
+   "the": "GLOSSARY_TRUNG",
+   "muc_do": "vua",
+   "he_thong": true,
+   "dem": "'văn phòng Hàng Ma' 9 lần/7 file + 'đại sư hàng ma' 4 lần/2 file, so với 'trừ ma' 44 lần/17 file",
+   "chuong": "0136_7101896583436108301",
+   "dong": 87,
+   "raw": "降魔事务所的事情自然就是抛给了柴薇媚处理",
+   "hien_tai": "chuyện của văn phòng Hàng Ma đương nhiên giao lại cho Sài Vi Mị xử lý",
+   "de_xuat": "chuyện của văn phòng Trừ ma đương nhiên giao lại cho Sài Vi Mị xử lý",
+   "vi_sao": "Glossary có 3 mục cho cùng một văn phòng (徐氏降魔事务所=Văn phòng Trừ ma họ Từ, 降魔事务所=văn phòng Hàng Ma, 除魔事务所=văn phòng trừ ma) nên bản dịch lúc dịch kiểu này, lúc kiểu kia."
+  },
+  {
+   "the": "DINH_DANG",
+   "muc_do": "vua",
+   "he_thong": true,
+   "dem": "ngoặc kép thẳng ở 46/137 file; ngoặc vuông [..] cho bảng hệ thống 32 lần/4 file (0048–0051)",
+   "chuong": "0101_7095309503666913829",
+   "dong": 149,
+   "raw": "“敢杀组织的成员，你必定不得好死！”",
+   "hien_tai": "\"Dám giết thành viên của tổ chức, mày nhất định không được chết tử tế!\"",
+   "de_xuat": "“Dám giết người của tổ chức, mày chết không yên đâu!”",
+   "vi_sao": "Bản gốc chỉ dùng “ ” và 【】, nhưng bản dịch đổi qua lại giữa “ ” và \" \", giữa 【】 và [ ] theo từng đợt dịch; app không chuẩn hoá lại."
+  },
+  {
+   "the": "SAI_NGHIA",
+   "muc_do": "vua",
+   "he_thong": true,
+   "dem": "2 lần/2 file (0096, 0137)",
+   "chuong": "0137_7101985319859421737",
+   "dong": 49,
+   "raw": "劝说他将儿子交给调查局人道毁灭",
+   "hien_tai": "khuyên hắn giao con trai cho Cục Điều Tra để tiến hành hủy diệt nhân đạo",
+   "de_xuat": "khuyên ông ta giao con trai cho Cục Điều Tra để xử lý nhân đạo (cho chết êm)",
+   "vi_sao": "人道毁灭/人道主义的诛杀 là 'an tử, cho chết nhẹ nhàng'; 'hủy diệt nhân đạo' và 'tiêu diệt theo chủ nghĩa nhân đạo' (0096 dòng 13) vừa ngô nghê vừa sai sắc thái."
+  },
+  {
+   "the": "MEME_NGHIA_DEN",
+   "muc_do": "vua",
+   "he_thong": true,
+   "dem": "'cẩu' 3 lần/3 file (0050, 0063, 0104); 苟 có 10 lần/10 file",
+   "chuong": "0063_7088614204936192526",
+   "dong": 83,
+   "raw": "他苟...稳习惯了。",
+   "hien_tai": "Hắn đã quen cẩu... à không, quen vững vàng rồi.",
+   "de_xuat": "Hắn quen rúc đầu... à nhầm, quen chắc ăn rồi.",
+   "vi_sao": "苟 (sống rụt cổ, ẩn nhẫn) bị phiên thành 'cẩu', người không đọc convert sẽ không hiểu; trong khi ch136 lại dịch rất hay là 'nấp một xó chờ đến lúc vô địch', tức không thống nhất."
+  },
+  {
+   "the": "TIEU_DE",
+   "muc_do": "vua",
+   "he_thong": true,
+   "dem": "khoảng 10 tiêu đề (90, 93, 94, 96, 97, 98, 116, 118, 127, 128) viết hoa mọi chữ dù chỉ là cụm từ thường",
+   "chuong": "0127_7100108098479751721",
+   "dong": 1,
+   "raw": "第127章 激战",
+   "hien_tai": "Chương 127: Kịch Chiến",
+   "de_xuat": "Chương 127: Ác chiến",
+   "vi_sao": "Cách viết hoa tiêu đề không thống nhất (chương 128 'Giao Phong', 136 'Ủy thác từ Lạc Đô'); titles.json lưu các bản viết hoa này nên lỗi bị khoá lại."
+  },
+  {
+   "the": "GLOSSARY_PHIEN_AM",
+   "muc_do": "vua",
+   "he_thong": true,
+   "dem": "24 lần/8 file",
+   "chuong": "0104_7095920373811642895",
+   "dong": 143,
+   "raw": "“小咪?！”",
+   "hien_tai": "\"Tiểu Mị?!\"",
+   "de_xuat": "“Mimi?!” (hoặc “Tiểu Mi?!”)",
+   "vi_sao": "咪 không đọc là 'Mị' (Mị là 媚); tên mèo bị đọc gần trùng với chữ cuối tên Sài Vi Mị (柴薇媚), dễ khiến người đọc lẫn."
+  },
+  {
+   "the": "XUNG_HO_VAI_VE",
+   "muc_do": "thap",
+   "he_thong": false,
+   "dem": "ch136–137: Mộ Dung Thành luôn là 'hắn'",
+   "chuong": "0137_7101985319859421737",
+   "dong": 7,
+   "raw": "本就肥硕的他此刻也是汗流浃背起来",
+   "hien_tai": "Vốn đã béo phì, lúc này hắn cũng toát mồ hôi như tắm",
+   "de_xuat": "Vốn đã béo, lúc này ông ta cũng toát mồ hôi như tắm",
+   "vi_sao": "Người cha đáng thương, trung niên, là khách hàng mà cũng gọi 'hắn' như nhân vật chính và phản diện, nên vừa lệch sắc thái vừa dễ nhập nhằng trong đoạn có cả hai người."
+  },
+  {
+   "the": "THUAT_NGU_TROI",
+   "muc_do": "thap",
+   "he_thong": true,
+   "dem": "鬼婴: 'quỷ sơ sinh' (0118) / 'Quỷ Anh' (tiêu đề 0137) / 'quỷ anh' (thân bài 0137)",
+   "chuong": "0118_7098511851184620036",
+   "dong": 145,
+   "raw": "“五个鬼婴魂魄，老朽赌她活不过三分钟！”",
+   "hien_tai": "“Năm hồn phách quỷ sơ sinh, lão hủ cược nó sống không quá ba phút!”",
+   "de_xuat": "“Năm hồn quỷ anh, lão già này cược nó sống không quá ba phút!”",
+   "vi_sao": "Thuật ngữ chỉ được thêm vào glossary ở ch137, nên các chương trước dịch kiểu khác; ngay trong ch137 cũng lẫn chữ hoa và chữ thường."
+  },
+  {
+   "the": "GLOSSARY_PHIEN_AM",
+   "muc_do": "thap",
+   "he_thong": false,
+   "dem": null,
+   "chuong": "0137_7101985319859421737",
+   "dong": 95,
+   "raw": "撑死鬼?腐烂鬼?暴食恶魔?饕餮?",
+   "hien_tai": "Xưng Tử Quỷ? Quỷ Thối Rữa? Bạo Thực Ác Ma? Thao Thiết?",
+   "de_xuat": "Quỷ bội thực? Quỷ thối rữa? Ác ma háu ăn? Thao Thiết?",
+   "vi_sao": "撑 không đọc là 'xưng' (xưng là 称); cùng một câu lại trộn tên Hán Việt với tên thuần Việt."
+  },
+  {
+   "the": "CALQUE",
+   "muc_do": "thap",
+   "he_thong": true,
+   "dem": "55 lần/18 file (便宜老爹/爸妈 63 lần/25 file)",
+   "chuong": "0001_7077362075420492292",
+   "dong": 65,
+   "raw": "便宜爸妈留下的生活费，也是快花光了",
+   "hien_tai": "Tiền sinh hoạt ông bố bà mẹ hời để lại cũng sắp tiêu hết rồi",
+   "de_xuat": "Tiền sinh hoạt ông bố bà mẹ trên trời rơi xuống để lại cũng sắp tiêu hết rồi",
+   "vi_sao": "'bố hời' là kiểu dịch của 便宜 quen trong giới convert, nhưng với người đọc phổ thông thì khó hiểu; nên chốt một cách nói thuần Việt."
+  },
+  {
+   "the": "THUAT_NGU_TROI",
+   "muc_do": "thap",
+   "he_thong": true,
+   "dem": "'thành phố cấp ba/cấp hai' 4 lần/3 file và 'thành phố tuyến ba/hai' 14 lần/11 file",
+   "chuong": "0001_7077362075420492292",
+   "dong": 53,
+   "raw": "北海市是炎国的一个三线城市",
+   "hien_tai": "thành phố Bắc Hải nơi Từ Trường Khanh đang sống là một thành phố cấp ba của Viêm Quốc",
+   "de_xuat": "thành phố Bắc Hải nơi Từ Trường Khanh đang sống là một thành phố tuyến ba của Viêm Quốc",
+   "vi_sao": "Cùng thuật ngữ 三线城市 nhưng dịch hai kiểu; 'cấp ba' còn dễ hiểu nhầm thành cấp hành chính."
+  },
+  {
+   "the": "THUAT_NGU_TROI",
+   "muc_do": "thap",
+   "he_thong": true,
+   "dem": "叮: 'Ting' 142 lần/49 file và 'Đinh' 3 lần/2 file (0048, 0051)",
+   "chuong": "0048_7085886693072437767",
+   "dong": 149,
+   "raw": "【叮，检测到宿主完成特殊任务：幕后真相，开始发放奖励。】",
+   "hien_tai": "[Đinh, phát hiện ký chủ hoàn thành nhiệm vụ đặc biệt: Chân Tướng Hậu Trường, bắt đầu phát thưởng.]",
+   "de_xuat": "【Ting! Phát hiện ký chủ hoàn thành nhiệm vụ đặc biệt: Chân Tướng Sau Màn, bắt đầu phát thưởng.】",
+   "vi_sao": "Tiếng hệ thống, ngoặc và tên nhiệm vụ đều lệch so với các chương khác (ch40 dùng 'Chân Tướng Sau Màn')."
+  },
+  {
+   "the": "HU_HA",
+   "muc_do": "thap",
+   "he_thong": false,
+   "dem": "呵呵 → 'Hừ/Hừ hừ' 3 lần/3 file; ngoài ra còn 'Hơ hơ', 'Hắc hắc', 'Ha ha'",
+   "chuong": "0019_7080364787435209251",
+   "dong": 43,
+   "raw": "“呵呵，林氏酒店算是完了",
+   "hien_tai": "“Hừ hừ, Khách sạn họ Lâm xem như tiêu rồi",
+   "de_xuat": "“Hề hề, khách sạn nhà họ Lâm coi như toi rồi",
+   "vi_sao": "Đây là tiếng cười hả hê, còn 'Hừ' lại là tiếng khinh bỉ/bực bội nên lệch sắc thái."
+  },
+  {
+   "the": "GLOSSARY_DANH_XUNG",
+   "muc_do": "thap",
+   "he_thong": true,
+   "dem": "2 mục trong glossary.addressing và cast.json",
+   "chuong": "story.json",
+   "dong": 0,
+   "raw": "老爸 / 宿主 (glossary.addressing)",
+   "hien_tai": "老爸=bố già; 宿主=ký chủ",
+   "de_xuat": "Bỏ khỏi addressing; 宿主 chuyển sang common; 老爸 → 'ông già/bố' (không dùng 'bố già')",
+   "vi_sao": "Mục addressing phải là cặp A→B, đây lại là danh xưng đơn; 'bố già' nghĩa là trùm mafia, sai nghĩa nếu được áp vào."
+  }
+ ],
+ "goi_y": [
+  "Thêm vào prompt cho setting modern danh sách từ cấm và từ thay thế: 恐怖 → kinh hoàng/khủng khiếp/đáng sợ, KHÔNG dùng 'khủng bố'; 人道毁灭 → xử lý nhân đạo/an tử; 苟 → rúc đầu/ẩn nhẫn/chắc ăn, KHÔNG dùng 'cẩu'.",
+  "Bộ sinh glossary tự động phải phát hiện mục trùng nghĩa (降魔事务所/徐氏降魔事务所/除魔事务所; 林氏酒店 'họ Lâm' với 林氏集团 'Lâm Thị') và buộc chốt một bản dịch gốc chung.",
+  "Kiểm tra glossary.addressing: chỉ cho phép khoá dạng A→B; mục đơn như 老爸 hay 宿主 thì đưa sang common hoặc loại bỏ.",
+  "Thêm bước hậu xử lý tự động: chuẩn hoá ngoặc kép về “ ” và bảng hệ thống về 【】 khi bản gốc dùng các dấu đó; chuẩn hoá tiếng hệ thống 叮 thành một dạng duy nhất.",
+  "Quy tắc tiêu đề chương: chỉ viết hoa chữ đầu và tên riêng/thuật ngữ trong glossary; sửa lại các mục trong titles.json đang viết hoa mọi chữ.",
+  "Quy tắc đại từ ngôi ba: 'hắn' dành cho nhân vật chính và nam phản diện hoặc ngang hàng; nam trung niên, người lớn tuổi hay khách hàng thì dùng 'ông ta/ông'.",
+  "Glossary nên có một luật thống nhất cho quái vật Nhật/Âu (giữ tên gốc hay dùng Hán Việt), tránh tình trạng Trinh Tử nằm cạnh Kayako và Hanako.",
+  "Kiểm tra phiên âm Hán Việt của tên tự sinh bằng từ điển chữ đơn (咪≠Mị, 撑≠Xưng) trước khi nạp vào glossary."
+ ],
+ "lam_tot": [
+  "Không sót chữ Hán, các bảng thông số hệ thống được dịch đầy đủ và gọn.",
+  "Xử lý lóng và chơi chữ khéo: 挖槽 → 'vãi chưởng', 铲屎官 → 'con sen', 白嫖 → 'ăn chùa', 平亿近人 → 'tiền tỉ dễ gần', 串火箭 → 'cưỡi tên lửa', 想要苟到无敌 → 'nấp một xó chờ đến lúc vô địch'.",
+  "Xưng hô theo vai vế rõ ràng: kẻ địch thì 'tao–mày', Sài Vi Mị gọi 'sếp', người nhà họ Đường gọi 'chị–em'; độc thoại của nhân vật chính dùng 'mình' đúng toneRules.",
+  "Không thấy 'Ân' cho 嗯 và không có 'ngươi' lạc vào bối cảnh hiện đại; 'bản thân hắn' xuất hiện ít (10 lần/125 chỗ 自己).",
+  "Nhịp cảnh đánh nhau dồn dập, giữ được không khí rùng rợn (ch137 cảnh quỷ anh chui ra khỏi bụng)."
+ ]
+}

@@ -1,0 +1,63 @@
+{
+  "slug": "tam-muoi-tuoi-lao-gia-thu-duoc-tao-ta-c-he-thong",
+  "ten": "Tám Mươi Tuổi Lão Già, Thu Được Tào Tặc Hệ Thống",
+  "setting": "modern",
+  "the_loai_thuc_te": "Đô thị hiện đại, hệ thống, hài trào phúng phản sáo lộ Long vương, nhiều cảnh mờ ám người lớn; nhiều meme mạng TQ (Mã Bảo Quốc, liếm cẩu, ánh trăng sáng, Châu Đổng)",
+  "ngoi_ke": "ngôi 3",
+  "so_chuong_dich": 590,
+  "chuong_doc": ["1800374_0001_第1章 曹贼系统", "1800374_0296_第296章 终极奖励", "1800374_0226_第226章 你好坏哦", "1800374_0556_第556章 到底是奖励谁"],
+  "diem": {"xung_ho": 7.5, "giong_van": 7.0, "de_hieu": 7.5, "kho_khan": 6.0, "thuat_ngu": 5.5},
+  "ly_do_diem": {
+    "xung_ho": "Các cặp chính (Lâm Uyển Như tôi–ông/lão già thối, Lâm Nhu và Phùng Tuyết Anh cháu–bác Dịch, Chu Dịch tôi–cô) giữ ổn suốt 590 chương; lỗi lẻ kiểu Tô Thường Hào gọi bác Dịch là 'các anh', còn bảng addressing có cặp lệch với thực tế văn bản.",
+    "giong_van": "Văn khẩu ngữ đô thị trôi chảy, thoại tự nhiên; nhưng 'nha đầu' (494 dòng), 'bản thân hắn/cô' và vài từ Hán Việt (tân khách) làm giọng ngả về convert, lệch style.avoid.",
+    "de_hieu": "Ít sai nghĩa nặng, số đoạn khớp 100%; còn calque lẻ (đem…, 'Bị nói như vậy', 'Thành ra dẫn đến việc') và một số chỗ mất nghĩa ẩn (tấm thẻ quảng cáo dịch vụ đặc biệt thành 'danh thiếp').",
+    "kho_khan": "Meme và chơi chữ là xương sống của truyện nhưng hay bị dịch nghĩa đen: 舔狗 thành 'kẻ liếm chó', 好家伙 thành 'Khá lắm/Khá khen thật', 去你的 thành 'Đi chết đi', 呵 thành 'Hừ', chơi chữ họ 周 bị gãy.",
+    "thuat_ngu": "Thuật ngữ cốt lõi 好感度 trôi giữa 'hảo cảm' và 'thiện cảm' suốt truyện; 霹雳 có 2 phiên âm ngay trong glossary; tên kỹ năng 神级 có 4–5 kiểu ghép; 舔狗, 白月光, 京城 đều chưa chốt."
+  },
+  "loi": [
+    {"the": "THUAT_NGU_TROI", "muc_do": "cao", "he_thong": true, "dem": "好感度: 'độ hảo cảm' 80 dòng/30 file và 'độ thiện cảm' 131 dòng/56 file, xen kẽ mọi đoạn của truyện",
+     "chuong": "1800374_0406_第406章", "dong": 14, "raw": "【叮！冯雪樱好感度已满60，获得全新奖励——隔空取物！】", "hien_tai": "【Ting! Độ hảo cảm của Phùng Tuyết Anh đã đạt mức 60, nhận được phần thưởng hoàn toàn mới — Cách không thủ vật!】", "de_xuat": "【Ting! Độ thiện cảm của Phùng Tuyết Anh đã đạt 60, nhận phần thưởng mới — Cách Không Thủ Vật!】", "vi_sao": "Đây là chỉ số trung tâm của hệ thống, xuất hiện gần như mỗi chương; glossary không có mục 好感度 nên model chọn ngẫu nhiên (ch296 dùng 'thiện cảm', ch406 dùng 'hảo cảm')."},
+    {"the": "MEME_NGHIA_DEN", "muc_do": "cao", "he_thong": true, "dem": "舔狗: 'liếm chó' 14 dòng/9 file, 'liếm cẩu' 11/9, 'kẻ bám đuôi' 13/10",
+     "chuong": "1800374_0023", "dong": 49, "raw": "没想到啊，这苏常豪居然还是个舔狗，被林婉如拿捏得死死的。", "hien_tai": "Không ngờ đấy, tên Tô Thường Hào này lại còn là kẻ liếm chó, bị Lâm Uyển Như nắm thóp sít sao.", "de_xuat": "Không ngờ đấy, tên Tô Thường Hào này lại là một con chó liếm (liếm cẩu), bị Lâm Uyển Như nắm thóp chặt cứng.", "vi_sao": "'Kẻ liếm chó' nghĩa là người đi liếm con chó, sai nghĩa và hỏng meme; style.avoid có nhắc 'liếm cẩu' nhưng glossary không có mục nên dịch ra 3 kiểu (cả tiêu đề ch46, ch68)."},
+    {"the": "MEME_NGHIA_DEN", "muc_do": "vua", "he_thong": false, "dem": "2 dòng/1 file (ch263)",
+     "chuong": "1800374_0263", "dong": 13, "raw": "“你自己就姓周，现在却说是个叫周董的朋友写的？”", "hien_tai": "“Bản thân bác vốn họ Chu, giờ lại nói là do một người bạn tên Châu Đổng viết sao?”", "de_xuat": "“Bác cũng họ Chu, giờ lại bảo là do một người bạn tên 'Chu Đổng' viết á?” (kèm chú thích: 周董 = biệt danh Châu Kiệt Luân)", "vi_sao": "Cùng chữ 周 mà phiên hai kiểu (Chu/Châu) nên câu đùa 'bác cũng họ 周' vô nghĩa với độc giả; glossary chốt 周董 → Châu Đổng mà không biết đây là Jay Chou."},
+    {"the": "THUAT_NGU_TROI", "muc_do": "vua", "he_thong": true, "dem": "霹雳: 'Bích Lịch' 5 lần/3 file, 'Phích Lịch' 3/3; 神级 kỹ năng: ít nhất 5 kiểu ghép trong 23 dòng/17 file",
+     "chuong": "1800374_0143", "dong": 36, "raw": "“不瞒你说，老头子我可是混元霹雳太极传人，200斤外国大力士在我手下都走不过一个回合。”", "hien_tai": "\"Nói thật cho cậu biết, lão già tôi đây là truyền nhân Thái Cực Hỗn Nguyên Bích Lịch, lực sĩ ngoại quốc hai trăm cân dưới tay tôi còn chẳng đi nổi một hiệp.\"", "de_xuat": "“Nói thật cho cậu biết, lão già tôi đây là truyền nhân Hỗn Nguyên Phích Lịch Thái Cực, lực sĩ ngoại quốc trăm ký dưới tay tôi còn chẳng trụ nổi một hiệp.”", "vi_sao": "Glossary tự mâu thuẫn: 混元形意霹雳太极拳 → 'Bích Lịch' (sai âm) nhưng 混元霹雳太极拳 → 'Phích Lịch'; tương tự 神级演技 ra 'Thần Cấp Diễn Xuất Tinh Thông', 'Diễn Xuất Tinh Thông Cấp Thần', 'Diễn Xuất Cấp Thần', 神级歌喉 ra 'Giọng hát cấp thần'/'Giọng Hát Thần Cấp'."},
+    {"the": "SAI_SO", "muc_do": "vua", "he_thong": true, "dem": "200斤 → 'hai trăm cân' 3 dòng/3 file (0094, 0127, 0143)",
+     "chuong": "1800374_0094", "dong": 23, "raw": "好家伙，这丁阿姨看起来得有200来斤了吧？", "hien_tai": "Khá khen thật, dì Đinh này trông phải nặng cỡ hai trăm cân rồi ấy chứ?", "de_xuat": "Trời đất, dì Đinh này trông phải cỡ trăm ký chứ chẳng chơi?", "vi_sao": "斤 = nửa ký; độc giả Việt hiểu 'cân' = kg nên số bị gấp đôi; cùng câu 好家伙 bị dịch thành lời khen."},
+    {"the": "CALQUE", "muc_do": "vua", "he_thong": true, "dem": "好家伙 → 'Khá lắm/Khá khen thay/Khá khen thật' 14/19 lần",
+     "chuong": "1800374_0094", "dong": 23, "raw": "好家伙", "hien_tai": "Khá khen thật", "de_xuat": "Trời đất / Chà chà / Ghê thật", "vi_sao": "好家伙 là thán từ kinh ngạc chứ không phải lời khen, dịch 'Khá lắm' làm sai sắc thái và mất nhịp hài."},
+    {"the": "HU_HA", "muc_do": "vua", "he_thong": true, "dem": "呵 (không có 哼) → 'Hừ' 39 dòng/39 file",
+     "chuong": "1800374_0008", "dong": 20, "raw": "林婉如气极反笑：“呵，那你说说我该怎么赔偿你？”", "hien_tai": "Lâm Uyển Như giận quá hóa cười: “Hừ, vậy ông nói thử xem tôi nên bồi thường cho ông thế nào?”", "de_xuat": "Lâm Uyển Như giận quá hóa cười: “Ha, vậy ông nói thử xem tôi phải đền ông thế nào?”", "vi_sao": "Câu dẫn đã nói 'giận quá hóa cười' mà thoại lại 'Hừ'; 呵 là cười nhạt, nên dùng 'Ha/Hà/Hê'."},
+    {"the": "KHO_KHAN", "muc_do": "vua", "he_thong": true, "dem": "去你的 → 'Đi chết đi' 6 dòng/5 file",
+     "chuong": "1800374_0556", "dong": 27, "raw": "林婉如刚听了一半就反应过来，直接朝着周易嗔怪道：“去你的！”", "hien_tai": "Lâm Uyển Như vừa nghe được một nửa liền hiểu ra ngay, trực tiếp hờn dỗi mắng Chu Dịch: “Đi chết đi!”", "de_xuat": "Lâm Uyển Như mới nghe được một nửa đã hiểu ra, liền nguýt Chu Dịch: “Xí! Đồ quỷ!”", "vi_sao": "嗔怪/làm nũng giữa người yêu mà dùng 'Đi chết đi' nặng nề, lệch cảm xúc."},
+    {"the": "BAN_THAN", "muc_do": "vua", "he_thong": true, "dem": "'bản thân' 855 lần/410 file; 'bản thân hắn' 103/81, 'bản thân cô' 73/56",
+     "chuong": "1800374_0226", "dong": 60, "raw": "尤其是这件周易的外套，自己还一直穿着。", "hien_tai": "Nhất là chiếc áo khoác này của Chu Dịch, bản thân vẫn luôn mặc.", "de_xuat": "Nhất là cái áo khoác của Chu Dịch mà cô cứ mặc mãi.", "vi_sao": "自己 trong lời kể nửa trực tiếp nên là 'cô/hắn/mình', 'bản thân' làm câu cứng và giống văn convert (cùng kiểu ch226 dòng 32 'Tuy bảo bản thân có Thiên Nhãn Thông')."},
+    {"the": "XUNG_HO_VAI_VE", "muc_do": "vua", "he_thong": false, "dem": null,
+     "chuong": "1800374_0556", "dong": 8, "raw": "“其实吧，苏玉颜是想来的，毕竟赵叔在你们林家地位超然，可以说是仅在家主一人之下。”", "hien_tai": "“Thực ra ấy mà, Tô Ngọc Nhan cũng muốn tới, dù sao chú Triệu ở Lâm gia các anh có địa vị siêu nhiên, có thể nói là chỉ dưới một mình gia chủ.”", "de_xuat": "“Thật ra Tô Ngọc Nhan cũng muốn tới, dù gì chú Triệu ở bên Lâm gia nhà bác có địa vị rất cao, chỉ đứng sau mỗi gia chủ.”", "vi_sao": "Tô Thường Hào đang nói với 'bác Dịch' (dòng 11 vẫn gọi 'Bác Dịch, bác bảo…'), 你们 phải là 'bên bác', không phải 'các anh'."},
+    {"the": "SAI_NGHIA", "muc_do": "vua", "he_thong": false, "dem": "2 dòng/2 file (ch1, ch2)",
+     "chuong": "1800374_0001", "dong": 61, "raw": "自己不是经常收到特殊小卡片吗？", "hien_tai": "Chẳng phải bản thân vẫn thường xuyên nhận được mấy tấm danh thiếp đặc biệt đó sao?", "de_xuat": "Chẳng phải hắn vẫn hay nhận được mấy tấm thẻ quảng cáo 'dịch vụ đặc biệt' nhét qua khe cửa đó sao?", "vi_sao": "特殊小卡片 là thẻ quảng cáo gái gọi, mấu chốt cú hài chương 1–2; 'danh thiếp' làm mất hàm ý."},
+    {"the": "BOI_CANH_SAI", "muc_do": "thap", "he_thong": true, "dem": "丫头 → 'nha đầu' 494/787 dòng; 'Con nha đầu này' …",
+     "chuong": "1800374_0556", "dong": 14, "raw": "这丫头哪里是和林婉如有矛盾。", "hien_tai": "Con nha đầu này nào phải có mâu thuẫn với Lâm Uyển Như.", "de_xuat": "Con bé này làm gì có mâu thuẫn với Lâm Uyển Như.", "vi_sao": "Truyện đô thị hiện đại, style.avoid cấm giọng cổ trang; 'nha đầu' dày đặc kéo giọng về convert, bản dịch đôi khi đã dùng 'con bé' rất tự nhiên."},
+    {"the": "CALQUE", "muc_do": "thap", "he_thong": true, "dem": "'đem' 66 lần/56 file; 女人 → 'người phụ nữ' 56 dòng/41 file",
+     "chuong": "1800374_0027", "dong": 26, "raw": "说着，她便把这张方子交给了研发部的负责人。", "hien_tai": "Nói rồi, cô liền đem đơn thuốc này giao cho người phụ trách bộ phận nghiên cứu phát triển.", "de_xuat": "Nói rồi, cô giao đơn thuốc cho trưởng bộ phận nghiên cứu phát triển.", "vi_sao": "Cấu trúc 把 dịch máy móc thành 'đem…'; mật độ thấp nhưng lặp đều."},
+    {"the": "CAST_MAU_THUAN", "muc_do": "thap", "he_thong": false, "dem": null,
+     "chuong": "1800374_0226", "dong": 4, "raw": "“易伯，您这会儿急着回去吗？要不……进来坐坐吧？”", "hien_tai": "“Bác Dịch, lúc này bác có vội về không? Hay là...... vào ngồi một lát nhé?”", "de_xuat": "Sửa glossary.addressing 冯雪樱→周易 thành 'cháu–bác Dịch' cho khớp văn bản", "vi_sao": "Bảng addressing ghi 冯雪樱→周易 'cháu–ông' nhưng nhân vật gọi 易伯 và bản dịch dùng 'bác'; dữ liệu mâu thuẫn dễ làm model lật xưng hô."},
+    {"the": "DINH_DANG", "muc_do": "thap", "he_thong": true, "dem": "1446 dòng/82 file mở thoại bằng ngoặc thẳng \" thay vì “”",
+     "chuong": "1800374_0021", "dong": 2, "raw": "“没想到一碗汤居然就让好感度提升了5点。”", "hien_tai": "\"Không ngờ chỉ một bát canh lại tăng được 5 điểm độ hảo cảm.\"", "de_xuat": "“Không ngờ chỉ một bát canh mà độ thiện cảm đã tăng 5 điểm.”", "vi_sao": "Ngoặc kép không đồng nhất giữa các chương (cả trong một chương), nên chuẩn hóa ở bước hậu kỳ."}
+  ],
+  "goi_y": [
+    "Thêm mục glossary bắt buộc cho thuật ngữ cốt lõi của hệ thống: 好感度 → 'độ thiện cảm', 宿主 → 'ký chủ', 叮 → 'Ting'; với truyện hệ thống, auto-glossary nên ưu tiên đề xuất chốt các từ lặp nhiều trong 【】 ngay từ chương đầu.",
+    "Glossary tự sinh cần bước dedupe/kiểm tra phiên âm: phát hiện cùng chữ Hán (霹雳) bị phiên 2 kiểu trong các mục khác nhau, và chuẩn hóa mẫu đặt tên kỹ năng (神级X精通 → 'X cấp thần' hoặc 'Thần Cấp X', chọn một).",
+    "Thêm glossary/ghi chú meme cho truyện đô thị hài: 舔狗 → 'liếm cẩu' (không được 'liếm chó'), 白月光 → 'ánh trăng sáng', 好家伙 → 'Trời đất/Chà', 去你的 (làm nũng) → 'Xí/Đồ quỷ', 呵 → 'Ha/Hà' (không phải Hừ).",
+    "Prompt hiện đại nên dặn: 斤 đổi sang ký (chia đôi) hoặc giữ 'cân' kèm quy đổi; 丫头 trong bối cảnh hiện đại → 'con bé/cô bé', hạn chế 'nha đầu'; 自己 trong lời kể → đại từ ngôi ba, không 'bản thân hắn/cô'.",
+    "Bộ nhận diện người nổi tiếng/tham chiếu văn hóa (周董, 马保国 meme) nên dịch theo tên quen thuộc với độc giả Việt và giữ chơi chữ cùng họ; nếu không giữ được thì thêm chú thích.",
+    "Hậu kỳ tự động: chuẩn hóa ngoặc kép thẳng sang “”, và kiểm glossary.addressing với cách gọi thực tế trong raw (易伯 → bác, không phải ông)."
+  ],
+  "lam_tot": [
+    "Giữ đủ 100% số đoạn ở cả 590 chương, không sót chữ Hán, tiêu đề chương viết hoa đúng kiểu câu.",
+    "Thoại đô thị khẩu ngữ tự nhiên, nhịp nhanh, có thán từ Việt ('Vãi thật', 'Ối chà chà', 'ngỏm củ tỏi', 'nghèo kiết xác').",
+    "Xưng hô các cặp chính ổn định xuyên truyện, kể cả khi quan hệ đã thân mật (Lâm Nhu vẫn 'bác Dịch', Lâm Uyển Như vẫn 'lão già thối/ông').",
+    "嗯 dịch linh hoạt theo vai (Vâng/Ừm/Vâng ạ), không có 'Ân'; cảnh nhạy cảm dịch trung thành, không né tránh."
+  ]
+}

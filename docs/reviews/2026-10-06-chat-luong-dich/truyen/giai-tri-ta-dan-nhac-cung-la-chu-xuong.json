@@ -1,0 +1,227 @@
+{
+  "slug": "giai-tri-ta-dan-nhac-cung-la-chu-xuong",
+  "ten": "Giải trí: Ta dàn nhạc cũng là chủ xướng",
+  "setting": "modern",
+  "the_loai_thuc_te": "Đô thị giải trí hiện đại, xuyên không + hệ thống văn nghệ, thế giới song song (Thượng Đô/Yến Kinh); ban nhạc học đường lớn lên thành siêu sao, nhiều đoạn bình luận cư dân mạng, lời bài hát, gala/Olympic.",
+  "ngoi_ke": "ngôi 3",
+  "so_chuong_dich": 1024,
+  "chuong_doc": [
+    "0001_7353583344694592025",
+    "0512_7429689758927815230",
+    "1023_7574130870043279896",
+    "1024_7574131326672962072"
+  ],
+  "diem": {
+    "xung_ho": 6.0,
+    "giong_van": 7.0,
+    "de_hieu": 7.5,
+    "kho_khan": 7.5,
+    "thuat_ngu": 5.0
+  },
+  "ly_do_diem": {
+    "xung_ho": "Cặp Long Chiến–Giang Nguyệt Bạch tớ–cậu ổn định, nhưng các thành viên nữ trong ban nhạc trôi tôi/tớ/mình giữa các chương (có câu trộn cả hai), glossary addressing ghi tôi–cậu ngược với bản dịch thực tế, và 'hắn' bị dùng cho tiền bối/thần tượng.",
+    "giong_van": "Văn hiện đại, trẻ, thoại tự nhiên; vẫn còn túi Hán Việt lệch bối cảnh (vũ đài, đại cảnh, vạn vô nhất thất, khiêu chiến, Xuân Vãn) và tên bài hát Hán Việt kiểu 'Vượt Qua Thời Không Tư Niệm'.",
+    "de_hieu": "Phần lớn dễ đọc, bám nghĩa tốt; lỗi rải rác: 'bản thân' làm chủ ngữ, 'đem…', 'dưới sự…', lặp từ, một vài chỗ sai nghĩa nhỏ.",
+    "kho_khan": "Lóng cư dân mạng xử lý khá hay (tiền rách, lôi cổ ra, cá lọt lưới giáo dục chín năm), nhưng chơi chữ 群星 bị mất vì phiên thành tên riêng, vài meme dịch sát chữ (nhảy đầm trước mộ, nhãn 'Bạo').",
+    "thuat_ngu": "Glossary tự sinh 1222 tên/575 mục có nhiều xung đột: 20 cặp có/không 《》 dịch khác nhau, hai người khác nhau gộp thành 'Quan Hân', danh từ chung 群星 thành tên riêng, 春晚 dịch 3 kiểu."
+  },
+  "loi": [
+    {
+      "the": "GLOSSARY_DANH_XUNG",
+      "muc_do": "cao",
+      "he_thong": true,
+      "dem": "glossary names 群星→Quần Tinh (tự thêm ở ch.1023) → 4 lần/2 file mới nhất; trước đó 10 file dịch đúng 'dàn sao/Các nghệ sĩ'",
+      "chuong": "1024_7574131326672962072",
+      "dong": 15,
+      "raw": "小时候以为群星是一个人，后来才知道是一群人。",
+      "hien_tai": "Hồi bé cứ ngỡ Quần Tinh là một người, sau này mới biết là một nhóm người.",
+      "de_xuat": "Hồi bé cứ tưởng \"Nhiều ca sĩ\" là tên một người, lớn lên mới biết là cả một đám người.",
+      "vi_sao": "群星 là 'nhiều nghệ sĩ/various artists', không phải tên riêng; phiên âm làm mất chơi chữ và sai nghĩa ở ch.1023 dòng 185, ch.1024 dòng 51, 53 — glossary tự sinh làm thoái hoá bản dịch vốn đúng ở ch.0261/0510."
+    },
+    {
+      "the": "XUNG_HO_TROI",
+      "muc_do": "cao",
+      "he_thong": true,
+      "dem": "thoại mở đầu bằng tên: Tô Oanh Nhi tôi 78/tớ 71/mình 31; Tống Thiển Vân tôi 37/tớ 30; Hạ Tử Uyển tôi 18/tớ 23",
+      "chuong": "0931_7495046123418042904",
+      "dong": 3,
+      "raw": "“真的，我真的没事，小白你就去吧，”……“莺儿，夕岚，浅云，你们也帮我劝劝啊。”",
+      "hien_tai": "“Thật đấy, tôi thực sự không sao đâu, Tiểu Bạch cậu cứ đi đi,” … “Oanh Nhi, Tịch Lam, Thiển Vân, các cậu cũng giúp tớ khuyên đi mà.”",
+      "de_xuat": "“Thật đấy, tớ thực sự không sao đâu, Tiểu Bạch cậu cứ đi đi,” … “Oanh Nhi, Tịch Lam, Thiển Vân, các cậu cũng giúp tớ khuyên đi mà.”",
+      "vi_sao": "Cùng nhóm bạn đồng trang lứa mà người xưng nhảy tôi↔tớ ngay trong một câu, và theo chương (Tô Oanh Nhi 'tớ' ở 0620 nhưng 'tôi' ở 0632, 0753, 0923)."
+    },
+    {
+      "the": "CAST_MAU_THUAN",
+      "muc_do": "cao",
+      "he_thong": true,
+      "dem": "addressing ghi tôi–cậu cho 苏莺儿/夏紫苑/宋浅云/文夕岚↔江月白 trong khi 龙战↔江月白 là tớ–cậu; không có mốc nào",
+      "chuong": "0512_7429689758927815230",
+      "dong": 19,
+      "raw": "“没事，我画完这一张。”江月白抬头一笑。",
+      "hien_tai": "“Không sao, tớ vẽ xong bức này đã.” Giang Nguyệt Bạch ngẩng đầu cười.",
+      "de_xuat": "Chốt một chuẩn cho cả nhóm bạn: tớ–cậu (story.style.toneRules cũng yêu cầu) và sửa addressing của 4 thành viên nữ về tớ–cậu.",
+      "vi_sao": "Glossary tự sinh từ ch.0006/0011 khoá 'tôi–cậu' nhưng model lúc theo lúc không, nên bản dịch trôi; nguồn lỗi nằm ở glossary chứ không phải ở chương lẻ."
+    },
+    {
+      "the": "GLOSSARY_PHIEN_AM",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "全昕→Quan Hân, 全善飞→Quan Thiện Phi; 'Quan Hân' 22 lần/5 file gộp 2 nhân vật (关欣 ch.0351–0366 và 全昕 ch.0754–0755)",
+      "chuong": "0754_7461996342831743550",
+      "dong": 45,
+      "raw": "全昕是一名华夏人",
+      "hien_tai": "Quan Hân là một người Hoa Hạ",
+      "de_xuat": "Toàn Hân là một người Hoa Hạ (全=Toàn; 全善飞 = Toàn Thiện Phi)",
+      "vi_sao": "Phiên âm sai họ 全 làm hai nhân vật khác nhau trùng tên tiếng Việt với 关欣 (Quan Hân)."
+    },
+    {
+      "the": "GLOSSARY_TRUNG",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "20 cặp khoá có/không 《》 dịch khác nhau; 中华小当家: 'Tiểu Đương Gia' 10 lần/6 file vs 'Đầu Bếp Nhí' 26 lần/11 file; 青花瓷: Sứ Thanh Hoa 34 vs Thanh Hoa Sứ 3; 稻香: Hương Lúa 28 vs Đạo Hương 2",
+      "chuong": "0512_7429689758927815230",
+      "dong": 11,
+      "raw": "画的正是《中华小当家》。",
+      "hien_tai": "thứ hắn đang vẽ chính là 《Tiểu Đương Gia Trung Hoa》.",
+      "de_xuat": "thứ hắn đang vẽ chính là 《Đầu Bếp Nhí Trung Hoa》 (một bản dịch duy nhất cho cả khoá có và không có 《》)",
+      "vi_sao": "Auto-glossary coi '中华小当家' và '《中华小当家》' là hai mục, ch.0519 thêm bản dịch mới nên tác phẩm đổi tên giữa chừng; tương tự 死神 Bleach/Tử Thần, 龙珠 Dragon Ball/Bảy Viên Ngọc Rồng."
+    },
+    {
+      "the": "THUAT_NGU_TROI",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "春晚 (389 lần/82 file raw) → Xuân Vãn 246/42 file, Gala Tết 22/6 file, Gala Xuân 17/5 file",
+      "chuong": "1023_7574130870043279896",
+      "dong": 117,
+      "raw": "是常在春晚等国家级舞台上担纲重任的常青树。",
+      "hien_tai": "là những cây đại thụ thường gánh vác trọng trách trên các sân khấu cấp quốc gia như Xuân Vãn.",
+      "de_xuat": "… trên các sân khấu cấp quốc gia như Gala Tết của Ương Thị.",
+      "vi_sao": "Thuật ngữ cốt lõi của truyện không được chốt trong glossary; ch.0512 dòng 23 dùng 'Gala Tết', ch.1023 lại 'Xuân Vãn' (Hán Việt người đọc VN không hiểu)."
+    },
+    {
+      "the": "XUNG_HO_VAI_VE",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "'hắn' 6138 lần/908 file, dùng cho cả tiền bối, thần tượng trong lời cư dân mạng",
+      "chuong": "1023_7574130870043279896",
+      "dong": 9,
+      "raw": "他在华语乐坛的地位和影响力同样很大",
+      "hien_tai": "Địa vị và sức ảnh hưởng của hắn trong làng nhạc Hoa ngữ cũng lớn không kém",
+      "de_xuat": "Địa vị và sức ảnh hưởng của anh trong làng nhạc Hoa ngữ cũng lớn không kém",
+      "vi_sao": "Thiên vương Lưu Dụ Chi là đàn anh được kính trọng (addressing Giang→Lưu: em–anh); 'hắn' mang sắc thái coi thường; tương tự ch.1024 dòng 21 fan nói 'có ai không biết hắn chứ?'."
+    },
+    {
+      "the": "BAN_THAN",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "'bản thân hắn/cô…' 140 lần/117 file; 'bản thân' làm chủ ngữ sau dấu câu ~29 file",
+      "chuong": "0512_7429689758927815230",
+      "dong": 51,
+      "raw": "自己的老家是在苏北地区的一个县级市",
+      "hien_tai": "Quê hương của bản thân là ở một thành phố cấp huyện thuộc khu vực Tô Bắc",
+      "de_xuat": "Quê của hắn ở một thành phố cấp huyện vùng Tô Bắc",
+      "vi_sao": "自己 trong lời kể chỉ là đại từ hồi chỉ, dịch 'bản thân' thành văn convert; cùng lỗi ở ch.0001 dòng 17, 33 và ch.0512 dòng 81."
+    },
+    {
+      "the": "CALQUE",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "đại cảnh 7/7 file; vạn vô nhất thất 3/3; khiêu chiến 22/10; vũ đài 13/11",
+      "chuong": "1023_7574130870043279896",
+      "dong": 89,
+      "raw": "据江月白了解，地球上这里的活动应该是放的录音，毕竟是大场面，为了保证万无一失。",
+      "hien_tai": "Theo Giang Nguyệt Bạch biết, sự kiện ở Trái Đất chỗ này hẳn là phát băng ghi âm, dẫu sao cũng là đại cảnh, để đảm bảo vạn vô nhất thất.",
+      "de_xuat": "Theo Giang Nguyệt Bạch biết, ở Trái Đất, đoạn này hẳn là phát nhạc thu sẵn, dù sao cũng là sự kiện lớn, phải bảo đảm không sơ suất gì.",
+      "vi_sao": "Trật tự từ Trung + Hán Việt nặng trái style.avoid; cùng chương còn 'vũ đài' (dòng 35, 95) và 'mang tính khiêu chiến' (dòng 91)."
+    },
+    {
+      "the": "SAI_NGHIA",
+      "muc_do": "vua",
+      "he_thong": false,
+      "dem": "'đem' 233 lần/192 file",
+      "chuong": "1023_7574130870043279896",
+      "dong": 169,
+      "raw": "所有歌手，将胸腔中所有的热情、所有的自豪、所有的希望，化作那石破天惊、整齐划一的两个字。",
+      "hien_tai": "Tất cả ca sĩ đem mọi nhiệt huyết, mọi nỗi tự hào, mọi niềm hy vọng nơi lồng ngực hóa thành hai chữ kinh thiên động địa, đều đặn vang dội.",
+      "de_xuat": "Tất cả ca sĩ dồn hết nhiệt huyết, niềm tự hào và hy vọng trong lồng ngực vào hai chữ đồng thanh vang dội, chấn động đất trời.",
+      "vi_sao": "整齐划一 là 'đồng thanh, tăm tắp' chứ không phải 'đều đặn'; cấu trúc 'đem…hóa thành' là calque 将…化作."
+    },
+    {
+      "the": "LAP_TU",
+      "muc_do": "thap",
+      "he_thong": false,
+      "dem": null,
+      "chuong": "1023_7574130870043279896",
+      "dong": 139,
+      "raw": "却又奇妙地融合在统一的旋律与情感基调里",
+      "hien_tai": "nhưng lại hòa quyện một cách kỳ diệu vào trong cùng một giai điệu và giai điệu tình cảm thống nhất",
+      "de_xuat": "nhưng lại hòa quyện kỳ diệu trong cùng một giai điệu và một tông cảm xúc thống nhất",
+      "vi_sao": "情感基调 bị dịch thành 'giai điệu tình cảm' gây lặp từ và lệch nghĩa (基调 = tông chủ đạo)."
+    },
+    {
+      "the": "GLOSSARY_HAN_VIET_NANG",
+      "muc_do": "thap",
+      "he_thong": true,
+      "dem": "khoá trong glossary items; 'Thời Không Tư Niệm' 6 lần",
+      "chuong": "0001_7353583344694592025",
+      "dong": 1,
+      "raw": "第1章 《穿越时空的思念》",
+      "hien_tai": "Chương 1: 《Vượt Qua Thời Không Tư Niệm》",
+      "de_xuat": "Chương 1: 《Nỗi nhớ vượt thời không》",
+      "vi_sao": "Ghép động từ thuần Việt với cụm Hán Việt giữ trật tự Trung, đọc không ra nghĩa; nhiều tên bài khác cũng để Hán Việt (Sở Niệm Giai Tinh Hà, Quan Sơn Tửu) trái style.avoid về tên bài hát."
+    },
+    {
+      "the": "GLOSSARY_PHIEN_AM",
+      "muc_do": "thap",
+      "he_thong": false,
+      "dem": "1 lần",
+      "chuong": "1024_7574131326672962072",
+      "dong": 49,
+      "raw": "这首歌用的是宫商角徵羽",
+      "hien_tai": "sử dụng ngũ cung Cung Thương Dốc Chủy Vũ",
+      "de_xuat": "sử dụng ngũ cung Cung – Thương – Giốc – Chủy – Vũ",
+      "vi_sao": "角 trong ngũ âm đọc là 'Giốc', 'Dốc' là phiên âm sai thuật ngữ âm nhạc chuẩn."
+    },
+    {
+      "the": "MEME_NGHIA_DEN",
+      "muc_do": "thap",
+      "he_thong": false,
+      "dem": null,
+      "chuong": "0001_7353583344694592025",
+      "dong": 79,
+      "raw": "“不错不错，适合坟头蹦迪。”",
+      "hien_tai": "“Khá lắm khá lắm, hợp nhảy đầm trước mộ đấy.”",
+      "de_xuat": "“Được đấy được đấy, đem ra quẩy trên mộ là hợp.”",
+      "vi_sao": "蹦迪 là 'quẩy/nhảy sàn', 'nhảy đầm' là khiêu vũ cổ điển nên miếng hài lệch; tương tự ch.1024 dòng 37 nhãn 爆 thành chữ 'Bạo' thay vì 'Hot/Bùng nổ'."
+    },
+    {
+      "the": "THEM_Y",
+      "muc_do": "thap",
+      "he_thong": false,
+      "dem": null,
+      "chuong": "1024_7574131326672962072",
+      "dong": 121,
+      "raw": "新书《娱乐：调律师兼职曲神很合理吧》已经发布",
+      "hien_tai": "Sách mới 《Giải Trí: Thợ Lên Dây Đàn Kiêm Nghệ Khúc Thần Rất Hợp Lý Mà》 đã phát hành",
+      "de_xuat": "Sách mới 《Giải trí: Thợ lên dây đàn kiêm luôn Khúc Thần, hợp lý mà nhỉ》 đã ra mắt",
+      "vi_sao": "Chữ 'Nghệ' tự thêm không có trong gốc (兼职 = kiêm), cụm danh xưng thành vô nghĩa."
+    }
+  ],
+  "goi_y": [
+    "Auto-glossary: chặn mục 'names' là danh từ chung/danh xưng (群星, 众人, 歌手…); khi đã có bản dịch cũ khác nghĩa trong out/ thì không tự thêm mục mới làm thoái hoá (群星 thêm ở ch.1023 phá cách dịch đúng của 10 chương trước).",
+    "Chuẩn hoá khoá glossary: gộp '《X》' và 'X' thành một mục (bỏ 《》 khi so khớp), báo xung đột khi hai khoá cho hai bản dịch; phát hiện hai nguồn khác nhau cùng một đích (Quan Hân, Học viện Hý kịch Thượng Đô) và yêu cầu xác nhận.",
+    "Thêm bước kiểm phiên âm họ cho auto-glossary (全=Toàn, 角 trong ngũ âm=Giốc) bằng bảng tra Hán Việt cố định thay vì để model đoán.",
+    "Addressing nhóm bạn: cho phép khai báo một luật nhóm (cả ban nhạc ↔ nhau: tớ–cậu) thay vì 40+ cặp tự sinh; sửa các mục tôi–cậu của 4 thành viên nữ; checkRules thêm cảnh báo khi một câu thoại chứa cả 'tôi' và 'tớ'.",
+    "Thêm vào glossary common các thuật ngữ cốt lõi lặp nhiều: 春晚 → Gala Tết (Ương Thị), 演唱会 → concert/đêm nhạc (không dùng 'buổi hòa nhạc' cho nhạc pop), 舞台 → sân khấu (cấm 'vũ đài').",
+    "Prompt bối cảnh hiện đại: ngôi ba cho nhân vật được kính trọng/thần tượng dùng 'anh/anh ấy/ông' thay vì 'hắn'; cân nhắc cho phép 'cậu/anh' với nhân vật chính trẻ theo tone youth.",
+    "Nhắc trong prompt: 自己 trong lời kể → 'hắn/cô/mình', không 'bản thân' làm chủ ngữ; cấm 'đem… hóa thành', 'dưới sự…', 'mang tính khiêu chiến', 'vạn vô nhất thất', 'đại cảnh'.",
+    "Tên bài hát/tác phẩm: ưu tiên tên Việt phổ biến hoặc dịch thuần Việt có nghĩa; tránh cụm Hán Việt giữ trật tự Trung."
+  ],
+  "lam_tot": [
+    "Thoại học đường tự nhiên, cặp Long Chiến–Giang Nguyệt Bạch tớ–cậu ổn định suốt 1000+ chương.",
+    "Lóng cư dân mạng dịch có hồn: 'mấy đồng tiền rách', 'Lôi cổ nó ra ngoài cho tôi', 'cá lọt lưới của giáo dục bắt buộc chín năm', 'có tên có tuổi'.",
+    "Phân biệt đúng Tết Dương lịch (元旦) và Tết Nguyên Đán (春节); SpongeBob/Patrick, Slam Dunk… dùng tên quen thuộc với người Việt.",
+    "Lời bài hát giữ dòng, giữ ngắt câu, dịch có vần nhịp tương đối; không sót chữ Hán, không có 'Ân'/'ngươi'.",
+    "Đoạn miêu tả biểu diễn ở chương mới nhất giàu cảm xúc, câu văn liền mạch."
+  ]
+}

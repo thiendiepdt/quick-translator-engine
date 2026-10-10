@@ -1,0 +1,214 @@
+{
+  "slug": "xuyen-sach-ta-dua-vao-nap-tien-nguy-trang-thanh-than-nu-an-the",
+  "ten": "Xuyên Sách, Ta Dựa Vào Nạp Tiền Ngụy Trang Thành Thần Nữ Ẩn Thế",
+  "setting": "ancient",
+  "the_loai_thuc_te": "Tu tiên xuyên thư, hệ thống gacha, sảng văn hài; lời kể cổ trang nhưng nội tâm nữ chính và giọng hệ thống đầy meme mạng hiện đại",
+  "ngoi_ke": "ngôi 3",
+  "so_chuong_dich": 123,
+  "chuong_doc": [
+    "0001_7596979017085878809",
+    "0062_7603308006356288025",
+    "0122_7614052886732882457",
+    "0123_7614052935097713177"
+  ],
+  "diem": {
+    "xung_ho": 7.5,
+    "giong_van": 8,
+    "de_hieu": 8,
+    "kho_khan": 7,
+    "thuat_ngu": 6.5
+  },
+  "ly_do_diem": {
+    "xung_ho": "Các cặp chính (Thanh Tuyết–chủ nhân/Vãn Ngâm, Khuynh Thành–Vãn Ngâm tỷ, bản cung/bản tọa) bám đúng raw và cast; lệch ở các vai phụ mới xuất hiện (lão long gọi 'điện hạ' mà xưng 'ngươi', 'nó' ở chương này thành 'lão' ở chương sau) và hệ thống gọi ký chủ lúc 'ngài' lúc 'ngươi'.",
+    "giong_van": "Lời kể cổ trang mượt, tương phản hài với nội tâm hiện đại giữ được; có vài chỗ Hán Việt nặng không cần ('Kiểm trắc thấy', 'thiên hoa loạn trụy', 'cùng làm biểu lý').",
+    "de_hieu": "Đa số câu tự nhiên, đúng số liệu; còn rải rác câu theo trật tự Trung và vài chỗ sai nghĩa meme ('卡颜局' thành 'bẫy nhan sắc').",
+    "kho_khan": "Nhiều meme được Việt hoá khéo ('lạy ông tôi ở bụi này', 'cạn lời', 'sắp bốc khói'), nhưng meme/gacha khó thì dịch từng chữ ('âu khí', '666', 'gái lớn lên kiệu hoa', 'tỉ lệ nổ thẻ'), '嗯' vẫn thành 'Ân' gây khô.",
+    "thuat_ngu": "Không sót chữ Hán, tên người/địa danh nhất quán; nhưng glossary tách 主仆同升 và 主仆同升卡 thành hai cách dịch nên đảo qua lại ngay trong một chương; viết hoa 'Thần Nữ/Thần nữ/thần nữ' và tên vật phẩm không thống nhất; 统 lúc 'Thống', lúc 'Hệ thống', lúc 'Thống tử'."
+  },
+  "loi": [
+    {
+      "the": "GLOSSARY_TRUNG",
+      "muc_do": "cao",
+      "he_thong": true,
+      "dem": "'Chủ Bộc Đồng Thăng' 13 lần/7 file, 'Chủ Tớ Cùng Thăng' 8 lần/7 file; 0108 và 0110 có cả hai",
+      "chuong": "0108_7612592312526324249",
+      "dong": 157,
+      "raw": "触发主仆同升，叶清雪就能从炼虚后期晋升到炼虚巅峰",
+      "hien_tai": "kích hoạt Chủ Tớ Cùng Thăng, Diệp Thanh Tuyết liền có thể... (dòng 159 cùng chương: 'kích hoạt Thẻ Chủ Bộc Đồng Thăng')",
+      "de_xuat": "Chốt một cách: 'Thẻ Chủ Tớ Cùng Thăng' cho 主仆同升卡 và 'Chủ Tớ Cùng Thăng' cho 主仆同升",
+      "vi_sao": "Glossary có 2 mục cho cùng một khái niệm ('Thẻ Chủ Bộc Đồng Thăng' và 'Chủ Tớ Cùng Thăng') nên tên thẻ cốt truyện đổi qua lại ngay trong cùng chương."
+    },
+    {
+      "the": "DINH_DANG",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "dấu nháy thẳng \" ở 28/123 file (0011–0030, 0074–0082, 0113, 0123), 105 file dùng “ ”",
+      "chuong": "0123_7614052935097713177",
+      "dong": 5,
+      "raw": "“始祖的血脉？！”",
+      "hien_tai": "\"Huyết mạch của thuỷ tổ?!\"",
+      "de_xuat": "“Huyết mạch của thủy tổ?!”",
+      "vi_sao": "Định dạng thoại đổi theo đợt dịch; chương mới nhất còn đổi cả chính tả 'thuỷ' (7 lần, chỉ ở 0123) so với 'thủy' ở 0121–0122."
+    },
+    {
+      "the": "XUNG_HO_VAI_VE",
+      "muc_do": "vua",
+      "he_thong": false,
+      "dem": null,
+      "chuong": "0123_7614052935097713177",
+      "dong": 73,
+      "raw": "“这位殿下，你跟这位始祖血裔……是什么关系？”",
+      "hien_tai": "\"Vị điện hạ này, ngươi với vị huyết mạch thuỷ tổ này...... có quan hệ gì?\"",
+      "de_xuat": "\"Vị điện hạ này, ngài với vị huyết duệ thủy tổ này... có quan hệ gì?\"",
+      "vi_sao": "Đã kính cẩn gọi 'điện hạ' (lão long vừa chuyển sang kính sợ) mà xưng 'ngươi' là vênh; 始祖血裔 là người, không phải 'huyết mạch'."
+    },
+    {
+      "the": "AN_THAN_TU",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "17 lần/16 file (raw 嗯 21 lần/20 file)",
+      "chuong": "0077_7608161342045815321",
+      "dong": 153,
+      "raw": "嗯，那可不。",
+      "hien_tai": "Ân, chứ còn gì nữa.",
+      "de_xuat": "Ừ, chứ còn gì nữa. (thoại kiêu: 'Ừm.'; hỏi lại: 'Hửm?')",
+      "vi_sao": "'Ân' không phải thán từ tiếng Việt, đọc khô; ngay cả độc thoại nội tâm hiện đại của nữ chính cũng bị ép 'Ân'."
+    },
+    {
+      "the": "MEME_NGHIA_DEN",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "'âu khí' 3 lần/3 file; '666' 2 lần/2 file",
+      "chuong": "0002_7596979078616334873",
+      "dong": 139,
+      "raw": "【叮！恭喜宿主欧气爆发！",
+      "hien_tai": "【Ting! Chúc mừng ký chủ bộc phát âu khí!",
+      "de_xuat": "【Ting! Chúc mừng ký chủ nhân phẩm bùng nổ!",
+      "vi_sao": "欧气 (vận đỏ khi gacha) phiên âm thành 'âu khí' vô nghĩa với độc giả Việt; tương tự '666, vừa ăn vừa gói đem về' (0123:151) nên là 'Đỉnh thật, vừa ăn vừa gói mang về'."
+    },
+    {
+      "the": "MEME_NGHIA_DEN",
+      "muc_do": "vua",
+      "he_thong": false,
+      "dem": null,
+      "chuong": "0123_7614052935097713177",
+      "dong": 95,
+      "raw": "它还真是大姑娘上花轿头一回见",
+      "hien_tai": "lão đúng là gái lớn lên kiệu hoa lần đầu tiên thấy.",
+      "de_xuat": "lão đúng là sống từng ấy năm mới lần đầu được thấy.",
+      "vi_sao": "Thành ngữ dịch từng chữ, câu gãy, mất nghĩa 'lần đầu trong đời'."
+    },
+    {
+      "the": "SAI_NGHIA",
+      "muc_do": "vua",
+      "he_thong": false,
+      "dem": null,
+      "chuong": "0001_7596979017085878809",
+      "dong": 107,
+      "raw": "“啧，果然这个世界就是一个巨大的卡颜局，真让人无语子。”",
+      "hien_tai": "“Chậc, quả nhiên thế giới này là một cái bẫy nhan sắc khổng lồ, cạn lời thật đấy.”",
+      "de_xuat": "“Chậc, quả nhiên thế giới này đúng là thế giới nhìn mặt, cạn lời thật đấy.”",
+      "vi_sao": "卡颜局 = cuộc chơi chỉ xét nhan sắc (nhìn mặt mà chọn), không phải 'bẫy'."
+    },
+    {
+      "the": "VAN_KHO",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "'Kiểm trắc/kiểm trắc' 35 lần/22 file (chỉ 5 lần dùng 'Phát hiện')",
+      "chuong": "0001_7596979017085878809",
+      "dong": 171,
+      "raw": "【检测到宿主当前处境堪比地狱开局",
+      "hien_tai": "【Kiểm trắc thấy tình cảnh hiện tại của ký chủ chẳng khác nào mở màn cấp địa ngục",
+      "de_xuat": "【Phát hiện tình cảnh hiện tại của ký chủ chẳng khác gì mở màn độ khó địa ngục",
+      "vi_sao": "Giọng hệ thống là giọng game lầy lội hiện đại, 'kiểm trắc' Hán Việt nặng và lặp ở gần mọi thông báo."
+    },
+    {
+      "the": "XUNG_HO_TROI",
+      "muc_do": "thap",
+      "he_thong": true,
+      "dem": "lão long: 'nó' (0122) → 'lão' (0123); 统: 'Thống' 13, 'Hệ thống' 16, 'Thống tử' 22 lần gọi",
+      "chuong": "0122_7614052886732882457",
+      "dong": 191,
+      "raw": "它的视线死死锁定在分身身上",
+      "hien_tai": "Tầm mắt của nó khóa chặt trên người phân thân",
+      "de_xuat": "Tầm mắt lão khóa chặt trên người phân thân (giữ 'lão' như 0123)",
+      "vi_sao": "Cùng một con rồng già, hai chương liền nhau đổi đại từ; tên gọi thân mật 统 của hệ thống cũng trôi ('Thống' ở 0001:183, 'Hệ thống' ở 0122:11)."
+    },
+    {
+      "the": "CALQUE",
+      "muc_do": "thap",
+      "he_thong": false,
+      "dem": null,
+      "chuong": "0123_7614052935097713177",
+      "dong": 125,
+      "raw": "反而比任何威压都更具震慑力",
+      "hien_tai": "ngược lại so với bất kỳ uy áp nào còn có sức kinh sợ hơn.",
+      "de_xuat": "ngược lại còn khiến người ta khiếp sợ hơn bất kỳ uy áp nào.",
+      "vi_sao": "Giữ nguyên trật tự 比...更 tiếng Trung; cùng chương còn 'cùng làm biểu lý, thiếu một thứ cũng không xong' (dòng 107)."
+    },
+    {
+      "the": "MEME_NGHIA_DEN",
+      "muc_do": "thap",
+      "he_thong": false,
+      "dem": null,
+      "chuong": "0001_7596979017085878809",
+      "dong": 185,
+      "raw": "鉴于系统卡池爆率纯属玄学，为了保障宿主前期不被路边一条欺负",
+      "hien_tai": "Do tỉ lệ nổ thẻ của hệ thống thuần túy là huyền học, để đảm bảo ký chủ giai đoạn đầu không bị một con bên đường bắt nạt",
+      "de_xuat": "Do tỉ lệ ra thẻ của hệ thống hoàn toàn dựa vào nhân phẩm, để ký chủ giai đoạn đầu không bị mấy con tép riu ven đường bắt nạt",
+      "vi_sao": "爆率 là tỉ lệ rơi/ra thẻ; 路边一条 (chó ven đường = kẻ tầm thường) dịch cụt thành 'một con bên đường'."
+    },
+    {
+      "the": "MEME_NGHIA_DEN",
+      "muc_do": "thap",
+      "he_thong": false,
+      "dem": null,
+      "chuong": "0001_7596979017085878809",
+      "dong": 9,
+      "raw": "彻头彻尾就是个用来当背景板的炮灰路人甲，纯纯大冤种……",
+      "hien_tai": "từ đầu đến chân chỉ là một người qua đường Giáp pháo hôi làm nền, thuần túy là kẻ chịu tội thay......",
+      "de_xuat": "từ đầu đến cuối chỉ là pháo hôi qua đường Giáp đứng làm nền, đúng chuẩn một đứa số nhọ to đùng...",
+      "vi_sao": "大冤种 (kẻ chịu thiệt ngớ ngẩn) bị dịch nghĩa khô, mất nhịp tự giễu."
+    },
+    {
+      "the": "THUAT_NGU_TROI",
+      "muc_do": "thap",
+      "he_thong": true,
+      "dem": "'Thần Nữ' 136 lần/34 file, 'Thần nữ' 28/16, 'thần nữ' 120/46; 'Thần Nữ điện hạ' 25 vs 'Thần nữ điện hạ' 8 vs 'thần nữ điện hạ' 11",
+      "chuong": "0001_7596979017085878809",
+      "dong": 147,
+      "raw": "“木神女，万剑宗欺人太甚",
+      "hien_tai": "“Mộc thần nữ, Vạn Kiếm Tông khinh người quá đáng",
+      "de_xuat": "Chốt một chuẩn viết hoa (vd 'Thần Nữ' khi là danh hiệu, 'Mộc Thần Nữ', 'Thần Nữ điện hạ') và ghi vào glossary",
+      "vi_sao": "Glossary ghi 'Thần nữ điện hạ' nhưng bản dịch đa số viết 'Thần Nữ điện hạ', cùng chương 0001 có cả 'Thần Nữ' lẫn 'Mộc thần nữ'; tên vật phẩm cũng lệch hoa/thường ('Ám Uyên Ma Hoàn' vs 'Ám Uyên ma thai')."
+    },
+    {
+      "the": "BAN_THAN",
+      "muc_do": "thap",
+      "he_thong": true,
+      "dem": "'bản thân' 82 lần/58 file (raw 自己 286); 'bản thân hắn/nàng…' 10/9",
+      "chuong": "0001_7596979017085878809",
+      "dong": 3,
+      "raw": "认为自己被资本做局了",
+      "hien_tai": "cho rằng bản thân bị tư bản gài bẫy rồi.",
+      "de_xuat": "cho rằng mình bị tư bản gài bẫy rồi.",
+      "vi_sao": "Mật độ thấp hơn các truyện khác nhưng vẫn có chỗ 'mình' tự nhiên hơn."
+    }
+  ],
+  "goi_y": [
+    "Glossary: gộp 主仆同升卡/主仆同升 thành một gốc dịch (đề xuất 'Thẻ Chủ Tớ Cùng Thăng'/'Chủ Tớ Cùng Thăng'); khi auto-glossary thêm mục mới là chuỗi con/chuỗi mẹ của mục đã có (主仆同升 ⊂ 主仆同升卡), app nên cảnh báo hoặc buộc dịch mục mới thành tiền tố/hậu tố của mục cũ.",
+    "Chuẩn hoá hậu kỳ (không cần AI): đổi dấu nháy thẳng \" thành “ ” và 'thuỷ/hoà/khoẻ' theo một kiểu chính tả trước khi accept; thêm checkRule bắt \" trong out/.",
+    "Bỏ ép 嗯→'Ân' khi genre có nội tâm hiện đại/hệ thống (hoặc luôn bỏ): cho phép 'Ừ/Ừm/Hửm' theo ngữ cảnh.",
+    "Thêm vào prompt (hoặc style.toneRules) bảng meme/gacha hay gặp: 欧气→nhân phẩm/vận đỏ, 非酋→mặt đen, 爆率→tỉ lệ ra, 666→đỉnh/quá đỉnh, 大冤种→đứa số nhọ, 卡颜局→thế giới nhìn mặt, 检测到→Phát hiện; cấm phiên âm meme sang Hán Việt.",
+    "Glossary nên có mục 统/统子 (vd 'Thống tử') và chuẩn viết hoa cho 神女/圣女 để khỏi trôi.",
+    "story.json toneRules nói Mộc Vãn Ngâm xưng 'bản tọa' nhưng raw dùng 本宫 ('bản cung'); sửa toneRule cho khớp raw để khỏi kéo model sai về sau.",
+    "Với nhân vật phụ chỉ sống trong 1–2 chương (lão long, ma long), quy trình tự ghi cast nên lưu cả đại từ ngôi 3 (nó/lão) và cách xưng với nữ chính sau khi thái độ đổi (kính sợ → 'ngài')."
+  ],
+  "lam_tot": [
+    "Không sót chữ Hán trên toàn bộ 123 chương, giữ đủ đoạn và nhãn dòng.",
+    "Tên người, địa danh, cảnh giới tu luyện nhất quán; xưng hô cặp chính bám đúng mốc trong cast.json (Thanh Tuyết tỷ tỷ, Vãn Ngâm tỷ, bản cung/bản tọa theo raw).",
+    "Nhiều meme được Việt hoá khéo: 'lạy ông tôi ở bụi này' (此地无银三百两), 'cạn lời', 'gà thì có gà', 'đầu óc sắp bốc khói', 'một cô gái nhỏ khẽ vỡ vụn'.",
+    "Nhịp câu ngắn ở cảnh đột phá/rút thẻ giữ được độ sảng; hệ thống 【...】 có giọng nhõng nhẽo ('Tui', 'nha~') hợp raw.",
+    "Tiêu đề chương viết hoa chữ đầu đúng chuẩn, dịch tự nhiên."
+  ]
+}

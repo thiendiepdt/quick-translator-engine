@@ -1,0 +1,225 @@
+{
+  "slug": "ta-tai-tan-the-nuoi-nhot-nu-than",
+  "ten": "Ta Tại Tận Thế Nuôi Nhốt Nữ Thần",
+  "setting": "modern",
+  "the_loai_thuc_te": "Sảng văn mạt thế đô thị hiện đại (mưa axit, tang thi, hệ thống, dị năng), harem/erotic; về sau có các 'Khu' quốc tế (Âu Khu, Á Khu) với nhân vật Nhật, Hàn, phương Tây",
+  "ngoi_ke": "ngôi 3",
+  "so_chuong_dich": 531,
+  "chuong_doc": [
+    "0001_7317526038643212862",
+    "0266_7361649526307815960",
+    "0530_7394736414119690777",
+    "0531_7394867258423509529"
+  ],
+  "diem": {
+    "xung_ho": 7.0,
+    "giong_van": 7.5,
+    "de_hieu": 8.0,
+    "kho_khan": 7.0,
+    "thuat_ngu": 6.5
+  },
+  "ly_do_diem": {
+    "xung_ho": "Xưng hô trong thoại rất ổn (tôi–ông, tôi–cô, thuộc hạ–nữ vương, chủ nhân, tao–mày khi đe dọa), nhưng đại từ trong độc thoại nội tâm (我 ở lời kể) trôi giữa 'ta', 'mình', 'tôi' và 'bản thân hắn', có khi trong cùng một chương.",
+    "giong_van": "Giọng hiện đại, gãy gọn, đúng sảng văn mạt thế, thoại thô ráp tự nhiên; còn sót Hán Việt/convert kiểu 'Tần Nghị trưởng', 'Liên đại nhân', 'một đạo Mắt laser', 'tôn nghiêm', 'mất khống chế bài tiết'.",
+    "de_hieu": "Bám sát nghĩa, đủ đoạn, câu mạch lạc; lỗi chủ yếu là calque lẻ tẻ ('Theo sự…', 'chiếm tiện nghi', 'tù nhân dưới thềm') và vài từ sai nghĩa ('đầu lâu' cho 头颅, 'u mê ám muội').",
+    "kho_khan": "Chửi thề, lóng mạng nhìn chung bắt tốt ('vênh váo cái gì', 'nói hươu nói vượn', 'shipper'), nhưng 洋马 thành 'ngựa ngoại' ở các chương mới, 呵呵 thành 'Hừ hừ'/'Hơ hơ' làm lệch sắc thái cười khẩy.",
+    "thuat_ngu": "Glossary 700+ mục nhưng tự sinh thiếu kiểm: biệt danh lóng bị phiên âm ('Thái Kê', 'Toàn Gia Đích Hi Vọng'), cùng một vật hai cách dịch (Desert Eagle / Sa Mạc Chi Ưng; 实验体 ba biến thể), mục trùng (石田龙二/石田二龙)."
+  },
+  "loi": [
+    {
+      "the": "XUNG_HO_NGUOI_KE",
+      "muc_do": "cao",
+      "he_thong": true,
+      "dem": "dòng lời kể có 我 → 'ta' 259 dòng/178 file, 'mình' 112 dòng/92 file, 'ta'+'mình' 25, 'tôi' 9; còn lại chuyển sang ngôi 3 ('bản thân hắn')",
+      "chuong": "0530_7394736414119690777",
+      "dong": 31,
+      "raw": "我只是用这些人，就把你的势力搞垮，我苏倾离从来就不会输！",
+      "hien_tai": "Ta chỉ dùng mấy người này là đã có thể đánh sụp thế lực của cô rồi, Tô Khuynh Ly ta trước giờ chưa từng biết thua!",
+      "de_xuat": "Tôi chỉ cần dùng mấy người này là đã đánh sụp thế lực của cô, Tô Khuynh Ly tôi chưa bao giờ thua!",
+      "vi_sao": "Cùng chương, dòng 3 độc thoại của Tô Khuynh Ly lại là 'nỗi đau đớn thống khổ của tôi'; chương 1 Đường Trạch nghĩ bằng 'mình', chương 266 ('lòng bàn tay của ta', dòng 27) lại 'ta' — truyện ngôi 3, prompt không quy định đại từ độc thoại nên model đổi tùy hứng (luật 'ngôi một = ta' có vẻ đang lan sang độc thoại)."
+    },
+    {
+      "the": "MEME_NGHIA_DEN",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "洋马 7 lần/4 file: 2 file mới (0523, 0530) → 'ngựa ngoại'; 0307/0311 → 'gái Tây'",
+      "chuong": "0530_7394736414119690777",
+      "dong": 87,
+      "raw": "确实有一股另类美，洋马还是挺有滋味的。",
+      "hien_tai": "quả thực có một nét đẹp rất riêng, loại ngựa ngoại này nếm trải ra vẫn khá có hương vị đấy chứ.",
+      "de_xuat": "quả thực có một nét đẹp rất riêng, gái Tây ăn cũng ra phết đấy chứ.",
+      "vi_sao": "洋马 là lóng chỉ phụ nữ phương Tây; dịch nghĩa đen ra 'ngựa ngoại' khó hiểu, và các chương cũ đã dịch đúng 'gái Tây' nhưng không được chốt vào glossary nên bản mới thụt lùi."
+    },
+    {
+      "the": "THUAT_NGU_TROI",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "'Desert Eagle' 14 dòng/8 file vs 'Sa Mạc Chi Ưng' 3 dòng/2 file",
+      "chuong": "0088_7340523818332471832",
+      "dong": 127,
+      "raw": "居然从腰间拿出了一把金色的沙漠之鹰",
+      "hien_tai": "thế mà lại rút từ thắt lưng ra một khẩu Sa Mạc Chi Ưng mạ vàng",
+      "de_xuat": "thế mà lại rút từ thắt lưng ra một khẩu Desert Eagle mạ vàng",
+      "vi_sao": "Glossary tự mâu thuẫn: 沙漠之鹰='Sa Mạc Chi Ưng' nhưng 黄金沙鹰='Desert Eagle vàng'; chương 0008 dòng 111 đã dùng 'Desert Eagle', nên cùng một khẩu súng mang hai tên."
+    },
+    {
+      "the": "GLOSSARY_PHIEN_AM",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "'Thái Kê' 5 dòng/2 file; ngoài ra 全家的希望→'Toàn Gia Đích Hi Vọng', 米国队长→'Đội Trưởng Mỹ' trong glossary",
+      "chuong": "0035_7321605109211726398",
+      "dong": 113,
+      "raw": "“喂！刀子！菜鸡！和尚！喂！TMD都死了吗，说句话！”",
+      "hien_tai": "“Alo! Đao Tử! Thái Kê! Hòa Thượng! Alo! Mẹ nó chết hết rồi à, nói câu gì đi chứ!”",
+      "de_xuat": "“Alo! Dao Găm! Gà Mờ! Hòa Thượng! Alo! Mẹ nó chết hết rồi à, nói câu gì đi chứ!”",
+      "vi_sao": "菜鸡 (gà mờ/noob) là biệt danh lóng, phiên âm thành 'Thái Kê' mất nghĩa; cùng lúc glossary lại dịch nghĩa 'Hạ Mù', 'Kim Béo' — chính sách biệt danh không nhất quán; 'Đích' trong 'Toàn Gia Đích Hi Vọng' là phiên âm chữ 的."
+    },
+    {
+      "the": "THUAT_NGU_TROI",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "实验体 115 lần/38 file raw → 'thí nghiệm' 140/52 file, 'thực nghiệm' 40/8 file",
+      "chuong": "0266_7361649526307815960",
+      "dong": 89,
+      "raw": "这话不禁让问馨想到了那些实验体的人",
+      "hien_tai": "Lời này khiến Vấn Hinh không khỏi liên tưởng đến những kẻ thuộc thể thực nghiệm",
+      "de_xuat": "Lời này khiến Vấn Hinh không khỏi nhớ tới những người bị biến thành vật thí nghiệm",
+      "vi_sao": "Glossary có cả '九号实验体: Vật thí nghiệm số 9' lẫn '二号实验体: thể thực nghiệm số hai', '0号实验体: thể thực nghiệm số 0' — thuật ngữ cốt lõi chưa chốt một cách dịch, câu ra kiểu ghép 'kẻ thuộc thể thực nghiệm' tối nghĩa."
+    },
+    {
+      "the": "HU_HA",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "dòng raw có 呵 mà bản dịch 'Hừ': 29 dòng; 'Hơ hơ': 18 lần/17 file",
+      "chuong": "0001_7317526038643212862",
+      "dong": 97,
+      "raw": "呵呵，骂我臭屌丝。",
+      "hien_tai": "Hừ hừ, dám mắng mình là đồ trai nghèo.",
+      "de_xuat": "Ha, dám chửi mình là thằng nghèo kiết xác.",
+      "vi_sao": "呵呵 là cười khẩy/cười nhạt, 'Hừ' là hừ mũi giận; 'Hơ hơ' (dòng 37 cùng chương) không phải thán từ tiếng Việt quen dùng — nên quy về 'Ha'/'Hà'/'cười khẩy' tùy ngữ cảnh."
+    },
+    {
+      "the": "CALQUE",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "'Theo sự/việc' 54 lần/52 file",
+      "chuong": "0001_7317526038643212862",
+      "dong": 41,
+      "raw": "随着武器消失，唐泽松了一口大气",
+      "hien_tai": "Theo sự biến mất của vũ khí, Đường Trạch thở phào một hơi nhẹ nhõm",
+      "de_xuat": "Khẩu súng vừa biến mất, Đường Trạch thở phào nhẹ nhõm",
+      "vi_sao": "随着 dịch máy móc thành 'Theo sự…' là văn convert điển hình; lặp lại ở hơn 50 chương (0531 dòng 79: 'Theo sự di chuyển của lưỡi đao')."
+    },
+    {
+      "the": "BAN_THAN",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "'bản thân hắn/cô/gã…' 185 lần/144 file; 'bản thân' tổng 871/395 file",
+      "chuong": "0002_7317532730202260030",
+      "dong": 119,
+      "raw": "唐泽忍不住笑了起来，我本来就是一个屌丝",
+      "hien_tai": "Đường Trạch không kìm được bật cười, bản thân hắn vốn dĩ là một trai nghèo",
+      "de_xuat": "Đường Trạch không nhịn được bật cười, mình vốn là thằng nghèo kiết xác",
+      "vi_sao": "自己/我 trong lời kể bị đẩy thành 'bản thân hắn/cô' cứng; vừa nặng nề vừa làm độc thoại mất giọng nhân vật."
+    },
+    {
+      "the": "SAI_NGHIA",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "'đầu lâu' 5 lần/5 file, 4 lần dịch sai từ 头颅/脑袋/人头",
+      "chuong": "0531_7394867258423509529",
+      "dong": 73,
+      "raw": "而不是现在这样，低着那高贵的头颅",
+      "hien_tai": "chứ không phải như bây giờ, cúi gằm đầu lâu cao quý kia",
+      "de_xuat": "chứ không phải như bây giờ, cúi gằm cái đầu cao quý ấy",
+      "vi_sao": "'Đầu lâu' tiếng Việt là cái sọ người chết; nữ vương đang sống, câu thành lố — cùng lỗi ở 0146, 0169, 0501."
+    },
+    {
+      "the": "SAI_NGHIA",
+      "muc_do": "thap",
+      "he_thong": false,
+      "dem": "2 lần/1 file",
+      "chuong": "0018_7319777777106829886",
+      "dong": 81,
+      "raw": "“刚子，不要再执迷不悟！！！”",
+      "hien_tai": "“Cương Tử, đừng tiếp tục u mê ám muội nữa!!!”",
+      "de_xuat": "“Cương Tử, đừng u mê cố chấp nữa!!!”",
+      "vi_sao": "'Ám muội' nghĩa là mờ ám, không liên quan 执迷不悟; thành ngữ bị ghép chữ sai."
+    },
+    {
+      "the": "CALQUE",
+      "muc_do": "thap",
+      "he_thong": true,
+      "dem": "'chiếm tiện nghi' 10 lần/9 file",
+      "chuong": "0059_7324171963633500734",
+      "dong": 47,
+      "raw": "听这语气还想占自己便宜",
+      "hien_tai": "nghe giọng điệu này dường như hắn lại muốn chiếm tiện nghi của mình",
+      "de_xuat": "nghe giọng này thì hắn còn muốn lợi dụng/giở trò với mình",
+      "vi_sao": "占便宜 → 'chiếm tiện nghi' là calque nằm trong danh sách lỗi đã biết; tiếng Việt nói 'lợi dụng', 'được đằng chân', 'sàm sỡ' tùy cảnh."
+    },
+    {
+      "the": "VAN_KHO",
+      "muc_do": "thap",
+      "he_thong": false,
+      "dem": "'mất khống chế' 8 lần/7 file; 'tù nhân dưới thềm' 1",
+      "chuong": "0530_7394736414119690777",
+      "dong": 5,
+      "raw": "毕竟人在死亡之际，都会因为恐惧而失禁，这属于正常反应",
+      "hien_tai": "dù sao con người khi cận kề cái chết đều sẽ vì sợ hãi mà mất khống chế bài tiết, đây thuộc về phản ứng bình thường.",
+      "de_xuat": "dù sao người ta lúc sắp chết đều sợ đến tè ra quần, phản ứng bình thường thôi.",
+      "vi_sao": "Lời Đường Trạch đang mỉa mai mà dịch như văn y khoa; cùng chương dòng 25 '阶下囚' → 'tù nhân dưới thềm' cũng là dịch chữ."
+    },
+    {
+      "the": "GLOSSARY_HAN_VIET_NANG",
+      "muc_do": "thap",
+      "he_thong": true,
+      "dem": "'Nghị trưởng' 319 lần/45 file theo trật tự '<Họ> Nghị trưởng'; 'đại nhân' 75/27 file",
+      "chuong": "0266_7361649526307815960",
+      "dong": 143,
+      "raw": "秦议长带着人将其全部斩杀",
+      "hien_tai": "Tần Nghị trưởng dẫn người chém giết sạch sẽ bọn chúng",
+      "de_xuat": "Nghị trưởng Tần dẫn người giết sạch bọn chúng",
+      "vi_sao": "Bối cảnh hiện đại nhưng glossary chốt chức danh theo trật tự Hán ('Tần Nghị trưởng', 'Hồ tiên sinh', 'Liên đại nhân'), trái style.avoid về Hán Việt nặng."
+    },
+    {
+      "the": "GLOSSARY_TRUNG",
+      "muc_do": "thap",
+      "he_thong": true,
+      "dem": "names: 石田龙二/石田二龙 cùng 'Ishida Ryuji'; 伊内雅/伊內雅 cùng 'Ineya'; 邱飞国/邱国飞 hai mục",
+      "chuong": "0530_7394736414119690777",
+      "dong": 1,
+      "raw": "伊內雅，我是不堪",
+      "hien_tai": "Ineya, tôi đúng là chật vật",
+      "de_xuat": "(gộp mục glossary, ghi biến thể phồn thể/lỗi gõ của tác giả là alias)",
+      "vi_sao": "Glossary tự sinh nhân đôi mục theo biến thể chữ của tác giả, tăng nhiễu và dễ tách đôi nhân vật nếu model chọn tên khác nhau."
+    },
+    {
+      "the": "TIEU_DE",
+      "muc_do": "thap",
+      "he_thong": false,
+      "dem": "3 tiêu đề viết hoa mọi chữ (224, 304, 470)",
+      "chuong": "0225_7356287803518370329",
+      "dong": 1,
+      "raw": "第224章 掠夺者",
+      "hien_tai": "Chương 224: Kẻ Cướp Đoạt",
+      "de_xuat": "Chương 224: Kẻ cướp đoạt",
+      "vi_sao": "Tiêu đề phần lớn đúng kiểu câu thường, nhưng tiêu đề trùng tên thế lực trong glossary bị viết hoa mọi chữ (224, 304 'Bạo Tẩu Quân Đoàn', 470 'Diệt Đường Thành')."
+    }
+  ],
+  "goi_y": [
+    "Thêm luật rõ cho truyện ngôi 3: độc thoại nội tâm (我 trong lời kể) của nhân vật hiện đại dùng 'mình' (hoặc giữ đúng đại từ nhân vật đó dùng trong thoại); chỉ dùng 'ta' cho nhân vật có giọng tự xưng 'ta' trong thoại. Ghi rằng luật 'ngôi một luôn ta' chỉ áp khi người kể là ngôi một.",
+    "Chạy bước hậu kiểm glossary: phát hiện biệt danh lóng (菜鸡, 疯子, 杀千刀, 全家的希望…) và buộc chọn một chính sách (dịch nghĩa); cấm phiên âm 的 thành 'Đích'.",
+    "Phát hiện xung đột glossary khi hai mục cùng gốc từ (沙漠之鹰 vs 黄金沙鹰; 九号实验体 vs 二号实验体) có bản dịch khác hệ; gộp/alias các mục trùng target (石田龙二/石田二龙, 伊内雅/伊內雅).",
+    "Bổ sung vào glossary common: 洋马→'gái Tây', 实验体→'vật thí nghiệm', 呵呵→'ha/cười khẩy' (không 'Hừ', không 'Hơ hơ'), 头颅→'cái đầu' (cấm 'đầu lâu' trừ 骷髅).",
+    "Với setting modern: chức danh đặt trước họ ('Nghị trưởng Tần', 'ông Hồ', 'ngài Liên'); thêm checkRules cho 'Theo sự', 'chiếm tiện nghi', 'mất khống chế bài tiết', 'dưới thềm'.",
+    "Khi chọn bản dịch cho từ lóng đã từng dịch đúng ở chương trước (vd 'gái Tây' ch.307), app nên tự đề xuất đưa vào glossary để các chương sau không thụt lùi."
+  ],
+  "lam_tot": [
+    "Đủ 100% đoạn, căn dòng khớp raw ở cả 531 chương, không sót chữ Hán.",
+    "Giọng thoại hiện đại sống động: 'vênh váo cái gì chứ', 'Ưu tiên cái con mẹ mày!', 'nói hươu nói vượn', 'shipper' cho 外卖小哥.",
+    "Xưng hô theo vai vế trong thoại hợp lý (thuộc hạ–nữ vương, tôi–ông với kẻ lớn tuổi, chủ nhân sau khi quy phục) và cast.json có mốc đổi xưng hô.",
+    "Không lỗi 'Ân' cho 嗯 (dùng 'Ừ'), không có 'ngươi' trong truyện hiện đại.",
+    "Tên Nhật/Hàn/Tây dùng phiên âm gốc (Akita Hidenobu, Lee Nam-hee, Sylvie) thay vì Hán Việt."
+  ]
+}

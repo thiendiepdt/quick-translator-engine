@@ -1,0 +1,227 @@
+{
+  "slug": "su-muoi-ta-nhin-the-nao-ai-cung-giong-ta-tu",
+  "ten": "Sư muội ta nhìn thế nào ai cũng giống tà tu?",
+  "setting": "mixed",
+  "the_loai_thuc_te": "Tiên hiệp hài – game thực tế ảo: người chơi hiện đại (thoại mạng, meme) trong thế giới tu tiên, xen bản tin thế giới thực; nữ chính NPC hiểu lầm mọi thứ là ma đạo",
+  "ngoi_ke": "ngôi 3",
+  "so_chuong_dich": 10,
+  "chuong_doc": [
+    "chuong-0001",
+    "chuong-0005",
+    "chuong-0007",
+    "chuong-0009",
+    "chuong-0010"
+  ],
+  "diem": {
+    "xung_ho": 7.5,
+    "giong_van": 7.5,
+    "de_hieu": 7.5,
+    "kho_khan": 6.5,
+    "thuat_ngu": 7.5
+  },
+  "ly_do_diem": {
+    "xung_ho": "Cặp chính huynh–muội, đệ tử–chưởng môn, vi sư–nghịch đồ ổn định và khớp addressing; trừ độc thoại Tô Linh Nhi trôi từ 'hắn' sang 'huynh ấy' và người chơi lúc 'cậu/tôi' lúc 'ngươi'.",
+    "giong_van": "Giữ được tương phản lời người chơi (vãi, đm, bà chị, nổ đĩa) với giọng hoang tưởng bi tráng của Tô Linh Nhi; tiếc là khối bản tin hiện đại bị Hán Việt hoá ('Hiện thực giới', 'trò chơi chìm đắm').",
+    "de_hieu": "Phần lớn mượt, không sót ý; còn vài câu sai nghĩa (khóe miệng, nội/ngoại đan, linh thực trùng 灵食) và calque trật tự từ.",
+    "kho_khan": "Có chỗ bắt meme tốt ('Vua đỏ một phát ăn ngay', 'nói hươu nói vượn', 'như bò đội nón') nhưng hỏng nhiều meme trọng tâm: tiêu đề 炫压抑, 虎狼之词, 我信你个鬼, tên tông meme.",
+    "thuat_ngu": "Glossary được tuân thủ, không sót chữ Hán, không có 'Ân'; nhưng glossary tự sinh khoá phiên âm Hán Việt cho tên guild meme, 'linh thực' gánh hai nghĩa, header bản tin không thống nhất."
+  },
+  "loi": [
+    {
+      "the": "MEME_NGHIA_DEN",
+      "muc_do": "cao",
+      "he_thong": false,
+      "dem": "2 lần/1 file (tiêu đề + cuối chương 5)",
+      "chuong": "chuong-0005",
+      "dong": 161,
+      "raw": "我宗门里什么时候混进来个炫压抑啊？",
+      "hien_tai": "Tông môn mình từ lúc nào trà trộn vào một tên Huyễn áp ức thế này?",
+      "de_xuat": "Tông môn mình từ lúc nào lẫn vào một thằng dở hơi thế này?",
+      "vi_sao": "Meme 炫压抑 bị phiên âm thành cụm vô nghĩa, viết hoa như tên riêng, lại nằm ngay tiêu đề chương; người đọc Việt không hiểu gì."
+    },
+    {
+      "the": "SAI_NGHIA",
+      "muc_do": "vua",
+      "he_thong": false,
+      "dem": null,
+      "chuong": "chuong-0010",
+      "dong": 19,
+      "raw": "但她嘴上却恭敬地说着",
+      "hien_tai": "Nhưng nơi khóe miệng nàng lại cung kính nói",
+      "de_xuat": "Nhưng ngoài miệng nàng lại cung kính đáp",
+      "vi_sao": "嘴上 là 'ngoài miệng' (đối lập với điều nghĩ trong lòng), không phải 'khóe miệng'; câu thành vô lý."
+    },
+    {
+      "the": "SAI_NGHIA",
+      "muc_do": "vua",
+      "he_thong": false,
+      "dem": "'linh thực' 9 lần ở ch9, 1 lần sai nghĩa",
+      "chuong": "chuong-0009",
+      "dong": 61,
+      "raw": "那灵植也不是他们这种资质之差之人能享用的",
+      "hien_tai": "thì thứ linh thực kia cũng chẳng phải thứ mà kẻ tư chất thấp kém như họ có thể hưởng dụng",
+      "de_xuat": "thì thứ linh thảo kia cũng chẳng đến lượt kẻ tư chất kém cỏi như họ được dùng",
+      "vi_sao": "灵植 (cây linh, ở đây là ngưng huyết thảo) bị dịch trùng âm với 灵食 'linh thực' (đồ ăn linh) dùng dày đặc trong cùng chương, gây hiểu nhầm."
+    },
+    {
+      "the": "SAI_NGHIA",
+      "muc_do": "vua",
+      "he_thong": false,
+      "dem": null,
+      "chuong": "chuong-0010",
+      "dong": 39,
+      "raw": "内者，金丹大道；外者，济世良方。",
+      "hien_tai": "Bên trong là đại đạo Kim Đan, bên ngoài là phương thuốc cứu đời.",
+      "de_xuat": "Nội đan là đại đạo Kim Đan; ngoại đan là phương thuốc cứu đời.",
+      "vi_sao": "内者/外者 là nội đan – ngoại đan (thuật ngữ đan đạo); dịch 'bên trong/bên ngoài' mất nghĩa."
+    },
+    {
+      "the": "XUNG_HO_TROI",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "'huynh ấy' 13 lần/4 file (ch5,8,9,10); độc thoại ch5 dùng 'hắn'",
+      "chuong": "chuong-0009",
+      "dong": 183,
+      "raw": "无论她选哪一个，都逃不出他的毒手！",
+      "hien_tai": "Bất kể nàng chọn cái nào cũng không thoát khỏi bàn tay độc ác của huynh ấy!",
+      "de_xuat": "Bất kể nàng chọn cái nào cũng không thoát khỏi độc thủ của hắn!",
+      "vi_sao": "Độc thoại Tô Linh Nhi (đang coi Lâm Thanh Phong là ma đầu) ch5 gọi 'hắn', ch8–10 chuyển thành 'huynh ấy' thân mật, vừa trôi vừa làm nhạt giọng hoang tưởng; ch10:165 'Vinh hạnh cái đầu huynh ấy!' còn sai ngôi (我荣幸你个头 → 'Vinh hạnh cái đầu huynh!')."
+    },
+    {
+      "the": "MEME_NGHIA_DEN",
+      "muc_do": "vua",
+      "he_thong": false,
+      "dem": null,
+      "chuong": "chuong-0010",
+      "dong": 223,
+      "raw": "我的天，你这是什么虎狼之词！",
+      "hien_tai": "“Trời đất ơi, ngươi nói cái lời hổ báo lang sói gì thế hả!”",
+      "de_xuat": "“Trời đất ơi, mày ăn nói gì mà bạo thế!”",
+      "vi_sao": "虎狼之词 là meme 'lời lẽ sỗ sàng/bậy bạ'; dịch đen 'hổ báo lang sói' mất miếng hài."
+    },
+    {
+      "the": "MEME_NGHIA_DEN",
+      "muc_do": "vua",
+      "he_thong": false,
+      "dem": null,
+      "chuong": "chuong-0009",
+      "dong": 293,
+      "raw": "还归真之所？我信你个鬼呦！",
+      "hien_tai": "Còn Nơi Quy Chân nữa chứ? Ta mà thèm tin quỷ tha nhà huynh đấy!",
+      "de_xuat": "Còn 'Nơi Quy Chân' nữa chứ? Tin huynh mới có ma!",
+      "vi_sao": "我信你个鬼 có sẵn tương đương Việt; bản hiện tại lủng củng. Cùng chương dòng 305: 画大饼 → 'Lại vẽ thêm một chiếc bánh vẽ lớn' (lặp 'vẽ'), nên là 'Lại vẽ thêm một cái bánh to'; dòng 103 '懂个锤' → 'biết cái búa'."
+    },
+    {
+      "the": "BAN_THAN",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "22 lần/8 file",
+      "chuong": "chuong-0001",
+      "dong": 121,
+      "raw": "自己这么做，是为了匡扶正道！也是为了自己能够成就筑基",
+      "hien_tai": "Bản thân nàng làm vậy là vì phò tá chính đạo! Cũng là để bản thân có thể đạt thành Trúc Cơ",
+      "de_xuat": "Nàng làm vậy là để phò trợ chính đạo! Cũng là để mình có thể Trúc Cơ",
+      "vi_sao": "自己 dịch máy móc thành 'bản thân', hai lần trong một câu; ch10:83 'Bản thân suýt chút nữa đã bị...' cũng vậy."
+    },
+    {
+      "the": "CALQUE",
+      "muc_do": "vua",
+      "he_thong": false,
+      "dem": null,
+      "chuong": "chuong-0010",
+      "dong": 163,
+      "raw": "师妹连忙做出一副受宠若惊的姿态",
+      "hien_tai": "Sư muội vội vàng làm ra tư thế được yêu mà sợ",
+      "de_xuat": "Sư muội vội làm ra vẻ thụ sủng nhược kinh",
+      "vi_sao": "受宠若惊 bị tách nghĩa từng chữ thành 'được yêu mà sợ', sai sắc thái, đọc buồn cười ngoài ý muốn."
+    },
+    {
+      "the": "CALQUE",
+      "muc_do": "thap",
+      "he_thong": true,
+      "dem": "rải rác ch1, ch7, ch9",
+      "chuong": "chuong-0009",
+      "dong": 143,
+      "raw": "这是赤裸裸的威逼利诱！",
+      "hien_tai": "đây là trần trụi uy hiếp và dụ dỗ!",
+      "de_xuat": "đây là uy hiếp dụ dỗ trắng trợn!",
+      "vi_sao": "Giữ trật tự từ Trung. Cùng loại: ch9:43 'Theo tầm mắt dịch chuyển', ch9:347 'một đầu ma long' (一头), ch9:221 'an đốn chỗ ở', ch1:53 'là đại từ thay cho sự tầm thường' (代名词 = 'đồng nghĩa với')."
+    },
+    {
+      "the": "XUNG_HO_TROI",
+      "muc_do": "thap",
+      "he_thong": true,
+      "dem": "người chơi nói với nhau: 'cậu/tôi' ch4–5 (~10 lần) vs 'ngươi' ch10 (3 lần)",
+      "chuong": "chuong-0010",
+      "dong": 221,
+      "raw": "以后就可以对他说了：你也不想你这副样子被别人知道吧？",
+      "hien_tai": "“Sau này có thể nói với hắn: Ngươi cũng không muốn dáng vẻ này của mình bị người khác biết đâu nhỉ?”",
+      "de_xuat": "“Sau này có thể bảo nó: Mày cũng không muốn bộ dạng này bị người khác biết đâu nhỉ?”",
+      "vi_sao": "Người chơi tán nhảm kiểu hiện đại ở ch4–5 xưng 'tôi/cậu', ch10 lại 'ngươi' cổ trang, mất tương phản game thủ – NPC mà style.toneRules yêu cầu."
+    },
+    {
+      "the": "GLOSSARY_HAN_VIET_NANG",
+      "muc_do": "thap",
+      "he_thong": true,
+      "dem": "5 tên tông meme (ch2, ch6)",
+      "chuong": "chuong-0006",
+      "dong": 37,
+      "raw": "这一定是隔壁“打瓦宗”派来的奸细卧底",
+      "hien_tai": "đây nhất định là gián điệp nội gián do “Đả Ngõa Tông” sát vách phái tới",
+      "de_xuat": "đây nhất định là gián điệp do “Tông Đả Ngõa” (tông chơi Valorant) sát vách phái tới",
+      "vi_sao": "Tên guild meme của người chơi (打瓦 = chơi Valorant, 要饭宗 = tông ăn mày, 裤衩子宗 = tông quần đùi) bị phiên âm Hán Việt nên mất miếng hài; glossary tự sinh khoá luôn bản phiên âm. 'gián điệp nội gián' cũng lặp nghĩa."
+    },
+    {
+      "the": "GLOSSARY_HAN_VIET_NANG",
+      "muc_do": "thap",
+      "he_thong": true,
+      "dem": "header 3 lần/3 file; 'chìm đắm' 3 lần/3 file",
+      "chuong": "chuong-0009",
+      "dong": 343,
+      "raw": "【外界秘辛】",
+      "hien_tai": "【Bí ẩn giới ngoại】",
+      "de_xuat": "【Bí văn ngoại giới】",
+      "vi_sao": "Khối tin bên lề hiện đại bị Hán Việt hoá, ngược trật tự; ch7/10 '【Hiện thực giới】' nên là '【Thế giới thực】', 'trò chơi chìm đắm'/'chìm đắm sâu' (沉浸式) nên là 'nhập vai toàn cảnh', 'logic tầng dưới' → 'logic nền tảng'."
+    },
+    {
+      "the": "LAP_TU",
+      "muc_do": "thap",
+      "he_thong": false,
+      "dem": "3 chỗ ở ch10",
+      "chuong": "chuong-0010",
+      "dong": 171,
+      "raw": "好了，既然你已对我宗丹道有了初步的了解",
+      "hien_tai": "“Được rồi, đã là muội đã có hiểu biết sơ bộ về đan đạo tông ta",
+      "de_xuat": "“Được rồi, muội đã hiểu sơ qua đan đạo tông ta rồi thì",
+      "vi_sao": "Lỗi máy lặp 'đã'; cùng chương: dòng 203 'lớn tiếng rao lớn', dòng 5 'mới chỉ khó khăn lắm mới đạt tới'."
+    },
+    {
+      "the": "DINH_DANG",
+      "muc_do": "thap",
+      "he_thong": true,
+      "dem": "ngoặc thẳng ở ch2 (24), ch4 (70), ch6 (4); '......' 156 lần/8 file",
+      "chuong": "chuong-0004",
+      "dong": 205,
+      "raw": "【林清风】：我把你俩截图举报到执法堂了",
+      "hien_tai": "【Lâm Thanh Phong】: Tôi đã chụp màn hình báo cáo hai cậu lên Chấp Pháp Đường rồi",
+      "de_xuat": "Thống nhất ngoặc “ ” cho mọi chương và đổi '......' thành '...'",
+      "vi_sao": "Ch2, ch4 dùng ngoặc kép thẳng còn các chương khác dùng “ ”; dấu sáu chấm của tiếng Trung giữ nguyên khắp nơi."
+    }
+  ],
+  "goi_y": [
+    "Thêm vào prompt luật cho truyện 'game trong tu tiên': tên guild/tông do người chơi đặt, tên kỹ năng hài, meme mạng phải dịch nghĩa hoặc Việt hoá (có thể kèm Hán Việt), không phiên âm trơn; auto-glossary không tự thêm mục loại này khi chưa xác định là chơi chữ.",
+    "Thêm bảng meme mạng Trung thường gặp → tương đương Việt (炫压抑, 虎狼之词, 我信你个鬼, 画大饼, 懂个锤, 黑暗料理, 欧皇) vào prompt hoặc checkRules; cấm phiên âm meme thành cụm viết hoa.",
+    "Ghi cast.json/addressing cho độc thoại: Tô Linh Nhi gọi Lâm Thanh Phong trong đầu là 'hắn' (khi nghi ma đạo), không dùng 'huynh ấy'; người chơi nói với nhau 'tôi/cậu/mày' hiện đại, không 'ngươi'. Truyện chưa có cast.json.",
+    "setting 'mixed' nên kèm chỉ dẫn: khối 【现实界】/【新闻档案】/【外界秘辛】 là văn báo chí hiện đại, dịch thuần Việt, chốt header cố định ('Thế giới thực', 'Hồ sơ tin tức', 'Bí văn ngoại giới').",
+    "Hậu xử lý: chuẩn hoá ngoặc về “ ” và '......' → '...'; quét lặp từ liền kề ('đã ... đã', 'lớn tiếng rao lớn').",
+    "Thêm checkRule bắt 'bản thân' > 1 lần/đoạn và calque cố định: 'được yêu mà sợ', 'một đầu <con vật>', 'khóe miệng ... nói'.",
+    "Dọn out/chuong-0007.txt.bak (app để lại .bak trong out/). Bản dịch lại ch7 còn sát chữ hơn bản cũ ('Đúng lúc này, ở trong rừng', 'mở miệng', 'cha mẹ tái sinh' so với 'Cùng lúc đó, trong rừng', 'ân nhân tái sinh'), nên xem lại prompt retranslate có ép bám nguyên văn quá mức không."
+  ],
+  "lam_tot": [
+    "Không có 'Ân', không sót chữ Hán, tên riêng khớp glossary.",
+    "Thoại người chơi sống động: 'Vãi!', 'Đm', 'Không phải chứ bà chị?', 'Vua đỏ một phát ăn ngay', 'xe đạp biến mô tô'.",
+    "Giọng hoang tưởng bi tráng của Tô Linh Nhi giữ tốt ('gió đìu hiu sông Dịch', 'Thiên đạo bất công!', 'lễ băng nhạc hoại').",
+    "Thông báo hệ thống game đúng chất ('Bạn đã chọc giận Tiền trưởng lão, xin tự cầu nhiều phúc').",
+    "Xưng hô cổ trang trong thoại trực tiếp (vi sư/nghịch đồ, huynh/muội, đệ tử) ổn định qua 10 chương."
+  ]
+}

@@ -1,0 +1,214 @@
+{
+  "slug": "ta-tuyet-the-chi-dau",
+  "ten": "Ta Tuyệt Thế Chị Dâu",
+  "setting": "modern",
+  "the_loai_thuc_te": "Đô thị hiện đại, kể ngôi thứ nhất: chàng trai mãn hạn tù về ở nhờ nhà anh họ, mập mờ với chị dâu và lên đời làm ông chủ; thỉnh thoảng truyện gốc nhảy sang góc nhìn của Hứa Như Vân/Cao Kiện",
+  "ngoi_ke": "ngôi 1",
+  "so_chuong_dich": 58,
+  "chuong_doc": [
+    "0001_7648938625832321561",
+    "0030_7655138028016386585",
+    "0057_7658520296437072409",
+    "0058_7658568956101263897"
+  ],
+  "diem": {
+    "xung_ho": 6.0,
+    "giong_van": 8.0,
+    "de_hieu": 8.0,
+    "kho_khan": 8.0,
+    "thuat_ngu": 8.5
+  },
+  "ly_do_diem": {
+    "xung_ho": "Người kể giữ 'ta' rất chuẩn, nhân vật phụ ổn định, nhưng cặp chính Hứa Như Vân → Trần Phi nhảy qua lại giữa 'chị–em' và 'tôi–cậu' từ chương này sang chương khác, có câu trộn cả hai; addressing trong story.json còn ghi 'tao–mày' từ cảnh đánh nhau chương 1.",
+    "giong_van": "Văn đô thị hiện đại tự nhiên, gọn, đúng chất bình dân như style yêu cầu; điểm trừ là 'chúng ta' trong lời kể (86 lần) và vài chỗ Hán Việt/calque nhẹ.",
+    "de_hieu": "Đa số câu trôi chảy, sát nghĩa; có vài lỗi nghĩa lẻ (人才市场 thành 'thị trường việc làm') và một câu thoại sót chữ khiến đại từ mơ hồ.",
+    "kho_khan": "Lóng/meme xử lý tốt ('em vái cả nón luôn', 'phi công trẻ', 'vắt cổ chày ra nước'); vẫn còn 呵 thành 'Hừ' làm sai sắc thái, 'chiếm tiện nghi' và mất vài nét nũng nịu ('有钱钱').",
+    "thuat_ngu": "Tên riêng nhất quán, không sót chữ Hán, không có 'Ân'/'ngươi'; glossary có vài mục thừa (nhân vật lịch sử, 大清) và tên công ty phiên âm cả phần mô tả."
+  },
+  "loi": [
+    {
+      "the": "XUNG_HO_TROI",
+      "muc_do": "cao",
+      "he_thong": true,
+      "dem": "Như Vân→Trần Phi dùng 'chị–em' ở ch.13–14, 20–24, 39, 42, 57; 'tôi–cậu' ở ch.15, 28–31, 36, 53, 58 (~25 chương)",
+      "chuong": "0058_7658568956101263897",
+      "dong": 35,
+      "raw": "“陈飞，你帮我拍一下。”",
+      "hien_tai": "“Trần Phi, cậu chụp giúp tôi một kiểu.”",
+      "de_xuat": "“Trần Phi, em chụp giúp chị một kiểu.”",
+      "vi_sao": "Ngay chương trước (57) cô vừa xưng 'chị' gọi 'em', dựa vào lòng hắn; sang ch.58 lại về 'tôi–cậu' — nhảy qua lại liên tục vì không có mốc xưng hô nào được ghi lại."
+    },
+    {
+      "the": "XUNG_HO_TROI",
+      "muc_do": "cao",
+      "he_thong": false,
+      "dem": null,
+      "chuong": "0054_7658477915289436696",
+      "dong": 111,
+      "raw": "“呵，就知道你会这么说，陈飞，嫂子这里有钱钱，我想入股你的公司。”",
+      "hien_tai": "“Hừ, biết ngay anh sẽ nói thế mà. Trần Phi, chị dâu có tiền đây, chị muốn góp vốn vào công ty của cậu.”",
+      "de_xuat": "“Hừm, biết ngay anh sẽ nói thế mà. Trần Phi, chị dâu có tiền tiền đây, chị muốn góp vốn vào công ty của em.”",
+      "vi_sao": "Trong một câu thoại, cô tự xưng 'chị' nhưng lại gọi Trần Phi là 'cậu'; còn mất luôn kiểu nói nũng nịu '钱钱'."
+    },
+    {
+      "the": "CAST_MAU_THUAN",
+      "muc_do": "cao",
+      "he_thong": true,
+      "dem": "2 cặp chính trong story.json; không có cast.json",
+      "chuong": "story.json",
+      "dong": 0,
+      "raw": "\"许如云→陈飞\": \"tao–mày\", \"陈飞→许如云\": \"tôi–cô\"",
+      "hien_tai": "toneRules ghi Như Vân 'tôi - cậu/anh' và Trần Phi gọi 'chị dâu/chị'; addressing tự sinh lại khoá 'tao–mày' / 'tôi–cô' từ cảnh túm tóc chương 1",
+      "de_xuat": "许如云→陈飞: 'tôi–cậu' (ch.1–12, và khi có mặt Cao Kiện) → 'chị–em' (từ ch.13 khi riêng tư); 陈飞→许如云: 'em–chị dâu/chị' (cô chỉ dùng khi cãi to)",
+      "vi_sao": "Auto-glossary chốt xưng hô từ một cảnh xung đột ngoại lệ ở chương 1, mâu thuẫn với toneRules và không bao giờ được cập nhật khi quan hệ đổi."
+    },
+    {
+      "the": "XUNG_HO_NGUOI_KE",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "86 lần/43 file (ngoài ngoặc kép)",
+      "chuong": "0058_7658568956101263897",
+      "dong": 13,
+      "raw": "我们是坐的高健的车子。",
+      "hien_tai": "Chúng ta đi xe của Cao Kiện.",
+      "de_xuat": "Bọn ta đi xe của Cao Kiện.",
+      "vi_sao": "'Chúng ta' tính cả người nghe nên trong lời kể nghe như kéo người đọc vào; 我们/我们俩 trong lời kể nên là 'bọn ta / hai đứa ta / cả hai'."
+    },
+    {
+      "the": "DINH_DANG",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "ngoặc kép cong “ ” ở 28 file, thẳng \" \" ở 30 file (0003–0030, 0049, 0057); '......' 108 lần/46 file, '...' 58 lần/29 file",
+      "chuong": "0057_7658520296437072409",
+      "dong": 117,
+      "raw": "“额……”",
+      "hien_tai": "\"Ờ......\"",
+      "de_xuat": "“Ờ…”",
+      "vi_sao": "Kiểu ngoặc kép và dấu ba chấm thay đổi theo từng đợt dịch, đọc liền mạch thấy lủng củng."
+    },
+    {
+      "the": "TIEU_DE",
+      "muc_do": "thap",
+      "he_thong": true,
+      "dem": "10 file (0003–0012)",
+      "chuong": "0007_7650325511842824766",
+      "dong": 1,
+      "raw": "第7章 算计？",
+      "hien_tai": "Chương 7 Tính kế?",
+      "de_xuat": "Chương 7: Tính kế?",
+      "vi_sao": "Các chương khác đều dùng 'Chương N: ...', khối 0003–0012 thiếu dấu hai chấm."
+    },
+    {
+      "the": "SAI_NGHIA",
+      "muc_do": "vua",
+      "he_thong": false,
+      "dem": null,
+      "chuong": "0057_7658520296437072409",
+      "dong": 83,
+      "raw": "我打算明天去人才市场，找个会会计的女孩子。",
+      "hien_tai": "Ta định ngày mai đến thị trường việc làm, tìm một cô gái biết làm kế toán.",
+      "de_xuat": "Ta định mai ra trung tâm giới thiệu việc làm, tìm một cô biết làm kế toán.",
+      "vi_sao": "人才市场 là một nơi cụ thể (sàn/trung tâm việc làm), còn 'thị trường việc làm' là khái niệm trừu tượng, không 'đến' được."
+    },
+    {
+      "the": "DAI_TU_MO_HO",
+      "muc_do": "vua",
+      "he_thong": false,
+      "dem": null,
+      "chuong": "0058_7658568956101263897",
+      "dong": 71,
+      "raw": "你哥跟你嫂子正暧昧着呢，你就别去当电灯泡了。",
+      "hien_tai": "Anh với chị dâu em đang tình tứ thế kia, em đừng qua đó làm bóng đèn làm gì.",
+      "de_xuat": "Anh em với chị dâu em đang tình tứ thế kia, em đừng qua đó làm bóng đèn làm gì.",
+      "vi_sao": "Thiếu 'em' sau 'Anh' nên câu đọc như Lý Lan Hương nói về chính 'anh' nào đó (hoặc người nghe), không rõ là Cao Kiện."
+    },
+    {
+      "the": "CALQUE",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "4 lần/2 file (0019, 0023)",
+      "chuong": "0019_7652224409473663512",
+      "dong": 109,
+      "raw": "文丽娟想占我便宜？",
+      "hien_tai": "Văn Lệ Quyên muốn chiếm tiện nghi của ta?",
+      "de_xuat": "Văn Lệ Quyên muốn sàm sỡ ta à?",
+      "vi_sao": "'Chiếm tiện nghi' là văn convert; 占便宜 trong ngữ cảnh nam nữ là sàm sỡ/lợi dụng, nghĩa thường là hưởng lợi."
+    },
+    {
+      "the": "HU_HA",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "3/26 dòng có 呵 (0045, 0047, 0054); 'Hừ' tổng 7 lần/7 file",
+      "chuong": "0045_7657523019354473022",
+      "dong": 97,
+      "raw": "“呵。”看清了现实的许如云知道说再多都没用。",
+      "hien_tai": "“Hừ.” Đã nhìn rõ thực tế, Hứa Như Vân hiểu nói nhiều thêm nữa cũng vô ích.",
+      "de_xuat": "“Ha.” Đã nhìn rõ sự thật, Hứa Như Vân biết có nói thêm cũng vô ích.",
+      "vi_sao": "呵 là cười nhạt/cười khẩy, 'Hừ' là tiếng bực bội của 哼; 0047 '呵呵……' cũng thành 'Hừ hừ......'."
+    },
+    {
+      "the": "CALQUE",
+      "muc_do": "thap",
+      "he_thong": false,
+      "dem": "1 lần",
+      "chuong": "0057_7658520296437072409",
+      "dong": 69,
+      "raw": "我在现场转了一圈，大家纷纷主动跟我打招呼。",
+      "hien_tai": "Ta đi một vòng quanh hiện trường, mọi người thi nhau chủ động chào hỏi ta.",
+      "de_xuat": "Ta đi một vòng quanh bãi, ai nấy đều chủ động chào ta.",
+      "vi_sao": "现场 ở đây là bãi làm việc; 'hiện trường' trong tiếng Việt gợi hiện trường vụ án."
+    },
+    {
+      "the": "VAN_KHO",
+      "muc_do": "thap",
+      "he_thong": false,
+      "dem": null,
+      "chuong": "0030_7655138028016386585",
+      "dong": 3,
+      "raw": "许如云好像故意要把自己跟我灌醉一样。",
+      "hien_tai": "ta luôn cảm thấy Hứa Như Vân hình như cố ý muốn chuốc say chính mình và ta thì phải.",
+      "de_xuat": "ta cứ có cảm giác Hứa Như Vân cố tình muốn chuốc say cả cô lẫn ta.",
+      "vi_sao": "Giữ trật tự 把自己跟我 nên ra 'chính mình và ta', thừa 'luôn… hình như… thì phải'."
+    },
+    {
+      "the": "SAI_NGHIA",
+      "muc_do": "thap",
+      "he_thong": false,
+      "dem": null,
+      "chuong": "0030_7655138028016386585",
+      "dong": 113,
+      "raw": "这一夜，我真是太满足了。",
+      "hien_tai": "Đêm nay, ta thực sự quá mãn nguyện.",
+      "de_xuat": "Đêm ấy, ta thật sự mãn nguyện lắm rồi.",
+      "vi_sao": "Lời kể quá khứ, 这一夜 phải là 'đêm ấy/đêm đó'; tương tự 'Cô biết phản tỉnh' (dòng 85) nên là 'tự vấn'."
+    },
+    {
+      "the": "GLOSSARY_HAN_VIET_NANG",
+      "muc_do": "thap",
+      "he_thong": true,
+      "dem": "3 lần/1 file (0052); glossary có thêm mục thừa 柳下惠, 诸葛亮, 大清, 四大金刚 ở names/places",
+      "chuong": "0052_7658193366768681534",
+      "dong": 121,
+      "raw": "腾辉绿植是一家规模不小的绿植公司",
+      "hien_tai": "Đằng Huy Lục Thực là một công ty cây xanh có quy mô không hề nhỏ",
+      "de_xuat": "Cây cảnh Đằng Huy là một công ty cây xanh quy mô không hề nhỏ",
+      "vi_sao": "绿植 là phần mô tả ngành (cây xanh) chứ không phải tên, phiên âm thành 'Lục Thực' nặng và vô nghĩa với người đọc hiện đại."
+    }
+  ],
+  "goi_y": [
+    "Lập cast.json cho cặp chính với mốc xưng hô: Hứa Như Vân→Trần Phi 'tôi–cậu' (ch.1–12, và cả sau này khi có mặt Cao Kiện), 'chị–em' khi riêng tư từ ch.13; Trần Phi→Như Vân 'em–chị (dâu)', chỉ 'tôi–cô' khi cãi nhau. Đưa mốc vào prompt mỗi chương.",
+    "Auto-glossary addressing: không lấy xưng hô của cảnh xung đột ngoại lệ (chửi nhau 'tao–mày') làm mặc định; khi chương mới cho thấy xưng hô khác thì ghi đè/thêm mốc thay vì giữ mục cũ; kiểm tra mâu thuẫn với style.toneRules trước khi lưu.",
+    "Thêm luật vào prompt ngôi 1: 我们/我们俩/咱们 trong lời kể → 'bọn ta / hai đứa ta / cả hai', không dùng 'chúng ta' ngoài ngoặc kép.",
+    "Thêm check rule: một câu thoại của cùng người nói không được vừa tự xưng 'chị' vừa gọi người nghe là 'cậu' (hoặc 'tôi' + 'em').",
+    "Hậu xử lý cố định: chuẩn hoá ngoặc kép về “ ”, dấu ba chấm về một kiểu, tiêu đề về 'Chương N: ...' (có thể chạy lại cho 0003–0030).",
+    "Bổ sung bảng calque trong prompt hiện đại: 占便宜 → lợi dụng/sàm sỡ/hời; 呵/呵呵 → Ha/Hà hà/cười nhạt (không phải Hừ); 现场 → bãi/công trường/tại chỗ; 人才市场 → trung tâm giới thiệu việc làm.",
+    "Lọc auto-glossary: không thêm nhân vật lịch sử/điển cố (柳下惠, 诸葛亮), triều đại (大清) vào names/places; tên công ty chỉ phiên âm phần tên riêng, dịch phần mô tả ngành."
+  ],
+  "lam_tot": [
+    "Người kể 'ta' giữ tuyệt đối: 0 lần 'tôi' hay 'Trần Phi' trong lời kể ở 58 chương.",
+    "Không có 'Ân', 'ngươi', không sót chữ Hán; 嗯 dịch Vâng/Ừ/Ừm theo ngữ cảnh.",
+    "Lóng và meme dịch sống: 我简直靠了 → 'em vái cả nón luôn', 小奶狗 → 'phi công trẻ', 铁公鸡 → 'vắt cổ chày ra nước', 我擦 → 'Vãi thật'.",
+    "Xưng hô nhân vật phụ ổn định và hợp vai: Lý Trạch Khải/Phùng Đào 'em–anh Phi', Lý Lan Hương 'chị–em', 'anh làm anh họ' sửa đúng lỗi gõ 表格 trong bản gốc.",
+    "Câu kể gọn, giọng đô thị bình dân đúng style; cảnh tình cảm (ch.30) giữ được nhịp và cảm xúc."
+  ]
+}

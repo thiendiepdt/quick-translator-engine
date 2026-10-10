@@ -1,0 +1,225 @@
+{
+  "slug": "than-dieu-vi-hoang-dung-giai-doc-sau-do-nhieu-con-nhieu-phuc",
+  "ten": "Thần Điêu: Vì Hoàng Dung Giải Độc Sau Đó Nhiều Con Nhiều Phúc",
+  "setting": "ancient",
+  "the_loai_thuc_te": "Đồng nhân Kim Dung (Thần Điêu, về sau lấn sang Thiên Long Bát Bộ) kiểu xuyên không + hệ thống điểm danh, sắc hiệp/hậu cung; bối cảnh cổ đại Nam Tống, có lời thoại hệ thống mang màu hiện đại",
+  "ngoi_ke": "ngôi 3",
+  "so_chuong_dich": 230,
+  "chuong_doc": [
+    "0001_7634572618447716888",
+    "0116_7660873638890963480",
+    "0229_7688735206953452056",
+    "0230_7689127541113618968"
+  ],
+  "diem": {
+    "xung_ho": 7.0,
+    "giong_van": 7.5,
+    "de_hieu": 8.0,
+    "kho_khan": 7.0,
+    "thuat_ngu": 5.5
+  },
+  "ly_do_diem": {
+    "xung_ho": "Cặp chính (Tô Thần–Hoàng Dung, Lý Mạc Sầu 'chàng', Long nhi, muội–huynh, vãn bối–Quách đại hiệp) đúng và ổn định, nhưng các nhân vật đã thần phục như Lý Thanh La, Cam Bảo Bảo lại trôi giữa 'ngươi' / 'người' / 'ngài' với Tô Thần ngay trong một chương. Nguyên nhân là mục addressing đã cũ, không có mốc đổi quan hệ.",
+    "giong_van": "Văn võ hiệp trôi chảy, đúng chất sảng văn sắc hiệp. Bị trừ điểm vì Hán Việt nặng ở chỗ không cần ('Kiểm trắc thấy', 'di sương của một vong quốc chi quân'), 'một tia' dày đặc, và lời kể lẫn 'mẹ' với 'nương thân'.",
+    "de_hieu": "Hầu như không sai nghĩa hay sót ý; 4 chương đối chiếu khớp từng đoạn. Chỉ có vài calque lẻ ('đệ tử đóng cửa', 'chiếm tiện nghi') và 翻白眼 bị dịch sai thành 'trợn tròn mắt'.",
+    "kho_khan": "Thoại nhìn chung sống động. Nhưng 嗯 gần như luôn ra 'Ân' (kể cả cảnh thân mật), 抱大腿 dịch thành 'ôm chặt lấy bắp đùi', 嘶 ra 'Rít......', 呵呵 ra 'Hừ hừ, có ý tứ'.",
+    "thuat_ngu": "Không sót chữ Hán và tên nhất quán trong nội bộ truyện, nhưng nhiều tên Kim Dung lệch bản dịch quen thuộc ở VN và lặp hàng trăm lần (Sỏa Cô, Gia Luật, Trình Dao Gia, Kiếm Chủng, Hách Đại Thông). Ngoài ra có tên vua bị phiên sai (Triệu Uẩn), và thuật ngữ hệ thống, chiêu thức, biệt danh không được chốt."
+  },
+  "loi": [
+    {
+      "the": "GLOSSARY_PHIEN_AM",
+      "muc_do": "cao",
+      "he_thong": true,
+      "dem": "140 lần/12 file",
+      "chuong": "0022_7644945335982244376",
+      "dong": 189,
+      "raw": "“傻姑？！”",
+      "hien_tai": "“Sỏa Cô?!”",
+      "de_xuat": "“Ngốc Cô?!”",
+      "vi_sao": "Bản dịch Kim Dung quen thuộc ở VN gọi nhân vật này là Ngốc Cô. Glossary tự sinh chọn âm 'Sỏa' quá máy móc, kéo theo cả addressing (傻姑→程英 = Sỏa Cô–A Anh)."
+    },
+    {
+      "the": "GLOSSARY_PHIEN_AM",
+      "muc_do": "cao",
+      "he_thong": true,
+      "dem": "272 lần/12 file (Gia Luật Tề, Gia Luật Yến, Gia Luật Sở Tài)",
+      "chuong": "0129_7663481249318568472",
+      "dong": 135,
+      "raw": "耶律齐手中的长剑被一名蒙古百夫长一刀荡开",
+      "hien_tai": "trường kiếm trong tay Gia Luật Tề bị một tên bách phu trưởng Mông Cổ vung đao gạt phăng ra",
+      "de_xuat": "trường kiếm trong tay Da Luật Tề bị một tên bách phu trưởng Mông Cổ vung đao gạt phăng ra",
+      "vi_sao": "Họ 耶律 trong bản dịch Kim Dung và trong sử Việt đọc là 'Da Luật' (Da Luật Tề, Da Luật Sở Tài); viết 'Gia Luật' khiến người đọc quen truyện thấy lạ."
+    },
+    {
+      "the": "GLOSSARY_PHIEN_AM",
+      "muc_do": "cao",
+      "he_thong": true,
+      "dem": "312 lần/22 file",
+      "chuong": "0155_7668308366426374680",
+      "dong": 179,
+      "raw": "陆冠英坐在主位，程瑶迦坐在他身旁",
+      "hien_tai": "Trình Dao Gia ngồi bên cạnh ông",
+      "de_xuat": "Trình Dao Ca ngồi bên cạnh ông",
+      "vi_sao": "迦 đọc là 'ca' (như Thích Ca); bản Xạ Điêu tiếng Việt dùng tên Trình Dao Ca. Nhân vật này là trọng tâm của cả một arc nên lỗi lặp hơn 300 lần."
+    },
+    {
+      "the": "GLOSSARY_PHIEN_AM",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "86 lần/10 file",
+      "chuong": "0181_7673159666670502424",
+      "dong": 199,
+      "raw": "宋理宗赵昀坐在龙椅上",
+      "hien_tai": "Tống Lý Tông Triệu Uẩn ngồi trên long ngai",
+      "de_xuat": "Tống Lý Tông Triệu Quân ngồi trên long ngai",
+      "vi_sao": "昀 không đọc là 'uẩn' (蕴 mới là uẩn). Đây là tên thật của vua Tống Lý Tông, sách sử Việt ghi là Triệu Quân."
+    },
+    {
+      "the": "GLOSSARY_PHIEN_AM",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "Kiếm Chủng 8 lần/4 file; Hách Đại Thông 1; Kim Cương Trử 1; Cửu Tiết Hạp 1",
+      "chuong": "0019_7644594953292612120",
+      "dong": 89,
+      "raw": "“独孤求败留下的剑冢",
+      "hien_tai": "“Kiếm Chủng mà Độc Cô Cầu Bại để lại",
+      "de_xuat": "“Kiếm Trủng mà Độc Cô Cầu Bại để lại",
+      "vi_sao": "冢 đọc là 'trủng'. Bản Thần Điêu quen thuộc dùng Kiếm Trủng. Cùng loại lỗi có 郝大通 → nên là Hác Đại Thông, 金刚杵 → Kim Cương Xử, 九节蝎 → Cửu Tiết Hạt."
+    },
+    {
+      "the": "XUNG_HO_TROI",
+      "muc_do": "cao",
+      "he_thong": true,
+      "dem": "'Công tử… ngươi' 4 lần/2 file, đều ở 2 chương mới nhất (0229, 0230)",
+      "chuong": "0230_7689127541113618968",
+      "dong": 93,
+      "raw": "“公子……谢谢你……救了我……”",
+      "hien_tai": "“Công tử...... cảm ơn ngươi...... đã cứu ta......”",
+      "de_xuat": "“Công tử...... đa tạ người...... đã cứu thiếp......”",
+      "vi_sao": "Cam Bảo Bảo đã xưng 'thiếp thân' và gọi 'ngài' (0229:133), cuối chương 0230 lại gọi 'người' (dòng 401), nhưng chỗ này dùng 'ngươi'. Lý Thanh La cũng vậy (0229:27 'tối qua ngươi' và 0229:341 'cầu xin người'). Nguyên nhân là addressing ghi 李青萝→苏辰 = ta–ngươi mà không có mốc đổi khi nhân vật đã thần phục."
+    },
+    {
+      "the": "AN_THAN_TU",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "≈43/51 lần 嗯 ra 'Ân' (34 file)",
+      "chuong": "0230_7689127541113618968",
+      "dong": 433,
+      "raw": "甘宝宝红着脸“嗯”了一声",
+      "hien_tai": "Cam Bảo Bảo đỏ mặt khẽ “Ân” một tiếng",
+      "de_xuat": "Cam Bảo Bảo đỏ mặt khẽ “ừm” một tiếng",
+      "vi_sao": "'Ân' làm khô cảnh tình cảm và dễ bị hiểu là chữ 恩. Một số chỗ dịch 'Ừ', 'Dạ', 'Hửm' (0093, 0150, 0154) đọc tự nhiên hơn hẳn."
+    },
+    {
+      "the": "MEME_NGHIA_DEN",
+      "muc_do": "vua",
+      "he_thong": false,
+      "dem": "1 lần/1 file",
+      "chuong": "0230_7689127541113618968",
+      "dong": 279,
+      "raw": "唯一的办法，就是牢牢抱住这个男人的大腿。",
+      "hien_tai": "cách duy nhất chính là ôm chặt lấy bắp đùi của nam nhân này.",
+      "de_xuat": "cách duy nhất chính là bám chặt lấy chỗ dựa là nam nhân này.",
+      "vi_sao": "抱大腿 là thành ngữ mạng nghĩa là 'bám chỗ dựa'. Dịch nghĩa đen thành câu kỳ cục, lại dễ gây hiểu nhầm trong truyện sắc hiệp."
+    },
+    {
+      "the": "THUAT_NGU_TROI",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "叮: 'Ting' 34 lần/21 file, 'Đinh!' 8 lần/4 file; 检测到 → 'Kiểm trắc' 21 lần/18 file; 命运线偏移羁绊 dịch ít nhất 4 kiểu",
+      "chuong": "0026_7645150203263058456",
+      "dong": 169,
+      "raw": "“叮！检测到宿主成功加深与红颜羁绊",
+      "hien_tai": "“Đinh! Kiểm trắc được ký chủ thành công làm sâu sắc mối liên kết cùng hồng nhan",
+      "de_xuat": "“Ting! Phát hiện ký chủ đã thắt chặt ràng buộc với hồng nhan",
+      "vi_sao": "Giọng hệ thống là motif lặp lại suốt truyện nhưng không có mục glossary nào. Vì vậy âm báo ra lúc 'Ting' lúc 'Đinh', 'Kiểm trắc thấy/được' thì nặng Hán Việt, còn 命运线偏移羁绊 lúc là 'ràng buộc chệch hướng tuyến vận mệnh', lúc là 'quỹ đạo ràng buộc của dòng vận mệnh'."
+    },
+    {
+      "the": "GLOSSARY_DANH_XUNG",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "傻蛋: 'đồ ngốc' 8, 'Ngốc đản' 4, 'Sỏa Đản' 2",
+      "chuong": "0079_7654216450277638680",
+      "dong": 193,
+      "raw": "“都怪我，要不是为了我，傻蛋也不会去招惹那李莫愁。”",
+      "hien_tai": "“Đều tại muội, nếu không phải vì muội thì Sỏa Đản cũng không đi trêu chọc Lý Mạc Sầu kia.”",
+      "de_xuat": "“Đều tại muội, nếu không phải vì muội thì tên ngốc ấy cũng không đi trêu chọc Lý Mạc Sầu kia.”",
+      "vi_sao": "傻蛋 là biệt danh Lục Vô Song gọi yêu Tô Thần (Kim Dung gốc dịch là 'ngốc tử/đồ ngốc'). Glossary lại xếp nó vào names thành 'Sỏa Đản', nên bản dịch ra 3 kiểu."
+    },
+    {
+      "the": "THUAT_NGU_TROI",
+      "muc_do": "thap",
+      "he_thong": true,
+      "dem": "Bái Vĩ 1 / Bãi Vĩ 1; Đảo Đào Hoa 44 lần/23 file vs Đào Hoa Đảo 11 lần/6 file",
+      "chuong": "0061_7650875827889898008",
+      "dong": 163,
+      "raw": "这第十式‘神龙摆尾’",
+      "hien_tai": "Thức thứ mười này là ‘Thần Long Bái Vĩ’",
+      "de_xuat": "Thức thứ mười này là ‘Thần Long Bãi Vĩ’",
+      "vi_sao": "摆 đọc là 'bãi', glossary ghi sai thành 'Bái Vĩ'. 桃花岛 thì glossary chốt 'Đảo Đào Hoa' trong khi tên quen thuộc là 'Đào Hoa Đảo' (summary và 11 chỗ trong bản dịch cũng dùng tên này)."
+    },
+    {
+      "the": "BAN_THAN",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "382 lần/166 file",
+      "chuong": "0229_7688735206953452056",
+      "dong": 9,
+      "raw": "却发现自己连抬起胳膊的力气都没有了",
+      "hien_tai": "định ngồi dậy nhưng phát hiện bản thân đến cả sức nâng cánh tay cũng không còn nữa",
+      "de_xuat": "định ngồi dậy mới thấy mình đến sức nhấc cánh tay cũng chẳng còn",
+      "vi_sao": "自己 bị dịch máy móc thành 'bản thân' ở mọi vị trí, có cả câu mở đầu truyện 'Bản thân lại tới thế giới Thần Điêu ư?' (0001:13). Mật độ còn tăng ở các chương sau (159 lần ở chương 151–230)."
+    },
+    {
+      "the": "CALQUE",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "'một tia' 685 lần/210 file; 'tiện nghi' 30 lần/21 file",
+      "chuong": "0001_7634572618447716888",
+      "dong": 45,
+      "raw": "声音却透着一丝虚弱和颤抖",
+      "hien_tai": "nhưng giọng nói lại mang theo một tia yếu ớt cùng run rẩy",
+      "de_xuat": "nhưng giọng nói lại thoáng yếu ớt, run rẩy",
+      "vi_sao": "一丝 nào cũng thành 'một tia', trung bình hơn 3 lần mỗi chương, nên văn đọc mòn. 占便宜 cũng thường thành 'chiếm tiện nghi' (0047:245) thay vì 'giở trò/sàm sỡ'."
+    },
+    {
+      "the": "SAI_NGHIA",
+      "muc_do": "thap",
+      "he_thong": true,
+      "dem": "翻白眼 8 lần/6 file, dịch 5 kiểu, 2 chỗ sai nghĩa",
+      "chuong": "0210_7681699015355810328",
+      "dong": 469,
+      "raw": "苏辰翻了个白眼，刚想开口解释清楚。",
+      "hien_tai": "Tô Thần trợn tròn mắt, vừa định mở miệng giải thích cho rõ ràng.",
+      "de_xuat": "Tô Thần lườm một cái, vừa định mở miệng giải thích cho rõ ràng.",
+      "vi_sao": "'Trợn tròn mắt' là kinh ngạc, còn 翻白眼 là bực hoặc chán. Chỗ khác thì calque 'đảo tròn mắt trắng' (0230:499)."
+    },
+    {
+      "the": "GLOSSARY_HAN_VIET_NANG",
+      "muc_do": "thap",
+      "he_thong": false,
+      "dem": null,
+      "chuong": "0199_7677951805413671448",
+      "dong": 375,
+      "raw": "我现在不过是一个亡国之君的遗孀",
+      "hien_tai": "ta hiện tại bất quá chỉ là di sương của một vong quốc chi quân",
+      "de_xuat": "ta giờ chẳng qua chỉ là quả phụ của một ông vua mất nước",
+      "vi_sao": "Hán Việt chồng Hán Việt nên khó hiểu. Kèm theo đó lời kể lẫn 'mẹ' với 'nương thân' trong cùng một chương (0230:459 'mẹ muội', 0230:479 'nương thân'), và có từ hiện đại 'tam quan' (0156 tiêu đề, 0201:267) trong bối cảnh cổ đại."
+    }
+  ],
+  "goi_y": [
+    "Với truyện đồng nhân (genre có nguồn Kim Dung/Thần Điêu/Thiên Long), thêm vào prompt và bước setup glossary câu: 'Tên nhân vật, chiêu thức, địa danh của nguyên tác PHẢI theo bản dịch tiếng Việt quen thuộc (Ngốc Cô, Da Luật Tề, Trình Dao Ca, Kiếm Trủng, Hác Đại Thông, Đào Hoa Đảo, Thần Long Bãi Vĩ), không tự phiên âm'. Nên có một bảng tên Kim Dung chuẩn dựng sẵn trong app để seed glossary.",
+    "Sửa ngay glossary của truyện này: 傻姑=Ngốc Cô, 耶律*=Da Luật*, 程瑶迦=Trình Dao Ca, 剑冢=Kiếm Trủng, 郝大通=Hác Đại Thông, 赵昀=Triệu Quân, 神龙摆尾=Thần Long Bãi Vĩ, 金刚杵=Kim Cương Xử, 九节蝎=Cửu Tiết Hạt. Chuyển 傻蛋 từ names sang addressing hoặc common thành 'đồ ngốc'. Chọn một trong hai 'Đào Hoa Đảo' / 'Đảo Đào Hoa' rồi replace hàng loạt trong out/.",
+    "Thêm nhóm glossary 'system' cho truyện hệ thống: 叮=Ting, 检测到=Phát hiện, 宿主=ký chủ, 命运线偏移=lệch tuyến vận mệnh, 羁绊=ràng buộc, 签到=điểm danh. Auto-glossary hiện chỉ bắt danh từ riêng nên bỏ sót các cụm này.",
+    "Addressing cần có mốc thời gian: cho phép một cặp nhân vật có nhiều mục kèm chapter (vd 李青萝→苏辰: ta–ngươi đến ch.228, sau đó ta/thiếp–người hoặc công tử). Khi autoGlossary thêm cặp mới cho nhân vật đã có cặp cũ thì đề xuất cập nhật thay vì giữ nguyên mục cũ.",
+    "Trong prompt cổ đại, bỏ luật bắt buộc 嗯 → 'Ân'. Thay bằng: 嗯 khi đáp lời thì dùng 'ừ/ừm/vâng/dạ' theo vai vế, khi hỏi lại thì dùng 'hửm'; chỉ dùng 'ân' khi rên khẽ.",
+    "Thêm vào checkRules / danh sách calque cần tránh: 'một tia' (nên thay bằng thoáng/chút/hơi/nét), 'bản thân' khi 自己 làm chủ ngữ hoặc tân ngữ (nên dùng mình/hắn/nàng), 'chiếm tiện nghi', 'đệ tử đóng cửa' (nên dùng đệ tử quan môn/đệ tử cuối cùng), 抱大腿 (nên dùng bám chỗ dựa), 翻白眼 (nên dùng lườm/liếc xéo, không phải 'trợn tròn mắt')."
+  ],
+  "lam_tot": [
+    "Không sót chữ Hán. Giữ đủ 100% đoạn và thứ tự dòng, đối chiếu từng đoạn khớp, gần như không sót ý.",
+    "Xưng hô cặp chính rất chuẩn: Tô Thần–Lý Mạc Sầu 'ta–nàng/chàng', Tiểu Long Nữ 'Tiểu Thần–ngươi', Tô Thần 'vãn bối–Quách đại hiệp', Mộc Uyển Thanh gọi Cam Bảo Bảo 'Cam sư thúc–người'.",
+    "Giọng võ hiệp sảng văn mượt, nhịp dồn dập, thành ngữ Việt dùng đắt ('đánh chó còn phải ngó mặt chủ', 'gà bay chó sủa', 'mặt hoa da phấn').",
+    "Đa số tên Kim Dung lớn đúng chuẩn: Hàng Long Thập Bát Chưởng, Lăng Ba Vi Bộ, Bắc Minh Thần Công, Cửu Hoa Ngọc Lộ Hoàn, Thập Hương Nhuyễn Cân Tán, Kim Luân Pháp Vương, Long Tượng Bát-nhã Công.",
+    "Tiêu đề chương viết hoa đúng kiểu câu, không viết hoa mọi chữ."
+  ]
+}

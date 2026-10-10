@@ -1,0 +1,225 @@
+{
+  "slug": "lao-ba-qua-manh-cung-ta-cach-li-sinh-san-lam-sao-bay-gio",
+  "ten": "Lão Bà Quá Mạnh, Cùng Ta Cách Li Sinh Sản Làm Sao Bây Giờ",
+  "setting": "ancient",
+  "the_loai_thuc_te": "Đô thị hiện đại linh khí khôi phục (Lam Tinh, Cục Quản lý Di dân, tứ hợp viện, điện thoại, xổ số) pha tu tiên/thiên giới, hài gia đình vợ chồng – con cái; chỉ các arc Thiên Giới mới mang màu cổ trang.",
+  "ngoi_ke": "ngôi 3",
+  "so_chuong_dich": 636,
+  "chuong_doc": [
+    "0001_7532047326391583256",
+    "0321_7594136613148443161",
+    "0438_7622316118929048126",
+    "0155_7561504213801386558"
+  ],
+  "diem": {
+    "xung_ho": 4,
+    "giong_van": 4.5,
+    "de_hieu": 7,
+    "kho_khan": 6.5,
+    "thuat_ngu": 6
+  },
+  "ly_do_diem": {
+    "xung_ho": "Setting ancient ép bỏ vợ/chồng nên cặp chính trôi giữa phu quân–thê tử, chàng–thiếp, ông xã–bà xã, anh–em; mẹ xưng ta/ngươi với con; tỷ tỷ/chị lẫn lộn; addressing trong story.json tự mâu thuẫn.",
+    "giong_van": "Truyện đô thị hiện đại nhưng bị khoá cổ đại: nhạc phụ/nhạc mẫu, tiểu di tử, thuộc hạ–ngài trong văn phòng, nữ nhân/nam nhân, Ân — trái hẳn style.toneRules/avoid của chính story.json.",
+    "de_hieu": "Phần lớn dễ đọc, đúng ý, đủ đoạn; lỗi chủ yếu là calque nhẹ (Cùng với việc, Tìm chết, chi lực) và vài câu lặp.",
+    "kho_khan": "Nhịp hài và lóng thường giữ tốt (OMG, Vãi chưởng, Đệt mợ, áo bông tri kỷ), nhưng chơi chữ 闹出人命 và meme anime/mạng bị dịch nghĩa đen hoặc Hán Việt hoá.",
+    "thuat_ngu": "Glossary ~700 mục áp khá đều, không sót chữ Hán, nhưng có mục tách đôi (Hỷ/Hỉ Kiến, chùa Phổ Độ/Phổ Độ Tự), lỗi chính tả (Lục Ngĩ), meme bị đóng băng thành Hán Việt và 词条 → 'từ điều'."
+  },
+  "loi": [
+    {
+      "the": "BOI_CANH_SAI",
+      "muc_do": "cao",
+      "he_thong": true,
+      "dem": "老公→Phu quân 85 dòng/31 file; 'thê tử' 360 lần/181 file; 'vợ'/'chồng' 0 lần trong 636 file",
+      "chuong": "0001_7532047326391583256",
+      "dong": 83,
+      "raw": "“老公，你回来啦！亲亲ლ(°◕‵ƹ′◕ლ)”",
+      "hien_tai": "“Phu quân, anh về rồi à! Hôn một cái nèლ(°◕‵ƹ′◕ლ)”",
+      "de_xuat": "“Ông xã, anh về rồi à! Hôn cái nè ლ(°◕‵ƹ′◕ლ)”",
+      "vi_sao": "genre.setting = ancient nên prompt cấm 'vợ/chồng' và đẩy 'phu quân/thê tử' vào một truyện đô thị hiện đại, đi ngược toneRules 'ông xã–bà xã' mà chính story.json ghi."
+    },
+    {
+      "the": "XUNG_HO_TROI",
+      "muc_do": "cao",
+      "he_thong": true,
+      "dem": "'thiếp' 66 lần/23 file; 'chàng' 104 lần/44 file, xen kẽ với 'em/anh' và 'ông xã'",
+      "chuong": "0432_7620079733392278078",
+      "dong": 147,
+      "raw": "“嗯……老公，都听你的。你要怎么研究……都可以……”",
+      "hien_tai": "“Ân...... phu quân, đều nghe theo chàng. Chàng muốn nghiên cứu thế nào...... cũng được......”",
+      "de_xuat": "“Ừm... ông xã, em nghe anh hết. Anh muốn nghiên cứu thế nào... cũng được...”",
+      "vi_sao": "Tô Thanh Tuyết lúc 'em–anh', lúc 'thiếp–chàng' (ch2 cả chương chàng/thiếp), đúng thứ style.avoid cấm; không có mốc nào giải thích."
+    },
+    {
+      "the": "CALQUE",
+      "muc_do": "cao",
+      "he_thong": true,
+      "dem": "岳母/丈母娘→nhạc mẫu 71 dòng/49 file; 'nhạc phụ' 108 lần/61 file; 小姨子/大姨子→tiểu di tử/đại di tỷ 29 dòng/16 file",
+      "chuong": "0002_7532080979444236824",
+      "dong": 165,
+      "raw": "岳父岳母大舅哥小姨子突然杀上门来",
+      "hien_tai": "nhạc phụ nhạc mẫu cùng đại cữu ca và tiểu di tử đột ngột kéo đến cửa",
+      "de_xuat": "bố vợ, mẹ vợ, anh vợ với em vợ đột ngột kéo đến tận cửa",
+      "vi_sao": "Vì không được dùng 'vợ', model chế ra chuỗi Hán Việt ghép (đại cữu ca, tiểu di tử, đại di tỷ) không ai nói trong tiếng Việt, càng lạc giữa bối cảnh tứ hợp viện hiện đại."
+    },
+    {
+      "the": "XUNG_HO_VAI_VE",
+      "muc_do": "cao",
+      "he_thong": false,
+      "dem": null,
+      "chuong": "0438_7622316118929048126",
+      "dong": 19,
+      "raw": "如果再让我发现你们大半夜出去喝酒鬼混……",
+      "hien_tai": "Nếu để ta phát hiện nửa đêm các ngươi lại đi uống rượu chơi bời lêu lổng nữa thì......",
+      "de_xuat": "Còn để mẹ bắt gặp hai đứa nửa đêm đi nhậu nhẹt lêu lổng nữa thì...",
+      "vi_sao": "Mẹ mắng con trai và em gái mà xưng 'ta–các ngươi' (dòng 17 cũng 'rót mật vào tai ta'), trái addressing 苏清雪→刘苏 'mẹ–con' và giọng gia đình ấm áp."
+    },
+    {
+      "the": "XUNG_HO_VAI_VE",
+      "muc_do": "vua",
+      "he_thong": false,
+      "dem": null,
+      "chuong": "0005_7532464629029536280",
+      "dong": 151,
+      "raw": "我跟我老公就是去拜了拜……您有空，也可以带夫人去转转。",
+      "hien_tai": "Thuộc hạ cùng phu quân đã tới đó bái lạy...... Khi nào ngài rảnh rỗi cũng có thể đưa phu nhân tới đó dạo một vòng.",
+      "de_xuat": "Em với chồng em đi lễ ở đó rồi đấy... Lúc nào rảnh trưởng phòng cũng đưa chị nhà đi một chuyến xem.",
+      "vi_sao": "Nhân viên văn phòng Cục Di dân nói với sếp mà xưng 'thuộc hạ–ngài', 'phu quân', trái addressing 林薇薇→刘源 'em–khoa trưởng'."
+    },
+    {
+      "the": "AN_THAN_TU",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "嗯→Ân 98 dòng/81 file (so với 53 dòng dịch Ừ/Dạ/Vâng)",
+      "chuong": "0438_7622316118929048126",
+      "dong": 31,
+      "raw": "“嗯，回家。小灵儿该想我们了。”",
+      "hien_tai": "“Ân, về nhà thôi. Chắc Tiểu Linh Nhi nhớ chúng ta rồi.”",
+      "de_xuat": "“Ừ, về nhà thôi. Chắc bé Linh nhớ bố mẹ rồi.”",
+      "vi_sao": "Luật thán từ của prompt cổ đại lọt vào thoại gia đình hiện đại (ch8: 'Ân, ngon lắm.' khi ăn khâu nhục), nghe khô và lạc giọng."
+    },
+    {
+      "the": "XUNG_HO_TROI",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "姐姐→tỷ tỷ 217 dòng/83 file, →chị 321 dòng/119 file",
+      "chuong": "0155_7561504213801386558",
+      "dong": 157,
+      "raw": "姐姐好会！",
+      "hien_tai": "Tỷ tỷ bạo thật!",
+      "de_xuat": "Chị mình bạo thật!",
+      "vi_sao": "Ngay dòng 159 là 'Anh rể đỉnh thật!'; cùng một nhân vật Tô Vũ Mặc gọi chị lúc 'chị' lúc 'tỷ tỷ', addressing ghi 'em–chị'."
+    },
+    {
+      "the": "CAST_MAU_THUAN",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "≥4 cặp addressing lệch chiều trong 277 mục",
+      "chuong": "story.json",
+      "dong": 0,
+      "raw": "刘源→秦二爷 = cháu–ông / 秦二爷→刘源 = bác–cháu; 刘念→刘苏 = ta–ngươi / 刘苏→刘念 = đệ–tỷ; 刘苏→刘源 = con–ta",
+      "hien_tai": "苏清雪→林薇薇 = em–chị Vi Vi / 林薇薇→苏清雪 = em–chị dâu",
+      "de_xuat": "Tần Nhị gia ↔ Lưu Nguyên: ông–cháu hai chiều; chị em Lưu Niệm–Lưu Tô: chị–em; Lưu Tô→Lưu Nguyên: con–bố; chọn một bên 'chị/em' cho Thanh Tuyết–Vi Vi",
+      "vi_sao": "Addressing tự sinh không kiểm hai chiều nên tự mâu thuẫn, và còn chép nguyên 'ta–ngươi' cổ trang vào cặp anh chị em hiện đại."
+    },
+    {
+      "the": "XUNG_HO_NGUOI_KE",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "đại từ 'anh' chỉ Lưu Nguyên trong lời kể ~94 lần/55 file (so với 'hắn' ~481 lần cùng mẫu)",
+      "chuong": "0058_7542648594218615358",
+      "dong": 183,
+      "raw": "但是刘源，他为什么也丝毫无碍？",
+      "hien_tai": "Nhưng còn Lưu Nguyên, tại sao anh cũng chẳng hề hấn gì?",
+      "de_xuat": "Nhưng còn Lưu Nguyên, sao hắn cũng chẳng hề hấn gì?",
+      "vi_sao": "Lời kể ngôi ba lúc gọi nhân vật chính là 'hắn', lúc 'anh' (ch12: 'chỉ là anh lười đòi thôi'), không chốt một đại từ."
+    },
+    {
+      "the": "CALQUE",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "女人→nữ nhân 146 dòng/81 file; 男人→nam nhân 231 dòng/142 file",
+      "chuong": "0155_7561504213801386558",
+      "dong": 43,
+      "raw": "你才是咱们家最努力的男人。",
+      "hien_tai": "anh mới là nam nhân nỗ lực nhất trong nhà chúng ta.",
+      "de_xuat": "anh mới là người đàn ông chăm chỉ nhất nhà mình.",
+      "vi_sao": "Calque đã biết: nữ nhân/nam nhân thay vì 'người đàn ông/cô ấy/nàng', trong thoại vợ chồng hiện đại càng sượng."
+    },
+    {
+      "the": "MEME_NGHIA_DEN",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "glossary chốt cứng: 大玉螺旋丸, 时停, 神仙快乐水, 凿壁偷光…",
+      "chuong": "0342_7598239693414597182",
+      "dong": 115,
+      "raw": "“雪遁——大玉螺旋丸！”",
+      "hien_tai": "“Tuyết Độn — Đại Ngọc La Toàn Hoàn!”",
+      "de_xuat": "“Tuyết Độn — Rasengan Khổng Lồ!” (tương tự 时停 → 'Dừng thời gian!' thay cho 'Thời Đình!' ở ch371)",
+      "vi_sao": "Đây là chiêu Naruto/meme mạng, Hán Việt hoá làm độc giả mất cú đùa; lỗi bị đóng băng vì auto-glossary đã ghi thành tên riêng."
+    },
+    {
+      "the": "VAN_KHO",
+      "muc_do": "vua",
+      "he_thong": false,
+      "dem": null,
+      "chuong": "0155_7561504213801386558",
+      "dong": 189,
+      "raw": "“万一真闹出人命，你可就要失宠了！”",
+      "hien_tai": "“Vạn nhất thật sự tạo ra mạng người, cháu sẽ bị thất sủng đấy!”",
+      "de_xuat": "“Lỡ 'án mạng' này đẻ ra thêm một mạng người thật, cháu thất sủng là cái chắc!”",
+      "vi_sao": "闹出人命 vừa là 'gây án mạng' vừa là 'có em bé'; 'gây ra/tạo ra mạng người' (cả tiêu đề) không phải tiếng Việt tự nhiên và làm mất cú chơi chữ."
+    },
+    {
+      "the": "GLOSSARY_TRUNG",
+      "muc_do": "thap",
+      "he_thong": true,
+      "dem": "Hỷ Kiến 339 lần/54 file vs Hỉ Kiến 73 lần/27 file; chùa Phổ Độ (1) vs Phổ Độ Tự (4)",
+      "chuong": "0068_7544487371702534718",
+      "dong": 53,
+      "raw": "传闻中，喜见天神身处㣼利天，于喜见城内垂钓诸天万界。",
+      "hien_tai": "Tương truyền Hỉ Kiến Thiên Thần ngự tại Đao Lợi Thiên, buông cần câu chư thiên vạn giới bên trong thành Hỉ Kiến.",
+      "de_xuat": "Tương truyền Hỷ Kiến Thiên Thần ngự tại Đao Lợi Thiên, ngồi trong thành Hỷ Kiến buông câu khắp chư thiên vạn giới.",
+      "vi_sao": "Glossary tự ghi 喜见=Hỷ Kiến nhưng 喜见城/喜见神殿=Hỉ Kiến, 普渡寺/普度寺 hai kiểu; thuật ngữ cốt lõi bị tách đôi."
+    },
+    {
+      "the": "GLOSSARY_PHIEN_AM",
+      "muc_do": "thap",
+      "he_thong": true,
+      "dem": "词条→từ điều 27 lần/17 file; 绿蚁→Lục Ngĩ 1",
+      "chuong": "0001_7532047326391583256",
+      "dong": 41,
+      "raw": "还好他穿越之后就拥有一个词条金手指：【绝处逢生】。",
+      "hien_tai": "may mà sau khi xuyên việt hắn đã sở hữu ngón tay vàng từ điều: 【Tuyệt Xứ Phùng Sinh】.",
+      "de_xuat": "may mà sau khi xuyên không hắn có sẵn một bàn tay vàng dạng thẻ thuộc tính: 【Tuyệt Xứ Phùng Sinh】.",
+      "vi_sao": "'từ điều' là phiên âm vô nghĩa với độc giả Việt; glossary còn có lỗi chính tả 绿蚁 = 'Lục Ngĩ' (đúng: Lục Nghĩ), và 金手指 trôi giữa ngón tay vàng/bàn tay vàng."
+    },
+    {
+      "the": "DINH_DANG",
+      "muc_do": "thap",
+      "he_thong": true,
+      "dem": "2478 dòng thoại mở bằng ngoặc thẳng \" ở 88 file (cụm ch98–129…), raw dùng “”",
+      "chuong": "0098_7550706348254560830",
+      "dong": 3,
+      "raw": "“握草！这是谁家的娃？”",
+      "hien_tai": "\"Đệt mợ! Con nhà ai đây?\"",
+      "de_xuat": "“Đệt mợ! Con nhà ai đây?”",
+      "vi_sao": "Một loạt chương dùng ngoặc ASCII, phần còn lại dùng ngoặc cong, nên định dạng không đồng nhất khi xuất sách."
+    }
+  ],
+  "goi_y": [
+    "Đổi genre.setting của truyện này sang modern (hoặc thêm setting 'đô thị tu tiên' / cho phép setting theo arc): luật ancient cấm 'vợ/chồng' và bắt 'Ân' là gốc của phần lớn lỗi; story.json.toneRules đã nói rõ là hiện đại.",
+    "App nên cảnh báo khi style.toneRules/avoid mâu thuẫn với luật setting (ví dụ toneRules có 'ông xã – bà xã' mà setting ancient cấm vợ/chồng), hoặc cho toneRules của truyện đè luật setting.",
+    "Thêm bảng quan hệ thông gia hiện đại vào prompt modern: 岳父/岳母 → bố vợ/mẹ vợ, 大舅哥 → anh vợ, 小姨子/大姨子 → em vợ/chị vợ, 姐夫 → anh rể; cấm 'tiểu di tử/đại cữu ca/đại di tỷ'.",
+    "Kiểm addressing tự sinh theo hai chiều (A→B và B→A phải khớp vai) và chặn ghi 'ta–ngươi' cho cặp ruột thịt khi setting hiện đại; có thể thêm cast.json với mốc cho từng arc Thiên Giới.",
+    "Thêm checkRules cho truyện: '(?<!\\p{L})thiếp(?!\\p{L})|chàng', 'nữ nhân|nam nhân', 'Lúc này lúc này' (gặp ở ch438 dòng 35), ngoặc thẳng '^\"' ; luật ẩn 'Ân' trong thoại khi setting modern.",
+    "Auto-glossary: không ghi meme/chiêu anime/biệt danh mạng (大玉螺旋丸, 时停, 神仙快乐水) thành tên Hán Việt; gom biến thể cùng gốc (喜见*, 普渡/普度寺) về một cách đọc; soát chính tả mục mới (Lục Ngĩ).",
+    "Chốt đại từ lời kể cho nhân vật chính (hắn hoặc anh) trong story.json để không trôi giữa các chương."
+  ],
+  "lam_tot": [
+    "Đủ 100% đoạn ở cả 4 chương đọc, không sót chữ Hán trong toàn bộ out/.",
+    "Lóng và nhịp hài thường giữ tốt: 'OMG', 'Vãi chưởng', 'Đệt mợ', 'chiếc áo bông tri kỷ', 'bà cô tổ dân phố', 'Hai đứa nhà quê'.",
+    "Từ ngữ đời sống hiện đại được Việt hoá khéo: tào phớ, mì lạnh nướng, tôm hùm đất, kẹo Đại Bạch Thỏ, Song Sắc Cầu đặt cạnh vé cào.",
+    "Glossary tên người/địa danh/công pháp rất lớn mà áp nhất quán qua 600+ chương; chương gần đây (155, 321) đọc trơn, đúng nghĩa."
+  ]
+}

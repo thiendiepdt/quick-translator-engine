@@ -1,0 +1,227 @@
+{
+ "slug": "ma-mon-phan-phoi-nuong-tu-ta-rut-duoc-chinh-dao-tien-tu",
+ "ten": "Ma Môn Phân Phối Nương Tử, Ta Rút Được Chính Đạo Tiên Tử",
+ "setting": "ancient",
+ "the_loai_thuc_te": "Tiên hiệp hài, xuyên không (prologue hiện đại ở ch1, nội tâm nam chính mang tư duy dân công sở hiện đại), vợ chồng chính–ma diễn kịch; truyện kết ở ch237, ch238 là quảng cáo sách mới.",
+ "ngoi_ke": "ngôi 3",
+ "so_chuong_dich": 238,
+ "chuong_doc": [
+  "chuong-0001",
+  "chuong-0120",
+  "chuong-0236",
+  "chuong-0237",
+  "chuong-0238"
+ ],
+ "diem": {
+  "xung_ho": 7.5,
+  "giong_van": 8.0,
+  "de_hieu": 7.5,
+  "kho_khan": 8.0,
+  "thuat_ngu": 6.5
+ },
+ "ly_do_diem": {
+  "xung_ho": "Cặp chính chàng–thiếp/ta–ngươi và sư tỷ–sư đệ phần lớn đúng ngữ cảnh, nhưng không có cast.json nên xưng hô của Ninh Miêu Miêu, Trần Uyển Nhu với Phương Dương trôi giữa các arc, và prologue hiện đại bị ép ta–ngươi.",
+  "giong_van": "Giữ được cả cổ phong lẫn chất châm biếm công sở (vẽ bánh, PUA, khui hộp mù, giám đốc bộ phận); chỉ lệch ở đoạn hiện đại đầu truyện do setting khoá 'ancient'.",
+  "de_hieu": "Văn trôi chảy, ít sai nghĩa, nhưng còn calque hệ thống: 'đem…', 'ha ha cười lớn', 'bản thân hắn', 'chiếm tiện nghi', 'ân một tiếng'.",
+  "kho_khan": "Meme xử lý khá: 非酋→'số nhọ', 卧槽→'Mẹ kiếp/Vãi chưởng', 'Nhu cả nhà ngươi!'; còn vài chỗ nhạt (留守儿童, 自闭, 脑残粉) và tiếng rên 嗯 thành 'Ân'.",
+  "thuat_ngu": "Glossary rất lớn và được bám sát, không sót chữ Hán; nhưng 玲儿/灵儿 trùng 'Linh Nhi' (lỗi nặng), 大比 trôi 2 kiểu, tên do lỗi gõ bị tách đôi, 'Nhu nhi/Nhu Nhi', tiêu đề Title Case từng đợt."
+ },
+ "loi": [
+  {
+   "the": "GLOSSARY_TRUNG",
+   "muc_do": "cao",
+   "he_thong": true,
+   "dem": "玲儿 407 lần/74 file raw + 灵儿 trần cũng ra 'Linh Nhi' (out: 'Linh Nhi' 644 lần, chỉ 230 lần có họ Lạc)",
+   "chuong": "chuong-0236",
+   "dong": 129,
+   "raw": "至于玲儿，林掌门闭关恢复胧灵眼…便由玲儿做掌门了。",
+   "hien_tai": "“Còn Linh Nhi, Lâm chưởng môn bế quan khôi phục Lung Linh Nhãn, … nên để Linh Nhi làm chưởng môn rồi.” (dòng 133 ngay sau: “…nhìn sang Lạc Linh Nhi…”)",
+   "de_xuat": "Chốt 玲儿 bằng một tên phân biệt hẳn với 灵儿 (vd luôn 'Vu Linh Nhi' hoặc 'Linh nha đầu'); 灵儿 trần luôn ghi 'Lạc Linh Nhi'",
+   "vi_sao": "Hai nhân vật quan trọng (chưởng môn mới và Lạc Linh Nhi) có tên Hán Việt trùng hệt, nhiều cảnh có cả hai (ch171, 176, 227, 236); ch171 dòng 75 'Linh Nhi sư muội' thật ra là Lạc Linh Nhi."
+  },
+  {
+   "the": "BOI_CANH_SAI",
+   "muc_do": "cao",
+   "he_thong": false,
+   "dem": "prologue hiện đại ch1; 老婆 9 lần raw",
+   "chuong": "chuong-0001",
+   "dong": 3,
+   "raw": "我挺喜欢你的，我们结婚吧，你愿意就给我三十万彩礼，不愿意你就叫我一声爹。",
+   "hien_tai": "ta thấy khá thích ngươi, chúng ta kết hôn đi, ngươi đồng ý thì đưa ta ba mươi vạn sính lễ, không đồng ý thì gọi ta một tiếng cha.",
+   "de_xuat": "em thấy khá thích anh, mình cưới nhau đi, anh đồng ý thì đưa em ba trăm nghìn tệ sính lễ, không đồng ý thì gọi em một tiếng bố.",
+   "vi_sao": "setting='ancient' khoá cả đoạn chat xem mắt hiện đại vào ta–ngươi, 'nương tử' (dòng 13; dòng 39 'Mẹ kiếp! Ta còn chưa cưới nương tử mà!'), 'nàng' cho nữ sinh đại học — mất cú hài mở truyện."
+  },
+  {
+   "the": "XUNG_HO_TROI",
+   "muc_do": "vua",
+   "he_thong": true,
+   "dem": "không có cast.json; 162 mục addressing không có mốc chương",
+   "chuong": "chuong-0236",
+   "dong": 147,
+   "raw": "方阳你别笑我了，你和大师姐是整个玉宁国的恩人",
+   "hien_tai": "“Phương Dương ngươi đừng trêu ta nữa, ngươi và Đại sư tỷ là ân nhân của cả Ngọc Ninh Quốc, dẫu muốn ở hoàng cung cũng được!”",
+   "de_xuat": "“Phương Dương, đệ đừng trêu tỷ nữa, đệ và Đại sư tỷ là ân nhân của cả Ngọc Ninh Quốc…”",
+   "vi_sao": "Ch120 dòng 59 Ninh Miêu Miêu đã xưng 'tỷ–đệ' thân mật; story.json lại ghi 宁苗苗→方阳 'ta–Phương lão bản' (mốc ch68) nên mỗi chương model chọn một kiểu."
+  },
+  {
+   "the": "XUNG_HO_VAI_VE",
+   "muc_do": "vua",
+   "he_thong": false,
+   "dem": null,
+   "chuong": "chuong-0120",
+   "dong": 31,
+   "raw": "方......师弟，你切莫忧心，我们和大师姐都会想办法帮你的。",
+   "hien_tai": "“Phương... sư đệ, đệ đừng lo lắng quá, bọn muội cùng Đại sư tỷ đều sẽ nghĩ cách giúp đệ.”",
+   "de_xuat": "“Phương... sư đệ, đệ đừng lo, bọn tỷ cùng Đại sư tỷ sẽ nghĩ cách giúp đệ.”",
+   "vi_sao": "Gọi người kia là 'sư đệ/đệ' mà tự xưng 'muội' là vênh vai vế; model bám addressing cũ 陈婉柔→方阳 'muội–Phương đạo hữu' sau khi thân phận đã đổi."
+  },
+  {
+   "the": "CAST_MAU_THUAN",
+   "muc_do": "vua",
+   "he_thong": true,
+   "dem": "cấu hình story.json",
+   "chuong": "story.json",
+   "dong": 0,
+   "raw": "addressing 秦雪烟→方阳: \"ta–ngươi\"",
+   "hien_tai": "toneRules: 'phu quân - nương tử', 'chàng - thiếp'; addressing: 秦雪烟→方阳 'ta–ngươi'",
+   "de_xuat": "Ghi rõ 2 chế độ: 'thiếp–phu quân/chàng' khi diễn trước người ngoài; 'ta–ngươi/tiểu tặc' trong nội tâm hoặc lúc riêng tư khi còn đối địch (giai đoạn đầu)",
+   "vi_sao": "Cặp xưng hô cốt lõi bị cấu hình tự mâu thuẫn; bản dịch hiện xử lý đúng nhờ ngữ cảnh (chàng 193, thiếp 221 lần) nhưng dễ trôi khi prompt đổi."
+  },
+  {
+   "the": "AN_THAN_TU",
+   "muc_do": "vua",
+   "he_thong": true,
+   "dem": "“Ân” 18 lần/18 file (raw 嗯 39 lần/34 file)",
+   "chuong": "chuong-0072",
+   "dong": 121,
+   "raw": "秦雪烟淡淡地嗯了一声，带着几分为人师表的威严。",
+   "hien_tai": "Tần Tuyết Yên nhàn nhạt ân một tiếng, mang theo vài phần uy nghiêm của người làm thầy.",
+   "de_xuat": "Tần Tuyết Yên hờ hững 'ừ' một tiếng, ra dáng bậc làm thầy.",
+   "vi_sao": "'ân một tiếng' là văn convert; ch21 dòng 207, ch22, ch35 tiếng rên 嗯…… cũng thành “Ân......” thay vì 'Ưm……', cảnh thân mật khô cứng."
+  },
+  {
+   "the": "CALQUE",
+   "muc_do": "vua",
+   "he_thong": true,
+   "dem": "'ha ha cười' 35 lần/27 file",
+   "chuong": "chuong-0064",
+   "dong": 99,
+   "raw": "岳川哈哈笑道",
+   "hien_tai": "Nhạc Xuyên ha ha cười nói:",
+   "de_xuat": "Nhạc Xuyên cười ha hả:",
+   "vi_sao": "Giữ trật tự 哈哈大笑/呵呵一笑 → 'ha ha cười lớn'; ch171 dòng 77 呵呵一笑 (cười khẩy mỉa) cũng thành 'Nam Cung Yến ha ha cười', mất sắc thái."
+  },
+  {
+   "the": "CALQUE",
+   "muc_do": "vua",
+   "he_thong": true,
+   "dem": "'đem' 88 lần/68 file (một phần là 'đem lòng' hợp lệ)",
+   "chuong": "chuong-0001",
+   "dong": 125,
+   "raw": "天欢门门主下令将战利品和俘虏来的正道女修奖赏给有功的弟子。",
+   "hien_tai": "Môn chủ Thiên Hoan Môn hạ lệnh đem chiến lợi phẩm cùng số nữ tu chính đạo bắt được ban thưởng cho đệ tử có công.",
+   "de_xuat": "Môn chủ Thiên Hoan Môn hạ lệnh ban thưởng chiến lợi phẩm cùng số nữ tu chính đạo bắt được cho đệ tử có công.",
+   "vi_sao": "Cấu trúc 将/把 → 'đem…' lặp khắp truyện (ch11 'đem tên tiểu tặc này băm thây vạn đoạn', ch20 'Ma môn đem chúng ta ban cho…')."
+  },
+  {
+   "the": "BAN_THAN",
+   "muc_do": "vua",
+   "he_thong": true,
+   "dem": "'bản thân' 247 lần/128 file; 'bản thân hắn/nàng' 34 lần",
+   "chuong": "chuong-0016",
+   "dong": 169,
+   "raw": "可是现在只有自己和秦雪烟两个人，这供应链怕是顶不住的。",
+   "hien_tai": "Thế nhưng lúc này chỉ có bản thân hắn cùng Tần Tuyết Yên hai người, chuỗi cung ứng này e là không chống đỡ nổi.",
+   "de_xuat": "Thế nhưng giờ chỉ có hắn với Tần Tuyết Yên, chuỗi cung ứng này e là không gánh nổi.",
+   "vi_sao": "自己 dịch máy móc thành 'bản thân (hắn)', kèm đuôi '…hai người' calque; ch1 dòng 7 'lịch sử trò chuyện giữa bản thân và đối tượng xem mắt' cũng vậy."
+  },
+  {
+   "the": "THUAT_NGU_TROI",
+   "muc_do": "vua",
+   "he_thong": true,
+   "dem": "大比: 'đại bỉ' 70 lần/35 file, 'đại tỉ thí' 9 lần/5 file, 'Đại Bỉ' 1",
+   "chuong": "chuong-0120",
+   "dong": 27,
+   "raw": "她本就是亲传弟子，不需要参加大比",
+   "hien_tai": "Nàng vốn dĩ đã là đệ tử thân truyền, không cần tham gia đại tỉ thí",
+   "de_xuat": "…không cần tham gia đại bỉ (chốt 大比 = 'đại bỉ' trong glossary common)",
+   "vi_sao": "Thuật ngữ trung tâm của cả arc ch120–180 không có trong glossary nên dịch 2–3 kiểu."
+  },
+  {
+   "the": "CALQUE",
+   "muc_do": "thap",
+   "he_thong": true,
+   "dem": "'chiếm tiện nghi' 7 lần/7 file",
+   "chuong": "chuong-0072",
+   "dong": 55,
+   "raw": "这小贼一直在占自己的便宜，此刻居然还呼呼大睡！",
+   "hien_tai": "Đáng hận nhất là tên tiểu tặc này cứ chiếm tiện nghi của mình suốt, lúc này thế mà vẫn còn đang ngáy ngủ say sưa!",
+   "de_xuat": "Đáng hận nhất là tên tiểu tặc này cứ sàm sỡ nàng suốt, giờ lại còn ngáy khò khò!",
+   "vi_sao": "占便宜 để nguyên Hán Việt, người đọc không quen convert khó hiểu."
+  },
+  {
+   "the": "TIEU_DE",
+   "muc_do": "thap",
+   "he_thong": true,
+   "dem": "~25 file viết hoa mọi chữ, dồn cục ở ch144–145, 167–172, 196–225",
+   "chuong": "chuong-0218",
+   "dong": 1,
+   "raw": "第217章 秦雪烟是我娘子",
+   "hien_tai": "Chương 217: Tần Tuyết Yên Là Nương Tử Của Ta",
+   "de_xuat": "Chương 217: Tần Tuyết Yên là nương tử của ta",
+   "vi_sao": "Đa số chương viết hoa kiểu câu, riêng từng đợt dịch lại Title Case; ngoài ra lời tác giả ('(Cầu đặt trước!!!)', chương xin nghỉ ch191/233, quảng cáo sách mới ch238) vẫn được dịch như chương truyện."
+  },
+  {
+   "the": "GLOSSARY_TRUNG",
+   "muc_do": "thap",
+   "he_thong": true,
+   "dem": "李成文 2 lần/1 file; 'Nhu nhi' 12 lần/6 file vs 'Nhu Nhi' 35 lần/13 file",
+   "chuong": "chuong-0078",
+   "dong": 151,
+   "raw": "今日李成文依然来接张素琴了",
+   "hien_tai": "Hôm nay Lý Thành Văn vẫn đến đón Trương Tố Cầm",
+   "de_xuat": "Hôm nay Lý Văn Thành vẫn đến đón Trương Tố Cầm (gộp 李成文 → Lý Văn Thành; sửa 柔儿 = 'Nhu Nhi')",
+   "vi_sao": "Auto-glossary nhận lỗi gõ của tác giả thành nhân vật mới, lưu 柔儿='Nhu nhi' viết thường nên tên gọi yêu của cặp chính trôi hai kiểu; mục 凌匠人='Lăng thợ thủ công' (ch131 dòng 71) là danh xưng sai trật tự."
+  },
+  {
+   "the": "MEME_NGHIA_DEN",
+   "muc_do": "thap",
+   "he_thong": false,
+   "dem": null,
+   "chuong": "chuong-0236",
+   "dong": 137,
+   "raw": "留守儿童一时走了歪路，被教育以后暂时自闭，正常的，多打两顿就好了。",
+   "hien_tai": "“Trẻ con ở nhà một mình nhất thời đi nhầm đường, sau khi bị dạy dỗ thì tạm thời tự bế ấy mà, bình thường thôi, đánh thêm hai trận nữa là khỏi.”",
+   "de_xuat": "“Đứa nhỏ bị bỏ lại trông nhà lâu quá nên lầm đường lạc lối, bị dạy cho một trận giờ đang tự kỷ thôi, bình thường mà, đánh thêm hai trận là khỏi.”",
+   "vi_sao": "留守儿童 ám chỉ Lạc Linh Nhi bị bỏ lại canh giữ vạn năm, 'ở nhà một mình' mất ý; 'tự bế' là Hán Việt của meme 自闭. Tương tự tiêu đề ch120 脑残粉 → 'Kẻ hâm mộ mù quáng' hơi nhạt."
+  },
+  {
+   "the": "LAP_TU",
+   "muc_do": "thap",
+   "he_thong": false,
+   "dem": null,
+   "chuong": "chuong-0001",
+   "dong": 179,
+   "raw": "一道身穿黑色长袍，颀长瘦削的身影从天而降",
+   "hien_tai": "một bóng người gầy gò cao gầy khoác trường bào màu đen từ trên trời giáng xuống",
+   "de_xuat": "một bóng người cao gầy khoác trường bào đen từ trên trời giáng xuống",
+   "vi_sao": "Lặp 'gầy'; cùng chương còn calque lẻ 'sống sờ sờ mài chết' (dòng 101, 生生耗死), và ch237 dòng 21 'bọn người cường giả Lâm Tố, Tần Tuyết Yên' (等强者)."
+  }
+ ],
+ "goi_y": [
+  "Thêm bước kiểm tra glossary: phát hiện 2 nguồn khác nhau ra cùng một bản dịch (玲儿 và 灵儿 → 'Linh Nhi') rồi cảnh báo, buộc chọn tên phân biệt.",
+  "Cho phép story.json đánh dấu đoạn/chương có bối cảnh hiện đại (prologue, hồi tưởng trước xuyên không) để prompt dùng tôi/anh/em, 'vợ' thay vì ép khung ancient.",
+  "Tạo cast.json có mốc chương cho các cặp đổi vai vế (Phương Dương với Ninh Miêu Miêu/Trần Uyển Nhu/Vương Ngọc Kiều: đạo hữu/lão bản trước ch108 → sư tỷ–sư đệ từ ch120); addressing tự sinh nên ghi chương và ghi đè chứ không giữ snapshot cũ.",
+  "Sửa luật 嗯: 'ừ/ừm' khi đáp lời, 'ưm' khi rên/ngập ngừng; cấm cụm 'ân một tiếng'. Thêm vào danh sách cấm: 'ha ha cười', 'chiếm tiện nghi', và cấu trúc 'đem X + động từ' khi đảo được.",
+  "Auto-glossary bỏ qua biến thể chỉ khác thứ tự chữ của tên đã có (李成文 vs 李文成) và không lưu danh xưng (莫师姐, 于师姐, 小兰姐, 凌匠人) vào names.",
+  "Thêm checkRule chuẩn hoá tiêu đề về viết hoa kiểu câu, và nhận diện chương lời tác giả (请假, 新书, 求订阅) để bỏ qua hoặc gắn nhãn.",
+  "Chốt thuật ngữ của arc lớn (大比 → 'đại bỉ') ngay lần đầu xuất hiện."
+ ],
+ "lam_tot": [
+  "Không sót chữ Hán trong toàn bộ 238 chương.",
+  "Meme hiện đại trong nội tâm nam chính chuyển ngữ tự nhiên: 'Đám số nhọ các ngươi!', 'bài vẽ bánh cho cấp dưới', 'phát sóng trực tiếp khui hộp mù', 'Vãi chưởng, chơi lớn vậy sao?'.",
+  "Cặp chính giữ đúng chàng–thiếp khi diễn và ngươi/tiểu tặc trong nội tâm Tần Tuyết Yên, đúng toneRules.",
+  "Bám glossary sát với hàng trăm tên/địa danh/pháp bảo; Hán Việt công pháp, địa danh nhất quán.",
+  "Hai chương kết (ch236–237) nhịp văn tốt: 'Nếu thuận, Ngọc Ninh Quốc còn. Nếu nghịch, Ngọc Ninh Quốc mất.', 'Nương tử học thuộc lời thoại cừ lắm!'."
+ ]
+}

@@ -1,0 +1,227 @@
+{
+  "slug": "trong-sinh-thanh-meo-than-phan-meo-lao-dai-cua-ta-bi-lo-ra-anh-sang-toan-mang",
+  "ten": "Trọng Sinh Thành Mèo: Thân Phận Mèo Lão Đại Của Ta Bị Lộ Ra Ánh Sáng Toàn Mạng",
+  "setting": "modern",
+  "the_loai_thuc_te": "Hài đô thị hiện đại (show livestream thú cưng + đạn mạc cư dân mạng), từ khoảng ch.100 trở đi lồng arc 'giang hồ' mèo chó chuột tranh bá Giang Thành, ch.200+ có thêm yếu tố tu tiên (Ngự Thú Tông, truyền thừa, tẩy tủy).",
+  "ngoi_ke": "ngôi 3",
+  "so_chuong_dich": 228,
+  "chuong_doc": [
+    "0001_7218926895184740919",
+    "0115_7231204609832944187",
+    "0227_7252713411115647525",
+    "0228_7252713411195175482"
+  ],
+  "diem": {
+    "xung_ho": 6.0,
+    "giong_van": 6.5,
+    "de_hieu": 7.5,
+    "kho_khan": 7.0,
+    "thuat_ngu": 5.5
+  },
+  "ly_do_diem": {
+    "xung_ho": "Cặp chính (Vũ Tình–Tiểu Lạc chị–em, đàn em–Lâm Lạc em–anh, Lâm Lạc–đàn em tao–mày) ổn định, nhưng đạn mạc cư dân mạng hiện đại xưng 'ta' ở 396 dòng/85 file và mèo gọi cô chủ 'người phụ nữ kia' thay vì 'cô ta'.",
+    "giong_van": "Văn mượt, đúng chất hài đô thị ở arc show; arc giang hồ/tu tiên dùng Hán Việt hợp lý, nhưng vẫn rải các cụm Hán nặng/convert ('thuận lý thành chương', 'đạn mạc', 'Chuột Vương', 'phòng phát sóng trực tiếp').",
+    "de_hieu": "Phần lớn câu tự nhiên, ít sót ý; còn rải calque 'đem…', 'theo việc…', 'bản thân hắn', vài chỗ lặp/thừa từ và dịch sai sắc thái (交待 → 'lời giải thích').",
+    "kho_khan": "Nhiều meme xử lý tốt (壕无人性, 穿小鞋, 懵逼, 合不拢腿 giữ được chơi chữ), nhưng vài meme bị dịch nghĩa đen (大腿挂件, 凡尔赛语录, 王者农药) và câu cửa miệng '女人，你…' mất chất trêu.",
+    "thuat_ngu": "Không sót chữ Hán, tên nhân vật nhất quán; nhưng danh xưng cốt lõi 乐哥 trôi giữa 'anh Lạc' (glossary) và 'Lạc ca' (303 lần/32 file, gồm cả 10 chương mới nhất), 直播间/弹幕/鼠王 dịch 2 kiểu, glossary có phiên âm sai (花很多 → Hoa Hứa Đa) và cặp xưng hô tự mâu thuẫn."
+  },
+  "loi": [
+    {
+      "the": "XUNG_HO_VAI_VE",
+      "muc_do": "cao",
+      "he_thong": true,
+      "dem": "396 dòng đạn mạc/85 file có 我 → 'ta' (tổng 'ta' trong đạn mạc 481 lần/99 file, so với 'tôi' 127, 'mình' 85)",
+      "chuong": "0011_7218926896753410619",
+      "dong": 71,
+      "raw": "：我现在投胎成为猫，还有机会吗？",
+      "hien_tai": ": Bây giờ ta đi đầu thai làm mèo thì còn cơ hội không?",
+      "de_xuat": ": Giờ tui đầu thai làm mèo thì còn kịp không ta?",
+      "vi_sao": "Cư dân mạng hiện đại bình luận livestream mà xưng 'ta' là giọng cổ trang; nghi luật 'người kể xưng ta' của chủ app bị áp nhầm cho mọi ngôi 1, kể cả đạn mạc."
+    },
+    {
+      "the": "THUAT_NGU_TROI",
+      "muc_do": "cao",
+      "he_thong": true,
+      "dem": "'Lạc ca' 303 lần/32 file (cụm 0021–0027, 0057–0066, 0160–0165, 0219–0228, tức trọn đợt mới nhất); 'anh Lạc' 939 lần/151 file",
+      "chuong": "0228_7252713411195175482",
+      "dong": 19,
+      "raw": "“昨夜，乐哥在城东参加江城狗会的路上，遭遇了车祸。”",
+      "hien_tai": "“Đêm qua, trên đường tới Thành Đông tham gia hội chó Giang Thành, Lạc ca đã gặp phải tai nạn xe cộ.”",
+      "de_xuat": "“Đêm qua, trên đường sang Thành Đông dự hội chó Giang Thành, anh Lạc đã gặp tai nạn xe.”",
+      "vi_sao": "Glossary và cast.json đã ghim 乐哥 = 'anh Lạc' (pinned) mà model vẫn đổi sang 'Lạc ca' theo từng đợt; đó là danh xưng xuất hiện gần 1500 lần nên trôi rất lộ."
+    },
+    {
+      "the": "THUAT_NGU_TROI",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "'phòng phát sóng trực tiếp' 177 lần/85 file vs 'phòng livestream' 80 lần/33 file; 弹幕 → 'đạn mạc' 141 dòng vs 'bình luận' 30 dòng",
+      "chuong": "0115_7231204609832944187",
+      "dong": 3,
+      "raw": "看到这一幕，直播间中的所有人都不禁屏住了呼吸",
+      "hien_tai": "Nhìn thấy cảnh tượng này, tất cả mọi người trong phòng phát sóng trực tiếp đều không khỏi nín thở",
+      "de_xuat": "Thấy cảnh này, cả buổi livestream ai nấy đều nín thở",
+      "vi_sao": "Hai thuật ngữ đinh của truyện chưa được chốt nên dịch hai kiểu; 'phòng phát sóng trực tiếp' và 'đạn mạc' là calque, trái toneRules 'bắt trend giới trẻ'."
+    },
+    {
+      "the": "CALQUE",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "女人 → 'người phụ nữ' 72/94 dòng; 'người phụ nữ' 76 lần/35 file",
+      "chuong": "0163_7240475025286169149",
+      "dong": 89,
+      "raw": "大概是在说：女人，你确定这罐头没坏？",
+      "hien_tai": "Đại khái là đang nói: Này người phụ nữ kia, cô chắc chắn hộp đồ hộp này không bị hỏng đấy chứ?",
+      "de_xuat": "Đại khái là đang nói: Này cô kia, chắc là hộp này chưa hỏng đấy chứ?",
+      "vi_sao": "'女人，你…' là câu cửa miệng kiểu tổng tài, dịch 'người phụ nữ kia' vừa convert vừa trái toneRules (gọi cô chủ là 'cô ta'); câu còn lặp 'hộp đồ hộp'."
+    },
+    {
+      "the": "CALQUE",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "'người phụ nữ' trong ch.1 3 lần; mẫu tương tự ở ch.199 dòng 'Vãi, người phụ nữ này, cô…'",
+      "chuong": "0001_7218926895184740919",
+      "dong": 41,
+      "raw": "女人，你这是想把本猫活活捂死呀！",
+      "hien_tai": "Người phụ nữ này, cô muốn làm bản miêu ngạt chết đấy à!",
+      "de_xuat": "Cô gái à, cô định làm bản miêu chết ngạt luôn hả!",
+      "vi_sao": "Câu meme mở màn đọc như văn convert, mất nhịp hài."
+    },
+    {
+      "the": "MEME_NGHIA_DEN",
+      "muc_do": "vua",
+      "he_thong": false,
+      "dem": null,
+      "chuong": "0115_7231204609832944187",
+      "dong": 153,
+      "raw": "：羽晴女神，你大腿上还缺挂件吗？",
+      "hien_tai": ": Nữ thần Vũ Tình, đùi cô còn thiếu món đồ trang trí nào nữa không?",
+      "de_xuat": ": Nữ thần Vũ Tình ơi, chị còn thiếu người ôm đùi không ạ?",
+      "vi_sao": "大腿挂件 là meme 'muốn bám đùi đại gia'; dịch nghĩa đen thành 'đồ trang trí trên đùi' vừa vô nghĩa vừa dễ hiểu lệch sang ý dung tục."
+    },
+    {
+      "the": "GLOSSARY_PHIEN_AM",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "22 lần/5 file (0208–0212)",
+      "chuong": "0208_7248639295433474620",
+      "dong": 141,
+      "raw": "其实对于是否参加这次江城狗会，花很多心中也没有底。",
+      "hien_tai": "Kỳ thực về việc có nên tham gia Hội Chó Giang Thành lần này hay không, trong lòng Hoa Hứa Đa cũng chẳng chắc chắn chút nào.",
+      "de_xuat": "…trong lòng Hoa Ngận Đa (hoặc dịch nghĩa tên: 'Tiêu Hơi Nhiều') cũng chẳng chắc chút nào.",
+      "vi_sao": "很 đọc Hán Việt là 'ngận', không phải 'hứa' (许); tên chơi chữ (花很多 = tiêu nhiều tiền) nên dịch nghĩa mới giữ được cái hài."
+    },
+    {
+      "the": "GLOSSARY_HAN_VIET_NANG",
+      "muc_do": "thap",
+      "he_thong": true,
+      "dem": "'Chuột Vương' 62 lần/7 file; ch.103 còn dịch 'Vua chuột' trước khi glossary tự thêm mục",
+      "chuong": "0104_7228973427716162108",
+      "dong": 73,
+      "raw": "恐怕等会儿那鼠王灰哥也不例外！",
+      "hien_tai": "e rằng lát nữa Chuột Vương Anh Xám kia cũng chẳng ngoại lệ!",
+      "de_xuat": "e rằng lát nữa Vua Chuột Anh Xám kia cũng chẳng ngoại lệ!",
+      "vi_sao": "'Chuột Vương' giữ trật tự Hán, trộn thuần Việt với Hán Việt; glossary tự sinh khoá luôn dạng này và tạo trôi với ch.103."
+    },
+    {
+      "the": "CAST_MAU_THUAN",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "≥3 cặp trong glossary.addressing; cast.json.addressing chỉ có danh xưng, không có cặp/mốc",
+      "chuong": "story.json",
+      "dong": 0,
+      "raw": "\"吴宇→吴洪\": \"anh–em\", \"吴洪→吴宇\": \"tôi–anh\"",
+      "hien_tai": "Ngô Vũ xưng 'anh' gọi Ngô Hồng 'em', nhưng Ngô Hồng lại xưng 'tôi'; '加菲→雄霸': 'tôi–anh' trong khi '辉腾→雄霸': 'em–anh'",
+      "de_xuat": "\"吴洪→吴宇\": \"em–anh\"; thống nhất các đàn em cùng cấp gọi Hùng Bá 'em–anh'",
+      "vi_sao": "Auto-glossary ghi từng chiều riêng lẻ không kiểm tra đối xứng; cùng lúc toneRules lại bảo gọi cô chủ là 'nàng/nữ nhân này', trái chính style.avoid."
+    },
+    {
+      "the": "CALQUE",
+      "muc_do": "thap",
+      "he_thong": true,
+      "dem": "'đem' 51 lần/43 file; 'theo sự/theo việc' 7 lần/7 file (có 0227, 0228)",
+      "chuong": "0228_7252713411195175482",
+      "dong": 151,
+      "raw": "果然，随着城北废车场的所有老鼠举起双爪",
+      "hien_tai": "Quả nhiên theo việc toàn bộ chuột ở bãi phế liệu xe Thành Bắc giơ hai chân lên",
+      "de_xuat": "Quả nhiên, chuột ở bãi phế liệu xe Thành Bắc vừa đồng loạt giơ hai chân lên",
+      "vi_sao": "随着 dịch 'theo việc', 将 dịch 'đem' (vd 0227 dòng 43 'liền đem chuyện này kể cho…') là dấu vết convert vẫn còn ở đợt dịch mới nhất."
+    },
+    {
+      "the": "DINH_DANG",
+      "muc_do": "thap",
+      "he_thong": true,
+      "dem": "434/2269 dòng đạn mạc trong 25 file bị bọc ngoặc kép",
+      "chuong": "0001_7218926895184740919",
+      "dong": 103,
+      "raw": "：各位安安的老公们，告诉你们一个很不幸的消息",
+      "hien_tai": ": “Các vị chồng của An An ơi, báo cho mọi người một tin rất buồn,",
+      "de_xuat": ": Các ông chồng của An An ơi, báo mọi người một tin buồn,",
+      "vi_sao": "Raw không có ngoặc; cùng một chương dòng có dòng không, dễ khiến đạn mạc trông như thoại nhân vật."
+    },
+    {
+      "the": "TIEU_DE",
+      "muc_do": "thap",
+      "he_thong": false,
+      "dem": "thêm 3 tiêu đề viết hoa mọi chữ (0038, 0153, 0205)",
+      "chuong": "0115_7231204609832944187",
+      "dong": 1,
+      "raw": "第一百一十五章 勤俭持家小能手",
+      "hien_tai": "Chương 115: Tay nhỏ cần kiệm quán xuyến việc nhà",
+      "de_xuat": "Chương 115: Bé mèo đảm đang tằn tiện",
+      "vi_sao": "小能手 bị dịch từng chữ 'tay nhỏ'; tiêu đề đọc như convert (tương tự ch.12 'Có ta một miếng thịt ăn, thì có mày một ngụm canh uống')."
+    },
+    {
+      "the": "BAN_THAN",
+      "muc_do": "thap",
+      "he_thong": true,
+      "dem": "160/727 dòng có 自己 dịch 'bản thân'; 'bản thân hắn/nó' 27 lần",
+      "chuong": "0228_7252713411195175482",
+      "dong": 99,
+      "raw": "听见自己只得到了这个票数，雄霸也是一阵哭笑不得。",
+      "hien_tai": "nghe thấy bản thân chỉ nhận được số phiếu này, Hùng Bá cũng một hồi dở khóc dở cười.",
+      "de_xuat": "nghe mình chỉ được ngần ấy phiếu, Hùng Bá dở khóc dở cười.",
+      "vi_sao": "Mật độ không quá dày nhưng vẫn là dấu vết 自己 → 'bản thân'; 'mình' hoặc bỏ hẳn sẽ tự nhiên hơn."
+    },
+    {
+      "the": "SAI_NGHIA",
+      "muc_do": "thap",
+      "he_thong": false,
+      "dem": null,
+      "chuong": "0227_7252713411115647525",
+      "dong": 85,
+      "raw": "不如开开心心的活过一生，便是对自己最好的交待。",
+      "hien_tai": "Chi bằng sống vui vẻ trọn vẹn cả một đời, đó mới là lời giải thích tốt nhất cho chính bản thân mình.",
+      "de_xuat": "Chi bằng sống vui vẻ hết đời, thế mới là không phụ chính mình.",
+      "vi_sao": "交待 ở đây là 'có cái để ăn nói với bản thân/không phụ mình', không phải 'lời giải thích'."
+    },
+    {
+      "the": "HU_HA",
+      "muc_do": "thap",
+      "he_thong": false,
+      "dem": "呵 → 'hừ' 5/23 dòng có 呵 (đa số dịch đúng 'hơ hơ/hì hì/ha hả')",
+      "chuong": "0131_7234170792924152375",
+      "dong": 43,
+      "raw": "西面，呵呵，那更是不用想",
+      "hien_tai": "Phía tây, hừ hừ, lại càng khỏi phải nghĩ",
+      "de_xuat": "Phía tây á, hì hì, càng khỏi phải nghĩ",
+      "vi_sao": "呵呵 là cười mỉa/đắc ý chứ không phải hừ giận; lỗi lẻ tẻ, không phải hệ thống."
+    }
+  ],
+  "goi_y": [
+    "Prompt: tách rõ luật 'người kể ngôi 1 xưng ta' chỉ áp cho NGƯỜI KỂ; ghi thẳng 'đạn mạc/bình luận cư dân mạng hiện đại xưng tôi/mình/tui/tao, không xưng ta'. Truyện ngôi 3 thì không cần đưa luật 'ta' vào prompt.",
+    "App: với mục glossary/cast có pinned (乐哥 = anh Lạc), thêm checkRule hậu kiểm tự động: raw có 乐哥 mà out có 'Lạc ca' thì đánh lỗi và bắt sửa; tương tự cho mọi mục pinned.",
+    "Chốt sẵn trong glossary.common các thuật ngữ đinh của thể loại livestream: 直播间 → 'buổi livestream/phòng livestream', 弹幕 → 'bình luận', 鼠王 → 'Vua Chuột'; khi auto-glossary thêm mục mới, so với các bản dịch đã có trong out/ để không tạo dạng thứ hai.",
+    "Sửa story.json.style.toneRules: bỏ 'nàng', 'nữ nhân này' (mâu thuẫn style.avoid và bối cảnh hiện đại); thêm ví dụ '女人，你… → Cô gái à/Này cô kia…', cấm 'người phụ nữ này/kia' khi mèo nói với cô chủ.",
+    "Auto-glossary addressing: khi thêm cặp A→B, kiểm tra B→A đối xứng (anh–em ↔ em–anh); báo mâu thuẫn thay vì ghi đè lặng lẽ. Nên chuyển cặp xưng hô sang cast.json (có mốc thay đổi) thay vì để cast.json.addressing chỉ chứa danh xưng.",
+    "Glossary names: kiểm phiên âm Hán Việt bằng bảng tra (很 = ngận) và cho phép dịch nghĩa với tên chơi chữ (花很多, 爱喝水的杯子 hiện để 'Ái Hát Thủy Đích Bôi Tử' nên đổi 'Cái Cốc Thích Uống Nước').",
+    "Prompt định dạng: đạn mạc giữ đúng dạng raw ': nội dung', không bọc ngoặc kép.",
+    "Bổ sung setting đa arc: story.json chỉ 'modern' trong khi từ ~ch.200 có tu tiên (Ngự Thú Tông); nên cho phép ghi arc/mốc chương để prompt biết dùng Hán Việt tu tiên ở thoại Ngô Dụng mà vẫn giữ giọng đô thị ở phần show."
+  ],
+  "lam_tot": [
+    "Không sót chữ Hán ở cả 228 chương; số đoạn khớp 100% với raw.",
+    "Xưng hô cặp chính ổn định: Vũ Tình–Tiểu Lạc 'chị–em', đàn em gọi Lâm Lạc 'anh', Lâm Lạc với đàn em 'tao–mày', Ngô Dụng 'em–anh' và tự xưng 'Dụng' đúng giọng quân sư.",
+    "Nhiều meme/khẩu ngữ dịch tốt: 壕无人性 → 'giàu nứt đố đổ vách', 穿小鞋 → 'gây khó dễ', 懵逼 → 'ngơ ngác', 'chẳng hiểu ất giáp gì', giữ được chơi chữ 笑的合不拢腿 → 'cười đến không khép được chân'.",
+    "嗯 dịch 'Ừm/Ừ/Dạ/vâng' theo ngữ cảnh, không có 'Ân'; không dùng 'ngươi' cho người chung chung.",
+    "Arc giang hồ/tu tiên chuyển giọng hợp lý (Thống lĩnh, Tham nghị, truyền thừa, tẩy tủy) mà không tràn sang phần show đô thị."
+  ]
+}

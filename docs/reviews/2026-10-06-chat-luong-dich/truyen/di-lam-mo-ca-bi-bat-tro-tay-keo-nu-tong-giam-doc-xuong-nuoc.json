@@ -1,0 +1,202 @@
+{
+  "slug": "di-lam-mo-ca-bi-bat-tro-tay-keo-nu-tong-giam-doc-xuong-nuoc",
+  "ten": "Đi Làm Mò Cá Bị Bắt, Trở Tay Kéo Nữ Tổng Giám Đốc Xuống Nước",
+  "setting": "modern",
+  "the_loai_thuc_te": "Hài công sở đô thị hiện đại + hệ thống, ngôn tình ngọt (từ đồng nghiệp thành người yêu rồi cưới); nhiều meme mạng, có cảnh nóng nhẹ; 1252 chương, chương cuối là lời tác giả.",
+  "ngoi_ke": "ngôi 3",
+  "so_chuong_dich": 1252,
+  "chuong_doc": [
+    "0001_7282046197035237943",
+    "0627_7353641529778389528",
+    "1251_7459778810729202238",
+    "1252_7459793767600505368"
+  ],
+  "diem": {
+    "xung_ho": 5.0,
+    "giong_van": 7.5,
+    "de_hieu": 7.5,
+    "kho_khan": 7.0,
+    "thuat_ngu": 5.5
+  },
+  "ly_do_diem": {
+    "xung_ho": "Cặp chính Tần Tầm→Hạ Ninh bị khoá 'tôi–cô' từ chương 1 tới hết truyện, kể cả khi đã yêu, sống chung, lên giường (\"Ninh Ninh, cô\" 155 lần/125 file), trong khi Hạ Ninh gọi lại 'anh' nên lệch vai.",
+    "giong_van": "Giọng hiện đại, tưng tửng, đúng chất hài công sở; trừ vài vệt Hán Việt kiểu convert như 'Hạ nữ sĩ', 'Hạ chủ tịch', 'đại nhân mỹ nữ tổng giám đốc', 'sao tác'.",
+    "de_hieu": "Câu chữ trôi, sát nghĩa, đủ đoạn; điểm trừ chính là số liệu: 亿 để thành 'ức', 万 để thành 'vạn', người đọc Việt không đổi được ra số thật.",
+    "kho_khan": "Phần lớn meme xử lý khéo (真的6→'đỉnh thật', 草泥马→alpaca, 水文→'câu chữ câu chương', 楼凤→'gái gọi tại gia'); vài chỗ dịch chữ làm mất ẩn ý (开车, 石楠花).",
+    "thuat_ngu": "Glossary tự sinh rất lớn nhưng có trùng hoặc lệch: một bệnh viện hai tên (Hải Tinh/Hải Hưng), một nhân vật hai cách viết (Mễ Hy Nhi/Mễ Hi Nhi), 摸鱼崽 đã chốt 'Nhóc Mò Cá' mà chương mới nhất lại ra 'Mò Cá Tể'."
+  },
+  "loi": [
+    {
+      "the": "XUNG_HO_TROI",
+      "muc_do": "cao",
+      "he_thong": true,
+      "dem": "\"Ninh Ninh, cô\" 155 lần/125 file (0199→1251); câu có 'Ninh Ninh/vợ' + 'tôi/cô' 339 dòng; \"Ninh Ninh, em\" chỉ 2 lần",
+      "chuong": "1251_7459778810729202238",
+      "dong": 83,
+      "raw": "“宁宁，你听我解释……”",
+      "hien_tai": "“Ninh Ninh, cô nghe tôi giải thích......”",
+      "de_xuat": "“Ninh Ninh, em nghe anh giải thích......”",
+      "vi_sao": "Đây là cảnh hai người trên giường sau khi đã cưới mà vẫn xưng 'tôi–cô'. Addressing 秦寻→夏宁 'tôi–cô' chốt từ chương 1, không có cast.json, cũng không có mốc nào để đổi."
+    },
+    {
+      "the": "XUNG_HO_VAI_VE",
+      "muc_do": "cao",
+      "he_thong": true,
+      "dem": "lệch xuyên suốt từ khoảng ch.200 khi cặp chính thân nhau",
+      "chuong": "0627_7353641529778389528",
+      "dong": 69,
+      "raw": "“你，我是怎么都看不腻的。”",
+      "hien_tai": "“Còn cô thì tôi ngắm thế nào cũng không thấy chán.”",
+      "de_xuat": "“Còn em thì anh ngắm thế nào cũng không chán.”",
+      "vi_sao": "Câu tỏ tình bị khô như nói với đồng nghiệp. Cùng cảnh đó Hạ Ninh gọi 'anh' và lời hát dịch 'anh–em', riêng thoại của Tần Tầm vẫn 'tôi–cô', nên hai bên xưng hô lệch nhau."
+    },
+    {
+      "the": "SAI_SO",
+      "muc_do": "cao",
+      "he_thong": true,
+      "dem": "\"<số> ức\" 118 lần/18 file (0888–0892, 1159–1164, 1213, 1218, 1247…)",
+      "chuong": "1247_7459395059864060478",
+      "dong": 87,
+      "raw": "筹集了一百亿给他买别墅",
+      "hien_tai": "gom góp một trăm ức để mua biệt thự",
+      "de_xuat": "gom góp mười tỷ để mua biệt thự",
+      "vi_sao": "亿 = 100 triệu. Trong tiếng Việt 'ức' là từ cổ nên người đọc không đổi ra được số thật, mà đây lại là truyện làm giàu có rất nhiều con số."
+    },
+    {
+      "the": "SAI_SO",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "\"<số> vạn\" 340 lần/122 file; 'vạn tệ' 143 lần/76 file, song song với 'nghìn tệ' 401 lần và 'triệu tệ' 645 lần",
+      "chuong": "1248_7459397805354779198",
+      "dong": 63,
+      "raw": "“2000，不过你要还20万。”",
+      "hien_tai": "“2.000 tệ, nhưng mà chị phải trả 20 vạn.”",
+      "de_xuat": "“2.000 tệ, nhưng chị phải trả 200 nghìn.”",
+      "vi_sao": "Trong cùng một câu có hai hệ đơn vị. Lúc đổi 万 ra nghìn/triệu, lúc để nguyên 'vạn', nên số liệu đọc không nhất quán."
+    },
+    {
+      "the": "GLOSSARY_PHIEN_AM",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "'Hải Hưng' 9 lần/5 file vs 'Hải Tinh' 29 lần/20 file",
+      "chuong": "1214_7453384767665340952",
+      "dong": 13,
+      "raw": "向着海星妇幼保健院开去",
+      "hien_tai": "đạp lút ga phóng về phía Bệnh viện Phụ sản và Trẻ em Hải Hưng",
+      "de_xuat": "đạp lút ga phóng về phía Bệnh viện Phụ sản Nhi Hải Tinh",
+      "vi_sao": "Glossary có mục '海星妇幼保健院' → 'Hải Hưng' bị phiên âm sai (星 = Tinh), mục '海星妇幼保健医院' lại là 'Hải Tinh', thành ra một bệnh viện mang hai tên."
+    },
+    {
+      "the": "GLOSSARY_TRUNG",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "'Mễ Hy Nhi' 460 lần/54 file, 'Mễ Hi Nhi' 349 lần/125 file",
+      "chuong": "1161_7443043907476128281",
+      "dong": 57,
+      "raw": "总不能向米嘻儿和黄怀要钱",
+      "hien_tai": "đâu thể hỏi xin tiền Mễ Hy Nhi và Hoàng Hoài được",
+      "de_xuat": "đâu thể hỏi xin tiền Mễ Hi Nhi và Hoàng Hoài được",
+      "vi_sao": "Tác giả viết tên cô này lúc 米嘻儿 lúc 咪嘻儿, glossary tạo hai mục với hai cách viết khác nhau (Hy/Hi) nên một nhân vật bị tách làm hai."
+    },
+    {
+      "the": "THUAT_NGU_TROI",
+      "muc_do": "vua",
+      "he_thong": false,
+      "dem": "'Mò Cá Tể' 7 lần/1 file (1251) vs 'Nhóc Mò Cá' 8 lần/3 file theo glossary",
+      "chuong": "1251_7459778810729202238",
+      "dong": 113,
+      "raw": "不见摸鱼崽在哪里",
+      "hien_tai": "chẳng thấy Mò Cá Tể ở đâu",
+      "de_xuat": "chẳng thấy Nhóc Mò Cá đâu",
+      "vi_sao": "Glossary creatures đã chốt 摸鱼崽 = 'Nhóc Mò Cá', vậy mà chương dịch mới nhất vẫn phiên âm thô. Nghĩa là glossary không được ép trong chương."
+    },
+    {
+      "the": "GLOSSARY_DANH_XUNG",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "'nữ sĩ' 35 lần/17 file; 'Hạ chủ tịch' 63 lần/28 file; addressing có 'tôi–Hạ nữ sĩ', 'tôi–Tần tiên sinh'",
+      "chuong": "0315_7313573232215343678",
+      "dong": 71,
+      "raw": "“夏女士，你这是要做什么？”",
+      "hien_tai": "“Hạ nữ sĩ, cô định làm gì đây?”",
+      "de_xuat": "“Cô Hạ, cô định làm gì vậy?”",
+      "vi_sao": "'Nữ sĩ' trong tiếng Việt chỉ nhà văn, nhà thơ nữ. Danh xưng bị giữ trật tự Hán (Hạ chủ tịch, Hạ nữ sĩ) trái với style.avoid; nên là 'cô Hạ', 'chủ tịch Hạ'."
+    },
+    {
+      "the": "CALQUE",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "'người phụ nữ' 573 lần/350 file (raw 女人 1103 lần/554 file)",
+      "chuong": "1251_7459778810729202238",
+      "dong": 267,
+      "raw": "“奇变偶不变，叮叮叮，真是个无聊的女人！”",
+      "hien_tai": "“Kỳ biến ngẫu bất biến, ting ting ting, đúng là người phụ nữ nhạt nhẽo!”",
+      "de_xuat": "“Lẻ đổi chẵn giữ, ting ting ting, đúng là con nhỏ chán phèo!”",
+      "vi_sao": "Câu cằn nhằn mà dùng 'người phụ nữ' nghe như văn trang trọng. Còn 奇变偶不变 là câu khẩu quyết lượng giác, dùng làm ám hiệu, phiên âm Hán Việt thì người đọc không hiểu được."
+    },
+    {
+      "the": "TIEU_DE",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "20 chương Viết Hoa Mọi Chữ: 0958–0967, 1019–1028 (đúng hai phiên 10 chương)",
+      "chuong": "0962_7410415891726221886",
+      "dong": 1,
+      "raw": "第962章 或以违法？靠！冲我来的？！",
+      "hien_tai": "Chương 962: Có Thể Đã Phạm Pháp? Mẹ Kiếp! Nhắm Vào Ta Đấy À?!",
+      "de_xuat": "Chương 962: Có khi phạm pháp? Mẹ nó! Nhắm vào tôi à?!",
+      "vi_sao": "Lỗi theo phiên dịch (cả lô 10 chương). Ngoài ra tiêu đề hiện đại mà để 'ta'."
+    },
+    {
+      "the": "CALQUE",
+      "muc_do": "thap",
+      "he_thong": true,
+      "dem": "'đại nhân' 33 lần/25 file; 'sao tác' (炒作) 4 lần/4 file; 'chiếm tiện nghi' 28 lần/28 file",
+      "chuong": "0001_7282046197035237943",
+      "dong": 85,
+      "raw": "我能把美女总裁大人放在你身边？",
+      "hien_tai": "thì sao ta có thể đặt đại nhân mỹ nữ tổng giám đốc bên cạnh cậu chứ?",
+      "de_xuat": "thì chị đời nào dám xếp bà sếp tổng xinh đẹp ngồi cạnh cậu?",
+      "vi_sao": "Câu giữ nguyên cụm Hán theo trật tự convert. Đây là suy nghĩ của chị trưởng phòng nhân sự mà lại tự xưng 'ta', lệch với 'chị–em' trong thoại."
+    },
+    {
+      "the": "MEME_NGHIA_DEN",
+      "muc_do": "thap",
+      "he_thong": false,
+      "dem": null,
+      "chuong": "1252_7459793767600505368",
+      "dong": 75,
+      "raw": "应该就是小小的开了一下车，不会关很久",
+      "hien_tai": "Chắc chỉ là lái xe một chút thôi, sẽ không bị nhốt lâu đâu",
+      "de_xuat": "Chắc chỉ vì viết hơi 'nóng' một tí, chắc không bị khoá lâu đâu",
+      "vi_sao": "开车 là lóng chỉ viết cảnh nóng, 关 là bị khoá chương; dịch theo chữ thì người đọc không hiểu gì."
+    },
+    {
+      "the": "KHAC",
+      "muc_do": "thap",
+      "he_thong": false,
+      "dem": null,
+      "chuong": "0627_7353641529778389528",
+      "dong": 161,
+      "raw": "整个房间开始充满石楠花的香味，这叫烂漫满屋？",
+      "hien_tai": "Toàn bộ căn phòng bắt đầu ngập tràn mùi hương hoa thạch nam, cái này gọi là lãng mạn đầy nhà sao?",
+      "de_xuat": "Cả phòng bắt đầu nồng mùi hoa thạch nam (cái mùi 'ai cũng hiểu'), thế này gọi là lãng mạn ngập nhà à?",
+      "vi_sao": "Mùi hoa thạch nam là ám chỉ tình dục quen thuộc trên mạng Trung, dịch trơn thì mất câu đùa bậy."
+    }
+  ],
+  "goi_y": [
+    "Addressing cặp chính cần có mốc: thêm cast.json hoặc field timeline cho 秦寻↔夏宁 (đồng nghiệp: tôi–cô / tôi–anh; từ khi hẹn hò khoảng ch.200: anh–em, gọi 'Ninh Ninh' thì đi với 'em'). Bước auto-glossary nên được phép CẬP NHẬT addressing khi phát hiện quan hệ đổi (gọi tên thân mật, 老婆, 亲密), chứ không chỉ thêm khi chưa có.",
+    "Thêm luật số liệu cho setting modern vào prompt: 万 → nghìn/vạn quy đổi (20万 = 200 nghìn), 亿 → trăm triệu/tỷ (一百亿 = 10 tỷ); cấm 'ức', hạn chế 'vạn'. Thêm checkRule regex bắt '\\d+ ức', '(trăm|nghìn|mươi) ức', '\\d+ vạn'.",
+    "Khử trùng glossary: gộp các cặp cùng một thực thể (米嘻儿/咪嘻儿 → một cách viết; 海星妇幼保健院/海星妇幼保健医院 → Hải Tinh), sửa 'Hải Hưng'. App nên cảnh báo khi hai source gần giống nhau (khác 1 chữ) có target khác nhau.",
+    "Danh xưng 女士/董/总/先生: không đưa thẳng vào addressing dưới dạng 'Hạ nữ sĩ', 'Tần tiên sinh'; prompt modern nên quy định 女士 → 'cô/bà + họ', 夏董 → 'chủ tịch Hạ', 先生 → 'anh/ông + họ'.",
+    "Chương dùng glossary creatures phải được ép đúng (摸鱼崽 → Nhóc Mò Cá); check nên báo khi source glossary xuất hiện trong raw mà target không xuất hiện trong out.",
+    "Tiêu đề chương: thêm kiểm tra tự động Title Case (>80% từ viết hoa) để bắt lỗi theo phiên như lô 0958–0967 và 1019–1028.",
+    "Prompt modern: 女人 trong lời cằn nhằn, mỉa mai → 'đàn bà / con nhỏ / cô ta' theo giọng, không mặc định 'người phụ nữ'; với meme mạng (开车, 石楠花, 奇变偶不变) thì chuyển nghĩa hoặc chú thích ngắn."
+  ],
+  "lam_tot": [
+    "Đủ 100% đoạn, căn dòng raw/out khớp, không sót chữ Hán (0 ký tự Hán trong toàn bộ out/).",
+    "Không có 'ngươi', 'nàng', 'huynh đài', 'tiểu tử'; 'Ân' chỉ 5 lần, còn 嗯 thường thành 'Ừm/Ừ' tự nhiên.",
+    "自己 (4592 lần raw) phần lớn dịch thoát; 'bản thân hắn/cô' chỉ khoảng 82 lần.",
+    "Nhiều meme và lóng xử lý khéo: 真的6 → 'đỉnh thật', 草泥马 → 'alpaca phi nước đại', 国服 → 'máy chủ quốc gia', 水文 → 'câu chữ câu chương', 楼凤 → 'gái gọi tại gia', 卧槽 → 'Vãi'.",
+    "Giọng kể tưng tửng, nhịp nhanh, thoại công sở tự nhiên; signature phrase giữ đúng glossary."
+  ]
+}

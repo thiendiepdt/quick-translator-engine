@@ -1,0 +1,226 @@
+{
+ "slug": "xuyen-nhanh-tuyet-sac-yeu-nu-dua-vao-sinh-con-song-lau-tram-tuoi",
+ "ten": "Xuyên Nhanh: Tuyệt Sắc Yêu Nữ Dựa Vào Sinh Con Sống Lâu Trăm Tuổi",
+ "setting": "ancient",
+ "the_loai_thuc_te": "Xuyên nhanh nữ tần nhiều thế giới: khung hiện đại (bệnh viện, mở đầu mỗi arc), phần lớn arc cổ đại cung đấu/vương phủ, một arc hiện đại hào môn trọn vẹn (ch.263–302, 40 chương), phiên ngoại tu tiên",
+ "ngoi_ke": "ngôi 3",
+ "so_chuong_dich": 436,
+ "chuong_doc": [
+  "7265523231405116468_0001_第1章 死亡倒计时",
+  "7265523231405116468_0280_第280章 豪门嫂嫂18（补字数）",
+  "7265523231405116468_0435_第434章 番外2",
+  "7265523231405116468_0436_第435章 番外3"
+ ],
+ "diem": {
+  "xung_ho": 5.0,
+  "giong_van": 6.0,
+  "de_hieu": 7.5,
+  "kho_khan": 7.5,
+  "thuat_ngu": 5.5
+ },
+ "ly_do_diem": {
+  "xung_ho": "Arc cổ đại ổn, nhưng arc hiện đại hào môn vỡ: nhân vật hiện đại gọi 'tỷ', xưng 'ta', 'Giang tiểu thư'; đại từ người kể chỉ nữ chính đổi từ 'nàng' (ch.263–280) sang 'cô' (ch.281–302) giữa chừng.",
+  "giong_van": "Cổ trang và tu tiên trơn, đúng chất nữ tần; nhưng setting khoá 'ancient' kéo từ cổ trang (nam nhân/nữ nhân, phu thê, Hạ phụ, Tần di, chính thê) vào cả 40 chương hiện đại.",
+  "de_hieu": "Câu nhìn chung trôi chảy, ít văn convert; còn rải rác 'đem…', vài cụm calque ('cho hắn một phần sắc mặt', 'bồi nàng').",
+  "kho_khan": "Meme/lóng xử lý tốt (装逼→làm màu, 母猪系统→hệ thống heo nái, 躺平摆烂→nằm ườn buông xuôi); có chỗ làm nhẹ câu chửi tục, thán từ 嗯 thành 'Ân' khô cứng.",
+  "thuat_ngu": "Glossary lớn (298 tên) nhưng có phiên âm sai (孪生→Lao/Loan, 眉→Môi), danh xưng hiện đại bị chốt thành tên Hán Việt (Tần di, Lâm lão sư, Hoàng a di), tiêu đề arc dịch 2–4 kiểu."
+ },
+ "loi": [
+  {
+   "the": "BOI_CANH_SAI",
+   "muc_do": "cao",
+   "he_thong": true,
+   "dem": "'tỷ' 248 lần/28 file trong arc hào môn (riêng 'Tình Tuyết tỷ' 36 lần/21 file)",
+   "chuong": "7265523231405116468_0280_第280章 豪门嫂嫂18（补字数）",
+   "dong": 23,
+   "raw": "“你进去睡吧，我睡沙发。”",
+   "hien_tai": "“Tỷ vào trong ngủ đi, em ngủ sô pha.”",
+   "de_xuat": "“Chị vào trong ngủ đi, em ngủ sofa.”",
+   "vi_sao": "Em chồng hiện đại gọi chị dâu cũ là 'tỷ' (ch.283 còn có 'tỷ với anh trai em'), lẫn cổ trang, trái chính toneRules hiện đại của story.json."
+  },
+  {
+   "the": "CAST_MAU_THUAN",
+   "muc_do": "cao",
+   "he_thong": true,
+   "dem": "≥6 mục addressing của arc hiện đại",
+   "chuong": "7265523231405116468_0280_第280章 豪门嫂嫂18（补字数）",
+   "dong": 23,
+   "raw": "夏以樾→江晴雪 / 夏以朗→秦姨 / 夏父→夏母",
+   "hien_tai": "em–Tình Tuyết tỷ / ta–Tần di / ta–bà",
+   "de_xuat": "em–chị Tình Tuyết / tôi–dì Tần / tôi–bà (hoặc anh–em)",
+   "vi_sao": "Glossary tự sinh chốt xưng hô cổ trang cho arc hiện đại, mâu thuẫn toneRules 'thế giới hiện đại dùng tôi/cô/anh'; chính nó ép lỗi tỷ/ta ở trên."
+  },
+  {
+   "the": "XUNG_HO_TROI",
+   "muc_do": "cao",
+   "he_thong": true,
+   "dem": "'nàng' ~484 lần/23 file (ch.263–280), về 0 từ ch.281, thay bằng 'cô'",
+   "chuong": "7265523231405116468_0280_第280章 豪门嫂嫂18（补字数）",
+   "dong": 9,
+   "raw": "她扔过去一张毛巾，和一套宽大的浴袍",
+   "hien_tai": "Nàng ném qua một chiếc khăn lông cùng một bộ áo choàng tắm rộng thùng thình",
+   "de_xuat": "Cô ném cho anh một chiếc khăn lông cùng một bộ áo choàng tắm rộng thùng thình",
+   "vi_sao": "Cùng một arc hiện đại, đại từ người kể cho nữ chính đổi đột ngột ở ch.281; 18 chương đầu dùng 'nàng' sai bối cảnh."
+  },
+  {
+   "the": "BOI_CANH_SAI",
+   "muc_do": "cao",
+   "he_thong": true,
+   "dem": "'Giang tiểu thư' 20 lần; 'ta' trong thoại nhân vật hiện đại ở gần mọi chương 280–289",
+   "chuong": "7265523231405116468_0281_第281章 豪门嫂嫂19",
+   "dong": 131,
+   "raw": "“江小姐，我也可以给股份啊，我给百分之三。”",
+   "hien_tai": "“Giang tiểu thư, ta cũng có thể cho cổ phần mà, ta cho ba phần trăm.”",
+   "de_xuat": "“Cô Giang, tôi cũng có thể cho cô cổ phần mà, tôi cho ba phần trăm.”",
+   "vi_sao": "Người trong giới giải trí hiện đại nói như nhân vật cổ trang."
+  },
+  {
+   "the": "XUNG_HO_VAI_VE",
+   "muc_do": "vua",
+   "he_thong": true,
+   "dem": null,
+   "chuong": "7265523231405116468_0001_第1章 死亡倒计时",
+   "dong": 73,
+   "raw": "“让我进去，我是她亲妈，你们凭什么不让我进去？”",
+   "hien_tai": "“Để ta vào, ta là mẹ ruột của nó, các người dựa vào cái gì không cho ta vào?”",
+   "de_xuat": "“Cho tôi vào, tôi là mẹ ruột nó, các người lấy quyền gì mà cấm tôi vào?”",
+   "vi_sao": "Bà mẹ hiện đại cãi nhau ở bệnh viện xưng 'ta': prompt cổ đại đã áp lên khung hiện đại ngay từ chương 1."
+  },
+  {
+   "the": "BOI_CANH_SAI",
+   "muc_do": "vua",
+   "he_thong": true,
+   "dem": "nam nhân 63 + nữ nhân 69 lần trong arc hào môn; 女人→nữ nhân 393/434 toàn truyện",
+   "chuong": "7265523231405116468_0289_第289章 豪门嫂嫂27",
+   "dong": 61,
+   "raw": "你一个离婚的女人，怎么还敢把孩子生下来呢？",
+   "hien_tai": "một nữ nhân đã ly hôn như con làm sao dám sinh con ra chứ?",
+   "de_xuat": "con là đàn bà đã ly hôn, sao còn dám sinh đứa bé ra?",
+   "vi_sao": "男人/女人 trong cảnh hiện đại phải là đàn ông/đàn bà/phụ nữ; 'nam nhân' xuất hiện ngay ch.1 (L49, L117)."
+  },
+  {
+   "the": "THUAT_NGU_TROI",
+   "muc_do": "vua",
+   "he_thong": true,
+   "dem": "'Hạ phụ/Hạ mẫu' 86 lần/10 file vs 'ba Hạ/mẹ Hạ' 124 lần",
+   "chuong": "7265523231405116468_0280_第280章 豪门嫂嫂18（补字数）",
+   "dong": 63,
+   "raw": "夏父暴跳如雷的大吼道。",
+   "hien_tai": "Hạ phụ nổi trận lôi đình gầm lên giận dữ:",
+   "de_xuat": "Ông Hạ nổi trận lôi đình gầm lên:",
+   "vi_sao": "Cùng ch.280: L59 'ba mẹ Hạ', L63 'Hạ phụ', L89 'Hạ mẫu'; 夏父/夏母 không có trong glossary nên dịch hai kiểu, kiểu Hán Việt lệch bối cảnh."
+  },
+  {
+   "the": "GLOSSARY_DANH_XUNG",
+   "muc_do": "vua",
+   "he_thong": true,
+   "dem": "Tần di 30 lần; Hoàng a di 6; thêm Lâm lão sư, Hạ lão gia tử, Uông di",
+   "chuong": "7265523231405116468_0280_第280章 豪门嫂嫂18（补字数）",
+   "dong": 81,
+   "raw": "秦姨和方姨进进出出",
+   "hien_tai": "Tần di và Phương di ra ra vào vào",
+   "de_xuat": "Dì Tần và dì Phương ra ra vào vào",
+   "vi_sao": "Glossary coi danh xưng hiện đại (姨, 阿姨, 老师, 老爷子) là một phần tên riêng rồi phiên Hán Việt; trong khi 钱律师 lại dịch đúng 'luật sư Tiền'."
+  },
+  {
+   "the": "AN_THAN_TU",
+   "muc_do": "vua",
+   "he_thong": true,
+   "dem": "嗯→Ân 103/129 lần, 90 file; 3 lần trong arc hiện đại",
+   "chuong": "7265523231405116468_0282_第282章 豪门嫂嫂20（补字数）",
+   "dong": 113,
+   "raw": "“嗯，一次就够了。”",
+   "hien_tai": "“Ân, một lần là đủ rồi.”",
+   "de_xuat": "“Ừ, một lần là đủ rồi.”",
+   "vi_sao": "'Ân' là thán từ khô kiểu convert, trong cảnh hiện đại càng lạc giọng."
+  },
+  {
+   "the": "TIEU_DE",
+   "muc_do": "vua",
+   "he_thong": true,
+   "dem": "天煞孤星摄政王 2 kiểu (22/38 chương); 糙汉将军 2 kiểu (34/11); 风流女帝 2 kiểu (16/18); 风流俏寡妇 4 kiểu; 佛子 4 kiểu",
+   "chuong": "7265523231405116468_0176_第176章 天煞孤星摄政王31",
+   "dong": 1,
+   "raw": "第176章 天煞孤星摄政王31",
+   "hien_tai": "Chương 176: Thiên Sát Cô Tinh Nhiếp Chính Vương 31",
+   "de_xuat": "Chương 176: Nhiếp chính vương thiên sát cô tinh 31 (giống ch.151)",
+   "vi_sao": "Tên arc trong raw giống hệt nhau nhưng bản dịch đảo trật tự và viết hoa mọi chữ; ghi chú tác giả 补字数 vào tiêu đề thành '(bù số chữ)'."
+  },
+  {
+   "the": "GLOSSARY_PHIEN_AM",
+   "muc_do": "vua",
+   "he_thong": true,
+   "dem": "Lao Sinh 3 lần, Loan Sinh 4 lần; Giang Môi Linh 5 lần",
+   "chuong": "7265523231405116468_0002_第2章 绝嗣风流王爷1",
+   "dong": 13,
+   "raw": "孪生丹，100积分。（孪生兄弟）",
+   "hien_tai": "Lao Sinh Đan, 100 điểm tích lũy. (Huynh đệ sinh đôi)",
+   "de_xuat": "Loan Sinh Đan (hoặc Đan Song Sinh), 100 điểm tích lũy. (Anh em sinh đôi)",
+   "vi_sao": "孪 đọc 'loan'; glossary có cả 孪生丹=Lao Sinh Đan lẫn 孪生子丹=Loan Sinh Tử Đan; tương tự 江眉翎=Giang Môi Linh (眉 = Mi)."
+  },
+  {
+   "the": "XUNG_HO_TROI",
+   "muc_do": "thap",
+   "he_thong": false,
+   "dem": "'bồi nàng' 10 lần toàn truyện",
+   "chuong": "7265523231405116468_0436_第435章 番外3",
+   "dong": 181,
+   "raw": "“师姐，不管你想做什么，我都陪你。”",
+   "hien_tai": "“Sư tỷ, bất kể nàng muốn làm gì, ta đều bồi nàng.”",
+   "de_xuat": "“Sư tỷ, tỷ muốn làm gì, ta cũng ở bên tỷ.”",
+   "vi_sao": "Gọi 'sư tỷ' rồi lại gọi 'nàng' trong cùng câu (glossary ghi ta–sư tỷ); 陪→'bồi' là calque."
+  },
+  {
+   "the": "SOT_Y",
+   "muc_do": "thap",
+   "he_thong": false,
+   "dem": null,
+   "chuong": "7265523231405116468_0280_第280章 豪门嫂嫂18（补字数）",
+   "dong": 141,
+   "raw": "都跑到正妻头上拉屎拉尿了？",
+   "hien_tai": "dám trèo lên đầu chính thê mà tác oai tác quái?",
+   "de_xuat": "dám trèo lên đầu vợ cả mà ỉa mà đái thế à?",
+   "vi_sao": "Câu chửi thô của bà mẹ nhà giàu bị làm nhẹ thành thành ngữ, mất độ gắt; 'chính thê' lại là từ cổ trang."
+  },
+  {
+   "the": "CALQUE",
+   "muc_do": "thap",
+   "he_thong": true,
+   "dem": "'đem' 180 lần/134 file (calque nói chung)",
+   "chuong": "7265523231405116468_0436_第435章 番外3",
+   "dong": 21,
+   "raw": "你要给他一分颜色，他就能蹬鼻子上脸。",
+   "hien_tai": "muội mà cho hắn một phần sắc mặt là hắn có thể được đà lấn tới ngay.",
+   "de_xuat": "muội mà cho hắn chút mặt mũi là hắn được đằng chân lân đằng đầu ngay.",
+   "vi_sao": "给颜色 dịch từng chữ thành 'một phần sắc mặt', người Việt đọc không hiểu."
+  },
+  {
+   "the": "LAP_TU",
+   "muc_do": "thap",
+   "he_thong": false,
+   "dem": null,
+   "chuong": "7265523231405116468_0436_第435章 番外3",
+   "dong": 53,
+   "raw": "江晴雪这半死不活的样子",
+   "hien_tai": "Bộ dạng dở sống dở dở chết này của Giang Tình Tuyết",
+   "de_xuat": "Bộ dạng dở sống dở chết này của Giang Tình Tuyết",
+   "vi_sao": "Lỗi máy lặp chữ 'dở'."
+  }
+ ],
+ "goi_y": [
+  "Cho story.json khai báo setting theo arc (vd arcs:[{from:263,to:302,setting:'modern'}], thêm cờ 'khung hiện đại' cho đoạn bệnh viện đầu mỗi arc) để prompt bật bộ luật hiện đại (tôi/anh/chị/cô, đàn ông/phụ nữ, bố/mẹ, dì/cô giáo) thay vì giữ luật cổ đại suốt truyện.",
+  "Glossary/addressing tự sinh: khi chương thuộc arc hiện đại, chặn hoặc cảnh báo giá trị cổ trang (tỷ, ta, tiểu thư, Hạ phụ, X di, lão sư); thêm bước dọn glossary tách danh xưng khỏi tên (秦姨 → tên 'Tần' + danh xưng 'dì').",
+  "Chốt đại từ người kể cho nữ chính theo từng arc (cổ đại 'nàng', hiện đại 'cô') ngay trong prompt; check tự động đếm nàng/cô mỗi chương và báo khi đổi giữa arc.",
+  "Nới luật 嗯→'Ân': cho dùng 'Ừ/Ừm/Vâng' theo vai, ít nhất cấm 'Ân' ở cảnh hiện đại.",
+  "Tiêu đề chương: chạy lại tính năng thống nhất tiêu đề lặp (commit cd752eb) cho truyện này; bỏ ghi chú tác giả (补字数, 大修) khỏi tiêu đề.",
+  "Kiểm tra phiên âm glossary bằng từ điển Hán Việt (孪=loan, 眉=mi) và gộp mục trùng nghĩa (孪生丹/孪生子丹, 曦=Hy/Hi).",
+  "Check máy bắt lặp từ liền nhau ('dở dở') trừ trường hợp hợp lệ như 'được được được'."
+ ],
+ "lam_tot": [
+  "Lời kể cổ trang và tu tiên trơn tru, nhịp nhanh, đúng chất nữ tần sảng văn.",
+  "Meme/lóng hiện đại dịch có hồn: 装逼→'làm màu', 母猪系统→'hệ thống heo nái', 躺平摆烂→'nằm ườn buông xuôi', 三岁看到老 dịch đúng ý.",
+  "Thoại hệ thống Tiểu Phúc Tử nhí nhảnh, đúng toneRules (em–tỷ tỷ).",
+  "Không sót chữ Hán ở cả 436 file; số liệu (tuổi, điểm, 500 triệu) đúng; đủ dòng so với raw.",
+  "Xưng hô cung đình/vương phủ (bản vương, nô tỳ, lão nô, trẫm–nàng) nhất quán."
+ ]
+}

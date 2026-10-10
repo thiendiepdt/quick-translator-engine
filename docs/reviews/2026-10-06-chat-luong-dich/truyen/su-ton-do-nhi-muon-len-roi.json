@@ -1,0 +1,227 @@
+{
+  "slug": "su-ton-do-nhi-muon-len-roi",
+  "ten": "Sư tôn, đồ nhi muốn lên rồi",
+  "setting": "ancient",
+  "the_loai_thuc_te": "Tu tiên hài, xuyên thư + biến thân (TS) + rom-com; độc thoại nội tâm của Hiên Viên Ngạo/Lâm Phong và Nam Cung Nguyệt rất hiện đại (meme mạng, game, J-20, tên lửa); có 2 chương 'lời tác giả' thuần hiện đại (0071, 0072); quyển 2 đánh số chương lại từ 1.",
+  "ngoi_ke": "ngôi 3",
+  "so_chuong_dich": 316,
+  "chuong_doc": [
+    "666530_0001_第1章 惨！",
+    "666530_0158_第156章 妖孽",
+    "666530_0305_第143章 “坦白”",
+    "666530_0316_最终章 这一世换我来"
+  ],
+  "diem": {
+    "xung_ho": 7.5,
+    "giong_van": 7.0,
+    "de_hieu": 7.5,
+    "kho_khan": 7.0,
+    "thuat_ngu": 7.0
+  },
+  "ly_do_diem": {
+    "xung_ho": "Phân vai hắn/y/nàng rõ (y cho Nam Cung Ngọc Vũ, hắn cho Hiên Viên Ngạo ở chương cuối), chàng–thiếp–nương tử hợp cảnh vợ chồng; nhưng 自己 trong độc thoại bị đổi sang ngôi ba gây mơ hồ ('thê tử của hắn') và addressing trong story.json đứng yên, không có cast.json ghi mốc.",
+    "giong_van": "Giọng hài nhìn chung sống, nhưng các đoạn khẩu ngữ hiện đại vẫn bị kéo về Hán Việt ('phu phục hà cầu', 'đại thành thị', 'Ân' cạnh 'ba mẹ', 'chơi game'); lời tác giả hiện đại cũng bị dịch bằng giọng cổ trang.",
+    "de_hieu": "Đa số trôi chảy; còn calque cú pháp lặp lại ('Đã là ngươi đều nhớ rõ', 'Tổng không thể nào', 'nàng đều có chút không nhớ nổi') và vài cụm sai/lạ nghĩa ('tội có thích đáng', 'hướng về say đắm', 'dây dưa phân định').",
+    "kho_khan": "Nhiều lóng xử lý tốt (vãi chưởng, trâu bò, gà mờ, ngập đầu chấm hỏi, cảm động muốn khóc chết mất) nhưng 呵 bị ép thành 'hừ' 2/3 số lần, meme kinh điển (出来混迟早要还, 吃满大保底出芙芙, 歪瓜裂枣) dịch theo chữ.",
+    "thuat_ngu": "Tên riêng nhất quán, không sót chữ Hán; nhưng glossary có cặp trùng nghĩa khác đích (汇宝拍卖行/场 → sàn/phòng đấu giá), emmm dịch 3 kiểu, 小时 có lúc thành 'canh giờ', danh mục names lẫn môn phái/danh xưng."
+  },
+  "loi": [
+    {
+      "the": "BAN_THAN",
+      "muc_do": "cao",
+      "he_thong": true,
+      "dem": "'bản thân' 979 lần/270 file (raw 自己 2358); 'bản thân hắn/nàng/y/mình' 124 lần/83 file",
+      "chuong": "666530_0316_最终章 这一世换我来",
+      "dong": 9,
+      "raw": "但是想想自己的确是有些过分……看来这一世就是自己最后一世了,自己已经失去了重置机会和可能了.",
+      "hien_tai": "Nhưng nghĩ lại bản thân quả thực có chút quá đáng, … xem ra kiếp này chính là kiếp cuối cùng của mình, bản thân đã đánh mất cơ hội cùng khả năng thiết lập lại rồi.",
+      "de_xuat": "Nhưng nghĩ lại thì hắn cũng quá đáng thật, … xem ra kiếp này là kiếp cuối cùng rồi, hắn đã hết cơ hội thiết lập lại.",
+      "vi_sao": "自己 bị dịch máy móc thành 'bản thân' dày đặc làm văn cứng, đọc như văn convert."
+    },
+    {
+      "the": "AN_THAN_TU",
+      "muc_do": "cao",
+      "he_thong": true,
+      "dem": "嗯→'Ân' 72/151 dòng có 嗯 (78 'Ân' + 10 'ân' trong 56+ file), kể cả lời tác giả hiện đại",
+      "chuong": "666530_0305_第143章 “坦白”",
+      "dong": 77,
+      "raw": "“没有没有,我爸妈一定会喜欢你这个儿媳妇,……就一定能带着你去见我爸妈,嗯.”",
+      "hien_tai": "“Không có không có, ba mẹ ta nhất định sẽ thích người con dâu như nàng, … thì nhất định sẽ có thể dẫn nàng đi gặp ba mẹ ta, ân.”",
+      "de_xuat": "“… thì nhất định ta sẽ dẫn nàng về gặp ba mẹ ta, ừ.”",
+      "vi_sao": "'Ân' khô và lạc giọng ngay trong câu khẩu ngữ hiện đại có 'ba mẹ'; cũng xuất hiện ở lời tác giả (0071: 'Ân, lại sắp lên kệ rồi!~')."
+    },
+    {
+      "the": "HU_HA",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "81/122 dòng có 呵 (không kèm 哼) ra 'hừ'",
+      "chuong": "666530_0001_第1章 惨！",
+      "dong": 19,
+      "raw": "“暴殄天物废人,呵!竟然还没死.”",
+      "hien_tai": "“Kẻ phế nhân làm phí phạm của trời, hừ! Không ngờ còn chưa chết.”",
+      "de_xuat": "“Đồ phế vật phí của trời, ha! Thế mà vẫn chưa chết.”",
+      "vi_sao": "呵 là cười khẩy/cười lạnh, 'hừ' là khịt mũi giận; ở 0004 còn ra 'Hừ.' rồi ngay sau là 'cười lạnh một tiếng', tự mâu thuẫn."
+    },
+    {
+      "the": "CALQUE",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "'Đã là + đại từ' 8 lần/8 file; 'Tổng không thể' 4 lần/4 file",
+      "chuong": "666530_0316_最终章 这一世换我来",
+      "dong": 21,
+      "raw": "既然你都记得,那就应该知道哈迪斯应该最多还有两三年的时间就要杀来",
+      "hien_tai": "Đã là ngươi đều nhớ rõ, thì hẳn phải biết Hades nhiều nhất cũng chỉ còn hai ba năm nữa là đánh sang rồi",
+      "de_xuat": "Ngươi đã nhớ hết rồi thì hẳn cũng biết, nhiều lắm là hai ba năm nữa Hades sẽ đánh tới",
+      "vi_sao": "既然→'Đã là', 都→'đều', 总不会→'Tổng không thể nào' (0001 dòng 69) là cấu trúc Trung bê nguyên."
+    },
+    {
+      "the": "DAI_TU_MO_HO",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": null,
+      "chuong": "666530_0305_第143章 “坦白”",
+      "dong": 33,
+      "raw": "想到自己以前该不会对自己媳妇很不好吧?感觉她好像有点怕自己?",
+      "hien_tai": "thầm nghĩ chẳng lẽ trước kia bản thân đối xử với thê tử của hắn không được tốt sao? Cảm giác như nàng dường như có chút sợ hắn?",
+      "de_xuat": "thầm nghĩ chẳng lẽ trước kia mình đối xử với vợ không tốt? Sao trông nàng có vẻ sợ mình?",
+      "vi_sao": "自己 trong độc thoại bị đổi thành 'hắn' nên đọc như 'vợ của người khác'; cùng chương dòng 45 nội tâm nhảy ta→hắn."
+    },
+    {
+      "the": "THUAT_NGU_TROI",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "拍卖场/拍卖行: 'sàn đấu giá' 68 lần/27 file vs 'phòng đấu giá' 31 lần/11 file; riêng Hối Bảo: sàn 26 / phòng 3",
+      "chuong": "666530_0158_第156章 妖孽",
+      "dong": 63,
+      "raw": "好在,第二天下榻城池就有个挺大的汇宝拍卖场",
+      "hien_tai": "May thay, thành trì nghỉ lại vào ngày thứ hai có một phòng đấu giá Hối Bảo khá lớn",
+      "de_xuat": "chốt một cách: 'nhà đấu giá Hối Bảo' cho cả 汇宝拍卖行 và 汇宝拍卖场",
+      "vi_sao": "Glossary tự sinh ghi 汇宝拍卖行→'sàn đấu giá Hối Bảo' và 汇宝拍卖场→'phòng đấu giá Hối Bảo' nên cùng một cơ sở mang hai tên."
+    },
+    {
+      "the": "SAI_SO",
+      "muc_do": "vua",
+      "he_thong": false,
+      "dem": "小时→'canh giờ' 3/31 dòng",
+      "chuong": "666530_0316_最终章 这一世换我来",
+      "dong": 91,
+      "raw": "一个小时就能有2.6亿修炼值",
+      "hien_tai": "một canh giờ là có thể thu được 260 triệu điểm tu luyện",
+      "de_xuat": "một tiếng đồng hồ là thu được 260 triệu điểm tu luyện",
+      "vi_sao": "1 canh giờ = 2 tiếng, sai gấp đôi con số; nhân vật đang nói kiểu hiện đại (hệ thống, J-20), không cần cổ hoá."
+    },
+    {
+      "the": "GLOSSARY_HAN_VIET_NANG",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "'phu phục hà cầu' 2 file, 'kịch tình sát' 12 file, 'đại thành thị' 1",
+      "chuong": "666530_0305_第143章 “坦白”",
+      "dong": 51,
+      "raw": "有这么一个媳妇,夫复何求啊!",
+      "hien_tai": "Có một người thê tử như thế này, phu phục hà cầu chứ!",
+      "de_xuat": "Có được cô vợ thế này, còn mong gì hơn nữa!",
+      "vi_sao": "Trái style.avoid (tránh Hán Việt tối nghĩa trong khẩu ngữ hiện đại); độc thoại của Lâm Phong vốn tếu táo."
+    },
+    {
+      "the": "MEME_NGHIA_DEN",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "出来混 4 lần ra 4 kiểu (lăn lộn/bươn chải/bôn tẩu…); 歪瓜裂枣→'dưa vẹo táo nứt'",
+      "chuong": "666530_0316_最终章 这一世换我来",
+      "dong": 69,
+      "raw": "“出来混迟早都是要还的,上一世你捅我,这一世我捅你,很公平,对吧?我好师尊.”",
+      "hien_tai": "“Đi ra ngoài lăn lộn sớm muộn gì cũng phải trả giá, kiếp trước ngươi đâm ta, kiếp này ta đâm ngươi, rất công bằng, phải không? Sư tôn tốt của ta.”",
+      "de_xuat": "“Đã ra giang hồ thì sớm muộn cũng phải trả nợ. Kiếp trước người đâm ta, kiếp này ta đâm lại người, công bằng chứ nhỉ? Sư tôn tốt của ta.”",
+      "vi_sao": "Câu thoại kinh điển (Vô Gian Đạo) có bản Việt quen thuộc; dịch chữ làm mất cú chốt, và nó còn là đòn chơi chữ 捅 (đâm) cho cú lật cuối."
+    },
+    {
+      "the": "BOI_CANH_SAI",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "2 chương lời tác giả (0071, 0072) + đoạn ghi chú đầu 0305",
+      "chuong": "666530_0071_上架感言",
+      "dong": 11,
+      "raw": "昨天吃满大保底才出芙芙,今天吃满定轨才出武器,我快乐已经没有了啊!",
+      "hien_tai": "Hôm qua nuốt trọn bảo hiểm cứng mới nổ Phù Phù, hôm nay ăn sạch Định Quỹ mới nổ vũ khí, niềm vui của ta đã tan biến rồi a!",
+      "de_xuat": "Hôm qua phải ăn trọn bảo hiểm mới ra Furina, hôm nay ăn hết Định Quỹ mới ra vũ khí, niềm vui của tôi bay sạch rồi!",
+      "vi_sao": "Lời tác giả là văn hiện đại nhưng bị ép setting ancient: 'ta', 'a', 'Ân', 'Bô Lô Bao' (菠萝包=SF), tên nhân vật Genshin phiên Hán Việt."
+    },
+    {
+      "the": "SAI_NGHIA",
+      "muc_do": "thap",
+      "he_thong": false,
+      "dem": null,
+      "chuong": "666530_0316_最终章 这一世换我来",
+      "dong": 63,
+      "raw": "不过转而觉得也算是罪有应得",
+      "hien_tai": "nhưng sau đó lại cảm thấy đây cũng xem như tội có thích đáng",
+      "de_xuat": "nhưng rồi lại thấy thế cũng đáng đời mình",
+      "vi_sao": "'tội có thích đáng' là cụm lai ghép không tồn tại; 罪有应得 = đáng tội/đáng đời."
+    },
+    {
+      "the": "SAI_NGHIA",
+      "muc_do": "thap",
+      "he_thong": false,
+      "dem": null,
+      "chuong": "666530_0305_第143章 “坦白”",
+      "dong": 71,
+      "raw": "见公婆?",
+      "hien_tai": "Gặp cha mẹ chàng sao?",
+      "de_xuat": "Ra mắt bố mẹ chồng à?",
+      "vi_sao": "Đây là nội tâm Lâm Phong nhắc lại lời Nguyệt; 'cha mẹ chàng' là góc nhìn của Nguyệt, đặt trong đầu hắn thành sai ngôi."
+    },
+    {
+      "the": "VAN_KHO",
+      "muc_do": "thap",
+      "he_thong": false,
+      "dem": null,
+      "chuong": "666530_0158_第156章 妖孽",
+      "dong": 41,
+      "raw": "让轩辕傲跟他们掰持掰持.",
+      "hien_tai": "để Hiên Viên Ngạo dây dưa phân định với bọn họ một phen.",
+      "de_xuat": "để Hiên Viên Ngạo vật lộn với bọn họ một phen.",
+      "vi_sao": "掰持 (vật nhau, so đo) bị dịch lạ tai; cùng từ ở 0161 lại thành 'so chiêu' — không thống nhất."
+    },
+    {
+      "the": "CAST_MAU_THUAN",
+      "muc_do": "thap",
+      "he_thong": true,
+      "dem": "toneRules vs addressing; không có cast.json",
+      "chuong": "story.json",
+      "dong": 0,
+      "raw": "南宫月→轩辕傲 / 南宫月→任小盈",
+      "hien_tai": "toneRules: Nguyệt xưng 'đồ nhi'/'ta'; addressing: 'đệ tử–sư tôn'; 南宫月→任小盈 chỉ có 'vãn bối–Nhậm tiền bối' dù từ ch.79 raw đã là 任姐姐 (51 lần/33 file)",
+      "de_xuat": "Tạo cast.json có mốc: Nguyệt→Nhậm 'vãn bối–tiền bối' (trước 0081) rồi 'muội–Nhậm tỷ tỷ'; thống nhất 'đồ nhi'/'đệ tử' theo raw 徒儿/弟子",
+      "vi_sao": "Bản dịch đang đúng nhờ bám raw, nhưng hồ sơ mâu thuẫn dễ kéo model về sai ở chương mơ hồ."
+    },
+    {
+      "the": "GLOSSARY_DANH_XUNG",
+      "muc_do": "thap",
+      "he_thong": true,
+      "dem": null,
+      "chuong": "story.json",
+      "dong": 0,
+      "raw": "严师姐 / 周师兄 / 青师太 / 无情师太; 日月神教, 明教, 槽药帮 trong names; 焚诀 + 《焚诀》 (4 cặp trùng có/không 《》)",
+      "hien_tai": "Nghiêm sư tỷ / Chu sư huynh / Thanh sư thái / Vô Tình Sư Thái",
+      "de_xuat": "Chỉ lưu tên gốc (严→Nghiêm…), bỏ danh xưng; chuyển môn phái sang places; gộp mục có 《》; chuẩn hoá viết hoa 'sư thái'",
+      "vi_sao": "Glossary tự sinh coi danh xưng là tên, phân loại sai và trùng mục, viết hoa không nhất quán."
+    }
+  ],
+  "goi_y": [
+    "Bỏ luật bắt buộc 嗯→'Ân' khi setting ancient; cho model chọn 'ừ/ừm/ờ' theo ngữ cảnh, và chuẩn hoá emmm→'Ừm…' (hiện 41 emmm ra Emmm/Ân/Ờ/à).",
+    "Thêm luật 自己: trong lời kể ngôi ba ưu tiên 'mình' hoặc lược; trong độc thoại nội tâm giữ ngôi của người nghĩ ('mình/ta'), không đổi sang 'hắn'; cấm 'bản thân + đại từ'.",
+    "Luật 呵: cười khẩy/cười lạnh → 'Ha/Hà/Hơ', chỉ 哼 mới là 'Hừ'.",
+    "Danh sách calque cấm trong checkRules: 'Đã là (đại từ)', 'Tổng không thể', 'đều có chút' khi 都=ngay cả, 'vậy mà thế nhưng'.",
+    "Cho genre hỗ trợ 'mixed': truyện tu tiên có độc thoại/nhân vật xuyên không hiện đại → cho phép khẩu ngữ hiện đại trong nội tâm, đơn vị giờ hiện đại khi nhân vật dùng 小时; tránh Hán Việt thành ngữ (夫复何求, 剧情杀).",
+    "App nhận diện chương ngoài truyện (上架感言, DLC, ghi chú tác giả) và dịch bằng preset 'lời tác giả hiện đại' (xưng tôi, không Ân/a).",
+    "Auto-glossary: chặn tạo cặp khác đích cho cùng gốc biến thể (汇宝拍卖行/场), không nhận danh xưng (师姐/师兄/师太) làm tên, gộp mục có 《》, kiểm category môn phái.",
+    "Sinh cast.json có mốc xưng hô theo chương cho các cặp chính (Nguyệt–Nhậm, Nguyệt–Hiên Viên Ngạo trước/sau thành thân)."
+  ],
+  "lam_tot": [
+    "Không sót chữ Hán, giữ đủ đoạn 1-1 với raw ở cả 316 chương.",
+    "Tên riêng, chiêu thức, đan dược khớp glossary và nhất quán xuyên suốt.",
+    "Phân đại từ rõ ở chương cuối: 'y' cho Nam Cung Ngọc Vũ, 'hắn' cho Hiên Viên Ngạo, 'nàng' khi nói về Nam Cung Nguyệt.",
+    "Nhiều lóng được Việt hoá tốt: 'vãi chưởng', 'trâu bò', 'gà mờ', 'ngập đầu chấm hỏi', 'bay màu', 'cảm động muốn khóc chết mất'.",
+    "Cảnh vợ chồng dùng chàng–thiếp–nương tử tự nhiên; câu chốt tên truyện 'Sư tôn, đồ nhi muốn lên rồi!~' giữ đúng signature phrase."
+  ]
+}

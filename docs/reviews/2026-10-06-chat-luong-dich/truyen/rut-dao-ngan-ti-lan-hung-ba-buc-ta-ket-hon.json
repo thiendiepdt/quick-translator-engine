@@ -1,0 +1,226 @@
+{
+  "slug": "rut-dao-ngan-ti-lan-hung-ba-buc-ta-ket-hon",
+  "ten": "Rút Đao Ngàn Tỉ Lần, Hùng Bá Bức Ta Kết Hôn",
+  "setting": "ancient",
+  "the_loai_thuc_te": "Tổng võ (đồng nhân võ hiệp hỗn hợp Phong Vân/Kim Dung/Cổ Long/Tần Thời Minh Nguyệt), xuyên không + hệ thống, sảng văn harem; lời kể pha nhiều meme mạng hiện đại (老登, 神他妈, 金手指到账, 傲娇)",
+  "ngoi_ke": "ngôi 3",
+  "so_chuong_dich": 551,
+  "chuong_doc": [
+    "0001_7544663678138712600",
+    "0276_7590692236950520344",
+    "0550_7667232608572424766",
+    "0551_7667450095238922814"
+  ],
+  "diem": {
+    "xung_ho": 6.5,
+    "giong_van": 7.5,
+    "de_hieu": 7.5,
+    "kho_khan": 6,
+    "thuat_ngu": 6.5
+  },
+  "ly_do_diem": {
+    "xung_ho": "Cặp cha–con Hùng Bá–Hùng Thiên Hạ trôi (ngươi/con, ta/người/ông, nhi tử/con ta), đại từ ngôi 3 cho Hùng Bá trôi hắn/lão/gã/ông; addressing trong story.json mâu thuẫn toneRules; vài chỗ 'mình/hắn' mơ hồ.",
+    "giong_van": "Giọng võ hiệp hào sảng, nhịp chiến đấu tốt, đúng toneRules; nhưng lời kể vẫn dày Hán Việt khuôn sáo (phiến thiên địa, nhi tử, tân sinh) và calque 'đem', 'bản thân hắn'.",
+    "de_hieu": "Đa số câu trôi chảy, đủ đoạn 551/551; còn sai nghĩa lẻ (暗金→hoàng kim mờ ảo, 刻意→tận ý, 自己 trỏ nhầm người), thêm ý (舍生忘死→vì đại nghĩa), lặp từ.",
+    "kho_khan": "Meme/lóng hiện đại của tác giả bị dịch nghĩa đen hoặc mất nhịp hài (thần mẹ nó, ngón tay vàng tới tài khoản, Tiểu Lạt Tiêu, Được một cái…); 'Ân' khô khan xen 'A' không thống nhất.",
+    "thuat_ngu": "Tên/chiêu thức khớp glossary và nhất quán; nhưng glossary tự sinh có phiên âm sai (综武→Tống Võ, 窥天境→Kính), 腿 dịch 3 kiểu (Thối/Thoái/Cước), 7 cặp trùng mục, 剑神 và 剑晨 cùng ra 'Kiếm Thần', danh xưng 神医 nằm trong names."
+  },
+  "loi": [
+    {
+      "the": "CALQUE",
+      "muc_do": "cao",
+      "he_thong": true,
+      "dem": "'đem' 258 lần/174 file; 'Theo việc/sự' 20/18; 'phiến' 48/35",
+      "chuong": "0276_7590692236950520344",
+      "dong": 77,
+      "raw": "谢七刀暴喝，将所有残存真气、生命潜力尽数灌入这一刀！",
+      "hien_tai": "Tạ Thất Đao hét lớn, đem tất cả chân khí còn sót lại cùng tiềm lực sinh mệnh rót hết vào trong nhát đao này!",
+      "de_xuat": "Tạ Thất Đao gầm lên, dồn hết chỗ chân khí còn sót lại cùng tiềm lực sinh mệnh vào nhát đao này!",
+      "vi_sao": "将…→'đem…' và 片→'phiến' là dấu vết văn convert lặp ở hơn 30% số chương."
+    },
+    {
+      "the": "BAN_THAN",
+      "muc_do": "cao",
+      "he_thong": true,
+      "dem": "'bản thân hắn/nàng/lão…' 241 lần/154 file",
+      "chuong": "0551_7667450095238922814",
+      "dong": 7,
+      "raw": "与他自身的归墟真气开始融合",
+      "hien_tai": "bắt đầu dung hợp với Quy Khư chân khí của bản thân hắn.",
+      "de_xuat": "bắt đầu hòa vào Quy Khư chân khí của hắn.",
+      "vi_sao": "自己/自身 dịch máy móc thành 'bản thân hắn', thừa và nặng nề."
+    },
+    {
+      "the": "XUNG_HO_VAI_VE",
+      "muc_do": "cao",
+      "he_thong": true,
+      "dem": "'nhi tử' 6/4 file; Hùng Bá gọi con 'ngươi' ở 0095, 0551; Hùng Thiên Hạ xưng với cha lúc 'người', lúc 'ông'",
+      "chuong": "0551_7667450095238922814",
+      "dong": 173,
+      "raw": "“我儿，你回来了。”",
+      "hien_tai": "“Nhi tử của ta, ngươi đã về rồi.”",
+      "de_xuat": "“Con trai ta, con về rồi đấy à.”",
+      "vi_sao": "Cha nói với con trai ruột mà dùng 'ngươi' + 'nhi tử' lạnh lùng; trong khi Hùng Bá với U Nhược lại 'ta–con' — addressing 雄霸→雄天下 'lão phu–ngươi' gieo lỗi."
+    },
+    {
+      "the": "CAST_MAU_THUAN",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "addressing 雄天下→雄霸 'ta–ngươi' vs toneRules 'phụ thân'; thực tế ra 'người' (0006–0007) rồi 'ông' (0018)",
+      "chuong": "0018_7546441683450216985",
+      "dong": 103,
+      "raw": "“爹，你是我亲爹，你要是让这些美女嫁给我",
+      "hien_tai": "“Cha, ông là cha ruột của ta, nếu ông để những mỹ nữ này gả cho ta",
+      "de_xuat": "“Cha, cha đúng là cha ruột của con, nếu cha cho mấy mỹ nhân này gả cho con",
+      "vi_sao": "Không có cast.json, addressing và toneRules cãi nhau nên cặp cha–con nhân vật chính trôi xưng hô qua các chương."
+    },
+    {
+      "the": "MEME_NGHIA_DEN",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "神他妈 3/3 file (1 nghĩa đen); 金手指到账 0001; 小辣椒 10 lần/4 file",
+      "chuong": "0019_7546519207161102873",
+      "dong": 45,
+      "raw": "神他妈三分归元气，七分靠打拼。",
+      "hien_tai": "thần mẹ nó tam phân Quy Nguyên Khí, thất phân dựa phấn đấu.",
+      "de_xuat": "Tam Phân Quy Nguyên Khí cái quái gì, 'ba phần trời định, bảy phần cố gắng' mà cũng chế được à.",
+      "vi_sao": "神他妈 dịch từng chữ, chơi chữ với câu hát 三分天注定七分靠打拼 mất hẳn."
+    },
+    {
+      "the": "MEME_NGHIA_DEN",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "'Tiểu Lạt Tiêu' 10 lần/4 file (0543–0550)",
+      "chuong": "0550_7667232608572424766",
+      "dong": 61,
+      "raw": "他倒想看看，这小辣椒在得知真相后，会是什么反应。",
+      "hien_tai": "Hắn ngược lại muốn xem thử Tiểu Lạt Tiêu này sau khi biết được chân tướng sẽ có phản ứng gì.",
+      "de_xuat": "Hắn ngược lại muốn xem cô nàng ớt cay này biết được chân tướng rồi sẽ phản ứng ra sao.",
+      "vi_sao": "Biệt danh trêu chọc 小辣椒 bị phiên âm thành tên riêng, độc giả Việt không hiểu nghĩa 'ớt nhỏ cay'."
+    },
+    {
+      "the": "CALQUE",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "好一个 80 lần/67 file: 'Hay cho' 15, 'Được một cái/Một cái' 10, 'Tốt cho' 2",
+      "chuong": "0551_7667450095238922814",
+      "dong": 207,
+      "raw": "“好！好一个我儿！好一个雄天下！”",
+      "hien_tai": "“Tốt! Tốt cho nhi tử của ta! Tốt cho Hùng Thiên Hạ!”",
+      "de_xuat": "“Hay! Giỏi lắm con ta! Hay cho một Hùng Thiên Hạ!”",
+      "vi_sao": "好一个 khi thì 'Hay cho' đúng, khi thì 'Được một cái/Tốt cho' sượng (0276 'Được một cái Ma Đao', 0516 'Được một cái Phật Môn')."
+    },
+    {
+      "the": "DAI_TU_MO_HO",
+      "muc_do": "vua",
+      "he_thong": false,
+      "dem": null,
+      "chuong": "0551_7667450095238922814",
+      "dong": 23,
+      "raw": "他不是刚刚才斩断了自己的魔念吗？为什么他自己身上，会爆发出如此惊人的魔气？",
+      "hien_tai": "Hắn chẳng phải vừa mới chém đứt ma niệm của mình sao? Tại sao trên người hắn lại bùng nổ ma khí kinh người đến vậy?",
+      "de_xuat": "Tiểu tử này chẳng phải vừa chém đứt ma niệm của lão sao? Sao trên người chính hắn lại bùng ra ma khí kinh người đến thế?",
+      "vi_sao": "自己 ở đây là Đệ Nhất Tà Hoàng (người đang nghĩ), bản dịch đọc thành ma niệm của Hùng Thiên Hạ — đổi nghĩa."
+    },
+    {
+      "the": "XUNG_HO_TROI",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "Hùng Bá ở ngôi 3 (đoạn có 他): hắn 64, lão 38, gã 5, ông 5",
+      "chuong": "0003_7544663923148980760",
+      "dong": 117,
+      "raw": "雄霸做出了决定，他已经有了一个绝妙的法子拿捏自己这个天骄儿子。",
+      "hien_tai": "Hùng Bá đã đưa ra quyết định, hắn đã có một cách tuyệt diệu để nắm thóp đứa con thiên kiêu này của mình.",
+      "de_xuat": "Hùng Bá đã quyết, lão đã có một cách tuyệt diệu để nắm thóp đứa con thiên kiêu này.",
+      "vi_sao": "Đầu truyện Hùng Bá là 'hắn' (trùng đại từ với nhân vật chính), về sau thành 'lão', có chỗ 'gã'/'ông' — cần chốt một đại từ."
+    },
+    {
+      "the": "AN_THAN_TU",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "嗯 ở 47 đoạn/42 file: 'Ân' 20, 'A' 20, còn lại Ừ/Hử/bỏ",
+      "chuong": "0094_7573272148186251800",
+      "dong": 151,
+      "raw": "“嗯，知道了。”",
+      "hien_tai": "“Ân, biết rồi.”",
+      "de_xuat": "“Ừ, biết rồi.”",
+      "vi_sao": "Đáp lời đồng ý mà dùng 'Ân' khô cứng; lại xen kẽ 'A' cho cùng chữ, không có quy tắc."
+    },
+    {
+      "the": "GLOSSARY_PHIEN_AM",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "综武→Tống Võ 2 file + summary; 窥天境→Khuy Thiên Kính; 腿: Thối/Thoái/Cước trong 9 mục",
+      "chuong": "0001_7544663678138712600",
+      "dong": 17,
+      "raw": "穿越到了九州综武世界",
+      "hien_tai": "xuyên không tới thế giới Cửu Châu Tống Võ",
+      "de_xuat": "xuyên không tới thế giới tổng võ Cửu Châu",
+      "vi_sao": "综 là 'Tổng' (tổng hợp), 'Tống Võ' thành tên triều Tống — sai nghĩa thể loại; glossary lưu sai nên lặp mãi."
+    },
+    {
+      "the": "SAI_NGHIA",
+      "muc_do": "vua",
+      "he_thong": false,
+      "dem": null,
+      "chuong": "0276_7590692236950520344",
+      "dong": 83,
+      "raw": "指尖暗金光芒一闪",
+      "hien_tai": "đầu ngón tay ánh lên một tia sáng hoàng kim mờ ảo",
+      "de_xuat": "đầu ngón tay lóe lên một tia sáng vàng sẫm",
+      "vi_sao": "暗金 là màu vàng sẫm, không phải 'mờ ảo'; cùng chương 舍生忘死 bị thêm ý thành 'quên mình vì đại nghĩa' (dòng 37)."
+    },
+    {
+      "the": "CALQUE",
+      "muc_do": "thap",
+      "he_thong": true,
+      "dem": "一份子→'phần tử' 2/5 lần (0310, 0551); 便宜老爹→'tiện nghi lão cha' (tiện nghi 6/6 file)",
+      "chuong": "0551_7667450095238922814",
+      "dong": 195,
+      "raw": "“哦，他啊，第一邪皇，以后就是天下会一份子了。”",
+      "hien_tai": "“Ồ, hắn sao, Đệ Nhất Tà Hoàng, sau này là một phần tử của Thiên Hạ Hội.”",
+      "de_xuat": "“À, lão ấy à, Đệ Nhất Tà Hoàng, từ giờ là người của Thiên Hạ Hội.”",
+      "vi_sao": "'phần tử' trong tiếng Việt mang sắc thái chính trị/tiêu cực; 'tiện nghi lão cha' là convert thuần."
+    },
+    {
+      "the": "LAP_TU",
+      "muc_do": "thap",
+      "he_thong": false,
+      "dem": null,
+      "chuong": "0550_7667232608572424766",
+      "dong": 145,
+      "raw": "意志不坚者，有反被魔念吞噬之风险。",
+      "hien_tai": "người ý chí không kiên định sẽ có nguy cơ bị ma niệm phản phệ thôn phệ.",
+      "de_xuat": "người ý chí không vững sẽ có nguy cơ bị ma niệm nuốt chửng ngược lại.",
+      "vi_sao": "Chồng hai từ Hán Việt cùng nghĩa; cùng chương còn 'dùng hết toàn lực toàn thân' (dòng 29), 'tận ý thôi động' (dòng 175, 刻意 = cố ý)."
+    },
+    {
+      "the": "DINH_DANG",
+      "muc_do": "thap",
+      "he_thong": true,
+      "dem": "130 file chỉ ngoặc thẳng \", 421 file ngoặc cong “”, 32 file trộn cả hai; '......' 1424 lần/286 file",
+      "chuong": "0276_7590692236950520344",
+      "dong": 99,
+      "raw": "死在真正的天下第一刀手里，我谢七刀……死得其所！不冤！”",
+      "hien_tai": "Chết trong tay thiên hạ đệ nhất đao chân chính, Tạ Thất Đao ta...... chết đúng chỗ! Không oan!\"",
+      "de_xuat": "Chết dưới tay thiên hạ đệ nhất đao chân chính, Tạ Thất Đao ta… chết cũng đáng! Không oan!”",
+      "vi_sao": "Dấu ngoặc và dấu lửng không chuẩn hoá — 6 chấm giữ kiểu Trung, ngoặc kép đổi kiểu theo chương."
+    }
+  ],
+  "goi_y": [
+    "Thêm luật cứng cho setting ancient: cấm mở câu bằng 'đem' cho 将/把 (chuyển thành động từ chính: dồn/rót/ném…), cấm 'phiến' cho 片, cấm 'bản thân hắn/nàng' — dùng 'hắn/mình' hoặc bỏ; đưa ba mẫu này vào checkRules để qt-ai check đếm và bắt sửa.",
+    "Sửa story.json: addressing 雄霸→雄天下 thành 'ta–con', 雄天下→雄霸 thành 'con/ta–cha' (hoặc 'lão già–người' khi trêu), bỏ mâu thuẫn với toneRules; tạo cast.json chốt đại từ ngôi 3 cho Hùng Bá ('lão'), Tuyết Ám Thiên, Đệ Nhất Tà Hoàng.",
+    "Cho prompt nhận biết 'tổng võ/xuyên không có meme': cho phép giọng lời kể dí dỏm hiện đại khi tác giả cài meme (老登, 神他妈, 金手指, 傲娇); thêm bảng meme mẫu: 神他妈X→'X cái quái gì', 金手指→'bàn tay vàng/hack', 到账→'về tay', 小辣椒→'cô nàng ớt cay'.",
+    "Sửa glossary: 综武→'tổng võ'; 窥天境→'Khuy Thiên Cảnh'; chốt 腿 một cách (Cước) cho cả 9 mục; gộp 7 cặp trùng mục (张三丰/张三疯, 丁免/丁勉, 窥天境/镜, 死神渡/度…); chuyển 神医 sang addressing/danh xưng; phân biệt 剑神 (danh hiệu, viết thường 'kiếm thần') với 剑晨 (tên 'Kiếm Thần').",
+    "Thôi bắt buộc 嗯→'Ân'; cho phép Ừ (đồng ý), Hửm/Hử (nghi vấn), Ừm (ngẫm nghĩ) theo ngữ cảnh.",
+    "Thêm bước hậu xử lý trong app: chuẩn hoá ngoặc kép về “”, '......' về '…'; tự cảnh báo khi một chương dùng cả hai kiểu ngoặc.",
+    "Nhắc prompt: 自己 trong độc thoại nội tâm trỏ về người đang nghĩ, không phải chủ ngữ gần nhất; 好一个X→'Hay cho X/X giỏi lắm', không dùng 'Được một cái/Tốt cho'."
+  ],
+  "lam_tot": [
+    "Đủ 551/551 chương, mọi chương khớp 100% số đoạn với bản gốc, không sót chữ Hán.",
+    "Tên người, môn phái, chiêu thức theo glossary rất nhất quán qua 500+ chương (Hổ Phách Đao, Kỳ Lân Tí, Phong Thần Cước 32/32).",
+    "Nhịp đánh nhau dứt khoát, đúng toneRules (chương 276 đoạn bảy đao rất có lực).",
+    "老登→'lão già' giữ đúng signature phrase (111/141 đoạn), đối thoại Hùng Thiên Hạ ngông nghênh có cá tính.",
+    "Nhiều thành ngữ chuyển tự nhiên: 我的乖乖→'Trời đất ơi', 三顾茅庐→'ba lần đến mời', 神他妈敬酒→'Kính rượu cái con khỉ mốc'."
+  ]
+}

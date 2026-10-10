@@ -1,0 +1,225 @@
+{
+  "slug": "tuyet-pham-cuu-thien-tue-bat-dau-xoa-bop-hoang-quy-phi",
+  "ten": "Tuyệt Phẩm Cửu Thiên Tuế: Bắt Đầu Xoa Bóp Hoàng Quý Phi",
+  "setting": "ancient",
+  "the_loai_thuc_te": "Xuyên không cung đấu – quyền mưu, hài, mờ ám hậu cung; về cuối thành tranh bá/khai quốc, có chiến hạm sắt thép (raw cuối truyện tự mâu thuẫn: Đức Phi = Triệu Sương Anh)",
+  "ngoi_ke": "ngôi 3",
+  "so_chuong_dich": 507,
+  "chuong_doc": [
+    "0001_7620379159339994136",
+    "0254_7645996135487654936",
+    "0506_7671663985732619289",
+    "0507_7671664014635584537"
+  ],
+  "diem": {
+    "xung_ho": 8.0,
+    "giong_van": 7.5,
+    "de_hieu": 7.0,
+    "kho_khan": 6.5,
+    "thuat_ngu": 6.0
+  },
+  "ly_do_diem": {
+    "xung_ho": "Xưng hô cung đình (nô tài–nương nương, bản cung, trẫm–nàng, Ngô mỗ, tạp gia) đúng và ổn định cả 4 chương; trừ điểm vì mục addressing tự sinh có cặp sai/trùng khoá (赵霜英→赵天龙 'con–đại ca', 万历皇帝 vs 皇帝).",
+    "giong_van": "Giọng cổ trang cung đấu hợp thể loại, thoại sắc; nhưng lọt từ hiện đại (khách sạn, nụ cười thương hiệu) và Hán Việt nặng chỗ không cần (bát bách lý gia cấp, yêm nhân).",
+    "de_hieu": "Đa số trôi chảy, nhưng calque 把→'đem' cực dày (344 lần/215 file), thành ngữ dịch từng chữ (dầu muối không lọt, chiếm tiện nghi) và vài chỗ sai nghĩa (老家→'lão gia', 前台→'đài tiền tuyến').",
+    "kho_khan": "Slang 老油条 xử lý khéo, nhưng 嗯 trong cảnh rên khẽ thành 'Ân...' làm mất chất gợi cảm—đúng cái vị của truyện; 盒饭 dịch nghĩa đen; 呵 thành 'Hừ'.",
+    "thuat_ngu": "Phiên âm Hán Việt sai lặp lại (储→'trừ', 抄→'Sơ', 辟→'bích', 酿→'Nương'), 东海 trôi Đông Hải/Biển Đông bất chấp glossary, 储君 dịch hai kiểu."
+  },
+  "loi": [
+    {
+      "the": "AN_THAN_TU",
+      "muc_do": "cao",
+      "he_thong": true,
+      "dem": "32/36 lần 嗯 → Ân/ân (≈25 file), gồm cả tiếng rên",
+      "chuong": "0001_7620379159339994136",
+      "dong": 41,
+      "raw": "“嗯……”",
+      "hien_tai": "“Ân...”",
+      "de_xuat": "“Ưm...”",
+      "vi_sao": "嗯 ở đây là tiếng rên khoái cảm khi được bấm huyệt; 'Ân' là chữ Hán Việt chết, phá hẳn không khí mờ ám vốn là điểm bán của truyện (dòng 87 'Ân... ha...', dòng 129 'Ân, không tệ' nên là 'Ừm, không tệ')."
+    },
+    {
+      "the": "GLOSSARY_PHIEN_AM",
+      "muc_do": "cao",
+      "he_thong": true,
+      "dem": "'trừ quân' 12 lần/5 file, song song 'trữ quân' 21 lần/16 file",
+      "chuong": "0507_7671664014635584537",
+      "dong": 13,
+      "raw": "东宫储君之位一定",
+      "hien_tai": "Ngôi vị trừ quân Đông Cung vừa định",
+      "de_xuat": "Ngôi trữ quân Đông Cung vừa định",
+      "vi_sao": "储 đọc là 'trữ'; 'trừ quân' sai âm và làm thuật ngữ cốt lõi của mạch tranh ngôi bị dịch hai kiểu (ch0359 dòng 151 'không xứng làm trừ quân')."
+    },
+    {
+      "the": "THUAT_NGU_TROI",
+      "muc_do": "cao",
+      "he_thong": true,
+      "dem": "东海 → 'Biển Đông' 8 lần/3 file (0503,0504,0507); 'Đông Hải' 2 lần (0124,0499)",
+      "chuong": "0507_7671664014635584537",
+      "dong": 71,
+      "raw": "东海之滨",
+      "hien_tai": "Ven bờ Biển Đông",
+      "de_xuat": "Ven bờ Đông Hải",
+      "vi_sao": "Glossary đã chốt 东海 = Đông Hải nhưng model bỏ qua; 'Biển Đông' với độc giả Việt là tên biển có thật, gây hiểu lầm địa lý/chính trị."
+    },
+    {
+      "the": "CALQUE",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "'đem' 344 lần/215 file",
+      "chuong": "0490_7669746611848743961",
+      "dong": 65,
+      "raw": "德妃赵霜英将手掌死死覆在隆起的小腹上",
+      "hien_tai": "Đức Phi Triệu Sương Anh đem bàn tay áp chặt lên bụng dưới nhô cao",
+      "de_xuat": "Đức Phi Triệu Sương Anh áp chặt bàn tay lên bụng dưới đã nhô cao",
+      "vi_sao": "Cấu trúc 把/将 bị bê nguyên thành 'đem X + động từ', văn convert, dày đặc trên gần nửa số chương."
+    },
+    {
+      "the": "BAN_THAN",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "'bản thân hắn/nàng/lão…' 75 lần/63 file",
+      "chuong": "0002_7620379157549042712",
+      "dong": 161,
+      "raw": "这是否意味着，自己在这个深宫之中，并非完全没有自保之力？",
+      "hien_tai": "Điều này có phải đồng nghĩa với việc, bản thân hắn ở trong chốn thâm cung này cũng không hẳn là không có chút sức tự vệ nào?",
+      "de_xuat": "Phải chăng điều này có nghĩa là giữa chốn thâm cung, hắn cũng không đến nỗi hoàn toàn không có sức tự vệ?",
+      "vi_sao": "自己 trong độc thoại nội tâm chỉ cần 'hắn/mình'; 'bản thân hắn' nặng và lặp."
+    },
+    {
+      "the": "SAI_NGHIA",
+      "muc_do": "vua",
+      "he_thong": false,
+      "dem": null,
+      "chuong": "0254_7645996135487654936",
+      "dong": 121,
+      "raw": "从净身房的旧档，到您老家的乡籍册",
+      "hien_tai": "Từ hồ sơ cũ của Tịnh Thân Phòng, đến sổ bộ quê quán nơi lão gia của ngài",
+      "de_xuat": "Từ hồ sơ cũ ở Tịnh Thân Phòng, đến sổ hộ tịch ở quê nhà ngài",
+      "vi_sao": "老家 là quê nhà, không phải 'lão gia' (ông chủ/cha) — câu thành nghĩa khác."
+    },
+    {
+      "the": "SAI_NGHIA",
+      "muc_do": "vua",
+      "he_thong": false,
+      "dem": "'tiền tuyến' 13 lần, lần này sai",
+      "chuong": "0254_7645996135487654936",
+      "dong": 7,
+      "raw": "一个人却被悄悄抬上了前台",
+      "hien_tai": "một người lại lặng lẽ được đưa lên đài tiền tuyến.",
+      "de_xuat": "lại có một người được lặng lẽ đẩy ra sân khấu.",
+      "vi_sao": "前台 = sân khấu/vị trí lộ diện, 'tiền tuyến' là chiến tuyến — sai nghĩa."
+    },
+    {
+      "the": "GLOSSARY_PHIEN_AM",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "抄录房→'Sơ Lục Phòng' 6 lần/2 file; glossary còn 储秀宫→'Chữ Tú Cung', 醉仙酿→'Túy Tiên Nương'",
+      "chuong": "0264_7647140368634367001",
+      "dong": 129,
+      "raw": "他的新目标，是内务府的抄录房。",
+      "hien_tai": "Mục tiêu mới của hắn là Sơ Lục Phòng của Nội Vụ Phủ.",
+      "de_xuat": "Mục tiêu mới của hắn là phòng Sao Lục của Nội Vụ Phủ.",
+      "vi_sao": "抄=Sao, 储=Trữ, 酿=Nhưỡng; glossary tự sinh ghi sai âm rồi bị ép dùng mãi."
+    },
+    {
+      "the": "GLOSSARY_PHIEN_AM",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "'phục bích' 4 lần/4 file, 0 lần 'phục tích'",
+      "chuong": "0506_7671663985732619289",
+      "dong": 81,
+      "raw": "朕的疆土之上，不需要留下任何可能复辟的火种。",
+      "hien_tai": "Trên cương thổ của trẫm không cần giữ lại bất kỳ mầm mống nào có khả năng phục bích.",
+      "de_xuat": "Trên cương thổ của trẫm, không được để sót bất kỳ mầm mống nào có thể phục tích.",
+      "vi_sao": "复辟 là 'phục tích' (hoặc 'khôi phục ngôi cũ'); 'phục bích' là đọc sai."
+    },
+    {
+      "the": "CALQUE",
+      "muc_do": "vua",
+      "he_thong": true,
+      "dem": "'dầu muối không lọt/ngấm' 3/3 file; 'chiếm (hết) tiện nghi' 5 lần/4 file",
+      "chuong": "0254_7645996135487654936",
+      "dong": 103,
+      "raw": "吴谨看着他这副油盐不进的模样，也不着急。",
+      "hien_tai": "Ngô Cẩn nhìn bộ dạng dầu muối không lọt này của hắn, cũng không hề sốt ruột.",
+      "de_xuat": "Thấy hắn nói gì cũng không lọt tai, Ngô Cẩn cũng chẳng sốt ruột.",
+      "vi_sao": "Thành ngữ dịch từng chữ; cùng chương dòng 85 '捡了便宜' → 'chiếm hết tiện nghi' (nên: 'hưởng lợi', 'ngư ông đắc lợi')."
+    },
+    {
+      "the": "MEME_NGHIA_DEN",
+      "muc_do": "vua",
+      "he_thong": false,
+      "dem": "1/1 (盒饭 chỉ xuất hiện 1 lần)",
+      "chuong": "0001_7620379159339994136",
+      "dong": 21,
+      "raw": "半个时辰前，又一个倒霉蛋领了盒饭。",
+      "hien_tai": "Nửa canh giờ trước, lại thêm một kẻ xui xẻo nhận cơm hộp.",
+      "de_xuat": "Nửa canh giờ trước, lại thêm một kẻ xui xẻo đi đời nhà ma.",
+      "vi_sao": "领盒饭 là lóng 'bị loại/chết' (diễn viên quần chúng hết vai), dịch nghĩa đen làm độc giả khó hiểu ngay câu mở truyện."
+    },
+    {
+      "the": "BOI_CANH_SAI",
+      "muc_do": "thap",
+      "he_thong": true,
+      "dem": "客栈 → 'khách sạn' 26 lần (glossary 'Nam Lai Khách Sạn'), 'khách điếm' 0 lần; '招牌式的笑容' → 'nụ cười thương hiệu' 5 lần/4 file",
+      "chuong": "0380_7658211624494320702",
+      "dong": 7,
+      "raw": "客栈大堂里，已经有早起的客人在吃着早点。",
+      "hien_tai": "Dưới đại sảnh khách sạn, đã có khách dậy sớm ngồi ăn điểm tâm.",
+      "de_xuat": "Trong sảnh khách điếm, đã có khách dậy sớm ngồi ăn điểm tâm.",
+      "vi_sao": "'Khách sạn', 'thương hiệu' là từ hiện đại lọt vào bối cảnh cổ đại."
+    },
+    {
+      "the": "VAN_KHO",
+      "muc_do": "thap",
+      "he_thong": false,
+      "dem": "'rượu ao' 2 lần/1 file; 'bát bách lý gia cấp' 1 lần (10 file khác dùng 'tám trăm dặm')",
+      "chuong": "0507_7671664014635584537",
+      "dong": 21,
+      "raw": "这便是传说中的“酒池肉林”。",
+      "hien_tai": "đây chính là truyền thuyết “rượu ao thịt rừng”.",
+      "de_xuat": "đây chính là “ao rượu rừng thịt” trong truyền thuyết.",
+      "vi_sao": "Thành ngữ tiếng Việt quen là 'ao rượu rừng thịt'/'tửu trì nhục lâm'; đảo trật tự và 'truyền thuyết' đặt trước là văn convert."
+    },
+    {
+      "the": "HU_HA",
+      "muc_do": "thap",
+      "he_thong": true,
+      "dem": "呵/呵呵 → 'Hừ'/'Hừ hừ' 7 dòng/7 file",
+      "chuong": "0381_7658582640252963902",
+      "dong": 109,
+      "raw": "“呵，京里来的。”",
+      "hien_tai": "\"Hừ, người từ kinh thành tới.\"",
+      "de_xuat": "\"Ha, hoá ra người kinh thành.\"",
+      "vi_sao": "呵 là cười khẩy/cười nhạt, không phải tiếng hừ giận; 0213 '呵呵' (công chúa đùa cợt) thành 'Hừ hừ' lệch hẳn sắc thái."
+    },
+    {
+      "the": "DINH_DANG",
+      "muc_do": "thap",
+      "he_thong": true,
+      "dem": "ngoặc kép thẳng \" ở 90 file (22 file lẫn cả “ ”); 《》 48 lần/21 file; '......' 561 lần/177 file song song '...'; 19 tiêu đề Viết Hoa Mọi Chữ (0018–0027, 0400…)",
+      "chuong": "0019_7620379161630100504",
+      "dong": 1,
+      "raw": "第19章 有人偷听",
+      "hien_tai": "Chương 19: Có Người Nghe Lén",
+      "de_xuat": "Chương 19: Có người nghe lén",
+      "vi_sao": "Định dạng không chuẩn hoá: dấu ngoặc, dấu ba chấm, ngoặc sách Trung và kiểu viết hoa tiêu đề trôi giữa các lô dịch."
+    }
+  ],
+  "goi_y": [
+    "Bỏ luật bắt buộc 嗯→'Ân': cho model chọn theo ngữ cảnh — rên/ngâm → 'Ưm…', đáp lời → 'Ừm/Ừ', vâng dạ của người dưới → 'Vâng/Dạ'. Thêm checkRule cảnh báo '“Ân' đứng đầu thoại.",
+    "Thêm bước hậu kiểm phiên âm cho glossary tự sinh: tra từng chữ Hán qua bảng Hán Việt chuẩn trước khi ghi (bắt được 储→trừ, 抄→sơ, 辟→bích, 酿→nương); sửa ngay 4 mục: 储秀宫 Trữ Tú Cung, 抄录房 Sao Lục Phòng, 醉仙酿 Túy Tiên Nhưỡng, thêm 储君 trữ quân, 复辟 phục tích vào common.",
+    "Đưa 东海: Đông Hải vào danh sách 'bắt buộc' và thêm checkRule cấm 'Biển Đông' cho truyện cổ đại Trung Quốc.",
+    "Thêm vào prompt luật chống calque cụ thể: 把/将 không dịch 'đem' trừ khi là động từ mang/cầm thật; 自己 trong nội tâm → 'hắn/mình'; danh sách thành ngữ hay dịch sai (油盐不进, 占便宜/捡便宜, 酒池肉林, 招牌笑容, 领盒饭).",
+    "Glossary addressing: hợp nhất khoá 万历皇帝/皇帝 (đang mâu thuẫn 'nô tài' vs 'vi thần'), sửa 赵霜英→赵天龙 'con–đại ca' thành 'muội–đại ca', xoá cặp vô nghĩa 赵霜英→戴安公主 'ngươi–ngươi'; gộp biến thể 建成/李建成, 戴安/戴安公主, 长乐/长乐公主.",
+    "style.avoid nên ghi rõ: tránh từ hiện đại trong lời kể cổ đại (khách sạn→khách điếm, thương hiệu, bác sĩ chỉ dùng khi nói về kiếp trước).",
+    "Chuẩn hoá định dạng ở bước export: ép ngoặc kép cong, '......'→'…', 《》→ in nghiêng hoặc bỏ, tiêu đề chương viết hoa chữ đầu."
+  ],
+  "lam_tot": [
+    "Xưng hô cung đình chuẩn và nhất quán: nô tài/nương nương, bản cung, trẫm–nàng, Ngô mỗ, tạp gia, thần thiếp; Đới An xưng 'bản cung' đúng vai trưởng công chúa.",
+    "Giữ đủ đoạn, khớp dòng 1:1 với raw ở toàn bộ 507 chương, không sót chữ Hán.",
+    "Lóng 老油条 được Việt hoá khéo ('tay lõi đời', 'kẻ già đời'); thành ngữ 土鸡瓦狗 → 'gà đất chó sành' rất tự nhiên.",
+    "Đoạn chiến trận/khai quốc ch506–507 dịch có khí thế, nhịp câu dồn dập đúng giọng văn gốc."
+  ]
+}
