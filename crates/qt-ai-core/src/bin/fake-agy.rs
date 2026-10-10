@@ -6,7 +6,7 @@
 //!   quota    → lần gọi đầu: ghi một hội thoại chết vì hết quota (RESOURCE_EXHAUSTED … Resets in <T>) vào thư mục
 //!              dữ liệu agy ghi trong ./fake-agy-data-dir.txt rồi exit 1; các lần sau chạy như progress.
 //!              <T> lấy từ ./fake-agy-quota-resets.txt, mặc định 1s.
-//! `--version` in "fake-agy 0.0.1"; `models` in hai model.
+//! `--version` in "fake-agy 0.0.1"; `models` in theo format agy 1.3 (dòng Fetching + `id<TAB>nhãn`) lẫn một dòng kiểu cũ.
 use qt_ai_core::story::natural_chapter_compare;
 use qt_ai_core::story_fs::{load_state, now_ms, save_state, story_paths, ChapterState, ChapterStatus};
 use std::path::Path;
@@ -18,7 +18,7 @@ fn main() {
         return;
     }
     if args.first().map(String::as_str) == Some("models") {
-        println!("fake-model\nfake-model-pro\n");
+        println!("Fetching available models...\nfake-model-high\tFake Model (High)\nfake-model-pro\n");
         return;
     }
     let flag = |name: &str| args.iter().position(|a| a == name).and_then(|i| args.get(i + 1)).cloned().unwrap_or_default();

@@ -23,7 +23,7 @@ vi.mock("@/components/pages/export-page", () => ({ ExportPage: () => null }));
 vi.mock("@/components/pages/settings-page", () => ({ SettingsPage: () => null }));
 
 const agyConfig = appConfigSchema.parse({ agyPath: null, model: null, maxSessions: 50, recent: [], engine: "agy" });
-const found = { found: true, path: "/usr/bin/agy", version: "1.2.0", models: ["m"], message: null };
+const found = { found: true, path: "/usr/bin/agy", version: "1.2.0", models: [{ id: "m", label: "m" }], message: null };
 
 describe("App · dò agy lúc khởi động", () => {
   beforeEach(() => {

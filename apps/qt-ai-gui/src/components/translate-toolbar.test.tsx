@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TranslateToolbar } from "@/components/translate-toolbar";
-import { chaptersRetryIds, sessionStop, storySnapshot } from "@/lib/api";
+import { chaptersRetryIds, sessionStart, sessionStop, storySnapshot } from "@/lib/api";
 import { pathKey } from "@/lib/paths";
 import { appConfigSchema } from "@/lib/schema";
 import { useStoryStore } from "@/store/story";
@@ -182,5 +182,45 @@ describe("TranslateToolbar · cảnh báo hổng chương", () => {
     }));
     render(<TranslateToolbar />);
     expect(screen.queryByRole("status", { name: /hổng/i })).not.toBeInTheDocument();
+  });
+});
+
+describe("TranslateToolbar · chọn model agy", () => {
+  const agyConfig = appConfigSchema.parse({ agyPath: null, model: null, maxSessions: 50, recent: [], engine: "agy" });
+  const models = [
+    { id: "gemini-3.8-flash-high", label: "Gemini 3.8 Flash (High)" },
+    { id: "gemini-3.8-flash-low", label: "Gemini 3.8 Flash (Low)" },
+  ];
+  beforeEach(() => {
+    useStoryStore.setState({
+      config: agyConfig,
+      root: ROOT,
+      roots: { [pathKey(ROOT)]: ROOT },
+      sessions: {},
+      snapshot: {
+        root: ROOT,
+        story: { title: "T" },
+        counts: { total: 1, queued: 1, translating: 0, done: 0, error: 0, skipped: 0, withWarnings: 0 },
+        chapters: [{ id: "c1", status: "queued", reviewRound: 0, reason: null, warnings: [] }],
+      } as never,
+      agy: { found: true, path: "agy", version: "1.3.2", models, message: null },
+    });
+    vi.mocked(sessionStart).mockReset().mockResolvedValue({ running: [ROOT] });
+  });
+
+  it("danh sách hiện nhãn, nhưng Dịch gửi id (agy 1.3 liệt kê `id<TAB>nhãn`)", async () => {
+    const user = userEvent.setup();
+    render(<TranslateToolbar />);
+    await user.click(screen.getByRole("combobox", { name: "Model" }));
+    await user.click(await screen.findByRole("option", { name: "Gemini 3.8 Flash (Low)" }));
+    expect(screen.getByRole("combobox", { name: "Model" })).toHaveTextContent("Gemini 3.8 Flash (Low)");
+    await user.click(screen.getByRole("button", { name: "Bắt đầu dịch" }));
+    expect(sessionStart).toHaveBeenCalledWith(ROOT, "gemini-3.8-flash-low");
+  });
+
+  it("model đã lưu không còn trong agy models thì vẫn hiện kèm ghi chú để chọn lại", () => {
+    useStoryStore.setState({ config: { ...agyConfig, model: "gemini-3.8-flash" } });
+    render(<TranslateToolbar />);
+    expect(screen.getByRole("combobox", { name: "Model" })).toHaveTextContent("gemini-3.8-flash (agy không còn model này)");
   });
 });

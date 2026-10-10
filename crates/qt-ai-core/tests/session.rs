@@ -161,5 +161,8 @@ fn find_agy_khong_co_thi_agy_missing_co_configured_thi_dung() {
     let fake = std::path::PathBuf::from(env!("CARGO_BIN_EXE_fake-agy"));
     assert_eq!(qt_ai_core::agy::find_agy(Some(&fake)).unwrap(), fake);
     assert_eq!(qt_ai_core::agy::agy_version(&fake).unwrap(), "fake-agy 0.0.1");
-    assert_eq!(qt_ai_core::agy::agy_models(&fake).unwrap(), vec!["fake-model", "fake-model-pro"]);
+    // agy 1.3: dòng "Fetching available models..." rồi `id<TAB>nhãn`; dòng không có tab (agy cũ) lấy cả dòng làm id.
+    let models = qt_ai_core::agy::agy_models(&fake).unwrap();
+    let pairs: Vec<(&str, &str)> = models.iter().map(|m| (m.id.as_str(), m.label.as_str())).collect();
+    assert_eq!(pairs, vec![("fake-model-high", "Fake Model (High)"), ("fake-model-pro", "fake-model-pro")]);
 }

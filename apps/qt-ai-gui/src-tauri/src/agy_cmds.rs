@@ -1,7 +1,7 @@
 use crate::app_config::AppConfig;
 use crate::error::{blocking, CmdResult};
 use crate::AppState;
-use qt_ai_core::agy::{agy_models, agy_version, find_agy};
+use qt_ai_core::agy::{agy_models, agy_version, find_agy, AgyModel};
 use qt_ai_core::agy_data::{self, CleanReport, DataStats, Scope};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
@@ -13,7 +13,7 @@ pub struct AgyStatus {
     pub found: bool,
     pub path: Option<String>,
     pub version: Option<String>,
-    pub models: Vec<String>,
+    pub models: Vec<AgyModel>,
     pub message: Option<String>,
 }
 

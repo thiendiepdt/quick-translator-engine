@@ -145,7 +145,8 @@ export const agyStatusSchema = z.object({
   found: z.boolean(),
   path: z.string().nullable(),
   version: z.string().nullable(),
-  models: z.array(z.string()),
+  /** `id` đưa vào `--model`; `label` chỉ hiển thị (agy 1.3 liệt kê `id<TAB>nhãn`). */
+  models: z.array(z.object({ id: z.string(), label: z.string() })),
   message: z.string().nullable(),
 });
 

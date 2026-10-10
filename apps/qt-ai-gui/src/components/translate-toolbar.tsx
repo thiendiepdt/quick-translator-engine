@@ -54,6 +54,7 @@ export function TranslateToolbar() {
     select(id);
   }
   const [model, setModel] = useState<string | undefined>(config?.model ?? undefined);
+  const staleModel = !!model && !!agy?.models.length && !agy.models.some((item) => item.id === model);
   const [busy, setBusy] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [retryingGaps, setRetryingGaps] = useState(false);
@@ -151,15 +152,20 @@ export function TranslateToolbar() {
           </Button>
         ) : (
           <Select value={model ?? ""} onValueChange={(value) => setModel(value || undefined)} disabled={running}>
-            <SelectTrigger className="h-9 w-56" aria-label="Model">
+            <SelectTrigger className="h-9 w-56" aria-label="Model" title={staleModel ? `agy hiện không có model "${model}" — chọn lại` : undefined}>
               <SelectValue placeholder="Model mặc định của agy" />
             </SelectTrigger>
             <SelectContent>
               {(agy?.models ?? []).map((item) => (
-                <SelectItem key={item} value={item}>
-                  {item}
+                <SelectItem key={item.id} value={item.id}>
+                  {item.label}
                 </SelectItem>
               ))}
+              {staleModel && model ? (
+                // Model đã chọn/lưu không còn trong `agy models` (agy đổi tên model, vd 1.3 gộp effort vào id):
+                // vẫn hiện để người dùng thấy và chọn lại, thay vì Select trống mà phiên thì lỗi "invalid model selection".
+                <SelectItem value={model}>{model} (agy không còn model này)</SelectItem>
+              ) : null}
             </SelectContent>
           </Select>
         )}

@@ -47,12 +47,30 @@ pub fn agy_version(agy: &Path) -> Result<String> {
     Ok(run_capture(agy, &["--version"])?.lines().next().unwrap_or("").trim().to_string())
 }
 
-/// `agy models` — mỗi dòng không rỗng một model (format output của agy có thể đổi; GUI chỉ hiển thị).
-pub fn agy_models(agy: &Path) -> Result<Vec<String>> {
-    Ok(run_capture(agy, &["models"])?
+/// Một model agy liệt kê: `id` đưa vào `--model`, `label` chỉ để hiển thị.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct AgyModel {
+    pub id: String,
+    pub label: String,
+}
+
+/// `agy models` — agy 1.3 in dòng "Fetching available models..." rồi mỗi model một dòng `id<TAB>nhãn`
+/// (agy cũ in mỗi dòng một id trần). Chỉ lấy id không có khoảng trắng: dòng thông báo bị loại,
+/// phần sau tab không bao giờ lọt vào `--model` (từng gây "model ... is not recognized").
+pub fn agy_models(agy: &Path) -> Result<Vec<AgyModel>> {
+    Ok(parse_models(&run_capture(agy, &["models"])?))
+}
+
+pub fn parse_models(output: &str) -> Vec<AgyModel> {
+    output
         .lines()
-        .map(str::trim)
-        .filter(|line| !line.is_empty())
-        .map(String::from)
-        .collect())
+        .filter_map(|line| {
+            let (id, label) = match line.split_once('\t') {
+                Some((id, label)) => (id.trim(), label.trim()),
+                None => (line.trim(), ""),
+            };
+            let valid = !id.is_empty() && !id.contains(char::is_whitespace) && !id.ends_with("...");
+            valid.then(|| AgyModel { id: id.to_string(), label: if label.is_empty() { id.to_string() } else { label.to_string() } })
+        })
+        .collect()
 }
