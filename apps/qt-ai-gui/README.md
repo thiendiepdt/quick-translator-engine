@@ -144,6 +144,25 @@ Ba bộ màu (Editorial / Studio / Soft) × sáng / tối / theo hệ thống, c
   `Names.txt` / `Names2.txt` cho bản convert QT, mỗi dòng `Hán=Việt` (CRLF, UTF-8 có BOM khi lưu file).
   Mặc định tick hết trừ Cụm từ đặc trưng; Xưng hô theo cặp không export; dòng có dấu `=`, thiếu một
   cột hay trùng Hán bị bỏ vì QT vứt dòng / chỉ giữ dòng đầu.
+- Mỗi dòng glossary có nút **Rà chương cũ**: liệt kê đoạn đã dịch mà raw có khoá nhưng bản dịch chưa
+  dùng cách dịch hiện tại, gõ cụm sai → Xem trước → Thay (chỉ trong các đoạn có khoá ở raw). Nhóm xưng hô
+  ghi kèm cặp đang áp khi bảng nhân vật đã có mốc mới.
+
+## Tìm & thay
+
+Trang **Tìm & thay** trên rail (Ctrl+Shift+F) tìm trong mọi chương đã dịch (`out/`) của truyện đang mở —
+dịch sai một từ trong truyện nghìn chương thì sửa một lần ở đây.
+
+- Tìm theo chữ, không regex. **Nguyên từ** bật sẵn (tìm “ân” không dính “nhân”), **Phân biệt hoa/thường**
+  tắt sẵn. **Chỉ đoạn raw có** lọc theo câu raw cùng vị trí (vd. chỉ thay “người tộc” ở đoạn raw có 人族).
+  Phạm vi chương nhập số thứ tự như trang Export.
+- Kết quả nhóm theo chương: mỗi chỗ hiện câu xung quanh, bản sẽ ra sau khi thay và câu raw của đoạn; bỏ
+  tick từng chỗ hoặc cả chương để giữ nguyên; bấm vào một chỗ mở chương đó ở trang Dịch.
+- **Thay N chỗ** thay mọi chỗ đang chọn (kể cả chỗ chưa hiện chi tiết khi quá 500 chỗ) rồi lưu bản gốc
+  các chương bị sửa vào `work/replace-undo.json`; **Hoàn tác** trả về bản trước lần thay gần nhất, trừ
+  chương đã bị sửa tiếp sau đó. Truyện đang dịch thì không cho thay / hoàn tác.
+- Tìm chạy ở Rust, song song, lọc cả chương bằng tìm chuỗi trước; gõ xong 0,3 giây mới tìm. Truyện
+  1.500 chương: khoảng 120 ms với từ gặp ở mọi chương, 45 ms với từ hiếm.
 
 ## Thể loại
 

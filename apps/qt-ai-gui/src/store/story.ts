@@ -4,7 +4,7 @@ import type { ChapterFilter } from "@/lib/chapters";
 import { pathKey, samePath } from "@/lib/paths";
 import type { AgyStatus, AppConfig, Progress, SessionEvent, StopReason, StorySnapshot } from "@/lib/types";
 
-export type Page = "translate" | "story" | "export" | "settings";
+export type Page = "translate" | "story" | "replace" | "export" | "settings";
 
 export type SessionState =
   | { status: "idle" }

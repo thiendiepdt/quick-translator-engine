@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { AgyMissing } from "@/components/agy-missing";
 import { AppRail } from "@/components/app-rail";
 import { ExportPage } from "@/components/pages/export-page";
+import { ReplacePage } from "@/components/pages/replace-page";
 import { SettingsPage } from "@/components/pages/settings-page";
 import { StoryPage } from "@/components/pages/story-page";
 import { TranslatePage } from "@/components/pages/translate-page";
@@ -20,6 +21,7 @@ import { useStoryStore, type Page } from "@/store/story";
 const PAGES: Record<Page, ComponentType> = {
   translate: TranslatePage,
   story: StoryPage,
+  replace: ReplacePage,
   export: ExportPage,
   settings: SettingsPage,
 };

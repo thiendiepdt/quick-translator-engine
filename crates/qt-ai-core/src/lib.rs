@@ -11,6 +11,7 @@ pub mod story_fs;
 pub mod templates;
 pub mod titles;
 pub mod backfill;
+pub mod replace;
 pub mod commands;
 pub mod agy;
 pub mod agy_data;

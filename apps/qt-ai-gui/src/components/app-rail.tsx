@@ -1,5 +1,5 @@
-import { ArrowLeft, BookUser, Download, Languages, LibraryBig, Moon, Settings2, Sun } from "lucide-react";
-import type { ReactNode } from "react";
+import { ArrowLeft, BookUser, Download, Languages, LibraryBig, Moon, Replace, Settings2, Sun } from "lucide-react";
+import { useEffect, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -10,6 +10,7 @@ import { useStoryStore, type Page } from "@/store/story";
 const ITEMS: Array<{ page: Page; label: string; icon: typeof Languages }> = [
   { page: "translate", label: "Dịch", icon: Languages },
   { page: "story", label: "Hồ sơ truyện", icon: BookUser },
+  { page: "replace", label: "Tìm & thay (Ctrl+Shift+F)", icon: Replace },
   { page: "export", label: "Export", icon: Download },
   { page: "settings", label: "Cài đặt", icon: Settings2 },
 ];
@@ -55,6 +56,19 @@ export function AppRail() {
   const setPage = useStoryStore((s) => s.setPage);
   const closeStory = useStoryStore((s) => s.closeStory);
   const { mode, toggleMode } = useThemeActions();
+
+  // Ctrl+Shift+F mở trang Tìm & thay như ô tìm trong cả dự án của các trình soạn thảo.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === "f") {
+        event.preventDefault();
+        setPage("replace");
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [setPage]);
+
   return (
     <nav className="flex h-full w-14 shrink-0 flex-col items-center gap-1 border-r bg-card py-3">
       <div

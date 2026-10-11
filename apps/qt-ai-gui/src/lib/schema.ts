@@ -104,6 +104,28 @@ export const glossaryBackfillSchema = z.object({
   occurrences: z.number(),
   skipped: z.number(),
 });
+/** Trang Tìm & thay: kết quả tìm trong bản dịch đã chốt. */
+export const replaceFindSchema = z.object({
+  total: z.number(),
+  chapters: z.array(z.object({ chapter: z.string(), count: z.number() })),
+  hits: z.array(
+    z.object({
+      chapter: z.string(),
+      paragraph: z.number(),
+      occurrence: z.number(),
+      before: z.string(),
+      matched: z.string(),
+      after: z.string(),
+      raw: z.string().nullable(),
+    }),
+  ),
+  skipped: z.number(),
+});
+export const replaceOutcomeSchema = z.object({ chapters: z.number(), occurrences: z.number() });
+export const replaceUndoInfoSchema = z
+  .object({ find: z.string(), replace: z.string(), chapters: z.number(), occurrences: z.number(), createdAt: z.number() })
+  .nullable();
+export const replaceUndoOutcomeSchema = z.object({ restored: z.number(), conflicts: z.array(z.string()) });
 export const scanCastViewSchema = z.object({
   asked: z.number(),
   filled: z.number(),

@@ -19,6 +19,10 @@ import {
   retryRangeOutcomeSchema,
   scanCastViewSchema,
   glossaryUsageSchema,
+  replaceFindSchema,
+  replaceOutcomeSchema,
+  replaceUndoInfoSchema,
+  replaceUndoOutcomeSchema,
   glossaryBackfillSchema,
   deleteOutcomeSchema,
   sessionStatusSchema,
@@ -98,6 +102,29 @@ export const glossaryScan = (root: string, key: string, target: string) =>
 /** Thay `from` → `to` trong các đoạn có `key` ở raw; `apply = false` chỉ đếm để xem trước. */
 export const glossaryBackfill = (root: string, key: string, from: string, to: string, apply: boolean) =>
   call("glossary_backfill", { root, key, from, to, apply }, (v) => glossaryBackfillSchema.parse(v));
+/** Truy vấn Tìm & thay (không regex). `from`/`to`: phạm vi id chương, null = không giới hạn. */
+export interface ReplaceQuery {
+  find: string;
+  replace: string;
+  caseSensitive: boolean;
+  wholeWord: boolean;
+  rawFilter: string;
+  from: string | null;
+  to: string | null;
+}
+export interface ReplaceHitRef {
+  chapter: string;
+  paragraph: number;
+  occurrence: number;
+}
+/** Tìm trong bản dịch đã chốt: tổng + số theo chương (đủ) + 500 chỗ đầu kèm ngữ cảnh. */
+export const replaceFind = (root: string, query: ReplaceQuery) =>
+  call("replace_find", { root, query }, (v) => replaceFindSchema.parse(v));
+/** Thay mọi chỗ khớp trừ chương / chỗ bỏ chọn; lưu bản gốc để hoàn tác. */
+export const replaceApply = (root: string, query: ReplaceQuery, excludedChapters: string[], excludedHits: ReplaceHitRef[]) =>
+  call("replace_apply", { root, query, excludedChapters, excludedHits }, (v) => replaceOutcomeSchema.parse(v));
+export const replaceUndoInfo = (root: string) => call("replace_undo_info", { root }, (v) => replaceUndoInfoSchema.parse(v));
+export const replaceUndo = (root: string) => call("replace_undo", { root }, (v) => replaceUndoOutcomeSchema.parse(v));
 export const saveSettings = (root: string, settings: HarnessSettings) =>
   call("save_settings", { root, settings }, (v) => harnessSettingsSchema.parse(v));
 export const chapterRetry = (root: string, id: string) => call("chapter_retry", { root, id }, noop);
