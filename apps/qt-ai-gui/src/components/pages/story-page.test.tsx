@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -165,6 +165,27 @@ describe("StoryPage", () => {
     render(<StoryPage />);
     await user.click(screen.getByRole("tab", { name: "Glossary" }));
     expect(await screen.findByText("Đang dùng: em–anh (từ ch.150, mốc trong bảng nhân vật)")).toBeInTheDocument();
+  });
+
+  it("AI điền: chuyển sang truyện khác thì không còn kết quả của truyện trước để Áp dụng nhầm", async () => {
+    const user = userEvent.setup();
+    const { aiFillStory, saveStory } = await import("@/lib/api");
+    const after = { ...snapshot.story, protagonist: "Chu Thạch", summary: "Tóm tắt truyện A." };
+    vi.mocked(aiFillStory).mockResolvedValue({ before: snapshot.story, after, exitCode: 0, log: [] });
+    vi.mocked(saveStory).mockClear();
+    render(<StoryPage />);
+    await user.click(screen.getByRole("button", { name: /AI điền từ tên \+ link/ }));
+    await user.click(screen.getByRole("button", { name: /Chạy AI điền/ }));
+    expect(await screen.findByRole("button", { name: "Áp dụng" })).toBeEnabled();
+
+    const other = { ...snapshot, root: "D:\\khac", story: { ...snapshot.story, name: "Truyện B" } };
+    act(() => useStoryStore.setState({ root: other.root, snapshot: other }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "AI điền hồ sơ truyện" })).not.toBeInTheDocument());
+    expect(saveStory).not.toHaveBeenCalled();
+    // Mở lại ở truyện B: hộp thoại mới, không mang kết quả của truyện A.
+    await user.click(screen.getByRole("button", { name: /AI điền từ tên \+ link/ }));
+    expect(screen.getByLabelText("Tên truyện tiếng Việt")).toHaveValue("Truyện B");
+    expect(screen.getByRole("button", { name: "Áp dụng" })).toBeDisabled();
   });
 
   it("tab Glossary có nút Export Names.txt… mở dialog với glossary đang hiển thị (kể cả sửa chưa lưu)", async () => {

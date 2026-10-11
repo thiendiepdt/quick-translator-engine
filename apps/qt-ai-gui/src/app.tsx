@@ -30,6 +30,7 @@ export default function App() {
   const agy = useStoryStore((s) => s.agy);
   const screen = useStoryStore((s) => s.screen);
   const page = useStoryStore((s) => s.page);
+  const root = useStoryStore((s) => s.root);
   const setAgy = useStoryStore((s) => s.setAgy);
   const setConfig = useStoryStore((s) => s.setConfig);
   const setPage = useStoryStore((s) => s.setPage);
@@ -120,7 +121,8 @@ export default function App() {
     <div className="flex h-full">
       <AppRail />
       <main className="min-w-0 flex-1 overflow-hidden">
-        <Current />
+        {/* Dựng lại trang khi đổi truyện: kết quả tìm, hộp thoại, form của truyện trước không được áp sang truyện mới. */}
+        <Current key={root} />
       </main>
       <StorySidebar />
     </div>

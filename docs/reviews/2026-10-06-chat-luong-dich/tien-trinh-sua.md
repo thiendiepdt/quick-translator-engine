@@ -43,7 +43,8 @@ Quy ước chung:
 | 28 | 人族 → "người tộc", 空前绝后 → "không tiền khoáng hậu": prompt, check, sửa 6 chỗ cũ | ngoài lộ trình | Xong |
 | 29 | Trang Tìm & thay trong bản dịch đã chốt (Ctrl+Shift+F), hoàn tác lần thay gần nhất | ngoài lộ trình | Xong |
 | 30 | Hiện đại / hỗn hợp → tên riêng hỗn hợp (dựng truyện, GUI, 4 truyện cũ) | ngoài lộ trình | Xong |
-| 31 | Tham khảo HauTu.txt của QT: thêm chức danh nhận ra nhân vật, chức danh hành chính hiện đại trong prompt | ngoài lộ trình | Xong, chưa commit |
+| 31 | Tham khảo HauTu.txt của QT: thêm chức danh nhận ra nhân vật, chức danh hành chính hiện đại trong prompt | ngoài lộ trình | Xong |
+| 32 | Lỗi: kết quả AI điền hồ sơ bị Áp dụng vào truyện khác sau khi chuyển truyện | ngoài lộ trình | Xong, chưa commit |
 
 ---
 
@@ -555,6 +556,20 @@ Tổng 3.455 dòng / 2.638 file. Bỏ qua 6 file số đoạn raw ≠ bản dị
 - Prompt bảng thuật ngữ đô thị (hiện đại, hỗn hợp): 县长 / 乡长 / 省长 / 镇长 → chủ tịch huyện / xã / tỉnh / thị trấn; 处长 / 科长 → trưởng phòng (科长 ở bệnh viện, trường học → trưởng khoa); 厅长 → giám đốc sở; 副 + chức danh → phó X hoặc dạng quen (đội phó, cục phó, lớp phó, phó viện trưởng). Base cổ đại không đổi (hash giữ nguyên).
 
 **Kiểm.** Test `nhan_ra_nhan_vat_goi_bang_ho_va_chuc_danh_co_trang` (林掌门, 宋少侠). Golden khớp; qt-web 291, core 217 xanh, clippy không cảnh báo mới.
+
+## 32. Lỗi: kết quả "AI điền hồ sơ" của truyện này bị Áp dụng vào truyện khác (ngoài lộ trình)
+
+**Hiện tượng.** Sau khi reset, thư viện hiện hai truyện cùng tên "Livestream Giả Gái…" (một ở thư mục `lao-ba-qua-manh…`). story.json của Lão Bà bị ghi lúc 03:30 12/10 bằng hồ sơ AI điền của Livestream (tóm tắt Chu Thạch, link fanqie và 9 tên của Livestream; không tên nào có trong raw Lão Bà); Livestream thì không nhận được hồ sơ đó. Chưa chương nào bị dịch với hồ sơ sai (638 chương đều queued).
+
+**Nguyên nhân.** Hộp thoại AI điền luôn được dựng trong trang Hồ sơ truyện; ô tên, link và kết quả lần chạy trước là state khởi tạo một lần nên còn nguyên khi chuyển truyện. Bấm Áp dụng ghi vào truyện đang mở (`currentRoot`), không phải truyện đã chạy AI. Trang Tìm & thay cùng loại rủi ro: ~0,3 giây trước khi tìm lại vẫn hiện kết quả truyện cũ.
+
+**Sửa.**
+
+- `story-page.tsx`: nhớ truyện đã mở hộp thoại (`fillRoot`); đổi truyện thì đóng hẳn; chỉ dựng hộp thoại khi mở, `key` theo truyện — mở lại ở truyện mới là hộp thoại mới, không mang kết quả cũ.
+- `app.tsx`: trang hiện tại dựng lại khi đổi truyện (`key={root}`) — kết quả tìm, hộp thoại, state cục bộ của truyện trước không sang truyện mới.
+- Dữ liệu: khôi phục story.json Lão Bà từ `story.json.bak` (bản ngay trước lần lưu nhầm — hồ sơ sau reset: tên + link, hiện đại / hỗn hợp, glossary trống); bản bị ghi nhầm giữ ở `story.json.ghi-nham-tu-livestream-20261012.bak`.
+
+**Kiểm.** Test story-page: chạy AI điền ở truyện A, chuyển sang B → hộp thoại đóng, không gọi lưu; mở lại ở B thì tên là của B và Áp dụng bị khoá. GUI 250 xanh, typecheck và lint sạch.
 
 ---
 

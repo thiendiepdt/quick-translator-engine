@@ -90,7 +90,8 @@ export function StoryPage() {
     [genreSetting, genreNames, genreTone],
   );
   const defaults = useStoryDefaults(genre);
-  const [fillOpen, setFillOpen] = useState(false);
+  // Truyện đang mở hộp thoại AI điền; đổi truyện thì đóng hẳn (xem chỗ render hộp thoại).
+  const [fillRoot, setFillRoot] = useState<string>();
   const [exportOpen, setExportOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   // Tăng sau mỗi lần reset để CastPanel dựng lại và đọc cast.json mới từ đĩa.
@@ -115,6 +116,7 @@ export function StoryPage() {
     if (story) form.reset(toFormValues(story));
   }, [story, form]);
 
+  if (fillRoot !== undefined && fillRoot !== root) setFillRoot(undefined);
   if (!root || !story) return null;
   const currentRoot = root;
   const currentStory = story;
@@ -303,7 +305,7 @@ export function StoryPage() {
                   variant="secondary"
                   className="w-fit"
                   disabled={running}
-                  onClick={() => setFillOpen(true)}
+                  onClick={() => setFillRoot(currentRoot)}
                 >
                   <Sparkles /> AI điền từ tên + link
                 </Button>
@@ -410,19 +412,26 @@ export function StoryPage() {
           onOpenChange={setResetOpen}
           onReset={() => setCastEpoch((epoch) => epoch + 1)}
         />
-        <AiFillDialog
-          root={currentRoot}
-          initialName={form.getValues("name")}
-          initialUrl={form.getValues("sourceUrl")}
-          open={fillOpen}
-          onOpenChange={setFillOpen}
-          onApply={(after) => {
-            setFillOpen(false);
-            void persist(after)
-              .then(() => form.reset(toFormValues(after)))
-              .catch((e: unknown) => toast.error(e instanceof Error ? e.message : "Không lưu được"));
-          }}
-        />
+        {/* Chỉ dựng khi mở và gắn theo truyện: đổi truyện thì hộp thoại cũ (tên, link, kết quả AI của truyện trước) bị
+            huỷ — từng có kết quả AI điền của truyện này bị Áp dụng vào truyện khác sau khi chuyển truyện. */}
+        {fillRoot === currentRoot && (
+          <AiFillDialog
+            key={currentRoot}
+            root={currentRoot}
+            initialName={form.getValues("name")}
+            initialUrl={form.getValues("sourceUrl")}
+            open
+            onOpenChange={(open) => {
+              if (!open) setFillRoot(undefined);
+            }}
+            onApply={(after) => {
+              setFillRoot(undefined);
+              void persist(after)
+                .then(() => form.reset(toFormValues(after)))
+                .catch((e: unknown) => toast.error(e instanceof Error ? e.message : "Không lưu được"));
+            }}
+          />
+        )}
       </form>
     </FormProvider>
   );
