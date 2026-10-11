@@ -155,6 +155,15 @@ fn present_characters_theo_ten_ten_bo_ho_va_ho_kem_chuc_danh() {
 }
 
 #[test]
+fn nhan_ra_nhan_vat_goi_bang_ho_va_chuc_danh_co_trang() {
+    let names = map(&[("林衍", "Lâm Diễn"), ("宋青书", "Tống Thanh Thư")]);
+    let cast = cast_with(&[("林衍", Gender::Male), ("宋青书", Gender::Male)]);
+    let got = present_characters(&names, &cast, "林掌门笑道：“宋少侠请。”");
+    let listed: Vec<&str> = got.iter().map(|c| c.source.as_str()).collect();
+    assert_eq!(listed, vec!["林衍", "宋青书"]);
+}
+
+#[test]
 fn chapter_prompt_khong_cast_khong_tu_dien_thi_chi_them_luat_xung_ho_truoc_suffix() {
     let story = story("modern", &[], &[]);
     let source = "许浪醒了。";

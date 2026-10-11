@@ -41,8 +41,9 @@ Quy ước chung:
 | 26 | Rà ngược chương cũ theo mục glossary; đánh dấu cặp xưng hô đã có mốc | P2 | Xong |
 | 27 | 招揽 → "chiêu lãm": dòng bảng convert, bắt soát, sửa 2 chỗ cũ | ngoài lộ trình | Xong, chưa commit |
 | 28 | 人族 → "người tộc", 空前绝后 → "không tiền khoáng hậu": prompt, check, sửa 6 chỗ cũ | ngoài lộ trình | Xong |
-| 29 | Trang Tìm & thay trong bản dịch đã chốt (Ctrl+Shift+F), hoàn tác lần thay gần nhất | ngoài lộ trình | Xong, chưa commit |
-| 30 | Hiện đại / hỗn hợp → tên riêng hỗn hợp (dựng truyện, GUI, 4 truyện cũ) | ngoài lộ trình | Xong, chưa commit |
+| 29 | Trang Tìm & thay trong bản dịch đã chốt (Ctrl+Shift+F), hoàn tác lần thay gần nhất | ngoài lộ trình | Xong |
+| 30 | Hiện đại / hỗn hợp → tên riêng hỗn hợp (dựng truyện, GUI, 4 truyện cũ) | ngoài lộ trình | Xong |
+| 31 | Tham khảo HauTu.txt của QT: thêm chức danh nhận ra nhân vật, chức danh hành chính hiện đại trong prompt | ngoài lộ trình | Xong, chưa commit |
 
 ---
 
@@ -539,6 +540,21 @@ Tổng 3.455 dòng / 2.638 file. Bỏ qua 6 file số đoạn raw ≠ bản dị
 - Dữ liệu: `genre.names` han → mixed cho Giải trí ta đàn nhạc cũng là chủ xướng (hiện đại), Sư muội ta nhìn thế nào…, Xuyên nhanh pháo hôi…, Xuyên nhanh tuyệt sắc… (hỗn hợp). Sao lưu `story.json.truoc-ten-hon-hop-20261012.bak`; mỗi file chỉ đổi đúng một dòng.
 
 **Kiểm.** Test `api_fill`: modern+han / mixed thiếu names → mixed, modern+foreign giữ, ancient+han giữ. GUI: đổi bối cảnh → Tên riêng Hỗn hợp, đổi tay về Hán-Việt rồi về Cổ đại giữ Hán-Việt. GUI 249 xanh, clippy không cảnh báo mới.
+
+## 31. Tham khảo bảng hậu tố của QuickTranslator (`QT2025/Resources/HauTu.txt`) (ngoài lộ trình)
+
+**Đánh giá.** File là bảng ~380 hậu tố danh xưng (chức danh, quan hệ sau tên) QT dùng để ghép "张先生" → "Trương tiên sinh". Cách dịch trong file là văn convert, có chỗ sai (老师 lão sư, 同学 đồng học, 教练 giáo luyện, 妈妈 mụ mụ, 博士 bác sĩ, 厅长 giám đốc) và dòng rác riêng một truyện (琳阿姨, 淋小姐, 临字秘) — không lấy. Đáng lấy là **danh sách hậu tố**:
+
+1. Chặn danh xưng làm tên riêng trong glossary (mục 21): thêm hậu tố một chữ thì bắt nhầm tên thật (叶二娘, 鸣卿, 王母, 岳老三); chỉ hậu tố nhiều chữ thì bắt thêm ~200 mục. **Chủ app không chọn.**
+2. Nhận ra nhân vật được gọi bằng họ + chức danh (`NEUTRAL_TITLES`, 30 mục gần như toàn hiện đại). **Làm.**
+3. Chức danh hành chính hiện đại trong prompt — đo trên truyện hiện đại / hỗn hợp: model đã đúng phần lớn (班长 → lớp trưởng 431, 博士 → tiến sĩ 221, 市长 → thị trưởng 45) nhưng 科长 → "khoa trưởng" 156 (trưởng phòng 45), 处长 → "xử trưởng" 12, 县长 → "huyện trưởng" 14, 镇长 → "trấn trưởng", 厅长 → "sảnh trưởng". **Làm.**
+
+**Thay đổi.**
+
+- `cast.rs` `NEUTRAL_TITLES` thêm 50 chức danh không mang giới từ HauTu (掌门, 宗主, 帮主, 堂主, 盟主, 教主, 城主, 庄主, 阁主, 殿主, 门主, 寨主, 舵主, 坛主, 道友, 道长, 真人, 大侠, 少侠, 大师, 将军, 军师, 统领, 护法, 总管, 管事, 首领, 村长, 镇长, 县令, 知县, 知府, 书记, 会长, 团长, 营长, 所长, 处长, 科长, 厂长, 部长, 市长, 县长, 省长, 司令, 教官, 总裁, 董事长, 站长, 馆长): raw gọi "林掌门", "宋少侠" thì nhân vật 林X / 宋X đã rõ giới vào danh sách nhân vật có mặt trong prompt; check gọi sai giới theo họ + chức danh cũng áp cho các chức danh này. Không thêm chức danh mang giới (公子, 小姐, 夫人, 公公, 嬷嬷, 王爷, 贵妃).
+- Prompt bảng thuật ngữ đô thị (hiện đại, hỗn hợp): 县长 / 乡长 / 省长 / 镇长 → chủ tịch huyện / xã / tỉnh / thị trấn; 处长 / 科长 → trưởng phòng (科长 ở bệnh viện, trường học → trưởng khoa); 厅长 → giám đốc sở; 副 + chức danh → phó X hoặc dạng quen (đội phó, cục phó, lớp phó, phó viện trưởng). Base cổ đại không đổi (hash giữ nguyên).
+
+**Kiểm.** Test `nhan_ra_nhan_vat_goi_bang_ho_va_chuc_danh_co_trang` (林掌门, 宋少侠). Golden khớp; qt-web 291, core 217 xanh, clippy không cảnh báo mới.
 
 ---
 
