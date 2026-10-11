@@ -11,7 +11,7 @@ import type { GenreNames, GenreSetting, GenreTone, StoryGenre } from "@/lib/ai-s
 // bỏ luật 嗯 → "Ân", bảng Thán từ & tiếng cười, luật 自己 bỏ ví dụ "bản thân hắn", mục Vai vế trong thoại,
 // 老X viết thường, bỏ dòng ép "kiểm trắc", mục Số và đơn vị
 // — docs/reviews/2026-10-06-chat-luong-dich/tien-trinh-sua.md).
-export const LEGACY_BASE_PROMPT_FNV1A64 = "87000a09c6d24bfa";
+export const LEGACY_BASE_PROMPT_FNV1A64 = "533b87dfe4e7d3c0";
 
 const CORE_HEAD: string[] = [
   "Bạn là dịch giả tiểu thuyết Trung Quốc sang tiếng Việt. Nhiệm vụ của bạn là chuyển ngữ trung thành, không phải sáng tác lại hay biên tập nâng giọng.",
@@ -156,6 +156,9 @@ const CORE_TERMS: string[] = [
   "| 总不能 / 总不可能 | đâu thể / chẳng lẽ | tổng không thể |",
   "| 而 đầu câu | bỏ, hoặc `Còn` khi chuyển sang chủ thể khác | Mà… |",
   "| 流量爆炸 | lượt xem bùng nổ | bùng nổ lưu lượng |",
+  "| 招揽 | chiêu mộ / chiêu nạp (người về làm việc), lôi kéo (về phe), kéo khách / mời chào (buôn bán) | chiêu lãm |",
+  "| 人族 | Nhân tộc | Người tộc |",
+  "| 空前绝后 / 前无古人后无来者 | vô tiền khoáng hậu | không tiền khoáng hậu |",
   "",
   "**Phép thử bắt buộc:** Che câu raw đi và đọc riêng câu Việt. Nếu người Việt hiểu được nhưng gần như không ai diễn đạt như vậy, câu đó vẫn chưa dịch xong; viết lại toàn câu từ phần nghĩa đã hiểu, không vá từng từ.",
   "",

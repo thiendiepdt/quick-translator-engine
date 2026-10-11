@@ -38,7 +38,9 @@ Quy ước chung:
 | 24 | Chương lời tác giả: nhận diện, chặn glossary, ngưỡng trên độ dài, câu prompt | P1 | Bỏ — quá ít ca |
 | P2-1 | Soát nghĩa có chọn lọc | P2 | Bỏ — tốn token/quota, dấu hiệu bắt rộng |
 | 25 | Sửa "Ân" trong bản dịch cũ | P2 | Xong (dữ liệu, 3.455 dòng) |
-| 26 | Rà ngược chương cũ theo mục glossary; đánh dấu cặp xưng hô đã có mốc | P2 | Xong, chưa commit |
+| 26 | Rà ngược chương cũ theo mục glossary; đánh dấu cặp xưng hô đã có mốc | P2 | Xong |
+| 27 | 招揽 → "chiêu lãm": dòng bảng convert, bắt soát, sửa 2 chỗ cũ | ngoài lộ trình | Xong, chưa commit |
+| 28 | 人族 → "người tộc", 空前绝后 → "không tiền khoáng hậu": prompt, check, sửa 6 chỗ cũ | ngoài lộ trình | Xong, chưa commit |
 
 ---
 
@@ -477,6 +479,36 @@ Tổng 3.455 dòng / 2.638 file. Bỏ qua 6 file số đoạn raw ≠ bản dị
 - GUI nhóm xưng hô: cặp đã có mốc trong bảng nhân vật mà khác giá trị glossary thì ghi "Đang dùng: em–anh (từ ch.150, mốc trong bảng nhân vật)". Trang truyện nạp cast.json (nạp lại sau reset); `lib/cast-addressing.ts`: `chapterLabel`, `latestAddressing`.
 
 **Kiểm.** Core `tests/backfill.rs` (quét, chương lệch đoạn, xem trước không ghi, chỉ thay đoạn có khoá + giữ CRLF, không thay chồng + chạy lại không đổi); Tauri: test lệnh + test "lệnh nặng phải async" thêm 2 lệnh mới (crate Tauri chỉ kiểm được bằng clippy trên máy này — test binary lỗi STATUS_ENTRYPOINT_NOT_FOUND như trước); GUI: test hộp thoại (rà → xem trước → thay) và nhãn "Đang dùng", test lib. Thử trên dữ liệu thật (bắt đầu hộ tống): 陆云停 → 4 đoạn thiếu "Lục Vân Đình", đều viết "Lục Đình Vân". Core 210 xanh (+1 test chập chờn cũ), GUI 244, clippy không cảnh báo mới.
+
+## 27. 招揽 → "chiêu lãm" (ngoài lộ trình)
+
+**Vấn đề.** Chủ app báo "chiêu lãm" — âm Hán-Việt của 招揽, tiếng Việt không dùng. Quét thư viện (đã chuẩn hoá Unicode): 2 chỗ thật ở Bắt đầu hộ tống ch.0285; 2 chỗ "chiêu Lãm Tước Vĩ" ở Thâu hương cao thủ là tên chiêu Thái Cực Quyền (揽雀尾), đúng. Trường sinh là mèo trong thư viện này không có chữ nào.
+
+**Quyết định (chủ app chốt 11/10/2026).** Thêm vào bảng convert, bắt soát, sửa tay 2 chỗ cũ.
+
+**Thay đổi.**
+
+- Prompt, bảng "Dấu hiệu câu vẫn còn là convert": `招揽 | chiêu mộ / chiêu nạp (người về làm việc), lôi kéo (về phe), kéo khách / mời chào (buôn bán) | chiêu lãm`. Hash base mới `eec36fac8b773f8d`.
+- Luật check bắt soát (TS `CHECK_RULES`, Rust `DEFAULT_RULES`, mọi bối cảnh): `[Cc]hiêu lãm` với "lãm" viết thường — "Lãm" viết hoa là tên chiêu, không bị bắt. Golden: thêm dòng mẫu có cả hai.
+- Dữ liệu: Bắt đầu hộ tống ch.0285 — "thử chiêu lãm hắn tới Đông Cung" → "thử lôi kéo hắn về Đông Cung"; "thật sự có thể chiêu lãm được sao" → "thật sự có thể lôi kéo được sao".
+
+**Kiểm.** Golden: dòng mẫu chỉ bị bắt một lần (Chiêu lãm), tên chiêu không bị bắt. qt-web 291, qt-ai-cli 43, core 210 xanh (+1 test chập chờn cũ).
+
+## 28. 人族 → "người tộc", 空前绝后 → "không tiền khoáng hậu" (ngoài lộ trình)
+
+**Vấn đề.** Người dùng khác báo: 人族 có lúc dịch "người tộc" (phải là Nhân tộc); thành ngữ 空前绝后 ra "không tiền khoáng hậu" (phải là "vô tiền khoáng hậu" — ghép nhầm âm 空 "không"). Ghi chú: thư viện chủ app chỉ dùng `books/common`; `fanqie`, `qidian`, `sfacg` không còn dùng, không đụng.
+
+**Đo trên `common`.** "người tộc" 47 chỗ nhưng chỉ ~10 chỗ raw cùng đoạn có 人族; còn lại đúng (哈萨克族人 → "người tộc Cáp Tát Khắc", 我族之人 → "người tộc ta"). "Nhân tộc" đúng 2.995 chỗ. "không tiền khoáng hậu" 0 chỗ ("vô tiền khoáng hậu" 12 chỗ, đúng).
+
+**Quyết định (chủ app chốt 11/10/2026).** Thêm vào prompt, check; sửa chỗ cũ.
+
+**Thay đổi.**
+
+- Prompt, bảng convert: `人族 | Nhân tộc | Người tộc`; `空前绝后 / 前无古人后无来者 | vô tiền khoáng hậu | không tiền khoáng hậu`. Hash base mới `533b87dfe4e7d3c0`.
+- Check: "không tiền khoáng hậu" bắt soát (luật thường, mọi bối cảnh). "người tộc" là bẫy đồng âm theo cặp đoạn (mục 18): raw có 人族 đứng riêng — không sau 巨/鱼/矮/兽/半/蛇/狼/羽/魔/亚 (海巨人族 → "bốn người tộc Hải Cự Nhân" là đúng, "trên người tộc lão…" thì "người" là thân thể) — mà bản dịch có "người tộc" → bắt soát. Golden: thêm ca 人族 (bắt), 我族之人 và 海巨人族 (không bắt), dòng mẫu có cả "không tiền khoáng hậu" và "vô tiền khoáng hậu".
+- Dữ liệu: 6 chỗ "người tộc" → "nhân tộc" (giữ hoa/thường) ở 4 file (Bài poker ch.48, Mỗi ngày một môn thần thông ch.919, 924, Tiên tử lại xu long ch.549). Lần chạy thử đầu dùng luật lỏng bắt nhầm 4 chỗ tộc Hải Cự Nhân ở Hợp hoan tông → siết luật trước khi ghi. Sao lưu ngoài repo (scratchpad `q28_backup/`).
+
+**Kiểm.** Golden khớp; qt-web 291, qt-ai-cli 43, core 210 xanh (+1 test chập chờn cũ). Chạy lại script sửa dữ liệu không còn gì để sửa.
 
 ---
 

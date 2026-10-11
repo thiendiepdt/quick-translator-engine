@@ -85,6 +85,16 @@
         "message": "检测 → phát hiện / quét thấy / kiểm tra, không dùng kiểm trắc"
       },
       {
+        "pattern": "(?<!\\p{L})[Cc]hiêu lãm(?!\\p{L})",
+        "flags": "u",
+        "message": "招揽 → chiêu mộ / lôi kéo / kéo khách theo cảnh, không dùng chiêu lãm"
+      },
+      {
+        "pattern": "không tiền khoáng hậu",
+        "flags": "iu",
+        "message": "空前绝后 → vô tiền khoáng hậu, không dùng không tiền khoáng hậu"
+      },
+      {
         "pattern": "(?<!\\p{L})liếm chó(?!\\p{L})",
         "flags": "iu",
         "message": "舔狗 → liếm cẩu, không dùng liếm chó"
@@ -345,6 +355,16 @@
         "message": "检测 → phát hiện / quét thấy / kiểm tra, không dùng kiểm trắc"
       },
       {
+        "pattern": "(?<!\\p{L})[Cc]hiêu lãm(?!\\p{L})",
+        "flags": "u",
+        "message": "招揽 → chiêu mộ / lôi kéo / kéo khách theo cảnh, không dùng chiêu lãm"
+      },
+      {
+        "pattern": "không tiền khoáng hậu",
+        "flags": "iu",
+        "message": "空前绝后 → vô tiền khoáng hậu, không dùng không tiền khoáng hậu"
+      },
+      {
         "pattern": "(?<!\\p{L})liếm chó(?!\\p{L})",
         "flags": "iu",
         "message": "舔狗 → liếm cẩu, không dùng liếm chó"
@@ -601,6 +621,16 @@
         "pattern": "(?<!\\p{L})kiểm trắc(?!\\p{L})",
         "flags": "iu",
         "message": "检测 → phát hiện / quét thấy / kiểm tra, không dùng kiểm trắc"
+      },
+      {
+        "pattern": "(?<!\\p{L})[Cc]hiêu lãm(?!\\p{L})",
+        "flags": "u",
+        "message": "招揽 → chiêu mộ / lôi kéo / kéo khách theo cảnh, không dùng chiêu lãm"
+      },
+      {
+        "pattern": "không tiền khoáng hậu",
+        "flags": "iu",
+        "message": "空前绝后 → vô tiền khoáng hậu, không dùng không tiền khoáng hậu"
       },
       {
         "pattern": "(?<!\\p{L})liếm chó(?!\\p{L})",
@@ -997,6 +1027,16 @@
       "advisory": false
     },
     {
+      "raw": "(?<![巨鱼矮兽半蛇狼羽魔亚])人族",
+      "rawFlags": "u",
+      "unless": null,
+      "unlessFlags": null,
+      "out": "(?<!\\p{L})người tộc(?!\\p{L})",
+      "outFlags": "iu",
+      "message": "人族 → Nhân tộc, không dịch người tộc",
+      "advisory": false
+    },
+    {
       "raw": "呵",
       "rawFlags": "u",
       "unless": "哼|呵斥",
@@ -1017,7 +1057,8 @@
         "给我一个交代。",
         "我一个头两个大。",
         "拳力惊人。",
-        "别藏着掖着。"
+        "别藏着掖着。",
+        "人族与妖族开战。"
       ],
       "translated": [
         "Hắn chém đứt đầu lâu kẻ địch.",
@@ -1027,7 +1068,8 @@
         "Cho ta một lời ăn tiếng nói.",
         "Ta một đầu hai thứ tóc.",
         "Quyền lực kinh người.",
-        "Đừng giấu đầu lòi đuôi."
+        "Đừng giấu đầu lòi đuôi.",
+        "Người tộc và Yêu tộc khai chiến."
       ],
       "issues": [
         {
@@ -1069,6 +1111,11 @@
           "paragraph": 7,
           "message": "藏着掖着 → giấu giấu giếm giếm, không giấu đầu lòi đuôi",
           "advisory": false
+        },
+        {
+          "paragraph": 8,
+          "message": "人族 → Nhân tộc, không dịch người tộc",
+          "advisory": false
         }
       ]
     },
@@ -1080,7 +1127,9 @@
         "呵斥一声。",
         "她呵呵一笑。",
         "权力与拳力。",
-        "你放肆！"
+        "你放肆！",
+        "我族之人多有修行之姿。",
+        "四名海巨人族同时出手。"
       ],
       "translated": [
         "Trên tường treo đầu lâu.",
@@ -1089,7 +1138,9 @@
         "Hừ một tiếng quát.",
         "Nàng cười hừ hừ.",
         "Quyền lực và quyền lực.",
-        null
+        null,
+        "Người tộc ta phần nhiều có tư chất tu hành.",
+        "Bốn người tộc Hải Cự Nhân đồng thời ra tay."
       ],
       "issues": [
         {
@@ -1239,7 +1290,7 @@
   "cases": [
     {
       "name": "default",
-      "text": "Triệu Tĩnh Văn ngẩng đầu，nhìn tòa 高塔 nơi xa.\nBut nàng im lặng. Vợ của hắn và anh ấy đều biết.\n\"Mình không đi,\" nàng nói. Hừm. Ơ? Thập phần kỳ lạ…\nNão hải hắn KHẤP HUYẾT, cư nhiên Cư Nhiên. Lãnh diễm.\nKiểm trắc thấy một kẻ liếm chó.\nDòng sạch không vi phạm gì cả.\n",
+      "text": "Triệu Tĩnh Văn ngẩng đầu，nhìn tòa 高塔 nơi xa.\nBut nàng im lặng. Vợ của hắn và anh ấy đều biết.\n\"Mình không đi,\" nàng nói. Hừm. Ơ? Thập phần kỳ lạ…\nNão hải hắn KHẤP HUYẾT, cư nhiên Cư Nhiên. Lãnh diễm.\nKiểm trắc thấy một kẻ liếm chó.\nChiêu lãm hắn về Đông Cung, rồi dùng chiêu Lãm Tước Vĩ.\nMột trận chiến không tiền khoáng hậu, đúng là vô tiền khoáng hậu.\nDòng sạch không vi phạm gì cả.\n",
       "rules": null,
       "setting": "ancient",
       "violations": [
@@ -1307,6 +1358,16 @@
           "line": 5,
           "message": "舔狗 → liếm cẩu, không dùng liếm chó",
           "text": "Kiểm trắc thấy một kẻ liếm chó."
+        },
+        {
+          "line": 6,
+          "message": "招揽 → chiêu mộ / lôi kéo / kéo khách theo cảnh, không dùng chiêu lãm",
+          "text": "Chiêu lãm hắn về Đông Cung, rồi dùng chiêu Lãm Tước Vĩ."
+        },
+        {
+          "line": 7,
+          "message": "空前绝后 → vô tiền khoáng hậu, không dùng không tiền khoáng hậu",
+          "text": "Một trận chiến không tiền khoáng hậu, đúng là vô tiền khoáng hậu."
         }
       ]
     },

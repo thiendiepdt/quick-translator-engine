@@ -59,6 +59,9 @@ const CHECK_RULES: Array<[RegExp, string, GenreSetting?]> = [
   [/đã thưởng Minh chủ/, "感谢 X 打赏的盟主 → dùng cảm ơn minh chủ X đã thưởng/ủng hộ"],
   [/não hải/, "não hải → đầu óc / tâm trí"],
   [/(?<!\p{L})kiểm trắc(?!\p{L})/iu, "检测 → phát hiện / quét thấy / kiểm tra, không dùng kiểm trắc"],
+  // "Lãm" viết hoa là tên chiêu (揽雀尾 → Lãm Tước Vĩ) — chỉ bắt "lãm" viết thường.
+  [/(?<!\p{L})[Cc]hiêu lãm(?!\p{L})/u, "招揽 → chiêu mộ / lôi kéo / kéo khách theo cảnh, không dùng chiêu lãm"],
+  [/không tiền khoáng hậu/iu, "空前绝后 → vô tiền khoáng hậu, không dùng không tiền khoáng hậu"],
   [/(?<!\p{L})liếm chó(?!\p{L})/iu, "舔狗 → liếm cẩu, không dùng liếm chó"],
   [/Ơ\s*[?!,.…]/, "Thán từ Ơ → dùng A trong bối cảnh cổ đại/huyền huyễn", "ancient"],
   [/\bthập phần\b/, "thập phần → vô cùng / hết sức"],
@@ -183,6 +186,9 @@ export const RAW_PAIR_RULES: RawPairRule[] = [
   { raw: /一个头两个大/u, out: /hai thứ tóc/iu, message: "一个头两个大 → đau cả đầu / rối như tơ vò, không một đầu hai thứ tóc" },
   { raw: /拳力/u, unless: /权力/u, out: /quyền lực/iu, message: "拳力 → lực quyền / sức đấm, không quyền lực" },
   { raw: /藏着掖着/u, out: /giấu đầu lòi đuôi/iu, message: "藏着掖着 → giấu giấu giếm giếm, không giấu đầu lòi đuôi" },
+  // "người tộc" đúng khi raw là 哈萨克族人 (người tộc Cáp Tát Khắc), 我族之人, X人族 (海巨人族 → bốn người tộc
+  // Hải Cự Nhân) — chỉ sai khi raw là 人族 đứng riêng.
+  { raw: /(?<![巨鱼矮兽半蛇狼羽魔亚])人族/u, out: /(?<!\p{L})người tộc(?!\p{L})/iu, message: "人族 → Nhân tộc, không dịch người tộc" },
   { raw: /呵/u, unless: /哼|呵斥/u, out: /(?<!\p{L})hừ(?!\p{L})/iu, message: "呵 là cười khẩy / cười nhạt → Ha / Hà / Hề hề, không Hừ", advisory: true },
 ];
 

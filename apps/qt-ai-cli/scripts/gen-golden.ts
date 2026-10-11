@@ -174,6 +174,8 @@ const CHECK_TEXT = [
   "\"Mình không đi,\" nàng nói. Hừm. Ơ? Thập phần kỳ lạ…",
   "Não hải hắn KHẤP HUYẾT, cư nhiên Cư Nhiên. Lãnh diễm.",
   "Kiểm trắc thấy một kẻ liếm chó.",
+  "Chiêu lãm hắn về Đông Cung, rồi dùng chiêu Lãm Tước Vĩ.",
+  "Một trận chiến không tiền khoáng hậu, đúng là vô tiền khoáng hậu.",
   "Dòng sạch không vi phạm gì cả.",
   "",
 ].join("\n");
@@ -193,12 +195,12 @@ const ADVISORY_TEXT = "“Ân.” Hắn ân một tiếng.\nHứa Ân, đi thôi
 // Bẫy đồng âm: cặp đoạn raw / bản dịch (null = đoạn thiếu).
 const RAW_PAIR_INPUTS: Array<[string[], Array<string | null>]> = [
   [
-    ["他斩下敌人的头颅。", "你放肆！", "她翻了个白眼。", "总不能不管吧。", "给我一个交代。", "我一个头两个大。", "拳力惊人。", "别藏着掖着。"],
-    ["Hắn chém đứt đầu lâu kẻ địch.", "Ngươi phóng túng!", "Nàng trợn tròn mắt.", "Tổng thể không thể mặc kệ.", "Cho ta một lời ăn tiếng nói.", "Ta một đầu hai thứ tóc.", "Quyền lực kinh người.", "Đừng giấu đầu lòi đuôi."],
+    ["他斩下敌人的头颅。", "你放肆！", "她翻了个白眼。", "总不能不管吧。", "给我一个交代。", "我一个头两个大。", "拳力惊人。", "别藏着掖着。", "人族与妖族开战。"],
+    ["Hắn chém đứt đầu lâu kẻ địch.", "Ngươi phóng túng!", "Nàng trợn tròn mắt.", "Tổng thể không thể mặc kệ.", "Cho ta một lời ăn tiếng nói.", "Ta một đầu hai thứ tóc.", "Quyền lực kinh người.", "Đừng giấu đầu lòi đuôi.", "Người tộc và Yêu tộc khai chiến."],
   ],
   [
-    ["墙上挂着骷髅头颅。", "呵，好得很！", "他冷哼一声：“呵。”", "呵斥一声。", "她呵呵一笑。", "权力与拳力。", "你放肆！"],
-    ["Trên tường treo đầu lâu.", "Hừ, tốt lắm!", "Hắn hừ lạnh: “Hừ.”", "Hừ một tiếng quát.", "Nàng cười hừ hừ.", "Quyền lực và quyền lực.", null],
+    ["墙上挂着骷髅头颅。", "呵，好得很！", "他冷哼一声：“呵。”", "呵斥一声。", "她呵呵一笑。", "权力与拳力。", "你放肆！", "我族之人多有修行之姿。", "四名海巨人族同时出手。"],
+    ["Trên tường treo đầu lâu.", "Hừ, tốt lắm!", "Hắn hừ lạnh: “Hừ.”", "Hừ một tiếng quát.", "Nàng cười hừ hừ.", "Quyền lực và quyền lực.", null, "Người tộc ta phần nhiều có tư chất tu hành.", "Bốn người tộc Hải Cự Nhân đồng thời ra tay."],
   ],
 ];
 const check = {

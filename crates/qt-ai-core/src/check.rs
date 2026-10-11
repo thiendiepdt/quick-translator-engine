@@ -82,6 +82,8 @@ pub const DEFAULT_RULES: &[(&str, &str, &str, Option<&str>)] = &[
     (r"đã thưởng Minh chủ", "", "感谢 X 打赏的盟主 → dùng cảm ơn minh chủ X đã thưởng/ủng hộ", None),
     (r"não hải", "", "não hải → đầu óc / tâm trí", None),
     (r"(?<!\p{L})kiểm trắc(?!\p{L})", "iu", "检测 → phát hiện / quét thấy / kiểm tra, không dùng kiểm trắc", None),
+    (r"(?<!\p{L})[Cc]hiêu lãm(?!\p{L})", "u", "招揽 → chiêu mộ / lôi kéo / kéo khách theo cảnh, không dùng chiêu lãm", None),
+    (r"không tiền khoáng hậu", "iu", "空前绝后 → vô tiền khoáng hậu, không dùng không tiền khoáng hậu", None),
     (r"(?<!\p{L})liếm chó(?!\p{L})", "iu", "舔狗 → liếm cẩu, không dùng liếm chó", None),
     (r"Ơ\s*[?!,.…]", "", "Thán từ Ơ → dùng A trong bối cảnh cổ đại/huyền huyễn", Some("ancient")),
     (r"\bthập phần\b", "", "thập phần → vô cùng / hết sức", None),
@@ -413,6 +415,7 @@ pub const RAW_PAIR_RULES: &[RawPairRule] = &[
     pair("一个头两个大", None, "hai thứ tóc", "一个头两个大 → đau cả đầu / rối như tơ vò, không một đầu hai thứ tóc"),
     pair("拳力", Some("权力"), "quyền lực", "拳力 → lực quyền / sức đấm, không quyền lực"),
     pair("藏着掖着", None, "giấu đầu lòi đuôi", "藏着掖着 → giấu giấu giếm giếm, không giấu đầu lòi đuôi"),
+    pair("(?<![巨鱼矮兽半蛇狼羽魔亚])人族", None, r"(?<!\p{L})người tộc(?!\p{L})", "人族 → Nhân tộc, không dịch người tộc"),
     RawPairRule { advisory: true, ..pair("呵", Some("哼|呵斥"), r"(?<!\p{L})hừ(?!\p{L})", "呵 là cười khẩy / cười nhạt → Ha / Hà / Hề hề, không Hừ") },
 ];
 
