@@ -23,8 +23,9 @@ Các bước:
      (đô thị, hiện đại, vô hạn lưu, hệ thống thời nay) hoặc `mixed` (xuyên qua lại cổ đại ↔ hiện đại,
      đô thị tu tiên — prompt chọn xưng hô theo cảnh, không bắt lỗi xưng hô; kể cả xuyên nhanh / xuyên chư thiên mà các thế giới
      gồm cả cổ đại lẫn hiện đại — tên có 快穿 / xuyên nhanh gần như luôn vậy, dù vài chương đầu chỉ thấy một thế giới).
-     Truyện chỉ có prologue hoặc một arc ngắn khác bối cảnh thì chọn bối cảnh chiếm phần lớn. `genre.names`: `han` nếu nhân vật Trung Quốc,
-     `foreign` nếu bối cảnh phương Tây / Nhật / Hàn (tên trả về Emily, Naruto), `mixed` nếu lẫn.
+     Truyện chỉ có prologue hoặc một arc ngắn khác bối cảnh thì chọn bối cảnh chiếm phần lớn. `genre.names`: bối cảnh `modern` hoặc `mixed` thì
+     mặc định `mixed` (họ Trung Quốc vẫn phiên Hán-Việt, tên nước ngoài giữ dạng gốc); `foreign` chỉ khi bối cảnh hẳn phương Tây /
+     Nhật / Hàn (tên trả về Emily, Naruto); `han` cho truyện cổ đại nhân vật Trung Quốc.
      Suy từ thể loại tra được và 2–3 chương đã đọc; không chắc thì giữ `ancient`/`han` và ghi chú khi trình.
    - `genre.tone`: giọng văn dịch — `neutral` (mặc định, không rõ), `romance` (truyện nữ/ngôn tình: ngọt, hài, chớt nhả),
      `witty` (truyện nam giọng đùa, hậu cung nhật thường), `punchy` (chiến đấu, vô địch lưu, hệ thống, sảng văn),

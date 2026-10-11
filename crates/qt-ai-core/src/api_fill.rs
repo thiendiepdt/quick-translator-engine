@@ -54,7 +54,7 @@ tên, nhân vật hay tóm tắt. Trả về đúng một JSON theo mẫu:\n\
   \"summary\": \"tóm tắt 3-5 câu tiếng Việt, chỉ bám phần đã đọc, không spoil\",\n\
   \"genre\": {{\n\
     \"setting\": \"ancient | modern | mixed — ancient: cổ đại/tiên hiệp/huyền huyễn/cung đấu/lịch sử; modern: đô thị/hiện đại/vô hạn lưu/hệ thống thời nay; mixed: xuyên qua lại cổ đại ↔ hiện đại hoặc đô thị tu tiên, kể cả xuyên nhanh / xuyên chư thiên mà các thế giới gồm cả cổ đại lẫn hiện đại (tên truyện có 快穿 / xuyên nhanh gần như luôn vậy, dù vài chương đầu chỉ thấy một thế giới); truyện chỉ có prologue hoặc một arc ngắn khác bối cảnh thì chọn bối cảnh chiếm phần lớn\",\n\
-    \"names\": \"han | foreign | mixed — han: nhân vật Trung Quốc; foreign: bối cảnh phương Tây/Nhật/Hàn; mixed: lẫn\",\n\
+    \"names\": \"han | foreign | mixed — setting modern hoặc mixed thì mặc định mixed (họ Trung Quốc vẫn phiên Hán-Việt, tên nước ngoài giữ dạng gốc); foreign chỉ khi bối cảnh hẳn phương Tây/Nhật/Hàn; han cho truyện cổ đại nhân vật Trung Quốc\",\n\
     \"tone\": \"neutral | romance | witty | punchy | lyrical | erotic | youth — romance: truyện nữ/ngôn tình (nữ chính, tình cảm là mạch chính, ngọt, hài, chớt nhả); witty: truyện nam giọng đùa, hậu cung nhật thường, người kể tưng tửng; punchy: chiến đấu, vô địch lưu, hệ thống, sảng văn dồn dập; lyrical: cổ ngôn văn thanh, tả cảnh tả tâm giàu hình ảnh; erotic: truyện sắc (sắc hiệp, sắc đô thị), cảnh thân mật là nội dung chính; youth: đô thị nhẹ nhàng, giải trí văn, học đường, nhật thường hiện đại của người trẻ; neutral: không rõ hoặc không thuộc nhóm nào\"\n\
   }},\n\
   \"style\": {{\n\
@@ -130,7 +130,14 @@ pub fn merge_fill(current: &StoryConfig, proposed: &Map<String, Value>, name: &s
         }
     }
     if let Some(genre) = proposed.get("genre").filter(|g| g.is_object()) {
-        object.insert("genre".into(), genre.clone());
+        let mut genre = genre.clone();
+        // Truyện hiện đại / xuyên qua lại để tên riêng hỗn hợp (họ Trung Quốc vẫn Hán-Việt, tên nước ngoài dạng gốc) —
+        // như form Hồ sơ truyện tự chuyển khi đổi bối cảnh.
+        let setting = genre.get("setting").and_then(Value::as_str).unwrap_or("");
+        if matches!(setting, "modern" | "mixed") && matches!(genre.get("names").and_then(Value::as_str), None | Some("han")) {
+            genre["names"] = Value::String("mixed".into());
+        }
+        object.insert("genre".into(), genre);
     }
     if let Some(style) = proposed.get("style").and_then(Value::as_object) {
         let mut merged = object.get("style").and_then(Value::as_object).cloned().unwrap_or_default();
@@ -275,6 +282,15 @@ mod tests {
         assert_eq!(after.custom_prompt, "prompt riêng");
         assert_eq!(after.check_rules.len(), 1);
         assert_eq!(after.auto_glossary, crate::story::AutoGlossarySetting::Off);
+    }
+
+    #[test]
+    fn hien_dai_hoac_hon_hop_thi_ten_rieng_hon_hop_tru_khi_model_chon_foreign() {
+        let genre = |json: &str| merge_fill(&current(), &parse_fill_json(json).unwrap(), "T", "").genre;
+        assert_eq!(genre(r#"{"genre": {"setting": "modern", "names": "han"}}"#).names, GenreNames::Mixed);
+        assert_eq!(genre(r#"{"genre": {"setting": "mixed"}}"#).names, GenreNames::Mixed);
+        assert_eq!(genre(r#"{"genre": {"setting": "modern", "names": "foreign"}}"#).names, GenreNames::Foreign);
+        assert_eq!(genre(r#"{"genre": {"setting": "ancient", "names": "han"}}"#).names, GenreNames::Han);
     }
 
     #[test]

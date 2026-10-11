@@ -40,7 +40,9 @@ Quy ước chung:
 | 25 | Sửa "Ân" trong bản dịch cũ | P2 | Xong (dữ liệu, 3.455 dòng) |
 | 26 | Rà ngược chương cũ theo mục glossary; đánh dấu cặp xưng hô đã có mốc | P2 | Xong |
 | 27 | 招揽 → "chiêu lãm": dòng bảng convert, bắt soát, sửa 2 chỗ cũ | ngoài lộ trình | Xong, chưa commit |
-| 28 | 人族 → "người tộc", 空前绝后 → "không tiền khoáng hậu": prompt, check, sửa 6 chỗ cũ | ngoài lộ trình | Xong, chưa commit |
+| 28 | 人族 → "người tộc", 空前绝后 → "không tiền khoáng hậu": prompt, check, sửa 6 chỗ cũ | ngoài lộ trình | Xong |
+| 29 | Trang Tìm & thay trong bản dịch đã chốt (Ctrl+Shift+F), hoàn tác lần thay gần nhất | ngoài lộ trình | Xong, chưa commit |
+| 30 | Hiện đại / hỗn hợp → tên riêng hỗn hợp (dựng truyện, GUI, 4 truyện cũ) | ngoài lộ trình | Xong, chưa commit |
 
 ---
 
@@ -509,6 +511,34 @@ Tổng 3.455 dòng / 2.638 file. Bỏ qua 6 file số đoạn raw ≠ bản dị
 - Dữ liệu: 6 chỗ "người tộc" → "nhân tộc" (giữ hoa/thường) ở 4 file (Bài poker ch.48, Mỗi ngày một môn thần thông ch.919, 924, Tiên tử lại xu long ch.549). Lần chạy thử đầu dùng luật lỏng bắt nhầm 4 chỗ tộc Hải Cự Nhân ở Hợp hoan tông → siết luật trước khi ghi. Sao lưu ngoài repo (scratchpad `q28_backup/`).
 
 **Kiểm.** Golden khớp; qt-web 291, qt-ai-cli 43, core 210 xanh (+1 test chập chờn cũ). Chạy lại script sửa dữ liệu không còn gì để sửa.
+
+## 29. Trang Tìm & thay (ngoài lộ trình)
+
+**Vấn đề.** Truyện nhiều chương dịch sai một từ thì phải tìm và thay tay từng file; "Rà chương cũ" (mục 26) chỉ đi theo một mục glossary.
+
+**Quyết định (chủ app chốt 12/10/2026).** Trang riêng trên rail (Ctrl+Shift+F); không regex; hoàn tác lần thay gần nhất.
+
+**Thay đổi.**
+
+- Core `replace.rs`: `find_in_story` (nguyên từ, hoa/thường, chỉ đoạn raw có X, phạm vi chương; trả tổng + số theo chương đủ + tối đa 500 chỗ kèm 50 ký tự ngữ cảnh mỗi bên và raw của đoạn), `replace_in_story` (thay mọi chỗ trừ chương / chỗ bỏ chọn, giữ kiểu xuống dòng, ghi `work/replace-undo.json` trước khi sửa chương), `undo_info`, `undo_last_replace` (bỏ qua chương đã bị sửa tiếp). Nhanh: lọc cả chương bằng tìm chuỗi đã gập hoa/thường trước khi so từng ký tự, chỉ đọc raw khi lọc theo raw hoặc cần ngữ cảnh, quét song song tối đa 8 luồng. Đo trên Hợp hoan tông (1.523 chương, bản release): 750 ms → khoảng 120 ms với từ gặp ở mọi chương, 45 ms với từ hiếm.
+- Tauri `replace_cmds.rs`: `replace_find`, `replace_apply`, `replace_undo_info`, `replace_undo` — async + blocking; thay / hoàn tác từ chối khi truyện đang dịch.
+- GUI `pages/replace-page.tsx`: ô Tìm / Thay bằng, Nguyên từ (bật sẵn), Phân biệt hoa/thường, Chỉ đoạn raw có, phạm vi chương (số thứ tự như trang Export); gõ xong 0,3 giây mới tìm; kết quả nhóm theo chương (mở sẵn 10 chương đầu), mỗi chỗ hiện câu xung quanh, chữ cũ gạch / chữ mới, raw; tick từng chỗ / cả chương; bấm vào chỗ → mở chương ở trang Dịch; sau khi thay nhắc sửa glossary nếu là tên riêng / thuật ngữ; thanh hoàn tác lần thay gần nhất. README qt-ai-gui có mục "Tìm & thay".
+
+**Kiểm.** Core `tests/replace.rs` (nguyên từ / hoa thường / ngữ cảnh + raw; lọc raw, phạm vi, cắt số chỗ; thay trừ chỗ / chương bỏ chọn + giữ CRLF; hoàn tác bỏ qua chương đã sửa tiếp; không khớp thì không ghi). Tauri: test lệnh + danh sách lệnh nặng (chỉ kiểm được bằng clippy trên máy này). GUI `replace-page.test.tsx` (tìm → bỏ chọn chỗ → thay; bỏ chọn cả chương; mở chương; hoàn tác). Core 215, GUI 249 xanh, clippy không cảnh báo mới.
+
+## 30. Truyện hiện đại / hỗn hợp để tên riêng hỗn hợp (ngoài lộ trình)
+
+**Vấn đề.** Chủ app: truyện bối cảnh hiện đại hoặc xuyên qua lại thường để tên riêng **hỗn hợp** (họ Trung Quốc vẫn phiên Hán-Việt, tên nước ngoài giữ dạng gốc). Thư viện đã gần như theo lệ đó (hiện đại 23 hỗn hợp / 1 Hán-Việt; hỗn hợp 2 / 3) nhưng bước dựng truyện chỉ dặn "Trung Quốc → han, phương Tây → foreign, lẫn → mixed".
+
+**Quyết định (chủ app chốt 12/10/2026).** Bước dựng truyện mặc định hỗn hợp cho hiện đại / hỗn hợp; GUI tự chuyển khi đổi bối cảnh; đổi 4 truyện cũ.
+
+**Thay đổi.**
+
+- `api_fill.rs`: mẫu JSON cho model ghi rõ "setting modern hoặc mixed thì mặc định mixed; foreign chỉ khi bối cảnh hẳn phương Tây/Nhật/Hàn; han cho truyện cổ đại". `merge_fill`: setting modern/mixed mà names `han` hoặc bỏ trống → `mixed` (model chọn `foreign` thì giữ). Workflow agy `setup-story.md` cùng lời dặn.
+- GUI Hồ sơ truyện: đổi Bối cảnh sang Hiện đại / Hỗn hợp mà Tên riêng đang Hán-Việt thì tự chuyển sang Hỗn hợp; đổi tay lại được; về Cổ đại không tự đổi. Gợi ý bối cảnh Cổ đại bỏ "Ân" cũ (mục 1) → "thán từ A?/Hả?/Ừm".
+- Dữ liệu: `genre.names` han → mixed cho Giải trí ta đàn nhạc cũng là chủ xướng (hiện đại), Sư muội ta nhìn thế nào…, Xuyên nhanh pháo hôi…, Xuyên nhanh tuyệt sắc… (hỗn hợp). Sao lưu `story.json.truoc-ten-hon-hop-20261012.bak`; mỗi file chỉ đổi đúng một dòng.
+
+**Kiểm.** Test `api_fill`: modern+han / mixed thiếu names → mixed, modern+foreign giữ, ancient+han giữ. GUI: đổi bối cảnh → Tên riêng Hỗn hợp, đổi tay về Hán-Việt rồi về Cổ đại giữ Hán-Việt. GUI 249 xanh, clippy không cảnh báo mới.
 
 ---
 

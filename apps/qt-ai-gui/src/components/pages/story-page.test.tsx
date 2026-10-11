@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -188,16 +188,25 @@ describe("StoryPage", () => {
     await user.click(screen.getByRole("tab", { name: "Prompt" }));
     expect(await screen.findByRole("textbox", { name: "Prompt dịch thuật" }, { timeout: 5000 })).toBeInTheDocument();
     const { storyDefaults } = await import("@/lib/api");
-    expect(storyDefaults).toHaveBeenCalledWith({ setting: "modern", names: "han", tone: "neutral" });
+    expect(storyDefaults).toHaveBeenCalledWith({ setting: "modern", names: "mixed", tone: "neutral" });
   });
 
-  it("chọn Hỗn hợp gọi defaults với setting mixed", async () => {
+  it("chọn Hỗn hợp gọi defaults với setting mixed; tên riêng Hán-Việt tự chuyển sang hỗn hợp", async () => {
     const user = userEvent.setup();
     render(<StoryPage />);
     await user.click(screen.getByRole("combobox", { name: "Bối cảnh" }));
     await user.click(await screen.findByRole("option", { name: /Hỗn hợp/ }));
     const { storyDefaults } = await import("@/lib/api");
-    expect(storyDefaults).toHaveBeenCalledWith({ setting: "mixed", names: "han", tone: "neutral" });
+    expect(storyDefaults).toHaveBeenCalledWith({ setting: "mixed", names: "mixed", tone: "neutral" });
+    const names = screen.getByRole("combobox", { name: "Tên riêng" });
+    expect(names).toHaveTextContent("Hỗn hợp");
+    // Đổi tay về Hán-Việt rồi quay lại Cổ đại: không tự đổi gì nữa.
+    await user.click(names);
+    await user.click(await screen.findByRole("option", { name: /Hán-Việt/ }));
+    await user.click(screen.getByRole("combobox", { name: "Bối cảnh" }));
+    await user.click(await screen.findByRole("option", { name: /Cổ đại/ }));
+    await waitFor(() => expect(screen.getByRole("combobox", { name: "Bối cảnh" })).toHaveTextContent("Cổ đại"));
+    expect(screen.getByRole("combobox", { name: "Tên riêng" })).toHaveTextContent("Hán-Việt");
   });
 
   it("Giọng văn mặc định Trung tính; chọn Ngôn tình làm form dirty và hint nói prompt được chèn mục", async () => {

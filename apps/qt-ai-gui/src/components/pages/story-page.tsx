@@ -230,9 +230,14 @@ export function StoryPage() {
                     <Field id="genreSetting" label="Bối cảnh" hint={GENRE_SETTING_LABELS[genre.setting].hint}>
                       <Select
                         value={genre.setting}
-                        onValueChange={(v) =>
-                          form.setValue("genreSetting", v as StoryFormValues["genreSetting"], { shouldDirty: true })
-                        }
+                        onValueChange={(v) => {
+                          const setting = v as StoryFormValues["genreSetting"];
+                          form.setValue("genreSetting", setting, { shouldDirty: true });
+                          // Truyện hiện đại / xuyên qua lại thường để tên riêng hỗn hợp; vẫn đổi lại tay được.
+                          if (setting !== "ancient" && form.getValues("genreNames") === "han") {
+                            form.setValue("genreNames", "mixed", { shouldDirty: true });
+                          }
+                        }}
                       >
                         <SelectTrigger id="genreSetting" aria-label="Bối cảnh">
                           <SelectValue />
