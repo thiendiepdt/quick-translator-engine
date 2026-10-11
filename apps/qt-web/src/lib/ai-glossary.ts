@@ -66,6 +66,15 @@ function sanitizeAddressing(source: string, target: string, raw: string): [strin
  * trong raw, target phải xuất hiện nguyên văn trong bản dịch, key chưa tồn
  * tại, không trùng lặp. Category lạ rơi về "names".
  */
+/**
+ * Danh xưng gắn họ (`老张`, `李老师`, `苏夫人`, `周七小姐`…) không phải tên riêng: không tự thêm vào names. Trước
+ * danh xưng chỉ là họ một chữ hoặc họ kép — biệt danh hai chữ (`东溟夫人`, `厄运小姐`) là tên, vẫn thêm.
+ */
+const TITLE_NAME =
+  /^(?:老|小|阿)?(?:欧阳|上官|司马|诸葛|慕容|东方|南宫|西门|公孙|令狐|皇甫|尉迟|长孙|宇文|独孤|端木|夏侯|轩辕|拓跋|百里|呼延|澹台|司徒|司空|万俟|闻人|太史|申屠|东郭|\p{Script=Han})[一二三四五六七八九十大]?(?:姑娘|夫人|管家|管事|阿姨|姨|老师|大夫|捕头|长老|女士|先生|小姐|奶奶|爷爷|老头|师姐|师兄|师妹|师弟|哥|姐|少|导|总|董|经理)$|^老\p{Script=Han}$/u;
+/** `《X》` lưu thành `X` để tên sách/bài hát chỉ có một mục, một cách dịch. */
+const BOOK_TITLE = /^《(.+)》$/u;
+
 export function sanitizeExtractedGlossary(
   parsed: unknown,
   raw: string,
@@ -78,24 +87,27 @@ export function sanitizeExtractedGlossary(
   for (const item of parsed) {
     if (typeof item !== "object" || item === null) continue;
     const record = item as Record<string, unknown>;
-    const source = typeof record.source === "string" ? record.source.trim() : "";
-    const target = typeof record.target === "string" ? record.target.trim() : "";
-    if (!source || !target) continue;
+    const trimmedSource = typeof record.source === "string" ? record.source.trim() : "";
+    const trimmedTarget = typeof record.target === "string" ? record.target.trim() : "";
+    if (!trimmedSource || !trimmedTarget) continue;
     if (record.category === "addressing") {
-      const pair = sanitizeAddressing(source, target, raw);
+      const pair = sanitizeAddressing(trimmedSource, trimmedTarget, raw);
       if (!pair || seen.has(pair[0]) || existingKeys.has(pair[0])) continue;
       seen.add(pair[0]);
       pairs.push({ source: pair[0], target: pair[1], category: "addressing" });
       continue;
     }
+    const source = trimmedSource.replace(BOOK_TITLE, "$1");
+    const target = trimmedTarget.replace(BOOK_TITLE, "$1");
     // Tối thiểu 2 chữ Hán: chữ đơn (雷, 炎…) đa nghĩa quá — vừa dễ ghim sai
     // vào văn tả cảnh, vừa match mọi chương nên không bao giờ được lọc bớt.
     if ((source.match(/\p{Script=Han}/gu) ?? []).length < 2) continue;
     if (seen.has(source) || existingKeys.has(source)) continue;
     if (!raw.includes(source) || !translation.includes(target)) continue;
-    const category = typeof record.category === "string" && CATEGORY_KEYS.has(record.category)
-      ? (record.category as StoryGlossaryKey)
-      : "names";
+    // Nhóm ghi sai (không thuộc nhóm nào) thì bỏ — rơi vào names sẽ biến từ chung thành tên riêng.
+    if (typeof record.category === "string" && !CATEGORY_KEYS.has(record.category)) continue;
+    const category = typeof record.category === "string" ? (record.category as StoryGlossaryKey) : "names";
+    if (category === "names" && TITLE_NAME.test(source)) continue;
     seen.add(source);
     pairs.push({ source, target, category });
   }

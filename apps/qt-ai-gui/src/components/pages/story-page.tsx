@@ -18,7 +18,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { TitlesPanel } from "@/components/titles-panel";
 import { useStoryDefaults } from "@/hooks/use-story-defaults";
-import { saveStory, storySnapshot } from "@/lib/api";
+import { castLoad, saveStory, storySnapshot } from "@/lib/api";
+import { latestAddressing } from "@/lib/cast-addressing";
 import { GENRE_NAMES, GENRE_SETTINGS, storyConfigSchema, GENRE_TONES } from "@/lib/schema";
 import { fromFormValues, storyFormSchema, toFormValues, type StoryFormValues } from "@/lib/story-form";
 import {
@@ -94,6 +95,18 @@ export function StoryPage() {
   const [resetOpen, setResetOpen] = useState(false);
   // Tăng sau mỗi lần reset để CastPanel dựng lại và đọc cast.json mới từ đĩa.
   const [castEpoch, setCastEpoch] = useState(0);
+  // Cặp xưng hô đã có mốc trong cast.json → nhóm xưng hô của glossary ghi kèm cặp đang áp.
+  const [addressingInUse, setAddressingInUse] = useState<Record<string, { target: string; from: string }>>({});
+  useEffect(() => {
+    if (!root) return;
+    let alive = true;
+    void castLoad(root)
+      .then((cast) => alive && setAddressingInUse(latestAddressing(cast)))
+      .catch(() => alive && setAddressingInUse({}));
+    return () => {
+      alive = false;
+    };
+  }, [root, castEpoch]);
   const [active, setActive] = useState<SectionId>("info");
   const fileInput = useRef<HTMLInputElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
@@ -312,7 +325,13 @@ export function StoryPage() {
                   </Button>
                 </div>
                 {GLOSSARY_KEYS.map((key) => (
-                  <GlossaryEditor key={key} name={`glossary.${key}`} label={GLOSSARY_LABELS[key]} />
+                  <GlossaryEditor
+                    key={key}
+                    name={`glossary.${key}`}
+                    label={GLOSSARY_LABELS[key]}
+                    backfill={{ root: currentRoot, running }}
+                    inUse={key === "addressing" ? addressingInUse : undefined}
+                  />
                 ))}
                 <GlossaryExportDialog open={exportOpen} onOpenChange={setExportOpen} glossary={glossaryValues} />
               </Section>

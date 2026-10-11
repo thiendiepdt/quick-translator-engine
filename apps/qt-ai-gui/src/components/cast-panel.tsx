@@ -21,6 +21,8 @@ interface Props {
 /** Bảng hiện từng khúc chừng này dòng — hàng trăm ô chọn cùng lúc gây lag (như GlossaryEditor). */
 const PAGE = 50;
 const SELECT_CLASS = "h-8 rounded-md border border-input bg-background px-2 text-sm";
+/** Dưới ngưỡng này truyện còn mới, cặp chưa kịp đổi — không nhắc "chưa có mốc đổi xưng hô". */
+const FROZEN_HINT_MIN_CHAPTERS = 30;
 
 /**
  * Bảng nhân vật (`cast.json`): giới tính từng tên trong glossary và các mốc đổi xưng hô theo chương.
@@ -66,13 +68,34 @@ export function CastPanel({ root, names, addressing, chapterIds, running, onStor
   });
   const known = Object.keys(names).filter((han) => draft.characters[han]?.gender).length;
   const timelines = Object.entries(draft.addressing).filter(([, timeline]) => timeline.pinned || timeline.changes.length > 0);
+  // Truyện đã dịch kha khá mà chưa từng ghi mốc: mọi cặp đang đóng băng từ lần gặp đầu — nhắc người dùng thêm tay.
+  const frozen = timelines.length === 0 && pairKeys.length > 0 && chapterIds.length >= FROZEN_HINT_MIN_CHAPTERS;
 
   function setGender(han: string, value: string) {
     setDraft((current) => {
       if (!current) return current;
       const characters = { ...current.characters };
-      if (value === "male" || value === "female") {
+      if (value === "male" || value === "female" || value === "swap") {
         characters[han] = { ...characters[han], gender: value satisfies Gender, source: "user" };
+      } else if (characters[han]?.narration) {
+        const { gender: _gender, ...rest } = characters[han];
+        characters[han] = { ...rest, source: "user" };
+      } else {
+        delete characters[han];
+      }
+      return { ...current, characters };
+    });
+  }
+
+  function setNarration(han: string, value: string) {
+    setDraft((current) => {
+      if (!current) return current;
+      const characters = { ...current.characters };
+      const { narration: _narration, ...rest } = characters[han] ?? { source: "user" as const };
+      if (value.trim()) {
+        characters[han] = { ...rest, narration: value, source: "user" };
+      } else if (rest.gender) {
+        characters[han] = rest;
       } else {
         delete characters[han];
       }
@@ -139,7 +162,9 @@ export function CastPanel({ root, names, addressing, chapterIds, running, onStor
     <div className="flex flex-col gap-4">
       <p className="text-xs text-muted-foreground">
         Giới tính ở đây quyết định thầy/cô, anh/chị, ông/bà… trong bản dịch và được check tự động. Model tự khai khi dịch
-        chương mới; sửa tay ở đây luôn thắng. Lưu ở file <code>cast.json</code> cạnh story.json.
+        chương mới; sửa tay ở đây luôn thắng. "Biến thân": nhân vật đổi giới, lời kể theo 他/她 của raw từng câu. "Đại từ
+        lời kể" để trống thì theo giới (hắn / nàng hoặc cô); ghi riêng khi muốn cố định lão, bà, Ngài…. Lưu ở file{" "}
+        <code>cast.json</code> cạnh story.json.
       </p>
       <div className="flex flex-wrap items-center gap-2">
         <Button type="button" size="sm" variant="secondary" disabled={busy || running || dirty} onClick={() => void scan()}>
@@ -190,7 +215,7 @@ export function CastPanel({ root, names, addressing, chapterIds, running, onStor
           {rows.slice(0, limit).map(([han, viet]) => {
             const character = draft.characters[han];
             return (
-              <li key={han} className="grid grid-cols-[1fr_1fr_auto_1.5rem] items-center gap-2">
+              <li key={han} className="grid grid-cols-[1fr_1fr_auto_7rem_1.5rem] items-center gap-2">
                 <span className="font-mono text-sm">{han}</span>
                 <span className="truncate text-sm">{viet}</span>
                 <select
@@ -202,7 +227,15 @@ export function CastPanel({ root, names, addressing, chapterIds, running, onStor
                   <option value="">Chưa rõ</option>
                   <option value="male">Nam</option>
                   <option value="female">Nữ</option>
+                  <option value="swap">Biến thân</option>
                 </select>
+                <Input
+                  aria-label={`Đại từ lời kể ${han}`}
+                  value={character?.narration ?? ""}
+                  onChange={(e) => setNarration(han, e.target.value)}
+                  placeholder="theo giới"
+                  className="h-8 text-sm"
+                />
                 {character?.disputed?.length ? (
                   <span title={`Chương ${character.disputed.join(", ")} khai giới ngược — kiểm tra lại`}>
                     <AlertTriangle className="size-4 text-destructive" />
@@ -227,7 +260,22 @@ export function CastPanel({ root, names, addressing, chapterIds, running, onStor
           Cặp gốc nằm ở Glossary → Xưng hô theo cặp. Khi quan hệ đổi bền (thành người yêu, cưới…), model khai cặp mới và
           app áp từ chương đó trở đi. Ghim cặp để app không tự đổi nữa.
         </p>
-        {timelines.length === 0 && <p className="py-2 text-xs text-muted-foreground">Chưa có mốc nào.</p>}
+        {frozen ? (
+          <p
+            role="status"
+            aria-label="Xưng hô chưa có mốc đổi"
+            className="mb-2 flex items-start gap-2 rounded-md border border-status-warning/40 bg-status-warning/10 px-3 py-2 text-xs text-status-warning"
+          >
+            <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
+            <span>
+              Chưa có mốc đổi xưng hô nào: {pairKeys.length} cặp đang giữ nguyên từ lúc hai người mới gặp. Nếu có cặp đã thành
+              người yêu, vợ chồng, thầy trò, chủ tớ… thì thêm mốc ở đây (chọn cặp, chương bắt đầu, cặp mới) để các chương sau
+              dịch đúng.
+            </span>
+          </p>
+        ) : (
+          timelines.length === 0 && <p className="py-2 text-xs text-muted-foreground">Chưa có mốc nào.</p>
+        )}
         <ul className="flex flex-col gap-2" aria-label="Mốc đổi xưng hô">
           {timelines.map(([key, timeline]) => (
             <li key={key} className="rounded-md border bg-muted/25 p-2">

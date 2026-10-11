@@ -355,6 +355,28 @@ pub fn settle_title(book: &mut TitleBook, raw_first: &str, translated_first: &st
     (line != translated_first.trim()).then_some(line)
 }
 
+static CHAPTER_HEAD: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^(Chương [0-9]+(?:-[0-9]+)?)(?:\s*[:：]\s*|\s*[.,\-–—]\s+|\s+)(.*)$").unwrap()
+});
+static AUTHOR_NOTE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)\s*[(（【\[][^()（）【】\[\]]*(?:thêm chương|tăng chương|chương thêm|bổ sung chương|nguyệt phiếu|phiếu tháng|phiếu đề cử|đặt mua|minh chủ)[^()（）【】\[\]]*[)）】\]]\s*$").unwrap()
+});
+
+/// Dòng tiêu đề đã dịch theo một định dạng: `Chương N Tên` / `Chương N. Tên` → `Chương N: Tên`; bỏ lời xin phiếu,
+/// thêm chương của tác giả ở cuối (`(Cầu nguyệt phiếu!)`, `【Thêm chương cho “…”】`). Dòng không mở đầu bằng
+/// `Chương N` giữ nguyên.
+pub fn tidy_chapter_title(line: &str) -> String {
+    let Some(caps) = CHAPTER_HEAD.captures(line.trim()) else { return line.to_string() };
+    let mut name = caps[2].trim().to_string();
+    while let Some(note) = AUTHOR_NOTE.find(&name) {
+        name.truncate(note.start());
+    }
+    match name.trim_end() {
+        "" => caps[1].to_string(),
+        name => format!("{}: {name}", &caps[1]),
+    }
+}
+
 /// Thay dòng đầu không rỗng của bản dịch bằng `line`.
 pub fn replace_first_line(text: &str, line: &str) -> String {
     let start = text.len() - text.trim_start().len();

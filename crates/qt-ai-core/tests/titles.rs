@@ -5,7 +5,7 @@ use qt_ai_core::commands::init::run_init;
 use qt_ai_core::commands::next::run_next;
 use qt_ai_core::commands::reset::run_reset;
 use qt_ai_core::story_fs::{load_state, story_paths, work_file, StoryPaths, WorkKind};
-use qt_ai_core::titles::{apply_titles, load_titles, survey_titles};
+use qt_ai_core::titles::{apply_titles, load_titles, survey_titles, tidy_chapter_title};
 use std::fs;
 use std::path::Path;
 
@@ -72,6 +72,34 @@ fn accept_chot_ten_lan_dau_va_ep_cac_chuong_cung_ten() {
     // Reset truyện: sổ tiêu đề của lần dịch cũ cất sang .bak.
     run_reset(root, "qt-ai").unwrap();
     assert!(!paths.titles_json.exists() && root.join("titles.json.bak").exists());
+}
+
+#[test]
+fn tieu_de_mot_dinh_dang_va_bo_loi_xin_phieu() {
+    assert_eq!(tidy_chapter_title("Chương 146 Hoàn thành nhiệm vụ"), "Chương 146: Hoàn thành nhiệm vụ");
+    assert_eq!(tidy_chapter_title("Chương 12. Mưa đêm"), "Chương 12: Mưa đêm");
+    assert_eq!(tidy_chapter_title("Chương 12 - Mưa đêm"), "Chương 12: Mưa đêm");
+    assert_eq!(tidy_chapter_title("Chương 467-468：Hợp chương"), "Chương 467-468: Hợp chương");
+    assert_eq!(tidy_chapter_title("Chương 99: Tên xấu xa! (Cầu xin đặt mua!!)"), "Chương 99: Tên xấu xa!");
+    assert_eq!(
+        tidy_chapter_title("Chương 70: Quầy hàng quỷ【Thêm chương cho “Đạo hàm bậc một”】(cầu nguyệt phiếu!)"),
+        "Chương 70: Quầy hàng quỷ"
+    );
+    assert_eq!(tidy_chapter_title("Chương 5: (Thêm chương)"), "Chương 5");
+    // Đã đúng, không có tên, ngoặc là một phần tên, không phải tiêu đề → giữ nguyên.
+    for line in ["Chương 4: Mưa đêm", "Chương 7", "Chương 8: Ngoại truyện (1)", "Chương 12.5 Lỡ hẹn", "Xin nghỉ một ngày nha..."] {
+        assert_eq!(tidy_chapter_title(line), line);
+    }
+}
+
+#[test]
+fn accept_sua_dinh_dang_tieu_de_truoc_khi_ghi_so() {
+    let dir = story();
+    let root = dir.path();
+    let paths = story_paths(root);
+    translate(root, "0001", "Chương 1 Trận chiến Trường Phong Nguyên (Một) (Cầu phiếu tháng!)");
+    assert_eq!(title_of(&paths, "0001"), "Chương 1: Trận chiến Trường Phong Nguyên (1)");
+    assert_eq!(load_titles(&paths).titles["长风原之战"], "Trận chiến Trường Phong Nguyên");
 }
 
 #[test]

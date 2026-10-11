@@ -4,7 +4,7 @@
 //! động cơ dùng chung folder truyện và đổi qua lại giữa chừng được.
 
 use crate::api::{format_tokens, ApiError, ApiStep, TextModel, Usage};
-use crate::check::{check_violations, contains_han, glossary_drifts};
+use crate::check::{check_violations, contains_han, glossary_near_misses, GLOSSARY_NAME_ISSUE};
 use crate::commands::accept::run_accept;
 use crate::commands::check::run_check;
 use crate::commands::next::run_next;
@@ -32,10 +32,11 @@ const GLOSSARY_EXTRACT_SYSTEM_PROMPT: &str = "Bạn nhận raw tiếng Trung và
 Liệt kê các TÊN RIÊNG (nhân vật, địa danh, đồ vật/vũ khí, sinh vật, công pháp/kỹ năng) \
 xuất hiện trong raw nhưng CHƯA có trong danh sách loại trừ, kèm đúng cách bản dịch đã phiên âm chúng. \
 target phải chép nguyên văn từ bản dịch, không tự nghĩ phương án khác. \
-category chỉ được là một trong: \"names\", \"places\", \"items\", \"creatures\", \"skills\". \
-Bỏ qua từ chung, chức danh, đại từ.\
+category chỉ được là một trong: \"names\", \"places\", \"items\", \"creatures\", \"skills\", \"common\". \
+Ngoài tên riêng, khai category \"common\" cho THUẬT NGỮ RIÊNG CỦA TRUYỆN lặp lại nhiều chương: tên chỉ số, bảng, âm báo của hệ thống (面板, 好感度, 积分, 检测到), khái niệm của thế giới truyện (末世, 丧尸, 大比, 成长体), tên tổ chức, chương trình (督察局, 春晚); target chép nguyên văn cách bạn vừa dịch. KHÔNG khai (kể cả vào names) từ thường, thành ngữ, lóng/meme, biệt danh trêu chọc (小辣椒), danh xưng (老X, X阿姨, X女士). \
+Bỏ qua từ thông thường không riêng của truyện, chức danh, đại từ.\
  Chữ Hán nào đã có âm Hán-Việt trong từ điển sẵn có thì tên mới chứa chữ đó phải phiên cùng âm (họ 段 đã là Đoàn thì không đề xuất Đoạn). \
-Tên NGƯỜI (category \"names\") thêm \"gender\": \"nam\" hoặc \"nữ\" khi raw có căn cứ (她/他, 女/男, 姐/哥…); không chắc thì bỏ trường này. \
+Tên NGƯỜI (category \"names\") thêm \"gender\": \"nam\" hoặc \"nữ\" khi raw có căn cứ (她/他, 女/男, 姐/哥…), hoặc \"biến thân\" khi nhân vật đổi giới (xuyên vào / biến thành thân xác khác giới, raw gọi lúc 他 lúc 她); không chắc thì bỏ trường này. \
 Thêm các CẶP XƯNG HÔ mới trong thoại với category \"addressing\": source là \"甲→乙\" (hai TÊN NHÂN VẬT như trong raw), \
 target là \"X–Y\" với X là cách 甲 tự xưng và Y là cách 甲 gọi 乙 trong bản dịch (ví dụ \"anh–em\", \"ta–ngươi\", \"tôi–cậu\"); \
 mỗi chiều một mục, chỉ ghi cặp chưa có trong danh sách loại trừ. \
@@ -50,14 +51,15 @@ pub const GLOSSARY_MARKER: &str = "[[glossary]]";
 const GLOSSARY_INLINE_INSTRUCTION: &str = "Sau đoạn dịch cuối cùng, xuống dòng và thêm đúng một dòng `[[glossary]]`, rồi một JSON object \
 {\"entries\": [{\"source\": \"...\", \"target\": \"...\", \"category\": \"...\"}]} liệt kê các TÊN RIÊNG \
 (nhân vật, địa danh, đồ vật/vũ khí, sinh vật, công pháp/kỹ năng) xuất hiện trong raw mà CHƯA có trong \"Từ điển riêng của truyện\"; \
-target chép nguyên văn cách bạn vừa dịch; category chỉ được là \"names\", \"places\", \"items\", \"creatures\", \"skills\". \
-Bỏ qua từ chung, chức danh, đại từ.\
- Chữ Hán nào đã có âm Hán-Việt trong từ điển sẵn có thì tên mới chứa chữ đó phải phiên cùng âm (họ 段 đã là Đoàn thì không đề xuất Đoạn). Tên NGƯỜI (category \"names\") thêm \"gender\": \"nam\" hoặc \"nữ\" khi raw có căn cứ (她/他, 女/男, 姐/哥…); không chắc thì bỏ trường này. \
+target chép nguyên văn cách bạn vừa dịch; category chỉ được là \"names\", \"places\", \"items\", \"creatures\", \"skills\", \"common\". \
+Ngoài tên riêng, khai category \"common\" cho THUẬT NGỮ RIÊNG CỦA TRUYỆN lặp lại nhiều chương: tên chỉ số, bảng, âm báo của hệ thống (面板, 好感度, 积分, 检测到), khái niệm của thế giới truyện (末世, 丧尸, 大比, 成长体), tên tổ chức, chương trình (督察局, 春晚); target chép nguyên văn cách bạn vừa dịch. KHÔNG khai (kể cả vào names) từ thường, thành ngữ, lóng/meme, biệt danh trêu chọc (小辣椒), danh xưng (老X, X阿姨, X女士). \
+Bỏ qua từ thông thường không riêng của truyện, chức danh, đại từ.\
+ Chữ Hán nào đã có âm Hán-Việt trong từ điển sẵn có thì tên mới chứa chữ đó phải phiên cùng âm (họ 段 đã là Đoàn thì không đề xuất Đoạn). Tên NGƯỜI (category \"names\") thêm \"gender\": \"nam\" hoặc \"nữ\" khi raw có căn cứ (她/他, 女/男, 姐/哥…), hoặc \"biến thân\" khi nhân vật đổi giới (xuyên vào / biến thành thân xác khác giới, raw gọi lúc 他 lúc 她); không chắc thì bỏ trường này. \
 Nhân vật đã có trong từ điển nhưng chưa nằm ở mục \"Nhân vật có mặt trong chương\" mà chương này lộ giới: khai {\"source\": \"tên Hán\", \"category\": \"names\", \"gender\": \"...\"}. \
 Cặp xưng hô mới trong thoại ghi category \"addressing\": source \"甲→乙\" (hai TÊN NHÂN VẬT như trong raw, không dùng chức danh chung như 保安/助理), \
 target \"X–Y\" với X là cách 甲 tự xưng và Y là cách 甲 gọi 乙 trong bản dịch; mỗi chiều một mục. \
 Cặp ĐÃ CÓ trong mục \"Cặp xưng hô đang dùng\" mà chương này cho thấy quan hệ hai người đã khác lúc chốt cặp \
-(đã là người yêu, đính hôn, vợ chồng, nhận người thân, kết nghĩa, trở mặt thành thù) nên bạn đã dịch bằng cặp khác: \
+(đã là người yêu, đính hôn, vợ chồng, thầy trò, chủ tớ, nhận người thân, kết nghĩa, trở mặt thành thù) nên bạn đã dịch bằng cặp khác: \
 khai lại cặp đó với target đúng như vừa dịch và \"note\": \"lý do ngắn\", cả hai chiều; giận dỗi nhất thời, đóng kịch, nói đùa thì không khai. \
 Không có gì mới thì {\"entries\": []}. Khối này nằm ngoài bản dịch, không có nhãn [[n]].";
 
@@ -315,9 +317,19 @@ enum ReviewOutcome {
 /// Model trả y hệt bản cũ nghĩa là đã xét từng vi phạm và thấy đúng ngữ cảnh — lặp thêm chỉ tốn tiền.
 fn review(chapter: &Chapter, round: u32, draft: &mut [String], issues: &[String]) -> std::result::Result<ReviewOutcome, ApiError> {
     let (id, log, story) = (chapter.id, chapter.log, chapter.story);
-    let list = issues.iter().map(|issue| format!("- {issue}")).collect::<Vec<_>>().join("\n");
+    let (names, others): (Vec<&String>, Vec<&String>) = issues.iter().partition(|issue| issue.contains(GLOSSARY_NAME_ISSUE));
+    let bullets = |items: &[&String]| items.iter().map(|issue| format!("- {issue}")).collect::<Vec<_>>().join("\n");
+    let names_block = if names.is_empty() {
+        String::new()
+    } else {
+        format!(
+            "Tên theo từ điển — BẮT BUỘC sửa: thay đúng cụm sai bằng tên trong từ điển, không giữ nguyên, không tự đổi sang âm khác.\n\n{}\n\n",
+            bullets(&names)
+        )
+    };
+    let list = bullets(&others);
     let user = format!(
-        "Bản dịch dưới đây có các vi phạm được phát hiện tự động (nhãn [[n]] chỉ đoạn):\n\n{list}\n\n\
+        "Bản dịch dưới đây có các vi phạm được phát hiện tự động (nhãn [[n]] chỉ đoạn):\n\n{names_block}{list}\n\n\
 Kiểm tra từng vi phạm. Nếu thực sự sai, chỉ thay từ hoặc cụm gây lỗi bằng phương án ngắn nhất. Nếu đúng trong ngữ cảnh, giữ nguyên. \
 Giữ nguyên toàn bộ chữ, thứ tự câu, dấu câu và ngắt đoạn không liên quan. Không chau chuốt, viết lại, thêm từ nối hoặc thêm miêu tả. \
 Đoạn nào còn nguyên chữ Hán thì dịch đoạn đó theo đúng quy tắc.\n\n---\n\n{}",
@@ -343,17 +355,22 @@ Giữ nguyên toàn bộ chữ, thứ tự câu, dấu câu và ngắt đoạn k
     }
     let reviewed: Vec<String> = reviewed.into_iter().flatten().collect();
     if reviewed.iter().map(|p| p.trim()).eq(draft.iter().map(|p| p.trim())) {
+        if !names.is_empty() {
+            // Tên theo từ điển không được "đúng ngữ cảnh": soát tiếp; hết vòng thì check chốt kèm cảnh báo.
+            log(format!("{id}: model giữ nguyên tên sai so với từ điển — soát tiếp"));
+            return Ok(ReviewOutcome::Changed);
+        }
         log(format!("{id}: model giữ nguyên bản dịch (vi phạm đúng ngữ cảnh) — chốt kèm cảnh báo"));
         return Ok(ReviewOutcome::Kept);
     }
     let score = |text: &[String]| {
         let han = text.iter().filter(|p| contains_han(p)).count();
         let parsed: Vec<Option<String>> = text.iter().cloned().map(Some).collect();
-        let drifts = glossary_drifts(chapter.paragraphs, &parsed, chapter.glossary).len();
         let no_names = crate::story::StringMap::new();
         let names = chapter.glossary.get("names").unwrap_or(&no_names);
         let addressing = crate::cast::addressing_issues(chapter.paragraphs, &parsed, names, chapter.cast).len();
-        (han, check_violations(&final_text(text), &story.check_rules, story.genre.setting).len() + drifts + addressing)
+        let near = glossary_near_misses(chapter.paragraphs, &parsed, chapter.glossary).len();
+        (han, check_violations(&final_text(text), &story.check_rules, story.genre.setting).len() + addressing + near)
     };
     let (before_han, before) = score(draft);
     let (after_han, after) = score(&reviewed);
@@ -365,10 +382,14 @@ Giữ nguyên toàn bộ chữ, thứ tự câu, dấu câu và ngắt đoạn k
     Ok(ReviewOutcome::Changed)
 }
 
-/// Đổi xưng hô theo mốc chương, khai giới ngược — người dùng cần thấy ngay trong log để hoàn tác nếu sai.
-fn log_cast_notes(chapter: &Chapter, notes: &[String]) {
-    for note in notes {
+/// Đổi xưng hô theo mốc chương, khai giới ngược, tên tự sửa theo glossary — người dùng cần thấy ngay
+/// trong log để hoàn tác nếu sai.
+fn log_cast_notes(chapter: &Chapter, accepted: &crate::commands::accept::AcceptResult) {
+    for note in &accepted.cast_notes {
         (chapter.log)(format!("{}: {note}", chapter.id));
+    }
+    if !accepted.glossary_fixes.is_empty() {
+        (chapter.log)(format!("{}: tự sửa theo glossary: {}", chapter.id, accepted.glossary_fixes.join(", ")));
     }
 }
 
@@ -415,7 +436,7 @@ pub fn translate_chapter(
         let check = run_check(root, id)?;
         if check.pass {
             let accepted = run_accept(root, id, false)?;
-            log_cast_notes(&chapter, &accepted.cast_notes);
+            log_cast_notes(&chapter, &accepted);
             return Ok(ChapterOutcome::Accepted {
                 review_rounds: rounds,
                 warnings: accepted.warnings.len(),
@@ -446,7 +467,7 @@ pub fn translate_chapter(
             // Đủ đoạn, đủ dài, chỉ còn vi phạm rule mà model đã xét và giữ → chốt kèm cảnh báo ngay,
             // không đốt thêm vòng soát y hệt.
             let accepted = run_accept(root, id, true)?;
-            log_cast_notes(&chapter, &accepted.cast_notes);
+            log_cast_notes(&chapter, &accepted);
             return Ok(ChapterOutcome::Accepted {
                 review_rounds: rounds,
                 warnings: accepted.warnings.len(),

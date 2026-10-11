@@ -658,8 +658,9 @@ const GLOSSARY_EXTRACT_SYSTEM_PROMPT =
   "Liệt kê các TÊN RIÊNG (nhân vật, địa danh, đồ vật/vũ khí, sinh vật, công pháp/kỹ năng) " +
   "xuất hiện trong raw nhưng CHƯA có trong danh sách loại trừ, kèm đúng cách bản dịch đã phiên âm chúng. " +
   "target phải chép nguyên văn từ bản dịch, không tự nghĩ phương án khác. " +
-  'category chỉ được là một trong: "names", "places", "items", "creatures", "skills". ' +
-  "Bỏ qua từ chung, chức danh, đại từ." +
+  'category chỉ được là một trong: "names", "places", "items", "creatures", "skills", "common". ' +
+  'Ngoài tên riêng, khai category "common" cho THUẬT NGỮ RIÊNG CỦA TRUYỆN lặp lại nhiều chương: tên chỉ số, bảng, âm báo của hệ thống (面板, 好感度, 积分, 检测到), khái niệm của thế giới truyện (末世, 丧尸, 大比, 成长体), tên tổ chức, chương trình (督察局, 春晚); target chép nguyên văn cách bạn vừa dịch. KHÔNG khai (kể cả vào names) từ thường, thành ngữ, lóng/meme, biệt danh trêu chọc (小辣椒), danh xưng (老X, X阿姨, X女士). ' +
+  "Bỏ qua từ thông thường không riêng của truyện, chức danh, đại từ." +
   " Chữ Hán nào đã có âm Hán-Việt trong từ điển sẵn có thì tên mới chứa chữ đó phải phiên cùng âm (họ 段 đã là Đoàn thì không đề xuất Đoạn). " +
   'Thêm các CẶP XƯNG HÔ mới trong thoại với category "addressing": source là "甲→乙" (hai tên Hán như trong raw), ' +
   'target là "X–Y" với X là cách 甲 tự xưng và Y là cách 甲 gọi 乙 trong bản dịch (ví dụ "anh–em", "ta–ngươi", "tôi–cậu"); ' +
@@ -679,7 +680,7 @@ const GLOSSARY_EXTRACT_SCHEMA = {
           target: { type: "string" },
           category: {
             type: "string",
-            enum: ["names", "places", "items", "creatures", "skills", "addressing"],
+            enum: ["names", "places", "items", "creatures", "skills", "common", "addressing"],
           },
         },
         required: ["source", "target"],

@@ -198,10 +198,10 @@ footer { border-top: 1px solid var(--line); padding-top: 20px; font-size: 13px; 
   <div class="thesis prose">
     <p><b>Phần lớn lỗi lặp lại không do model kém, mà do chính app bảo model làm vậy.</b> Bản dịch giữ đủ đoạn, gần như không sót chữ Hán, và dịch meme hay khi được phép. Điểm thấp tập trung ở xưng hô và thuật ngữ, và cả hai đều truy được về code:</p>
     <ol>
-      <li><b>Prompt và bộ check ra lệnh sai.</b> Luật 11 của prompt cổ đại bắt 嗯 → "Ân", và <code>check.rs:84</code> còn ép "Ừm" quay về "Ân". Kết quả: 3.383 dòng "Ân" ở truyện cổ đại, 0 dòng ở truyện hiện đại. Tương tự, ví dụ mẫu "bản thân hắn" sinh ra 6.278 lần "bản thân + đại từ". Bảng lóng dạy 舔狗 = "liếm chó". Bảng họ hiếm dạy 佟 = "Đông".</li>
+      <li><b>Prompt và bộ check ra lệnh sai.</b> Luật 11 của prompt cổ đại bắt 嗯 → "Ân", và <code>check.rs:84</code> còn ép "Ừm" quay về "Ân". Kết quả: 3.383 dòng "Ân" ở truyện cổ đại, 0 dòng ở truyện hiện đại. Tương tự, ví dụ mẫu "bản thân hắn" sinh ra 6.278 lần "bản thân + đại từ". Bảng lóng dạy 舔狗 = "liếm chó"; bảng "Tránh → Dùng thay" ra lệnh dùng "kiểm trắc".</li>
       <li><b>Luật "người kể xưng ta" áp quá rộng.</b> <code>check.rs:132</code> bắt mọi dòng ngoài ngoặc kép có chữ "tôi", kể cả đạn mạc, ý nghĩ trong 【】 và tiêu đề. Ở truyện cổ đại, <code>check.rs:72</code> làm kẻ dưới xưng "ta" với chủ.</li>
       <li><b>Xưng hô đóng băng ở lần gặp đầu.</b> 38/60 truyện chưa từng ghi được một mốc đổi xưng hô. Cặp đã cưới vẫn "tôi–cô" suốt nghìn chương.</li>
-      <li><b>Glossary tự sinh học cả lỗi.</b> Âm Hán Việt sai được chốt rồi lan ra hàng nghìn lần (Đồng Khởi 1.602 lần, Lý Dực 2.263 lần). Biến thể tên do tác giả gõ nhầm tách một người thành hai. Thuật ngữ cốt lõi như 面板, 好感度, 末世 không bao giờ được chốt, vì chỉ dẫn trích glossary cấm từ chung.</li>
+      <li><b>Glossary tự sinh học cả lỗi.</b> Âm Hán Việt sai được chốt rồi lan ra hàng nghìn lần (Lý Dực 2.263 lần, Mặc Kiều 65 lần). Biến thể tên do tác giả gõ nhầm tách một người thành hai. Thuật ngữ cốt lõi như 面板, 好感度, 末世 không bao giờ được chốt, vì chỉ dẫn trích glossary cấm từ chung.</li>
       <li><b>Raw bị thay sau khi dịch mà app không biết.</b> Ở 2 truyện, bản dịch đang nằm cạnh raw của chương khác mà trạng thái vẫn "done".</li>
     </ol>
     <p>Vì vậy phần sửa rẻ nhất cũng là phần ăn nhiều nhất: chỉnh khoảng mười chỗ trong prompt và bộ check là xử lý được những lỗi dày nhất ở cả thư viện.</p>
@@ -232,7 +232,7 @@ footer { border-top: 1px solid var(--line); padding-top: 20px; font-size: 13px; 
         <tr><td><span class="pill p0">P0</span></td><td>Viết lại luật 自己: bỏ ví dụ "bản thân hắn", cấm "bản thân" làm chủ ngữ</td><td>TS:357, TS:567</td><td class="effort">nhỏ</td></tr>
         <tr><td><span class="pill p0">P0</span></td><td>Thu hẹp luật "tôi → ta": chỉ bật khi truyện kể ngôi một; bỏ qua 【】, đạn mạc dạng <code>ID:</code> và dòng tiêu đề</td><td><code>check.rs:132</code>; thêm <code>genre.pov</code> vào story.json</td><td class="effort">nhỏ</td></tr>
         <tr><td><span class="pill p0">P0</span></td><td>Thêm khối "Vai vế trong thoại" cho cổ đại (tiểu nhân, nô tỳ, thuộc hạ, đệ tử, con); bỏ câu "nói với người già vẫn là ngươi"</td><td>TS:335, TS:346, TS:355; thông điệp <code>check.rs:72</code></td><td class="effort">nhỏ</td></tr>
-        <tr><td><span class="pill p0">P0</span></td><td>Sửa các dòng prompt đang dạy sai: <code>佟 Đông</code> → Đồng; 舔狗 → "liếm cẩu / kẻ lụy tình"; bỏ "kiểm trắc"; <code>老X</code> → "lão X" viết thường</td><td>TS:719, TS:621, TS:237, TS:415, TS:601</td><td class="effort">nhỏ</td></tr>
+        <tr><td><span class="pill p0">P0</span></td><td>Sửa các dòng prompt đang dạy sai: 舔狗 → "liếm cẩu"; bỏ "kiểm trắc"; <code>老X</code> → "lão X" viết thường</td><td>TS:621, TS:237, TS:415, TS:601</td><td class="effort">nhỏ</td></tr>
         <tr><td><span class="pill p0">P0</span></td><td>Thêm mục "Số và đơn vị": 亿 không viết "ức", 百亿 = 10 tỷ, 一倍 = gấp đôi, 斤 = nửa ký</td><td>TS sau dòng 217</td><td class="effort">nhỏ</td></tr>
         <tr><td><span class="pill p0">P0</span></td><td>Sửa setting sai: 2 truyện xuyên nhanh → <code>mixed</code>, Lão bà quá mạnh → <code>modern</code>, Huyền giám điền genre</td><td>story.json của 4 truyện</td><td class="effort">nhỏ</td></tr>
         <tr><td><span class="pill p0">P0</span></td><td>Cho phép glossary tự sinh khai nhóm <code>common</code> (thuật ngữ hệ thống, khái niệm thế giới, biệt danh cố định)</td><td><code>api_session.rs:35</code>, <code>:53</code>; <code>commands/next.rs:22-30</code>; <code>ai-client.ts:656</code></td><td class="effort">nhỏ</td></tr>
@@ -339,12 +339,13 @@ footer { border-top: 1px solid var(--line); padding-top: 20px; font-size: 13px; 
   <div class="issue">
     <div class="issue-head"><span class="pill p0">P0</span><h3>Glossary khoá cứng âm Hán Việt sai</h3><span class="muted">32 truyện</span></div>
     <div class="ex">
-      <div class="ex-item"><span class="src">Ký túc xá quỷ dữ</span><span class="raw">童绮</span><span class="bad">Đồng Khởi</span><span class="good">Đồng Ỷ</span><span class="src">1.602 lần / 400 file.</span></div>
       <div class="ex-item"><span class="src">Cửu thúc · sai ngay từ lúc lập hồ sơ</span><span class="raw">李煜</span><span class="bad">Lý Dực</span><span class="good">Lý Dục</span><span class="src">2.263 lần / 153 file.</span></div>
-      <div class="ex-item"><span class="src">Mỗi ngày một môn thần thông · do prompt dạy sai</span><span class="raw">佟仲秋</span><span class="bad">Đông Trọng Thu</span><span class="good">Đồng Trọng Thu</span><span class="src">406 lần / 69 file.</span></div>
+      <div class="ex-item"><span class="src">Phàm nhân, muốn ta làm tân ma tổ</span><span class="raw">墨蛟</span><span class="bad">Mặc Kiều</span><span class="good">Mặc Giao</span><span class="src">65 lần / 6 file.</span></div>
     </div>
     <div class="cause prose">
-      <p><b>Nguyên nhân:</b> bảng "họ hiếm" trong prompt ghi <code>佟 Đông</code> (TS:719, đã kiểm trong prompts.json). Glossary tự sinh chép nguyên văn bản dịch (<code>glossary.rs:93</code>), nên chương đầu phiên sai thì cái sai được chốt. <code>drop_conflicting_readings</code> (<code>glossary.rs:120-136</code>) chỉ so với các mục đã có, nên âm đầu tiên luôn thắng. Không có bước nào đối chiếu từ điển Hán Việt. Ví dụ khác: 祟 → Toái, 蛟 → Kiều, 轩 → Huyên, 棘 → Cực, 储 → Trừ, 冲 → Trùng, 屿 → Tự.</p>
+      <p><b>Nguyên nhân:</b> glossary tự sinh chép nguyên văn bản dịch (<code>glossary.rs:93</code>), nên chương đầu phiên sai thì cái sai được chốt. <code>drop_conflicting_readings</code> (<code>glossary.rs:120-136</code>) chỉ so với các mục đã có, nên âm đầu tiên luôn thắng. Không có bước nào đối chiếu từ điển Hán Việt. Ví dụ khác: 祟 → Toái, 轩 → Huyên, 棘 → Cực, 储 → Trừ, 冲 → Trùng.</p>
+      <p><b>Đính chính (11/10/2026):</b> bản đầu ghi prompt dạy sai <code>佟 Đông</code>. Kiểm lại thì từ điển Thi Viện ghi họ 佟 là Đông, Wikipedia viết Đông Quốc Duy, Đông Giai thị; dòng prompt đúng và được giữ nguyên.</p>
+      <p><b>Đính chính (11/10/2026):</b> bản đầu còn nêu 童绮 "Đồng Khởi" (1.602 lần) và 鼓浪屿 "Cổ Lãng Tự" là phiên sai. Hai kết luận này không chắc vì các từ điển ghi âm khác nhau: 绮 Thi Viện ghi khỉ/ỷ nhưng Lạc Việt ghi khởi; 屿 Lạc Việt ghi dữ nhưng Thi Viện ghi tự. Đã bỏ hai ví dụ này. Không có nguồn âm đủ chuẩn để kiểm tự động, nên app để AI tự dịch tên như cũ; danh sách tên nghi sai âm để soát tay ở <code>nghi-sai-am.md</code>.</p>
     </div>
   </div>
 
@@ -1708,7 +1709,7 @@ footer { border-top: 1px solid var(--line); padding-top: 20px; font-size: 13px; 
    "giong_van": "Hợp thể loại, bảng hệ thống gọn, thoại sinh viên có khẩu ngữ; điểm trừ là 'lâu chủ' kiểu kiếm hiệp, vài cụm Hán Việt nặng và Titan cổ xưa gọi nhau 'cậu' nghe trẻ con.",
    "de_hieu": "Đọc trơn, căn đoạn khớp 100%, hiếm sai nghĩa; còn lẻ tẻ calque 'Theo…', 'bản thân' thay cho 'mình/hắn', vài thành ngữ dịch lệch.",
    "kho_khan": "Meme chat xử lý tốt (ôm chân Phật/cuồng chân, tụt điểm SAN, Vãi); nhưng '呵' bị đổi thành 'Hừ' mất sắc giễu, lặp chữ hài 又又又又 bị san phẳng.",
-   "thuat_ngu": "Tên nhân vật chính nữ 童绮 phiên sai thành 'Đồng Khởi' 1602 lần; 楼主, 祖血, 模拟梦境, 巨人 dịch nhiều kiểu, glossary 3.000+ mục phình to mà thiếu thuật ngữ cốt lõi."
+   "thuat_ngu": "Tên nhân vật chính nữ 童绮 phiên thành 'Đồng Khởi' 1602 lần (đính chính 11/10/2026: Lạc Việt ghi 绮 = khởi, không chắc là sai); 楼主, 祖血, 模拟梦境, 巨人 dịch nhiều kiểu, glossary 3.000+ mục phình to mà thiếu thuật ngữ cốt lõi."
   },
   "top": [
    {
@@ -1717,7 +1718,7 @@ footer { border-top: 1px solid var(--line); padding-top: 20px; font-size: 13px; 
     "raw": "“浪哥，我们要不要放一些设施出去？”童绮开口说道",
     "hien_tai": "“Anh Lãng, chúng ta có nên thả một số cơ sở vật chất ra ngoài không?” Đồng Khởi lên tiếng",
     "de_xuat": "… Đồng Ỷ lên tiếng",
-    "vi_sao": "绮 (綺) đọc Hán Việt là 'Ỷ' (绮丽 = ỷ lệ), 'Khởi' là âm của 起/启; glossary sinh tự động đã khóa sai tên một nữ chính xuyên suốt truyện.",
+    "vi_sao": "(Đính chính 11/10/2026: không chắc — Thi Viện ghi 绮 là khỉ/ỷ nhưng từ điển Lạc Việt ghi khởi; 'Đồng Khởi' có nguồn, giữ hay đổi tuỳ chủ truyện.)",
     "dem": "1602 lần/400 file",
     "chuong": "0547_7592942798349795865",
     "dong": 17
@@ -2060,7 +2061,7 @@ footer { border-top: 1px solid var(--line); padding-top: 20px; font-size: 13px; 
     "raw": "终归难敌佟仲秋和秦海杉的联手",
     "hien_tai": "rốt cuộc vẫn khó địch lại sự liên thủ của Đông Trọng Thu và Tần Hải Sam",
     "de_xuat": "rốt cuộc vẫn không địch nổi Đồng Trọng Thu và Tần Hải Sam liên thủ",
-    "vi_sao": "佟 đọc Hán Việt là Đồng; glossary ghi sai nên lan ra cả mục xưng hô 'Đông lão', 'Đông huynh'.",
+    "vi_sao": "(Đính chính 11/10/2026: sai — từ điển Thi Viện ghi họ 佟 là Đông, Wikipedia viết Đông Quốc Duy, Đông Giai thị; bản dịch \"Đông Trọng Thu\" đúng.)",
     "dem": "'Đông Trọng Thu' 406 lần/69 file",
     "chuong": "10021482_0520_第五百二十章 临界",
     "dong": 3
@@ -2863,7 +2864,7 @@ footer { border-top: 1px solid var(--line); padding-top: 20px; font-size: 13px; 
    "giong_van": "Giọng đô thị trẻ, sảng khoái, đúng chất; arc Dân Quốc chuyển sang văn trang nhã hợp bối cảnh; thỉnh thoảng còn Hán Việt nặng (khí trường, khuê các nữ tử, thư trai, trạch viện).",
    "de_hieu": "Phần lớn câu mượt, đủ ý, khớp từng đoạn; rải rác có calque ('năm ngàn năm trên dưới'), dịch sai thành ngữ (纸醉金迷 → 'vàng thau lẫn lộn') và đại từ 'hắn' mơ hồ khi 自己 nằm trong suy nghĩ của nhân vật khác.",
    "kho_khan": "Giữ được nhịp hài và lóng mạng phần lớn (liếm cẩu, bố hệ thống, phim con heo Đông Doanh); nhưng 呵 vẫn bị dịch thành 'Hừ' (~85%), vài meme dịch nghĩa đen hoặc làm nhạt (无中生友, 我的形状).",
-   "thuat_ngu": "Glossary rất lớn (2.200+ mục, tự sinh) và nhìn chung được áp dụng nhất quán, nhưng có phiên âm sai lan rộng (鼓浪屿 → 'Cổ Lãng Tự'), tên lai Hán Việt + thuần Việt ('Tam Phường Thất Hẻm'), danh xưng tỷ/chị trôi giữa các chương, chính sách xử lý tên chơi chữ không thống nhất."
+   "thuat_ngu": "Glossary rất lớn (2.200+ mục, tự sinh) và nhìn chung được áp dụng nhất quán, nhưng có phiên âm sai lan rộng (鼓浪屿 → 'Cổ Lãng Tự' — đính chính 11/10/2026: Thi Viện ghi 屿 = tự, không chắc là sai), tên lai Hán Việt + thuần Việt ('Tam Phường Thất Hẻm'), danh xưng tỷ/chị trôi giữa các chương, chính sách xử lý tên chơi chữ không thống nhất."
   },
   "top": [
    {
@@ -2872,7 +2873,7 @@ footer { border-top: 1px solid var(--line); padding-top: 20px; font-size: 13px; 
     "raw": "徐云舟带着张徽绛离开鼓浪屿之后",
     "hien_tai": "Sau khi Từ Vân Chu mang theo Trương Huy Giáng rời Cổ Lãng Tự",
     "de_xuat": "Sau khi Từ Vân Chu đưa Trương Huy Giáng rời đảo Cổ Lãng Dữ (Gulangyu)",
-    "vi_sao": "屿 đọc là 'dữ' (đảo nhỏ); 'Tự' là chùa, nên địa danh thành 'chùa Cổ Lãng'; glossary tự sinh khoá phiên âm sai nên lỗi lan khắp arc Dân Quốc.",
+    "vi_sao": "(Đính chính 11/10/2026: không chắc — Lạc Việt ghi 屿 là dữ nhưng Thi Viện ghi tự; 'Cổ Lãng Tự' có nguồn. Thêm chữ 'đảo' cho khỏi đọc thành 'chùa' vẫn có ích.)",
     "dem": "34 lần/10 file (kể cả mục items 再别鼓浪屿 → 'Tạm Biệt Cổ Lãng Tự')",
     "chuong": "0717_7689062947011707416",
     "dong": 3

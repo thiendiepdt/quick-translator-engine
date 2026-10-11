@@ -54,7 +54,8 @@ export const storyConfigSchema = z.object({
 });
 
 /** `cast.json` — bảng nhân vật (giới tính) + mốc đổi xưng hô; file riêng cạnh story.json. */
-export const genderSchema = z.enum(["male", "female"]);
+/** `swap`: biến thân — raw đổi 他/她 theo câu, lời kể theo raw, check theo giới bỏ qua. */
+export const genderSchema = z.enum(["male", "female", "swap"]);
 export const entrySourceSchema = z.enum(["auto", "user"]);
 export const castSchema = z.object({
   version: z.number().default(1),
@@ -66,6 +67,8 @@ export const castSchema = z.object({
         source: entrySourceSchema.default("auto"),
         chapter: z.string().optional(),
         disputed: z.array(z.string()).optional(),
+        /** Đại từ lời kể chốt riêng (lão, bà, Ngài…); trống thì theo giới. */
+        narration: z.string().optional(),
       }),
     )
     .default({}),
@@ -87,6 +90,19 @@ export const castSchema = z.object({
       }),
     )
     .default({}),
+});
+/** Rà ngược một mục glossary: đoạn đã dịch có khoá trong raw mà bản dịch thiếu cách dịch hiện tại. */
+export const glossaryUsageSchema = z.object({
+  total: z.number(),
+  chapters: z.number(),
+  skipped: z.number(),
+  hits: z.array(z.object({ chapter: z.string(), paragraph: z.number(), text: z.string() })),
+});
+export const glossaryBackfillSchema = z.object({
+  chapters: z.number(),
+  paragraphs: z.number(),
+  occurrences: z.number(),
+  skipped: z.number(),
 });
 export const scanCastViewSchema = z.object({
   asked: z.number(),

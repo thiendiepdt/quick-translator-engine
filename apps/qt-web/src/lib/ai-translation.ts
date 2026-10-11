@@ -46,7 +46,7 @@ const CHECK_RULES: Array<[RegExp, string, GenreSetting?]> = [
   [/(?<!\p{L})(?:đàn ông|đàn bà|phụ nữ)(?!\p{L})/iu, "Từ chỉ người đời thường trong bối cảnh cổ → nam nhân/nữ nhân (nam tử/nữ tử)", "ancient"],
   [/\banh ấy\b|\banh ta\b|\bcô ấy\b|\bchị ấy\b/i, "Đại từ sai → dùng hắn/nàng", "ancient"],
   [/(?<!\p{L})(?:ông ta|ông ấy|bà ta|bà ấy)(?!\p{L})/iu, "ông ta/bà ta cho nhân vật lớn tuổi trong bối cảnh cổ → hắn/lão, nàng/bà", "ancient"],
-  [/(^|[“"']|,\s+)(?:mình|tôi)(?:\s|[,.!?…])/i, "Dùng mình/tôi làm đại từ → thay bằng ta trong style mặc định", "ancient"],
+  [/(^|[“"']|,\s+)(?:mình|tôi)(?:\s|[,.!?…])/i, "Dùng mình/tôi làm đại từ → ta, hoặc tự xưng theo thân phận (tiểu nhân/nô tỳ/thuộc hạ/đệ tử/con)", "ancient"],
   [/tinh thần đại chấn/, "精神大振 → dùng tinh thần phấn chấn hẳn lên"],
   [/mơ hồ nghiệm ra|mùi vị không bình thường/, "品出意味 → dùng nhận ra/nhận thấy điều bất thường"],
   [/bình loạn bắt sống/, "平叛生擒 → dùng dẹp loạn, bắt sống"],
@@ -58,7 +58,8 @@ const CHECK_RULES: Array<[RegExp, string, GenreSetting?]> = [
   [/toàn bộ người nghênh đón có mặt đều/, "Tránh chồng chủ thể/lượng từ"],
   [/đã thưởng Minh chủ/, "感谢 X 打赏的盟主 → dùng cảm ơn minh chủ X đã thưởng/ủng hộ"],
   [/não hải/, "não hải → đầu óc / tâm trí"],
-  [/(?<!\p{L})(?:Hừm|Ừm)(?!\p{L})/iu, "Hừm/Ừm → Ân", "ancient"],
+  [/(?<!\p{L})kiểm trắc(?!\p{L})/iu, "检测 → phát hiện / quét thấy / kiểm tra, không dùng kiểm trắc"],
+  [/(?<!\p{L})liếm chó(?!\p{L})/iu, "舔狗 → liếm cẩu, không dùng liếm chó"],
   [/Ơ\s*[?!,.…]/, "Thán từ Ơ → dùng A trong bối cảnh cổ đại/huyền huyễn", "ancient"],
   [/\bthập phần\b/, "thập phần → vô cùng / hết sức"],
   [/(?<!\p{L})đắc được(?!\p{L})/iu, "得到 / 深得 → được / nhận được / học được, không \"đắc được\""],
@@ -105,12 +106,11 @@ const CHECK_RULES: Array<[RegExp, string, GenreSetting?]> = [
   [/trời sinh [A-Z]/, "Danh xưng lai nửa Việt nửa Hán → dùng Hán-Việt cả cụm (Thiên Sinh ...)"],
   [/…/, "Còn ký tự … → chuẩn hóa thành dấu chấm ASCII, giữ số lượng (… → ..., …… → ......)"],
   // Rule riêng cho truyện hiện đại: bắt giọng cổ trang lọt vào đô thị.
-  [/(?<!\p{L})(?:ngươi|nàng|bọn ta|các ngươi)(?!\p{L})/iu, "Xưng hô cổ trang trong truyện hiện đại → hắn/cô trong lời kể, tôi/anh/em trong thoại", "modern"],
+  // "con ngươi", "cô nàng", "nàng thơ/dâu/tiên" là tiếng Việt hiện đại hợp lệ, không phải xưng hô cổ trang.
+  [/(?<!\p{L})(?<!con )(?<!cô )(?:ngươi|nàng|bọn ta|các ngươi)(?!\p{L})(?!\s(?:thơ|dâu|tiên)(?!\p{L}))/iu, "Xưng hô cổ trang trong truyện hiện đại → hắn/cô trong lời kể, tôi/anh/em trong thoại", "modern"],
   [/(?<!\p{L})(?:thê tử|phu quân|lang quân|phụ thân|mẫu thân)(?!\p{L})/iu, "Từ gia đình cổ trang → vợ/chồng/bố/mẹ", "modern"],
   [/(?<!\p{L})tổng tài(?!\p{L})/iu, "tổng tài → tổng giám đốc", "modern"],
   [/nói đạo/i, "说道 → nói / đáp, không \"nói đạo\"", "modern"],
-  // Dòng kể (không có ngoặc kép) mà có `tôi`: người kể ngôi một phải tự xưng `ta`. Dòng có thoại bỏ qua.
-  [/^[^"“”]*(?<!\p{L})tôi(?!\p{L})[^"“”]*$/iu, "Lời kể ngôi một dùng tôi → ta (tôi chỉ trong thoại theo quan hệ)", "modern"],
 ];
 
 function rulesForSetting(setting: GenreSetting): Array<[RegExp, string]> {
@@ -126,6 +126,81 @@ export function defaultAiCheckRules(setting: GenreSetting): AiCheckRule[] {
     ...(pattern.flags ? { flags: pattern.flags } : {}),
     message,
   }));
+}
+
+/**
+ * Rule chỉ cảnh báo: không đẩy chương vào vòng soát, qt-ai ghi vào warnings khi chốt để người dùng
+ * xem lại. Dành cho mẫu hay sai nhưng cũng có lúc đúng (tên riêng trùng chữ, cách dùng hợp lệ).
+ * qt-web chưa dùng; giữ ở đây để golden chép sang Rust như các rule khác.
+ */
+const ADVISORY_CHECK_RULES: Array<[RegExp, string, GenreSetting?]> = [
+  [/(?:^|[“"'(—]|[.!?…]\s+)Ân(?=\s*[,.!?~…])/u, "嗯 → Ừ/Ừm/Ưm/Hả theo bảng Thán từ, không phiên âm Ân"],
+  [/(?<!\p{L})["“]?[Ââ]n["”]? một tiếng/u, "ân một tiếng → ừm một tiếng"],
+  [/(?<!\p{L})bản thân (?:hắn|nàng|cô|y|lão|gã|nó)(?!\p{L})/iu, "自己 → hắn/nàng/cô hoặc lược, không ghép bản thân + đại từ"],
+  // Dòng kể (không ngoặc kép) mà có `tôi`: người kể ngôi một phải tự xưng `ta`. Chỉ cảnh báo vì truyện kể ngôi ba
+  // cũng có "tôi" ngoài ngoặc kép hợp lệ; bỏ qua tiêu đề, 【】, ý nghĩ trong 『』 và dòng "Tên: …" (đạn mạc, chat).
+  [/^(?!Chương \d)(?![【『])(?!\[)(?![^:："“”]{1,40}[:：])[^"“”『』]*(?<!\p{L})tôi(?!\p{L})[^"“”『』]*$/iu, "Người kể ngôi một xưng tôi → ta (truyện kể ngôi ba thì bỏ qua)", "modern"],
+  [/[“"](?:Thiếu gia|Chủ nhân|Lão gia|Đại nhân|Sư phụ|Sư tôn|Điện hạ|Bệ hạ|Tiền bối|Phụ thân|Mẫu thân|Phụ hoàng|Mẫu hậu)[,!.…][^”"]{0,160}(?<!\p{L})(?:các )?ngươi(?!\p{L})/iu, "Gọi bề trên bằng danh xưng mà xưng ngươi → ngài/người hoặc danh xưng (mục Vai vế trong thoại)", "ancient"],
+  [/[“"](?:Thiếu gia|Chủ nhân|Lão gia|Đại nhân|Sư phụ|Sư tôn|Điện hạ|Bệ hạ|Tiền bối|Phụ thân|Mẫu thân|Phụ hoàng|Mẫu hậu)[,!.…][^”"]{0,160}(?<!chúng )(?<!bọn )(?<!người )(?<!\p{L})ta(?!\p{L})/iu, "Gọi bề trên bằng danh xưng mà tự xưng ta → tiểu nhân/nô tỳ/thuộc hạ/đệ tử/vãn bối/con (mục Vai vế trong thoại)", "ancient"],
+  [/(?<!\p{L})(?:\d[\d.,]*|một|hai|ba|bốn|năm|sáu|bảy|tám|chín|mười|mươi|trăm|nghìn|ngàn|vạn|mấy|vài)\s*ức(?!\p{L})(?!\s+(?:vạn|hiếp))/iu, "亿 → trăm triệu / tỷ (百亿 = 10 tỷ, 千亿 = 100 tỷ), không viết ức"],
+  [/(?<!\p{L})(?:\d[\d.,]*|một|hai|ba|bốn|năm|sáu|bảy|tám|chín|mười|mấy|vài)\s*vạn(?!\p{L})(?!\s+(?:tuế|vật|nhất|sự|năng|phần))/iu, "万 trong truyện hiện đại → nghìn / triệu (20万 = 200 nghìn), không viết vạn", "modern"],
+  [/(?:^|[.!?…]\s+|[“"])Bản thân(?!\s+(?:là|hắn|nàng|cô|y|lão|gã|nó)(?!\p{L}))(?!\p{L})/u, "自己 làm chủ ngữ → hắn/nàng/cô hoặc lược, không mở câu bằng Bản thân"],
+  [/chiếm (?:hết )?tiện nghi/iu, "占便宜 → lợi dụng / sàm sỡ / bắt nạt theo cảnh, không chiếm tiện nghi"],
+  [/tổng không thể/iu, "总不能 → đâu thể / chẳng lẽ, không tổng không thể"],
+];
+
+export function defaultAdvisoryRules(setting: GenreSetting): AiCheckRule[] {
+  return ADVISORY_CHECK_RULES.filter(([, , tag]) => tag === undefined || tag === setting).map(([pattern, message]) => ({
+    pattern: pattern.source,
+    ...(pattern.flags ? { flags: pattern.flags } : {}),
+    message,
+  }));
+}
+
+export function checkAdvisoryViolations(text: string, setting: GenreSetting = "ancient"): TranslationViolation[] {
+  const rules = ADVISORY_CHECK_RULES.filter(([, , tag]) => tag === undefined || tag === setting);
+  const violations: TranslationViolation[] = [];
+  text.split(/\r?\n/).forEach((line, index) => {
+    for (const [pattern, message] of rules) {
+      if (pattern.test(line)) violations.push({ line: index + 1, message, text: line.trim().slice(0, 120) });
+    }
+  });
+  return violations;
+}
+
+/**
+ * Bẫy đồng âm: đoạn raw có `raw` (mà không có `unless`) và đoạn dịch cùng nhãn [[n]] có `out` → sai nghĩa. Xét theo
+ * cặp đoạn nên qt-web chưa dùng; golden chép sang Rust. `advisory`: chỉ cảnh báo, không đưa vào soát.
+ */
+export type RawPairRule = { raw: RegExp; unless?: RegExp; out: RegExp; message: string; advisory?: boolean };
+
+export const RAW_PAIR_RULES: RawPairRule[] = [
+  { raw: /头颅|脑袋|人头/u, unless: /骷髅|头骨/u, out: /đầu lâu/iu, message: "头颅/脑袋/人头 là cái đầu, thủ cấp → không dịch đầu lâu (sọ người)" },
+  { raw: /放肆/u, out: /phóng túng/iu, message: "放肆 → láo xược / càn rỡ, không phóng túng" },
+  { raw: /翻.{0,2}白眼/u, out: /trợn tròn/iu, message: "翻白眼 → trợn trắng mắt / lườm, không trợn tròn" },
+  { raw: /总不能/u, out: /tổng thể/iu, message: "总不能 → đâu thể / chẳng lẽ, không tổng thể" },
+  { raw: /交[待代]/u, out: /lời ăn tiếng nói/iu, message: "交待/交代 → lời giải thích / câu trả lời, không lời ăn tiếng nói" },
+  { raw: /一个头两个大/u, out: /hai thứ tóc/iu, message: "一个头两个大 → đau cả đầu / rối như tơ vò, không một đầu hai thứ tóc" },
+  { raw: /拳力/u, unless: /权力/u, out: /quyền lực/iu, message: "拳力 → lực quyền / sức đấm, không quyền lực" },
+  { raw: /藏着掖着/u, out: /giấu đầu lòi đuôi/iu, message: "藏着掖着 → giấu giấu giếm giếm, không giấu đầu lòi đuôi" },
+  { raw: /呵/u, unless: /哼|呵斥/u, out: /(?<!\p{L})hừ(?!\p{L})/iu, message: "呵 là cười khẩy / cười nhạt → Ha / Hà / Hề hề, không Hừ", advisory: true },
+];
+
+export type RawPairIssue = { paragraph: number; message: string; advisory: boolean };
+
+/** Vấn đề bẫy đồng âm theo từng cặp đoạn; `paragraph` là chỉ số 0-based của nhãn [[n]]. */
+export function checkRawPairViolations(raw: string[], translated: Array<string | null | undefined>): RawPairIssue[] {
+  const issues: RawPairIssue[] = [];
+  raw.forEach((source, paragraph) => {
+    const text = translated[paragraph];
+    if (!text) return;
+    for (const rule of RAW_PAIR_RULES) {
+      if (rule.raw.test(source) && !rule.unless?.test(source) && rule.out.test(text)) {
+        issues.push({ paragraph, message: rule.message, advisory: rule.advisory ?? false });
+      }
+    }
+  });
+  return issues;
 }
 
 /**
@@ -267,11 +342,36 @@ export function buildAiTranslationSystemPrompt(
   return `${basePrompt}${storyContext}${glossarySection}${styleSection}${TRANSLATION_PROMPT_SUFFIX}`;
 }
 
+// Mỗi phiên model trình bày dấu câu một kiểu (cả lô chương ngoặc thẳng, "— !"), nên chuẩn hoá bằng code.
+const QUOTE_SPACE = " \t 　";
+const OPEN_BEFORE_QUOTE = "([{“‘『「【—:";
+const CLOSE_AFTER_QUOTE = "!?,.;:…”’』)]】}";
+const DASH_BEFORE_CLOSER = /— +([!?,.;:…”’』)\]】])/gu;
+const OPENER_BEFORE_DASH = /([“‘『(]) +—/gu;
+
+/**
+ * Ngoặc kép thẳng `"` → `“`/`”` theo chữ đứng cạnh (không ghép cặp, nên thoại kéo nhiều đoạn vẫn đúng); gạch dài
+ * sát dấu đóng và ngoặc mở (`“Ngươi — !”` → `“Ngươi —!”`, `“ — Giết!”` → `“— Giết!”`). Nháy đơn và `『』` giữ nguyên.
+ */
+export function normalizeAiPunctuation(line: string): string {
+  const chars = Array.from(line);
+  const quoted = chars
+    .map((ch, index) => {
+      if (ch !== '"') return ch;
+      const next = chars[index + 1];
+      if (next === undefined || QUOTE_SPACE.includes(next) || CLOSE_AFTER_QUOTE.includes(next)) return "”";
+      const prev = chars[index - 1];
+      return prev === undefined || QUOTE_SPACE.includes(prev) || OPEN_BEFORE_QUOTE.includes(prev) ? "“" : "”";
+    })
+    .join("");
+  return quoted.replace(DASH_BEFORE_CLOSER, "—$1").replace(OPENER_BEFORE_DASH, "$1—");
+}
+
 export function formatAiTranslation(text: string): string {
   const blocks: string[][] = [];
   let current: string[] = [];
   for (const line of text.split(/\r?\n/)) {
-    const trimmed = line.trimEnd();
+    const trimmed = normalizeAiPunctuation(line.trimEnd());
     if (!trimmed) {
       if (current.length > 0) blocks.push(current);
       current = [];

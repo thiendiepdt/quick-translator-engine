@@ -56,14 +56,40 @@ describe("sanitizeExtractedGlossary", () => {
     expect(pairs).toEqual([]);
   });
 
-  it("falls back to names for unknown categories", () => {
+  it("drops unknown categories but treats a missing category as names", () => {
     const pairs = sanitizeExtractedGlossary(
-      [{ source: "震雷子", target: "Chấn Lôi Tử", category: "bogus" }],
+      [
+        { source: "震雷子", target: "Chấn Lôi Tử", category: "bogus" },
+        { source: "震雷子", target: "Chấn Lôi Tử" },
+      ],
       RAW,
       TRANSLATION,
       new Set(),
     );
     expect(pairs).toEqual([{ source: "震雷子", target: "Chấn Lôi Tử", category: "names" }]);
+  });
+
+  it("không đưa danh xưng gắn họ vào names; 《X》 lưu thành X", () => {
+    const raw = "老张和李老师读《难忘今宵》，苏夫人在老君山，东溟夫人也在。";
+    const translation = "Lão Trương và thầy Lý đọc 《Đêm Nay Khó Quên》, Tô phu nhân ở Lão Quân Sơn, Đông Minh phu nhân cũng ở đó.";
+    const pairs = sanitizeExtractedGlossary(
+      [
+        { source: "老张", target: "Lão Trương", category: "names" },
+        { source: "李老师", target: "thầy Lý", category: "names" },
+        { source: "苏夫人", target: "Tô phu nhân", category: "names" },
+        { source: "《难忘今宵》", target: "《Đêm Nay Khó Quên》", category: "items" },
+        { source: "老君山", target: "Lão Quân Sơn", category: "places" },
+        { source: "东溟夫人", target: "Đông Minh phu nhân", category: "names" },
+      ],
+      raw,
+      translation,
+      new Set(),
+    );
+    expect(pairs).toEqual([
+      { source: "难忘今宵", target: "Đêm Nay Khó Quên", category: "items" },
+      { source: "老君山", target: "Lão Quân Sơn", category: "places" },
+      { source: "东溟夫人", target: "Đông Minh phu nhân", category: "names" },
+    ]);
   });
 });
 

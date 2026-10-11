@@ -152,14 +152,162 @@
           "category": "common"
         },
         {
-          "source": "抬头",
-          "target": "ngẩng đầu",
-          "category": "names"
-        },
-        {
           "source": "赵静文→高塔",
           "target": "ta–ngươi",
           "category": "addressing"
+        }
+      ]
+    },
+    {
+      "entries": [
+        {
+          "source": "老张",
+          "target": "Lão Trương",
+          "category": "names"
+        },
+        {
+          "source": "李老师",
+          "target": "thầy Lý",
+          "category": "names"
+        },
+        {
+          "source": "苏夫人",
+          "target": "Tô phu nhân",
+          "category": "names"
+        },
+        {
+          "source": "龙姑娘",
+          "target": "Long cô nương",
+          "category": "names"
+        },
+        {
+          "source": "《难忘今宵》",
+          "target": "《Đêm Nay Khó Quên》",
+          "category": "items"
+        },
+        {
+          "source": "老君山",
+          "target": "Lão Quân Sơn",
+          "category": "places"
+        },
+        {
+          "source": "龙青青",
+          "target": "Long Thanh Thanh"
+        },
+        {
+          "source": "推开",
+          "target": "đẩy cửa",
+          "category": "động từ"
+        },
+        {
+          "source": "周七小姐",
+          "target": "Chu thất tiểu thư",
+          "category": "names"
+        },
+        {
+          "source": "东溟夫人",
+          "target": "Đông Minh phu nhân",
+          "category": "names"
+        }
+      ],
+      "raw": "老张推开门，李老师、苏夫人和龙姑娘都在。《难忘今宵》响起，老君山上，龙青青笑了。周七小姐与东溟夫人对坐。",
+      "translation": "Lão Trương đẩy cửa, thầy Lý, Tô phu nhân và Long cô nương đều ở đó. Đêm Nay Khó Quên vang lên, trên Lão Quân Sơn, Long Thanh Thanh cười. Chu thất tiểu thư ngồi đối diện Đông Minh phu nhân.",
+      "existingKeys": [],
+      "result": [
+        {
+          "source": "难忘今宵",
+          "target": "Đêm Nay Khó Quên",
+          "category": "items"
+        },
+        {
+          "source": "老君山",
+          "target": "Lão Quân Sơn",
+          "category": "places"
+        },
+        {
+          "source": "龙青青",
+          "target": "Long Thanh Thanh",
+          "category": "names"
+        },
+        {
+          "source": "东溟夫人",
+          "target": "Đông Minh phu nhân",
+          "category": "names"
+        }
+      ]
+    },
+    {
+      "entries": [
+        {
+          "source": "老张",
+          "target": "Lão Trương",
+          "category": "names"
+        },
+        {
+          "source": "李老师",
+          "target": "thầy Lý",
+          "category": "names"
+        },
+        {
+          "source": "苏夫人",
+          "target": "Tô phu nhân",
+          "category": "names"
+        },
+        {
+          "source": "龙姑娘",
+          "target": "Long cô nương",
+          "category": "names"
+        },
+        {
+          "source": "《难忘今宵》",
+          "target": "《Đêm Nay Khó Quên》",
+          "category": "items"
+        },
+        {
+          "source": "老君山",
+          "target": "Lão Quân Sơn",
+          "category": "places"
+        },
+        {
+          "source": "龙青青",
+          "target": "Long Thanh Thanh"
+        },
+        {
+          "source": "推开",
+          "target": "đẩy cửa",
+          "category": "động từ"
+        },
+        {
+          "source": "周七小姐",
+          "target": "Chu thất tiểu thư",
+          "category": "names"
+        },
+        {
+          "source": "东溟夫人",
+          "target": "Đông Minh phu nhân",
+          "category": "names"
+        }
+      ],
+      "raw": "老张推开门，李老师、苏夫人和龙姑娘都在。《难忘今宵》响起，老君山上，龙青青笑了。周七小姐与东溟夫人对坐。",
+      "translation": "Lão Trương đẩy cửa, thầy Lý, Tô phu nhân và Long cô nương đều ở đó. Đêm Nay Khó Quên vang lên, trên Lão Quân Sơn, Long Thanh Thanh cười. Chu thất tiểu thư ngồi đối diện Đông Minh phu nhân.",
+      "existingKeys": [
+        "难忘今宵"
+      ],
+      "result": [
+        {
+          "source": "老君山",
+          "target": "Lão Quân Sơn",
+          "category": "places"
+        },
+        {
+          "source": "龙青青",
+          "target": "Long Thanh Thanh",
+          "category": "names"
+        },
+        {
+          "source": "东溟夫人",
+          "target": "Đông Minh phu nhân",
+          "category": "names"
         }
       ]
     }
@@ -222,11 +370,6 @@
           "category": "common"
         },
         {
-          "source": "抬头",
-          "target": "ngẩng đầu",
-          "category": "names"
-        },
-        {
           "source": "赵静文→高塔",
           "target": "ta–ngươi",
           "category": "addressing"
@@ -247,8 +390,7 @@
           "names": {
             "赵静文": "Triệu Tĩnh Văn",
             "慕容雪羽": "Mộ Dung Tuyết Vũ",
-            "不出现": "Không Xuất Hiện",
-            "抬头": "ngẩng đầu"
+            "不出现": "Không Xuất Hiện"
           },
           "places": {
             "高塔": "Cao Tháp"
@@ -288,12 +430,6 @@
             "source": "沉默",
             "target": "im lặng",
             "category": "common",
-            "chapter": "0001"
-          },
-          {
-            "source": "抬头",
-            "target": "ngẩng đầu",
-            "category": "names",
             "chapter": "0001"
           },
           {

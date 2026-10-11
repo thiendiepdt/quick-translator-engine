@@ -3,6 +3,7 @@ mod app_config;
 mod base_cmds;
 mod cast_cmds;
 mod error;
+mod glossary_cmds;
 mod library_cmds;
 mod sidecar;
 mod session_cmds;
@@ -129,6 +130,8 @@ pub fn run() {
             library_cmds::library_rescan,
             title_cmds::titles_survey,
             title_cmds::titles_apply,
+            glossary_cmds::glossary_scan,
+            glossary_cmds::glossary_backfill,
             library_cmds::import_chapters,
         ])
         .run(tauri::generate_context!())
@@ -178,6 +181,7 @@ mod tests {
             include_str!("session_cmds.rs"),
             include_str!("story_cmds.rs"),
             include_str!("title_cmds.rs"),
+            include_str!("glossary_cmds.rs"),
         ]
         .join("\n");
         let heavy = [
@@ -193,6 +197,8 @@ mod tests {
             "library_rescan",
             "titles_survey",
             "titles_apply",
+            "glossary_scan",
+            "glossary_backfill",
             "import_chapters",
             "session_start",
             "session_stop",

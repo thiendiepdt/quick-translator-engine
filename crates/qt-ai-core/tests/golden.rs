@@ -1,5 +1,8 @@
 //! So từng byte với fixtures do apps/qt-ai-cli/scripts/gen-golden.ts sinh từ code TS thật.
-use qt_ai_core::check::{check_violations, default_rules_as_check_rules, js_regex_to_rust, Violation};
+use qt_ai_core::check::{
+    advisory_rules_as_check_rules, advisory_violations, check_violations, default_rules_as_check_rules, js_regex_to_rust,
+    raw_pair_issues, RawPairIssue, Violation, RAW_PAIR_RULES,
+};
 use qt_ai_core::glossary::{
     append_auto_glossary, collect_glossary_keys, resolve_auto_glossary_enabled, sanitize_extracted, ExtractedPair,
 };
@@ -181,7 +184,40 @@ fn glossary_matches_va_filter_khop_web() {
 struct CheckFixture {
     #[serde(rename = "defaultRules")]
     default_rules: DefaultRules,
+    #[serde(rename = "advisoryRules")]
+    advisory_rules: DefaultRules,
+    #[serde(rename = "advisoryCases")]
+    advisory_cases: Vec<AdvisoryCase>,
+    #[serde(rename = "rawPairRules")]
+    raw_pair_rules: Vec<RawPairRuleFixture>,
+    #[serde(rename = "rawPairCases")]
+    raw_pair_cases: Vec<RawPairCase>,
     cases: Vec<CheckCase>,
+}
+#[derive(Deserialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct RawPairRuleFixture {
+    raw: String,
+    raw_flags: String,
+    unless: Option<String>,
+    unless_flags: Option<String>,
+    out: String,
+    out_flags: String,
+    message: String,
+    advisory: bool,
+}
+#[derive(Deserialize)]
+struct RawPairCase {
+    raw: Vec<String>,
+    translated: Vec<Option<String>>,
+    issues: Vec<RawPairIssue>,
+}
+#[derive(Deserialize)]
+struct AdvisoryCase {
+    name: String,
+    text: String,
+    setting: GenreSetting,
+    violations: Vec<Violation>,
 }
 #[derive(Deserialize)]
 struct DefaultRules {
@@ -204,6 +240,41 @@ fn check_rules_mac_dinh_theo_setting_nhu_web() {
     assert_eq!(default_rules_as_check_rules(GenreSetting::Ancient), f.default_rules.ancient);
     assert_eq!(default_rules_as_check_rules(GenreSetting::Modern), f.default_rules.modern);
     assert_eq!(default_rules_as_check_rules(GenreSetting::Mixed), f.default_rules.mixed);
+    assert_eq!(advisory_rules_as_check_rules(GenreSetting::Ancient), f.advisory_rules.ancient);
+    assert_eq!(advisory_rules_as_check_rules(GenreSetting::Modern), f.advisory_rules.modern);
+    assert_eq!(advisory_rules_as_check_rules(GenreSetting::Mixed), f.advisory_rules.mixed);
+}
+
+#[test]
+fn bay_dong_am_theo_cap_doan_khop_web() {
+    let f: CheckFixture = fixture(include_str!("fixtures/check.json"));
+    let ours: Vec<RawPairRuleFixture> = RAW_PAIR_RULES
+        .iter()
+        .map(|rule| RawPairRuleFixture {
+            raw: rule.raw.to_string(),
+            raw_flags: "u".to_string(),
+            unless: rule.unless.map(str::to_string),
+            unless_flags: rule.unless.map(|_| "u".to_string()),
+            out: rule.out.to_string(),
+            out_flags: rule.out_flags.to_string(),
+            message: rule.message.to_string(),
+            advisory: rule.advisory,
+        })
+        .collect();
+    assert_eq!(ours, f.raw_pair_rules);
+    assert!(!f.raw_pair_cases.is_empty());
+    for case in f.raw_pair_cases {
+        assert_eq!(raw_pair_issues(&case.raw, &case.translated), case.issues, "raw {:?}", case.raw);
+    }
+}
+
+#[test]
+fn check_canh_bao_khop_web() {
+    let f: CheckFixture = fixture(include_str!("fixtures/check.json"));
+    assert!(!f.advisory_cases.is_empty());
+    for case in f.advisory_cases {
+        assert_eq!(advisory_violations(&case.text, case.setting), case.violations, "case {}", case.name);
+    }
 }
 
 #[test]

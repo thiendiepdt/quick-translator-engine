@@ -15,6 +15,8 @@ vi.mock("@/lib/api", () => ({
   castSave: vi.fn(),
   castScan: vi.fn(),
   castCleanAddressing: vi.fn(),
+  glossaryScan: vi.fn(),
+  glossaryBackfill: vi.fn(),
   pickSaveFile: vi.fn(),
   writeTextFile: vi.fn(),
   storyDefaults: vi.fn((genre: { setting: string }) =>
@@ -117,7 +119,52 @@ describe("StoryPage", () => {
     await user.click(screen.getByRole("button", { name: "Reset truyện…" }));
     await user.click(screen.getByRole("button", { name: "Reset truyện" }));
     await screen.findByLabelText("Giới tính 赵静文");
-    expect(vi.mocked(castLoad).mock.calls.length).toBe(before + 1);
+    // Một lần cho bảng nhân vật, một lần cho nhãn "đang dùng" của nhóm xưng hô trong tab Glossary.
+    expect(vi.mocked(castLoad).mock.calls.length).toBe(before + 2);
+  });
+
+  it("Rà chương cũ: liệt kê đoạn thiếu cách dịch, xem trước rồi thay cụm sai", async () => {
+    const user = userEvent.setup();
+    const { glossaryScan, glossaryBackfill } = await import("@/lib/api");
+    vi.mocked(glossaryScan)
+      .mockResolvedValueOnce({ total: 2, chapters: 1, skipped: 0, hits: [{ chapter: "0003", paragraph: 4, text: "Triệu Tĩnh Vân tới." }] })
+      .mockResolvedValueOnce({ total: 0, chapters: 0, skipped: 0, hits: [] });
+    vi.mocked(glossaryBackfill)
+      .mockResolvedValueOnce({ chapters: 1, paragraphs: 2, occurrences: 2, skipped: 0 })
+      .mockResolvedValueOnce({ chapters: 1, paragraphs: 2, occurrences: 2, skipped: 0 });
+    render(<StoryPage />);
+    await user.click(screen.getByRole("tab", { name: "Glossary" }));
+    await user.click(screen.getByRole("button", { name: "Rà chương cũ 1" }));
+    const dialog = await screen.findByRole("dialog", { name: "Rà chương cũ: 赵静文" });
+    expect(glossaryScan).toHaveBeenCalledWith(snapshot.root, "赵静文", "Triệu Tĩnh Văn");
+    expect(await screen.findByLabelText("Kết quả rà")).toHaveTextContent("2 đoạn ở 1 chương");
+    expect(screen.getByText("Triệu Tĩnh Vân tới.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Thay trong chương cũ" })).toBeDisabled();
+    await user.type(screen.getByLabelText("Cụm sai"), "Triệu Tĩnh Vân");
+    await user.click(screen.getByRole("button", { name: "Xem trước" }));
+    expect(await screen.findByText("Sẽ thay 2 chỗ trong 2 đoạn, 1 chương.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Thay trong chương cũ" }));
+    expect(glossaryBackfill).toHaveBeenLastCalledWith(snapshot.root, "赵静文", "Triệu Tĩnh Vân", "Triệu Tĩnh Văn", true);
+    expect(await screen.findByText("Đã thay 2 chỗ trong 2 đoạn, 1 chương.")).toBeInTheDocument();
+    expect(dialog).toBeInTheDocument();
+  });
+
+  it("nhóm xưng hô ghi kèm cặp đang áp khi bảng nhân vật đã có mốc mới", async () => {
+    const user = userEvent.setup();
+    const { castLoad } = await import("@/lib/api");
+    vi.mocked(castLoad).mockResolvedValue({
+      version: 1,
+      characters: {},
+      addressing: { "赵静文→莫衡": { pinned: false, changes: [{ from: "0150_x", target: "em–anh", source: "auto" }] } },
+    });
+    useStoryStore.setState({
+      root: snapshot.root,
+      snapshot: { ...snapshot, story: { ...snapshot.story, glossary: { ...snapshot.story.glossary, addressing: { "赵静文→莫衡": "ta–ngươi" } } } },
+      sessions: {},
+    });
+    render(<StoryPage />);
+    await user.click(screen.getByRole("tab", { name: "Glossary" }));
+    expect(await screen.findByText("Đang dùng: em–anh (từ ch.150, mốc trong bảng nhân vật)")).toBeInTheDocument();
   });
 
   it("tab Glossary có nút Export Names.txt… mở dialog với glossary đang hiển thị (kể cả sửa chưa lưu)", async () => {

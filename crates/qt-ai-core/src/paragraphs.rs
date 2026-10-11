@@ -88,12 +88,46 @@ pub fn strip_markers(text: &str) -> String {
     STRIP.replace_all(text, "").into_owned()
 }
 
+// Port normalizeAiPunctuation: mỗi phiên model trình bày dấu câu một kiểu, nên chuẩn hoá bằng code.
+const QUOTE_SPACE: &str = " \t\u{a0}\u{3000}";
+const OPEN_BEFORE_QUOTE: &str = "([{“‘『「【—:";
+const CLOSE_AFTER_QUOTE: &str = "!?,.;:…”’』)]】}";
+static DASH_BEFORE_CLOSER: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"— +([!?,.;:…”’』)\]】])").unwrap());
+static OPENER_BEFORE_DASH: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"([“‘『(]) +—").unwrap());
+
+/// Ngoặc kép thẳng `"` → `“`/`”` theo chữ đứng cạnh (không ghép cặp, nên thoại kéo nhiều đoạn vẫn đúng); gạch dài
+/// sát dấu đóng và ngoặc mở (`“Ngươi — !”` → `“Ngươi —!”`, `“ — Giết!”` → `“— Giết!”`). Nháy đơn và `『』` giữ nguyên.
+pub fn normalize_punctuation(line: &str) -> String {
+    let chars: Vec<char> = line.chars().collect();
+    let quoted: String = chars
+        .iter()
+        .enumerate()
+        .map(|(index, &ch)| {
+            if ch != '"' {
+                return ch;
+            }
+            let next = chars.get(index + 1);
+            if next.is_none_or(|c| QUOTE_SPACE.contains(*c) || CLOSE_AFTER_QUOTE.contains(*c)) {
+                return '”';
+            }
+            let prev = index.checked_sub(1).map(|i| chars[i]);
+            if prev.is_none_or(|c| QUOTE_SPACE.contains(c) || OPEN_BEFORE_QUOTE.contains(c)) {
+                '“'
+            } else {
+                '”'
+            }
+        })
+        .collect();
+    let quoted = DASH_BEFORE_CLOSER.replace_all(&quoted, "—$1");
+    OPENER_BEFORE_DASH.replace_all(&quoted, "$1—").into_owned()
+}
+
 /// Port `formatAiTranslation`: gom dòng thành khối, khối cách nhau đúng 1 dòng trống, kết bằng `\n`.
 pub fn format_translation(text: &str) -> String {
-    let mut blocks: Vec<Vec<&str>> = Vec::new();
-    let mut current: Vec<&str> = Vec::new();
+    let mut blocks: Vec<Vec<String>> = Vec::new();
+    let mut current: Vec<String> = Vec::new();
     for line in split_lines(text) {
-        let trimmed = line.trim_end();
+        let trimmed = normalize_punctuation(line.trim_end());
         if trimmed.is_empty() {
             if !current.is_empty() {
                 blocks.push(std::mem::take(&mut current));

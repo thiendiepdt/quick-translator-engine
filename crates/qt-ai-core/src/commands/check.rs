@@ -1,4 +1,6 @@
-use crate::check::{check_violations, contains_han, glossary_drifts, Violation};
+use crate::check::{
+    advisory_violations, check_violations, contains_han, glossary_near_misses, raw_pair_issues, Violation, GLOSSARY_NAME_ISSUE,
+};
 use crate::error::{CoreError, Result};
 use crate::paragraphs::{labeled_repair_payload, paragraphs_of, parse_labeled_translation};
 use crate::story_fs::{
@@ -20,6 +22,9 @@ pub struct CheckResult {
     pub accepted_with_warnings: bool,
     /// Mọi vấn đề còn lại, quy về nhãn [[n]] — accept ghi vào state.warnings.
     pub issues: Vec<String>,
+    /// Vi phạm rule chỉ cảnh báo, quy về nhãn [[n]] — không làm trượt check, không đưa vào soát;
+    /// accept ghi chung vào state.warnings.
+    pub advisories: Vec<String>,
     pub escalated_to_error: bool,
     pub review_path: Option<PathBuf>,
 }
@@ -38,22 +43,6 @@ fn violation_label(parsed: &[Option<String>], violation: &Violation) -> usize {
     defined.get(position.saturating_sub(1)).map(|index| index + 1).unwrap_or(position)
 }
 
-/// Tên lệch glossary quy về `Violation` cùng hệ dòng với final_text (đoạn thứ k còn lại ở dòng 2k−1) để
-/// `violation_label` đưa về đúng nhãn.
-fn glossary_drift_violations(
-    paragraphs: &[String],
-    parsed: &[Option<String>],
-    glossary: &crate::story::Glossary,
-) -> Vec<Violation> {
-    glossary_drifts(paragraphs, parsed, glossary)
-        .into_iter()
-        .map(|drift| {
-            let message =
-                format!("Tên lệch glossary: {} là `{}`, bản dịch viết `{}`", drift.source, drift.target, drift.found);
-            paragraph_violation(parsed, drift.paragraph, message)
-        })
-        .collect()
-}
 
 /// Vấn đề ở đoạn `paragraph` (0-based) → `Violation` cùng hệ dòng với final_text.
 fn paragraph_violation(parsed: &[Option<String>], paragraph: usize, message: String) -> Violation {
@@ -63,27 +52,37 @@ fn paragraph_violation(parsed: &[Option<String>], paragraph: usize, message: Str
 }
 
 fn build_violations_section(id: &str, parsed: &[Option<String>], violations: &[Violation]) -> String {
-    let list = violations
-        .iter()
-        .map(|item| {
-            format!(
-                "- [[{}]] (dòng {} trong bản lắp): {} — \"{}\"",
-                violation_label(parsed, item),
-                item.line,
-                item.message,
-                item.text
-            )
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
-    [
-        format!("# Vi phạm rule — sửa tối thiểu ngay trong work/{id}.draft.md"),
-        String::new(),
-        format!("Sửa ĐÚNG TẠI CHỖ trong work/{id}.draft.md: với mỗi vi phạm dưới đây, tìm đoạn có nhãn [[n]] tương ứng, chỉ đổi đúng từ/cụm gây lỗi, GIỮ NGUYÊN toàn bộ nhãn [[n]] hiện có và không viết lại hay chau chuốt các đoạn khác."),
-        String::new(),
-        list,
-    ]
-    .join("\n")
+    let line = |item: &&Violation| {
+        format!(
+            "- [[{}]] (dòng {} trong bản lắp): {} — \"{}\"",
+            violation_label(parsed, item),
+            item.line,
+            item.message,
+            item.text
+        )
+    };
+    let (names, others): (Vec<&Violation>, Vec<&Violation>) =
+        violations.iter().partition(|item| item.message.starts_with(GLOSSARY_NAME_ISSUE));
+    let mut parts = Vec::new();
+    if !names.is_empty() {
+        parts.push(format!(
+            "# Tên theo từ điển — BẮT BUỘC sửa trong work/{id}.draft.md\n\nThay đúng cụm sai bằng tên trong từ điển; không giữ nguyên, không tự đổi sang âm khác.\n\n{}",
+            names.iter().map(line).collect::<Vec<_>>().join("\n")
+        ));
+    }
+    if !others.is_empty() {
+        parts.push(
+            [
+                format!("# Vi phạm rule — sửa tối thiểu ngay trong work/{id}.draft.md"),
+                String::new(),
+                format!("Sửa ĐÚNG TẠI CHỖ trong work/{id}.draft.md: với mỗi vi phạm dưới đây, tìm đoạn có nhãn [[n]] tương ứng, chỉ đổi đúng từ/cụm gây lỗi, GIỮ NGUYÊN toàn bộ nhãn [[n]] hiện có và không viết lại hay chau chuốt các đoạn khác."),
+                String::new(),
+                others.iter().map(line).collect::<Vec<_>>().join("\n"),
+            ]
+            .join("\n"),
+        );
+    }
+    parts.join("\n\n---\n\n")
 }
 
 pub fn assemble_draft(root: &Path, id: &str) -> Result<Draft> {
@@ -136,9 +135,27 @@ fn check_chapter(root: &Path, id: &str, record: bool) -> Result<CheckResult> {
         .map(|(i, _)| i + 1)
         .collect();
     let mut violations = check_violations(&final_text, &story.check_rules, story.genre.setting);
+    let mut advisories: Vec<String> = advisory_violations(&final_text, story.genre.setting)
+        .iter()
+        .map(|v| format!("[[{}]] {} — \"{}\"", violation_label(&parsed, v), v.message, v.text))
+        .collect();
+    // Bẫy đồng âm (头颅 → "đầu lâu"): chỉ xác định được khi so đoạn raw với đoạn dịch cùng nhãn.
+    for issue in raw_pair_issues(&paragraphs, &parsed) {
+        let violation = paragraph_violation(&parsed, issue.paragraph, issue.message);
+        if issue.advisory {
+            advisories.push(format!("[[{}]] {} — \"{}\"", issue.paragraph + 1, violation.message, violation.text));
+        } else {
+            violations.push(violation);
+        }
+    }
     let base_glossary = crate::base::BaseStore::from_env().glossary(story.genre.setting);
     let glossary = crate::prompt::merge_story_glossary(&base_glossary, Some(&story));
-    violations.extend(glossary_drift_violations(&paragraphs, &parsed, &glossary));
+    // Tên lệch dấu so với glossary (Đoạn Phong ↔ Đoàn Phong) không tính là vi phạm: accept tự sửa theo glossary.
+    // Tên viết gần đúng nhưng sai hơn dấu (Mao Thiên Dực ↔ Mao Thiên Dịch) thì soát, bắt buộc sửa.
+    violations.extend(glossary_near_misses(&paragraphs, &parsed, &glossary).into_iter().map(|miss| {
+        let message = format!("{GLOSSARY_NAME_ISSUE} {} là `{}`, bản dịch viết `{}`", miss.source, miss.target, miss.found);
+        paragraph_violation(&parsed, miss.paragraph, message)
+    }));
     let cast = crate::cast::load_cast(&paths);
     let no_names = crate::story::StringMap::new();
     let names = glossary.get("names").unwrap_or(&no_names);
@@ -240,7 +257,7 @@ fn check_chapter(root: &Path, id: &str, record: bool) -> Result<CheckResult> {
         let review_round = state.chapters.get(id).map(|c| c.review_round).unwrap_or(chapter.review_round);
         let report = serde_json::json!({
             "pass": pass, "acceptedWithWarnings": accepted_with_warnings, "missing": missing, "untranslated": untranslated,
-            "violationCount": violations.len(), "ratio": ratio, "reviewRound": review_round, "checkedAt": now_ms(),
+            "violationCount": violations.len(), "advisoryCount": advisories.len(), "ratio": ratio, "reviewRound": review_round, "checkedAt": now_ms(),
         });
         write_text(
             &work_file(&paths, id, WorkKind::Check),
@@ -248,5 +265,16 @@ fn check_chapter(root: &Path, id: &str, record: bool) -> Result<CheckResult> {
         )?;
     }
 
-    Ok(CheckResult { pass, missing, untranslated, violations, ratio, accepted_with_warnings, issues, escalated_to_error, review_path })
+    Ok(CheckResult {
+        pass,
+        missing,
+        untranslated,
+        violations,
+        ratio,
+        accepted_with_warnings,
+        issues,
+        advisories,
+        escalated_to_error,
+        review_path,
+    })
 }

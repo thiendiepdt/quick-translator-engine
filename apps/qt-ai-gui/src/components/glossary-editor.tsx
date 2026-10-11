@@ -1,15 +1,21 @@
-import { ChevronDown, ChevronRight, FileText, Plus, Search, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, FileText, History, Plus, Search, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useFieldArray, useFormContext, useWatch } from "react-hook-form";
 
+import { GlossaryBackfillDialog } from "@/components/glossary-backfill-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { chapterLabel } from "@/lib/cast-addressing";
 import { pairsToText, textToPairs, type StoryFormValues } from "@/lib/story-form";
 
 interface Props {
   name: `glossary.${keyof StoryFormValues["glossary"]}` | "signaturePhrases";
   label: string;
+  /** Glossary của truyện: mỗi dòng (trừ nhóm xưng hô) có nút "Rà chương cũ". */
+  backfill?: { root: string; running: boolean };
+  /** Nhóm xưng hô: cặp đã có mốc trong bảng nhân vật → cặp đang áp và chương bắt đầu áp. */
+  inUse?: Record<string, { target: string; from: string }>;
 }
 
 /** Nhóm nhiều hơn chừng này mục thì thu gọn sẵn để trang không dài vô tận. */
@@ -21,7 +27,7 @@ const PAGE = 50;
  * Bảng CN → VN thêm/xoá dòng, tìm nhanh theo cả hai cột, hiện theo khúc 50 dòng. Nhóm dài có
  * chế độ "Sửa dạng văn bản" (mỗi dòng `Hán=Việt`) để sửa hàng loạt rồi Áp dụng một lần.
  */
-export function GlossaryEditor({ name, label }: Props) {
+export function GlossaryEditor({ name, label, backfill, inUse }: Props) {
   const { control, register } = useFormContext<StoryFormValues>();
   const { fields, append, remove, replace } = useFieldArray({ control, name });
   const values = useWatch({ control, name }) ?? [];
@@ -29,6 +35,7 @@ export function GlossaryEditor({ name, label }: Props) {
   const [open, setOpen] = useState(fields.length <= COLLAPSE_THRESHOLD);
   const [limit, setLimit] = useState(PAGE);
   const [text, setText] = useState<string | undefined>();
+  const [backfillIndex, setBackfillIndex] = useState<number>();
   const needle = query.trim().toLowerCase();
   const matching = fields
     .map((field, index) => ({ field, index }))
@@ -42,6 +49,7 @@ export function GlossaryEditor({ name, label }: Props) {
   const visible = matching.slice(0, limit);
   const editingText = text !== undefined;
   const addressing = name === "glossary.addressing";
+  const canBackfill = Boolean(backfill) && !addressing && name !== "signaturePhrases";
   const placeholders = addressing ? ["甲→乙 (hai tên Hán)", "X–Y (甲 tự xưng X, gọi 乙 là Y)"] : ["Hán tự", "Tiếng Việt"];
 
   return (
@@ -138,7 +146,7 @@ export function GlossaryEditor({ name, label }: Props) {
             <p className="py-2 text-xs text-muted-foreground">{fields.length === 0 ? "Chưa có mục nào." : "Không khớp."}</p>
           )}
           {visible.map(({ field, index }) => (
-            <div key={field.id} className="grid grid-cols-[1fr_1fr_auto] gap-1">
+            <div key={field.id} className={canBackfill ? "grid grid-cols-[1fr_1fr_auto_auto] gap-1" : "grid grid-cols-[1fr_1fr_auto] gap-1"}>
               <Input
                 {...register(`${name}.${index}.source`)}
                 placeholder={placeholders[0]}
@@ -151,9 +159,31 @@ export function GlossaryEditor({ name, label }: Props) {
                 aria-label={`${label} VN ${index + 1}`}
                 className="h-8"
               />
+              {canBackfill && (
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  aria-label={`Rà chương cũ ${index + 1}`}
+                  title="Rà chương cũ: tìm đoạn đã dịch chưa dùng cách dịch này"
+                  disabled={!values[index]?.source.trim() || !values[index]?.target.trim()}
+                  onClick={() => setBackfillIndex(index)}
+                >
+                  <History />
+                </Button>
+              )}
               <Button type="button" size="icon-sm" variant="ghost" aria-label="Xoá dòng" onClick={() => remove(index)}>
                 <Trash2 />
               </Button>
+              {addressing && (() => {
+                const pair = values[index];
+                const current = pair && inUse?.[pair.source.trim()];
+                return current && current.target !== pair.target.trim() ? (
+                  <p className="col-span-full pl-1 text-xs text-muted-foreground">
+                    Đang dùng: {current.target} (từ ch.{chapterLabel(current.from)}, mốc trong bảng nhân vật)
+                  </p>
+                ) : null;
+              })()}
             </div>
           ))}
           {matching.length > visible.length && (
@@ -162,6 +192,16 @@ export function GlossaryEditor({ name, label }: Props) {
             </Button>
           )}
         </div>
+      )}
+      {backfill && backfillIndex !== undefined && values[backfillIndex] && (
+        <GlossaryBackfillDialog
+          open
+          onOpenChange={(next) => !next && setBackfillIndex(undefined)}
+          root={backfill.root}
+          source={values[backfillIndex].source.trim()}
+          target={values[backfillIndex].target.trim()}
+          running={backfill.running}
+        />
       )}
     </fieldset>
   );

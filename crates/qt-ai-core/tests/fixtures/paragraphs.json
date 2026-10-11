@@ -90,6 +90,18 @@
     {
       "input": "\n \n",
       "output": ""
+    },
+    {
+      "input": "\"Ngươi đi đâu?\" Hắn hỏi.\n\"Cha, mẹ — \"\n“Ngươi — !” “Boong — ”\n\n“ — Giết!”",
+      "output": "“Ngươi đi đâu?” Hắn hỏi.\n“Cha, mẹ —”\n“Ngươi —!” “Boong —”\n\n“— Giết!”\n"
+    },
+    {
+      "input": "Hắn nói:\"Đi!\" (\"thử\") \"Hừ,\" nàng đáp, \"được.\"\n“Đi đâu?\" 『Tên này — 』 O'Neil \"\"",
+      "output": "Hắn nói:“Đi!” (“thử”) “Hừ,” nàng đáp, “được.”\n“Đi đâu?” 『Tên này —』 O'Neil “”\n"
+    },
+    {
+      "input": "\"Thoại kéo dài nhiều đoạn,\n\"đoạn sau mở lại ngoặc.\"　\"x\"",
+      "output": "“Thoại kéo dài nhiều đoạn,\n“đoạn sau mở lại ngoặc.”　“x”\n"
     }
   ]
 }

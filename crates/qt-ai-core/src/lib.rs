@@ -10,6 +10,7 @@ pub mod cast_scan;
 pub mod story_fs;
 pub mod templates;
 pub mod titles;
+pub mod backfill;
 pub mod commands;
 pub mod agy;
 pub mod agy_data;

@@ -21,7 +21,9 @@ Các bước:
    - `name`: tên người dùng đưa; `sourceUrl`: link người dùng đưa.
    - `genre.setting`: `ancient` (cổ đại, tiên hiệp, huyền huyễn, cung đấu, lịch sử), `modern`
      (đô thị, hiện đại, vô hạn lưu, hệ thống thời nay) hoặc `mixed` (xuyên qua lại cổ đại ↔ hiện đại,
-     đô thị tu tiên — prompt chọn xưng hô theo cảnh, không bắt lỗi xưng hô). `genre.names`: `han` nếu nhân vật Trung Quốc,
+     đô thị tu tiên — prompt chọn xưng hô theo cảnh, không bắt lỗi xưng hô; kể cả xuyên nhanh / xuyên chư thiên mà các thế giới
+     gồm cả cổ đại lẫn hiện đại — tên có 快穿 / xuyên nhanh gần như luôn vậy, dù vài chương đầu chỉ thấy một thế giới).
+     Truyện chỉ có prologue hoặc một arc ngắn khác bối cảnh thì chọn bối cảnh chiếm phần lớn. `genre.names`: `han` nếu nhân vật Trung Quốc,
      `foreign` nếu bối cảnh phương Tây / Nhật / Hàn (tên trả về Emily, Naruto), `mixed` nếu lẫn.
      Suy từ thể loại tra được và 2–3 chương đã đọc; không chắc thì giữ `ancient`/`han` và ghi chú khi trình.
    - `genre.tone`: giọng văn dịch — `neutral` (mặc định, không rõ), `romance` (truyện nữ/ngôn tình: ngọt, hài, chớt nhả),

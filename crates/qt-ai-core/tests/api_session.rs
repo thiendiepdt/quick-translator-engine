@@ -262,20 +262,46 @@ fn ban_soat_dua_han_tu_vao_thi_bo_du_giam_tong_vi_pham() {
 }
 
 #[test]
-fn ten_lech_glossary_thi_soat_va_nhan_ban_sua_ten() {
+fn ten_viet_gan_dung_glossary_model_giu_nguyen_thi_soat_tiep_khong_chot_som() {
+    let dir = story(1);
+    let paths = story_paths(dir.path());
+    let mut story = load_story_config(&paths).unwrap();
+    story.glossary.entry("names".to_string()).or_default().insert("赵静文".into(), "Triệu Tĩnh Văn".into());
+    save_story_config(&paths, &story).unwrap();
+    let wrong = format!("[[1]] Triệu Tịch Văn ngẩng đầu nhìn về phía tòa tháp cao ở nơi xa.\n\n[[2]] {GOOD_2}");
+    // Dịch → soát 1 model giữ nguyên tên sai → soát 2 sửa đúng.
+    let model = FakeModel::new(vec![Ok(wrong.clone()), Ok(wrong), Ok(good())]);
+    let (sink, events) = collect();
+    let handle = start_api_session(config(dir.path()), model.clone(), sink).unwrap();
+    assert_eq!(handle.join(), StopReason::Finished);
+    let calls = model.calls();
+    assert_eq!(calls.len(), 3, "dịch + hai lượt soát");
+    assert!(calls[1].1.contains("Tên theo từ điển — BẮT BUỘC sửa"), "{}", calls[1].1);
+    assert!(calls[1].1.contains("赵静文 là `Triệu Tĩnh Văn`, bản dịch viết `Triệu Tịch Văn`"), "{}", calls[1].1);
+    let logs = format!("{:?}", events.lock().unwrap());
+    assert!(logs.contains("model giữ nguyên tên sai so với từ điển — soát tiếp"), "{logs}");
+    let state = load_state(&paths).unwrap();
+    assert_eq!(state.chapters["0001"].status, ChapterStatus::Done);
+    assert!(state.chapters["0001"].warnings.is_none(), "{:?}", state.chapters["0001"].warnings);
+    let out = fs::read_to_string(dir.path().join("out").join("0001.txt")).unwrap();
+    assert!(out.starts_with(GOOD_1), "{out}");
+}
+
+#[test]
+fn ten_lech_dau_glossary_thi_code_tu_sua_khong_ton_luot_soat() {
     let dir = story(1);
     let paths = story_paths(dir.path());
     let mut story = load_story_config(&paths).unwrap();
     story.glossary.entry("names".to_string()).or_default().insert("赵静文".into(), "Triệu Tĩnh Văn".into());
     save_story_config(&paths, &story).unwrap();
     let drift = format!("[[1]] Triệu Tịnh Văn ngẩng đầu nhìn về phía tòa tháp cao ở nơi xa.\n\n[[2]] {GOOD_2}");
-    let model = FakeModel::new(vec![Ok(drift), Ok(good())]);
-    let (sink, _) = collect();
+    let model = FakeModel::new(vec![Ok(drift)]);
+    let (sink, events) = collect();
     let handle = start_api_session(config(dir.path()), model.clone(), sink).unwrap();
     assert_eq!(handle.join(), StopReason::Finished);
-    let calls = model.calls();
-    assert_eq!(calls.len(), 2, "dịch + một lượt soát");
-    assert!(calls[1].1.contains("[[1]] Tên lệch glossary: 赵静文 là `Triệu Tĩnh Văn`, bản dịch viết `Triệu Tịnh Văn`"), "{}", calls[1].1);
+    assert_eq!(model.calls().len(), 1, "chỉ lượt dịch, không có lượt soát");
+    let logs = format!("{:?}", events.lock().unwrap());
+    assert!(logs.contains("tự sửa theo glossary: Triệu Tịnh Văn → Triệu Tĩnh Văn"), "{logs}");
     let state = load_state(&paths).unwrap();
     assert_eq!(state.chapters["0001"].status, ChapterStatus::Done);
     assert!(state.chapters["0001"].warnings.is_none(), "{:?}", state.chapters["0001"].warnings);

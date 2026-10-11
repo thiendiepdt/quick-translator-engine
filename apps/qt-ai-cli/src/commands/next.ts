@@ -15,10 +15,11 @@ function agentInstructions(id: string): string {
     `1. Ghi bản dịch tiếng Việt (GIỮ NGUYÊN nhãn [[n]] đầu mỗi đoạn) vào work/${id}.draft.md.`,
     `2. Ghi đề xuất TÊN RIÊNG mới (nhân vật, địa danh, đồ vật/vũ khí, sinh vật, công pháp/kỹ năng)`,
     `   xuất hiện trong raw nhưng chưa có trong từ điển của prompt vào work/${id}.glossary.json, dạng:`,
-    `   {"entries": [{"source": "chữ Hán trong raw", "target": "chép nguyên văn từ bản dịch", "category": "names|places|items|creatures|skills"}]}`,
+    `   {"entries": [{"source": "chữ Hán trong raw", "target": "chép nguyên văn từ bản dịch", "category": "names|places|items|creatures|skills|common"}]}`,
     `   Thêm cặp xưng hô mới trong thoại: {"source": "甲→乙", "target": "X–Y", "category": "addressing"} (甲 tự xưng X, gọi 乙 là Y; mỗi chiều một mục).`,
     `   Chữ Hán nào đã có âm Hán-Việt trong từ điển của prompt thì tên mới chứa chữ đó phải phiên cùng âm (họ 段 đã là Đoàn thì không đề xuất Đoạn).`,
-    `   Bỏ qua từ chung, chức danh, đại từ. Không có gì mới thì ghi {"entries": []}.`,
+    `   Ngoài tên riêng, khai category "common" cho THUẬT NGỮ RIÊNG CỦA TRUYỆN lặp lại nhiều chương: tên chỉ số, bảng, âm báo của hệ thống (面板, 好感度, 积分, 检测到), khái niệm của thế giới truyện (末世, 丧尸, 大比, 成长体), tên tổ chức, chương trình (督察局, 春晚); target chép nguyên văn cách bạn vừa dịch. KHÔNG khai (kể cả vào names) từ thường, thành ngữ, lóng/meme, biệt danh trêu chọc (小辣椒), danh xưng (老X, X阿姨, X女士).`,
+    `   Bỏ qua từ thông thường không riêng của truyện, chức danh, đại từ. Không có gì mới thì ghi {"entries": []}.`,
     `3. Chạy: qt-ai check ${id} (xem AGENTS.md để biết lệnh đầy đủ).`,
   ].join("\n");
 }

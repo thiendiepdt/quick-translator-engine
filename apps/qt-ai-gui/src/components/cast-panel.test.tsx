@@ -57,6 +57,20 @@ describe("CastPanel", () => {
     expect(saved.characters["贺静昭"]).toMatchObject({ gender: "female", source: "auto" });
   });
 
+  it("chọn Biến thân và ghi đại từ lời kể riêng; xoá giới vẫn giữ đại từ đã ghi", async () => {
+    const user = userEvent.setup();
+    renderPanel();
+    const row = (await screen.findByText("莫衡")).closest("li")!;
+    await user.selectOptions(within(row).getByLabelText("Giới tính 莫衡"), "swap");
+    const unknown = screen.getByText("叶清禾").closest("li")!;
+    await user.type(within(unknown).getByLabelText("Đại từ lời kể 叶清禾"), "Ngài");
+    await user.selectOptions(within(unknown).getByLabelText("Giới tính 叶清禾"), "");
+    await user.click(screen.getByRole("button", { name: "Lưu bảng nhân vật" }));
+    const saved = vi.mocked(castSave).mock.calls[0][1];
+    expect(saved.characters["莫衡"]).toMatchObject({ gender: "swap", source: "user" });
+    expect(saved.characters["叶清禾"]).toEqual({ narration: "Ngài", source: "user" });
+  });
+
   it("liệt kê mốc đổi xưng hô, hoàn tác mốc và ghim cặp", async () => {
     const user = userEvent.setup();
     renderPanel();
@@ -103,5 +117,32 @@ describe("CastPanel", () => {
     expect(await screen.findByText(/Đã xoá 1 cặp trái giới/)).toBeInTheDocument();
     expect(castCleanAddressing).toHaveBeenCalledWith("D:\\t");
     expect(onStoryChanged).toHaveBeenCalled();
+  });
+
+  it("truyện từ 30 chương có cặp mà chưa có mốc đổi nào thì nhắc thêm mốc; truyện mới hoặc đã có mốc thì không", async () => {
+    vi.mocked(castLoad).mockResolvedValue(castSchema.parse({ characters: {}, addressing: {} }));
+    const many = Array.from({ length: 30 }, (_, i) => String(i + 1).padStart(4, "0"));
+    const { unmount } = render(
+      <CastPanel root={"D:\\t"} names={names} addressing={addressing} chapterIds={many} running={false} onStoryChanged={vi.fn()} />,
+    );
+    const notice = await screen.findByRole("status", { name: "Xưng hô chưa có mốc đổi" });
+    expect(notice).toHaveTextContent("2 cặp đang giữ nguyên từ lúc hai người mới gặp");
+    expect(screen.queryByText("Chưa có mốc nào.")).not.toBeInTheDocument();
+    unmount();
+
+    render(
+      <CastPanel root={"D:\\t"} names={names} addressing={addressing} chapterIds={many.slice(0, 29)} running={false} onStoryChanged={vi.fn()} />,
+    );
+    expect(await screen.findByText("Chưa có mốc nào.")).toBeInTheDocument();
+    expect(screen.queryByRole("status", { name: "Xưng hô chưa có mốc đổi" })).not.toBeInTheDocument();
+  });
+
+  it("đã có mốc đổi xưng hô thì không nhắc dù truyện dài", async () => {
+    const many = Array.from({ length: 40 }, (_, i) => String(i + 1).padStart(4, "0"));
+    render(
+      <CastPanel root={"D:\\t"} names={names} addressing={addressing} chapterIds={many} running={false} onStoryChanged={vi.fn()} />,
+    );
+    expect(await screen.findByRole("list", { name: "Mốc đổi xưng hô" })).toBeInTheDocument();
+    expect(screen.queryByRole("status", { name: "Xưng hô chưa có mốc đổi" })).not.toBeInTheDocument();
   });
 });

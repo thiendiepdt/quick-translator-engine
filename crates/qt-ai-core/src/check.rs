@@ -69,7 +69,7 @@ pub const DEFAULT_RULES: &[(&str, &str, &str, Option<&str>)] = &[
     (r"(?<!\p{L})(?:đàn ông|đàn bà|phụ nữ)(?!\p{L})", "iu", "Từ chỉ người đời thường trong bối cảnh cổ → nam nhân/nữ nhân (nam tử/nữ tử)", Some("ancient")),
     (r"\banh ấy\b|\banh ta\b|\bcô ấy\b|\bchị ấy\b", "i", "Đại từ sai → dùng hắn/nàng", Some("ancient")),
     (r"(?<!\p{L})(?:ông ta|ông ấy|bà ta|bà ấy)(?!\p{L})", "iu", "ông ta/bà ta cho nhân vật lớn tuổi trong bối cảnh cổ → hắn/lão, nàng/bà", Some("ancient")),
-    (r#"(^|[“"']|,\s+)(?:mình|tôi)(?:\s|[,.!?…])"#, "i", "Dùng mình/tôi làm đại từ → thay bằng ta trong style mặc định", Some("ancient")),
+    (r#"(^|[“"']|,\s+)(?:mình|tôi)(?:\s|[,.!?…])"#, "i", "Dùng mình/tôi làm đại từ → ta, hoặc tự xưng theo thân phận (tiểu nhân/nô tỳ/thuộc hạ/đệ tử/con)", Some("ancient")),
     (r"tinh thần đại chấn", "", "精神大振 → dùng tinh thần phấn chấn hẳn lên", None),
     (r"mơ hồ nghiệm ra|mùi vị không bình thường", "", "品出意味 → dùng nhận ra/nhận thấy điều bất thường", None),
     (r"bình loạn bắt sống", "", "平叛生擒 → dùng dẹp loạn, bắt sống", None),
@@ -81,7 +81,8 @@ pub const DEFAULT_RULES: &[(&str, &str, &str, Option<&str>)] = &[
     (r"toàn bộ người nghênh đón có mặt đều", "", "Tránh chồng chủ thể/lượng từ", None),
     (r"đã thưởng Minh chủ", "", "感谢 X 打赏的盟主 → dùng cảm ơn minh chủ X đã thưởng/ủng hộ", None),
     (r"não hải", "", "não hải → đầu óc / tâm trí", None),
-    (r"(?<!\p{L})(?:Hừm|Ừm)(?!\p{L})", "iu", "Hừm/Ừm → Ân", Some("ancient")),
+    (r"(?<!\p{L})kiểm trắc(?!\p{L})", "iu", "检测 → phát hiện / quét thấy / kiểm tra, không dùng kiểm trắc", None),
+    (r"(?<!\p{L})liếm chó(?!\p{L})", "iu", "舔狗 → liếm cẩu, không dùng liếm chó", None),
     (r"Ơ\s*[?!,.…]", "", "Thán từ Ơ → dùng A trong bối cảnh cổ đại/huyền huyễn", Some("ancient")),
     (r"\bthập phần\b", "", "thập phần → vô cùng / hết sức", None),
     (r"(?<!\p{L})đắc được(?!\p{L})", "iu", "得到 / 深得 → được / nhận được / học được, không \"đắc được\"", None),
@@ -125,18 +126,37 @@ pub const DEFAULT_RULES: &[(&str, &str, &str, Option<&str>)] = &[
     (r"ngón.{0,20}mảnh khảnh", "i", "mảnh khảnh chỉ tả người → ngón tay dùng thon / thon dài", None),
     (r"trời sinh [A-Z]", "", "Danh xưng lai nửa Việt nửa Hán → dùng Hán-Việt cả cụm (Thiên Sinh ...)", None),
     (r"…", "", "Còn ký tự … → chuẩn hóa thành dấu chấm ASCII, giữ số lượng (… → ..., …… → ......)", None),
-    (r"(?<!\p{L})(?:ngươi|nàng|bọn ta|các ngươi)(?!\p{L})", "iu", "Xưng hô cổ trang trong truyện hiện đại → hắn/cô trong lời kể, tôi/anh/em trong thoại", Some("modern")),
+    (r"(?<!\p{L})(?<!con )(?<!cô )(?:ngươi|nàng|bọn ta|các ngươi)(?!\p{L})(?!\s(?:thơ|dâu|tiên)(?!\p{L}))", "iu", "Xưng hô cổ trang trong truyện hiện đại → hắn/cô trong lời kể, tôi/anh/em trong thoại", Some("modern")),
     (r"(?<!\p{L})(?:thê tử|phu quân|lang quân|phụ thân|mẫu thân)(?!\p{L})", "iu", "Từ gia đình cổ trang → vợ/chồng/bố/mẹ", Some("modern")),
     (r"(?<!\p{L})tổng tài(?!\p{L})", "iu", "tổng tài → tổng giám đốc", Some("modern")),
     (r"nói đạo", "i", "说道 → nói / đáp, không \"nói đạo\"", Some("modern")),
-    (r#"^[^"“”]*(?<!\p{L})tôi(?!\p{L})[^"“”]*$"#, "iu", "Lời kể ngôi một dùng tôi → ta (tôi chỉ trong thoại theo quan hệ)", Some("modern")),
+];
+
+/// Copy `ADVISORY_CHECK_RULES` của qt-web: rule chỉ cảnh báo — không đẩy chương vào vòng soát,
+/// accept ghi vào warnings. Dành cho mẫu hay sai nhưng cũng có lúc đúng (tên riêng trùng chữ…).
+pub const ADVISORY_RULES: &[(&str, &str, &str, Option<&str>)] = &[
+    (r#"(?:^|[“"'(—]|[.!?…]\s+)Ân(?=\s*[,.!?~…])"#, "u", "嗯 → Ừ/Ừm/Ưm/Hả theo bảng Thán từ, không phiên âm Ân", None),
+    (r#"(?<!\p{L})["“]?[Ââ]n["”]? một tiếng"#, "u", "ân một tiếng → ừm một tiếng", None),
+    (r"(?<!\p{L})bản thân (?:hắn|nàng|cô|y|lão|gã|nó)(?!\p{L})", "iu", "自己 → hắn/nàng/cô hoặc lược, không ghép bản thân + đại từ", None),
+    (r#"^(?!Chương \d)(?![【『])(?!\[)(?![^:："“”]{1,40}[:：])[^"“”『』]*(?<!\p{L})tôi(?!\p{L})[^"“”『』]*$"#, "iu", "Người kể ngôi một xưng tôi → ta (truyện kể ngôi ba thì bỏ qua)", Some("modern")),
+    (r#"[“"](?:Thiếu gia|Chủ nhân|Lão gia|Đại nhân|Sư phụ|Sư tôn|Điện hạ|Bệ hạ|Tiền bối|Phụ thân|Mẫu thân|Phụ hoàng|Mẫu hậu)[,!.…][^”"]{0,160}(?<!\p{L})(?:các )?ngươi(?!\p{L})"#, "iu", "Gọi bề trên bằng danh xưng mà xưng ngươi → ngài/người hoặc danh xưng (mục Vai vế trong thoại)", Some("ancient")),
+    (r#"[“"](?:Thiếu gia|Chủ nhân|Lão gia|Đại nhân|Sư phụ|Sư tôn|Điện hạ|Bệ hạ|Tiền bối|Phụ thân|Mẫu thân|Phụ hoàng|Mẫu hậu)[,!.…][^”"]{0,160}(?<!chúng )(?<!bọn )(?<!người )(?<!\p{L})ta(?!\p{L})"#, "iu", "Gọi bề trên bằng danh xưng mà tự xưng ta → tiểu nhân/nô tỳ/thuộc hạ/đệ tử/vãn bối/con (mục Vai vế trong thoại)", Some("ancient")),
+    (r"(?<!\p{L})(?:\d[\d.,]*|một|hai|ba|bốn|năm|sáu|bảy|tám|chín|mười|mươi|trăm|nghìn|ngàn|vạn|mấy|vài)\s*ức(?!\p{L})(?!\s+(?:vạn|hiếp))", "iu", "亿 → trăm triệu / tỷ (百亿 = 10 tỷ, 千亿 = 100 tỷ), không viết ức", None),
+    (r"(?<!\p{L})(?:\d[\d.,]*|một|hai|ba|bốn|năm|sáu|bảy|tám|chín|mười|mấy|vài)\s*vạn(?!\p{L})(?!\s+(?:tuế|vật|nhất|sự|năng|phần))", "iu", "万 trong truyện hiện đại → nghìn / triệu (20万 = 200 nghìn), không viết vạn", Some("modern")),
+    (r#"(?:^|[.!?…]\s+|[“"])Bản thân(?!\s+(?:là|hắn|nàng|cô|y|lão|gã|nó)(?!\p{L}))(?!\p{L})"#, "u", "自己 làm chủ ngữ → hắn/nàng/cô hoặc lược, không mở câu bằng Bản thân", None),
+    (r#"chiếm (?:hết )?tiện nghi"#, "iu", "占便宜 → lợi dụng / sàm sỡ / bắt nạt theo cảnh, không chiếm tiện nghi", None),
+    (r#"tổng không thể"#, "iu", "总不能 → đâu thể / chẳng lẽ, không tổng không thể", None),
 ];
 
 type RuleSpec = (&'static str, &'static str, &'static str, Option<&'static str>);
 
 /// Rule trung lập + rule gắn đúng bối cảnh, giữ thứ tự khai báo — như `rulesForSetting` của web.
 fn rules_for(setting: GenreSetting) -> impl Iterator<Item = &'static RuleSpec> {
-    DEFAULT_RULES.iter().filter(move |(_, _, _, tag)| tag.is_none_or(|t| t == setting.as_str()))
+    rules_in(DEFAULT_RULES, setting)
+}
+
+fn rules_in(list: &'static [RuleSpec], setting: GenreSetting) -> impl Iterator<Item = &'static RuleSpec> {
+    list.iter().filter(move |(_, _, _, tag)| tag.is_none_or(|t| t == setting.as_str()))
 }
 
 /// Còn chữ Hán (Script=Han — không tính 《》【】「」 vốn là Common). Check coi là lỗi cứng như thiếu đoạn:
@@ -223,17 +243,228 @@ pub fn glossary_drifts(raw: &[String], translated: &[Option<String>], glossary: 
     drifts
 }
 
+/// Tiền tố thông báo của lỗi tên theo glossary — soát tách thành mục bắt buộc sửa, không cho giữ nguyên.
+pub const GLOSSARY_NAME_ISSUE: &str = "Tên theo glossary:";
+
+/// Gấp để so tên gần đúng: thường hoá, bỏ dấu, `đ` → `d`, `y` → `i` (Hy/Hi, Ty/Ti là hai cách viết cùng âm).
+fn fold_loose(word: &str) -> String {
+    word.chars().map(fold_vietnamese).flat_map(char::to_lowercase).map(|c| if c == 'y' { 'i' } else { c }).collect()
+}
+
+fn edit_distance(a: &str, b: &str) -> usize {
+    let b: Vec<char> = b.chars().collect();
+    let mut prev: Vec<usize> = (0..=b.len()).collect();
+    for (i, ca) in a.chars().enumerate() {
+        let mut cur = vec![i + 1];
+        for (j, cb) in b.iter().enumerate() {
+            cur.push((prev[j + 1] + 1).min(cur[j] + 1).min(prev[j] + usize::from(ca != *cb)));
+        }
+        prev = cur;
+    }
+    prev[b.len()]
+}
+
+/// Tên riêng viết gần đúng glossary nhưng sai hơn dấu thanh (`Mao Thiên Dực` thay `Mao Thiên Dịch`, `Đại Phạm Thiên`
+/// thay `Đại Phạn Thiên`). Chỉ xét target ≥3 tiếng viết hoa mọi tiếng; khoá có trong raw của đoạn mà đoạn dịch không có
+/// target; có cụm cùng số tiếng, cùng kiểu viết hoa, lệch đúng một tiếng (≤2 chữ cái sau khi gấp) và không trùng target
+/// khác. Đo trên 2.405 chương thật: bắt 1,4% chương, gần như toàn lỗi thật — tên ngắn, danh từ chung thì báo nhầm nhiều.
+pub fn glossary_near_misses(
+    raw: &[String],
+    translated: &[Option<String>],
+    glossary: &crate::story::Glossary,
+) -> Vec<GlossaryDrift> {
+    let all: Vec<(&str, &str)> = glossary
+        .iter()
+        .filter(|(group, _)| group.as_str() != "addressing" && group.as_str() != "signature_phrases")
+        .flat_map(|(_, entries)| entries.iter().map(|(source, target)| (source.trim(), target.trim())))
+        .collect();
+    let known: HashSet<String> =
+        all.iter().map(|(_, target)| target.split_whitespace().map(fold_loose).collect::<Vec<_>>().join(" ")).collect();
+    let entries: Vec<(&str, &str)> = all
+        .iter()
+        .copied()
+        .filter(|(source, target)| {
+            let words: Vec<&str> = target.split_whitespace().collect();
+            han().find_iter(source).count() >= 2
+                && words.len() >= 3
+                && words.iter().all(|w| w.chars().next().is_some_and(char::is_uppercase))
+        })
+        .collect();
+    let mut misses = Vec::new();
+    for (index, (raw_paragraph, text)) in raw.iter().zip(translated).enumerate() {
+        let Some(text) = text else { continue };
+        // Từ và vị trí byte trong đoạn để cắt lại đúng cụm gốc.
+        let mut words: Vec<(usize, usize)> = Vec::new();
+        let mut start = None;
+        for (at, c) in text.char_indices().chain(std::iter::once((text.len(), ' '))) {
+            match (start, c.is_alphabetic()) {
+                (None, true) => start = Some(at),
+                (Some(from), false) => {
+                    words.push((from, at));
+                    start = None;
+                }
+                _ => {}
+            }
+        }
+        let folded: Vec<String> = words.iter().map(|&(a, b)| fold_loose(&text[a..b])).collect();
+        let folded_text = folded.join(" ");
+        for (source, target) in entries.iter().filter(|(source, _)| raw_paragraph.contains(source)) {
+            let want: Vec<&str> = target.split_whitespace().collect();
+            let want_folded: Vec<String> = want.iter().map(|w| fold_loose(w)).collect();
+            if folded_text.contains(&want_folded.join(" ")) {
+                continue; // có tên (hoặc chỉ lệch dấu → fix_glossary_drifts lo)
+            }
+            let n = want.len();
+            let found = (0..words.len().saturating_sub(n - 1)).find_map(|at| {
+                let span = &words[at..at + n];
+                let caps = span.iter().all(|&(a, _)| text[a..].chars().next().is_some_and(char::is_uppercase));
+                let span_folded = &folded[at..at + n];
+                let diffs: Vec<usize> = span_folded
+                    .iter()
+                    .zip(&want_folded)
+                    .filter(|(got, want)| got != want)
+                    .map(|(got, want)| edit_distance(got, want))
+                    .collect();
+                let near = caps && diffs.len() == 1 && diffs[0] <= 2 && !known.contains(&span_folded.join(" "));
+                near.then(|| text[span[0].0..span[n - 1].1].to_string())
+            });
+            if let Some(found) = found {
+                misses.push(GlossaryDrift { paragraph: index, source: source.to_string(), target: target.to_string(), found });
+            }
+        }
+    }
+    misses
+}
+
+/// Thay cụm lệch dấu bằng đúng target glossary trong từng đoạn (glossary là chuẩn, không cần model soát).
+/// Trả các cặp đã sửa `"sai → đúng"`, mỗi cặp một lần, theo thứ tự gặp.
+pub fn fix_glossary_drifts(
+    raw: &[String],
+    translated: &mut [Option<String>],
+    glossary: &crate::story::Glossary,
+) -> Vec<String> {
+    let mut notes: Vec<String> = Vec::new();
+    // Một đoạn có thể lệch theo hai kiểu dấu khác nhau — lặp tới khi sạch (giới hạn để không vòng vô tận).
+    for _ in 0..5 {
+        let drifts = glossary_drifts(raw, translated, glossary);
+        if drifts.is_empty() {
+            break;
+        }
+        for drift in drifts {
+            if let Some(text) = translated[drift.paragraph].as_mut() {
+                *text = text.replace(&drift.found, &drift.target);
+                let note = format!("{} → {}", drift.found, drift.target);
+                if !notes.contains(&note) {
+                    notes.push(note);
+                }
+            }
+        }
+    }
+    notes
+}
+
 /// Rule cứng chạy trong mọi trường hợp — sót Hán tự là lỗi tuyệt đối.
 const MANDATORY_RULES: &[(&str, &str, &str)] = &[(r"\p{Script=Han}", "u", "CJK còn sót (chưa dịch hết!)")];
 
 pub fn default_rules_as_check_rules(setting: GenreSetting) -> Vec<CheckRule> {
-    rules_for(setting)
-        .map(|(pattern, flags, message, _)| CheckRule {
-            pattern: pattern.to_string(),
-            flags: (!flags.is_empty()).then(|| flags.to_string()),
-            message: message.to_string(),
-        })
-        .collect()
+    rules_for(setting).map(as_check_rule).collect()
+}
+
+pub fn advisory_rules_as_check_rules(setting: GenreSetting) -> Vec<CheckRule> {
+    rules_in(ADVISORY_RULES, setting).map(as_check_rule).collect()
+}
+
+fn as_check_rule((pattern, flags, message, _): &RuleSpec) -> CheckRule {
+    CheckRule {
+        pattern: pattern.to_string(),
+        flags: (!flags.is_empty()).then(|| flags.to_string()),
+        message: message.to_string(),
+    }
+}
+
+/// Vi phạm rule chỉ cảnh báo — luôn là bộ cứng theo bối cảnh, không bị rule riêng của truyện thay.
+pub fn advisory_violations(text: &str, setting: GenreSetting) -> Vec<Violation> {
+    let rules: Vec<CompiledRule> = rules_in(ADVISORY_RULES, setting).filter_map(|(p, f, m, _)| compile(p, f, m)).collect();
+    matches(text, &rules)
+}
+
+/// Bẫy đồng âm — chép từ `RAW_PAIR_RULES` của web (golden so khớp): đoạn raw khớp `raw` (cờ `u`) mà không khớp
+/// `unless`, và đoạn dịch cùng nhãn khớp `out` → sai nghĩa. `advisory`: chỉ cảnh báo, không đưa vào soát.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RawPairRule {
+    pub raw: &'static str,
+    pub unless: Option<&'static str>,
+    pub out: &'static str,
+    pub out_flags: &'static str,
+    pub message: &'static str,
+    pub advisory: bool,
+}
+
+const fn pair(raw: &'static str, unless: Option<&'static str>, out: &'static str, message: &'static str) -> RawPairRule {
+    RawPairRule { raw, unless, out, out_flags: "iu", message, advisory: false }
+}
+
+pub const RAW_PAIR_RULES: &[RawPairRule] = &[
+    pair("头颅|脑袋|人头", Some("骷髅|头骨"), "đầu lâu", "头颅/脑袋/人头 là cái đầu, thủ cấp → không dịch đầu lâu (sọ người)"),
+    pair("放肆", None, "phóng túng", "放肆 → láo xược / càn rỡ, không phóng túng"),
+    pair("翻.{0,2}白眼", None, "trợn tròn", "翻白眼 → trợn trắng mắt / lườm, không trợn tròn"),
+    pair("总不能", None, "tổng thể", "总不能 → đâu thể / chẳng lẽ, không tổng thể"),
+    pair("交[待代]", None, "lời ăn tiếng nói", "交待/交代 → lời giải thích / câu trả lời, không lời ăn tiếng nói"),
+    pair("一个头两个大", None, "hai thứ tóc", "一个头两个大 → đau cả đầu / rối như tơ vò, không một đầu hai thứ tóc"),
+    pair("拳力", Some("权力"), "quyền lực", "拳力 → lực quyền / sức đấm, không quyền lực"),
+    pair("藏着掖着", None, "giấu đầu lòi đuôi", "藏着掖着 → giấu giấu giếm giếm, không giấu đầu lòi đuôi"),
+    RawPairRule { advisory: true, ..pair("呵", Some("哼|呵斥"), r"(?<!\p{L})hừ(?!\p{L})", "呵 là cười khẩy / cười nhạt → Ha / Hà / Hề hề, không Hừ") },
+];
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct RawPairIssue {
+    /// Chỉ số 0-based của nhãn [[n]].
+    pub paragraph: usize,
+    pub message: String,
+    pub advisory: bool,
+}
+
+struct CompiledPair {
+    raw: fancy_regex::Regex,
+    unless: Option<fancy_regex::Regex>,
+    out: fancy_regex::Regex,
+    rule: RawPairRule,
+}
+
+fn compiled_pairs() -> &'static [CompiledPair] {
+    static PAIRS: std::sync::OnceLock<Vec<CompiledPair>> = std::sync::OnceLock::new();
+    PAIRS.get_or_init(|| {
+        let build = |pattern: &str, flags: &str| fancy_regex::Regex::new(&js_regex_to_rust(pattern, flags)).ok();
+        RAW_PAIR_RULES
+            .iter()
+            .filter_map(|rule| {
+                Some(CompiledPair {
+                    raw: build(rule.raw, "u")?,
+                    unless: match rule.unless {
+                        Some(pattern) => Some(build(pattern, "u")?),
+                        None => None,
+                    },
+                    out: build(rule.out, rule.out_flags)?,
+                    rule: *rule,
+                })
+            })
+            .collect()
+    })
+}
+
+/// Port `checkRawPairViolations`: bẫy đồng âm theo từng cặp đoạn raw / bản dịch.
+pub fn raw_pair_issues(raw: &[String], translated: &[Option<String>]) -> Vec<RawPairIssue> {
+    let found = |regex: &fancy_regex::Regex, text: &str| regex.is_match(text).unwrap_or(false);
+    let mut issues = Vec::new();
+    for (paragraph, (source, text)) in raw.iter().zip(translated).enumerate() {
+        let Some(text) = text.as_deref().filter(|text| !text.is_empty()) else { continue };
+        for pair in compiled_pairs() {
+            if found(&pair.raw, source) && !pair.unless.as_ref().is_some_and(|unless| found(unless, source)) && found(&pair.out, text) {
+                issues.push(RawPairIssue { paragraph, message: pair.rule.message.to_string(), advisory: pair.rule.advisory });
+            }
+        }
+    }
+    issues
 }
 
 struct CompiledRule {
@@ -268,9 +499,13 @@ pub fn check_violations(text: &str, configured: &[CheckRule], setting: GenreSett
             .filter(|(pattern, _, _)| !configured_patterns.contains(*pattern))
             .filter_map(|(p, f, m)| compile(p, f, m)),
     );
+    matches(text, &rules)
+}
+
+fn matches(text: &str, rules: &[CompiledRule]) -> Vec<Violation> {
     let mut violations = Vec::new();
     for (index, line) in split_lines(text).enumerate() {
-        for rule in &rules {
+        for rule in rules {
             if rule.regex.is_match(line).unwrap_or(false) {
                 violations.push(Violation {
                     line: index + 1,

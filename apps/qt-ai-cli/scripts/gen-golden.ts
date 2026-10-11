@@ -8,7 +8,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { composeBasePrompt, composeTonePrompt, genreKey, PROMPT_GENRE_COMBOS } from "@/lib/ai-translation-prompt";
 import {
-  defaultAiCheckRules, buildAiTranslationSystemPrompt, checkAiTranslationViolations,
+  defaultAiCheckRules, defaultAdvisoryRules, checkAdvisoryViolations, RAW_PAIR_RULES, checkRawPairViolations, buildAiTranslationSystemPrompt, checkAiTranslationViolations,
   filterTranslationGlossaryForSource, formatAiTranslation, glossaryEntryMatchesSource,
 } from "@/lib/ai-translation";
 import {
@@ -134,6 +134,11 @@ const paragraphs = {
   format: [
     { input: "a  \r\n\r\n\r\nb\nc\n\n", output: formatAiTranslation("a  \r\n\r\n\r\nb\nc\n\n") },
     { input: "\n \n", output: formatAiTranslation("\n \n") },
+    ...[
+      "\"Ngươi đi đâu?\" Hắn hỏi.\n\"Cha, mẹ — \"\n“Ngươi — !” “Boong — ”\n\n“ — Giết!”",
+      "Hắn nói:\"Đi!\" (\"thử\") \"Hừ,\" nàng đáp, \"được.\"\n“Đi đâu?\" 『Tên này — 』 O'Neil \"\"",
+      "\"Thoại kéo dài nhiều đoạn,\n\"đoạn sau mở lại ngoặc.\"\u3000\"x\"",
+    ].map((input) => ({ input, output: formatAiTranslation(input) })),
   ],
 };
 
@@ -168,17 +173,54 @@ const CHECK_TEXT = [
   "But nàng im lặng. Vợ của hắn và anh ấy đều biết.",
   "\"Mình không đi,\" nàng nói. Hừm. Ơ? Thập phần kỳ lạ…",
   "Não hải hắn KHẤP HUYẾT, cư nhiên Cư Nhiên. Lãnh diễm.",
+  "Kiểm trắc thấy một kẻ liếm chó.",
   "Dòng sạch không vi phạm gì cả.",
   "",
 ].join("\n");
 const SIMPLE_RULES = [{ pattern: "x", message: "m" }];
-const MODERN_TEXT = "Vợ anh đang đợi ở công ty.\nNgươi dám nói vậy sao?\nThê tử của tổng tài Lâm, ừm.";
+const MODERN_TEXT = "Vợ anh đang đợi ở công ty.\nNgươi dám nói vậy sao?\nThê tử của tổng tài Lâm, ừm."
+  + "\nCon ngươi đen láy, cô nàng ngổ ngáo, nàng thơ của tôi, nàng dâu mới.\nNàng thơ thẩn, các ngươi đi đi.";
+const ADVISORY_TEXT = "“Ân.” Hắn ân một tiếng.\nHứa Ân, đi thôi.\nÂn công cứu mạng.\nNàng gật đầu. Ân~ được."
+  + "\nKhổ nỗi tình hình của bản thân hắn có chút đặc thù.\nBản thân cũng chẳng muốn đi. Bản thân là chưởng môn, sao lùi được."
+  + "\nHắn tự hỏi bản thân mình."
+  + "\nTôi lắc đầu.\n“Tôi không đi.”\n【Tôi vốn đã định làm người phụ nữ của hắn】\n[Hệ thống: tôi]"
+  + "\nCá Muối Biết Bay: Bây giờ tôi đi đầu thai làm mèo\nChương 119: Dạo này tôi thể hiện không tốt sao?"
+  + "\n“Thiếu gia, ta nhớ là đã từng nói với ngài.”\n“Sư phụ, ngươi đừng lo.”\n“Thiếu gia, chúng ta đi thôi, người ta đợi.”"
+  + "\n“Thiếu gia, nô tỳ nhớ đã thưa với ngài.”\n“Công tử, ngươi là ai?”"
+  + "\nGom góp một trăm ức mua biệt thự.\nSố dư: 9,6 ức điểm.\nHắn bị ức hiếp, sống ức vạn năm, mấy ức vạn sinh linh."
+  + "\nCó 20 vạn fan theo dõi.\nMười vạn đại quân áp sát.\nHô vạn tuế, vạn nhất có chuyện."
+  + "\nToàn chiếm tiện nghi của ta.\nTiện nghi sư tôn lại tới.\nTổng không thể bỏ mặc nàng.";
+// Bẫy đồng âm: cặp đoạn raw / bản dịch (null = đoạn thiếu).
+const RAW_PAIR_INPUTS: Array<[string[], Array<string | null>]> = [
+  [
+    ["他斩下敌人的头颅。", "你放肆！", "她翻了个白眼。", "总不能不管吧。", "给我一个交代。", "我一个头两个大。", "拳力惊人。", "别藏着掖着。"],
+    ["Hắn chém đứt đầu lâu kẻ địch.", "Ngươi phóng túng!", "Nàng trợn tròn mắt.", "Tổng thể không thể mặc kệ.", "Cho ta một lời ăn tiếng nói.", "Ta một đầu hai thứ tóc.", "Quyền lực kinh người.", "Đừng giấu đầu lòi đuôi."],
+  ],
+  [
+    ["墙上挂着骷髅头颅。", "呵，好得很！", "他冷哼一声：“呵。”", "呵斥一声。", "她呵呵一笑。", "权力与拳力。", "你放肆！"],
+    ["Trên tường treo đầu lâu.", "Hừ, tốt lắm!", "Hắn hừ lạnh: “Hừ.”", "Hừ một tiếng quát.", "Nàng cười hừ hừ.", "Quyền lực và quyền lực.", null],
+  ],
+];
 const check = {
   defaultRules: {
     ancient: defaultAiCheckRules("ancient"),
     modern: defaultAiCheckRules("modern"),
     mixed: defaultAiCheckRules("mixed"),
   },
+  advisoryRules: {
+    ancient: defaultAdvisoryRules("ancient"),
+    modern: defaultAdvisoryRules("modern"),
+    mixed: defaultAdvisoryRules("mixed"),
+  },
+  rawPairRules: RAW_PAIR_RULES.map((rule) => ({
+    raw: rule.raw.source, rawFlags: rule.raw.flags, unless: rule.unless?.source ?? null, unlessFlags: rule.unless?.flags ?? null,
+    out: rule.out.source, outFlags: rule.out.flags, message: rule.message, advisory: rule.advisory ?? false,
+  })),
+  rawPairCases: RAW_PAIR_INPUTS.map(([raw, translated]) => ({ raw, translated, issues: checkRawPairViolations(raw, translated) })),
+  advisoryCases: [
+    { name: "an", text: ADVISORY_TEXT, setting: "ancient", violations: checkAdvisoryViolations(ADVISORY_TEXT) },
+    { name: "an-modern", text: ADVISORY_TEXT, setting: "modern", violations: checkAdvisoryViolations(ADVISORY_TEXT, "modern") },
+  ],
   cases: [
     { name: "default", text: CHECK_TEXT, rules: null, setting: "ancient", violations: checkAiTranslationViolations(CHECK_TEXT) },
     { name: "crlf", text: "a…\r\nb，", rules: null, setting: "ancient", violations: checkAiTranslationViolations("a…\r\nb，") },
@@ -210,6 +252,21 @@ const glossaryEntries: unknown[] = [
 const translation = "Triệu Tĩnh Văn ngẩng đầu nhìn về phía tòa tháp cao nơi xa.\n\nNàng im lặng hồi lâu không nói lời nào.\n";
 const existing = collectGlossaryKeys({}, full.glossary);
 const sanitized = sanitizeExtractedGlossary(glossaryEntries, CH1, translation, existing);
+// Danh xưng gắn họ không vào names; 《X》 lưu thành X (đã có X thì bỏ); nhóm lạ bỏ, thiếu nhóm thì names.
+const TITLE_RAW = "老张推开门，李老师、苏夫人和龙姑娘都在。《难忘今宵》响起，老君山上，龙青青笑了。周七小姐与东溟夫人对坐。";
+const TITLE_TRANSLATION = "Lão Trương đẩy cửa, thầy Lý, Tô phu nhân và Long cô nương đều ở đó. Đêm Nay Khó Quên vang lên, trên Lão Quân Sơn, Long Thanh Thanh cười. Chu thất tiểu thư ngồi đối diện Đông Minh phu nhân.";
+const TITLE_ENTRIES: unknown[] = [
+  { source: "老张", target: "Lão Trương", category: "names" },
+  { source: "李老师", target: "thầy Lý", category: "names" },
+  { source: "苏夫人", target: "Tô phu nhân", category: "names" },
+  { source: "龙姑娘", target: "Long cô nương", category: "names" },
+  { source: "《难忘今宵》", target: "《Đêm Nay Khó Quên》", category: "items" },
+  { source: "老君山", target: "Lão Quân Sơn", category: "places" },
+  { source: "龙青青", target: "Long Thanh Thanh" },
+  { source: "推开", target: "đẩy cửa", category: "động từ" },
+  { source: "周七小姐", target: "Chu thất tiểu thư", category: "names" },
+  { source: "东溟夫人", target: "Đông Minh phu nhân", category: "names" },
+];
 const glossary = {
   matches: [
     { source: "赵静文", text: CH1, result: glossaryEntryMatchesSource("赵静文", CH1) },
@@ -220,7 +277,13 @@ const glossary = {
     { source: "不出现", text: CH1, result: glossaryEntryMatchesSource("不出现", CH1) },
   ],
   filter: [{ glossary: full.glossary, source: CH2, result: filterTranslationGlossaryForSource(full.glossary, CH2) }],
-  sanitize: [{ entries: glossaryEntries, raw: CH1, translation, existingKeys: [...existing].sort(), result: sanitized }],
+  sanitize: [
+    { entries: glossaryEntries, raw: CH1, translation, existingKeys: [...existing].sort(), result: sanitized },
+    ...[[] as string[], ["难忘今宵"]].map((keys) => ({
+      entries: TITLE_ENTRIES, raw: TITLE_RAW, translation: TITLE_TRANSLATION, existingKeys: keys,
+      result: sanitizeExtractedGlossary(TITLE_ENTRIES, TITLE_RAW, TITLE_TRANSLATION, new Set(keys)),
+    })),
+  ],
   append: [{ story: full, pairs: sanitized, chapter: "0001", result: appendAutoGlossary(full, sanitized, "0001") }],
 };
 

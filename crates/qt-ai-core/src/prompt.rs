@@ -218,6 +218,7 @@ pub fn build_chapter_prompt(
     );
     let present = crate::cast::present_characters(merged.get("names").unwrap_or(&empty), cast, source_text);
     let reviews = crate::cast::pairs_to_review(&pairs, cast, source_text);
+    let since = crate::cast::addressing_since(&pairs, cast, &story.auto_glossary_log, chapter_id);
     let setting = story.genre.setting;
 
     merged.shift_remove("addressing");
@@ -227,7 +228,7 @@ pub fn build_chapter_prompt(
         String::new()
     } else {
         format!(
-            "\n# Từ điển riêng của truyện\n\nCác mục này được ưu tiên và phải dùng nhất quán:\n\n{}\n",
+            "\n# Từ điển riêng của truyện\n\nTừ điển BẮT BUỘC: raw có khoá nào thì bản dịch dùng đúng target đó (chính tả, hoa/thường, trật tự từ); không tự sửa âm kể cả khi cho là sai.\n\n{}\n",
             json_pretty(&glossary)
         )
     };
@@ -239,7 +240,7 @@ pub fn build_chapter_prompt(
     format!(
         "{fixed}{}{glossary_section}{}{}",
         crate::cast::addressing_rules_section(setting),
-        crate::cast::chapter_addressing_section(&present, &pairs, &reviews, setting),
+        crate::cast::chapter_addressing_section(&present, &pairs, &since, &reviews, setting, chapter_id),
         prompt_suffix()
     )
 }

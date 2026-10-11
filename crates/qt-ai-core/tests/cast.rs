@@ -1,6 +1,6 @@
 //! Bảng nhân vật (cast.json): giới tính, cặp xưng hô theo mốc chương, mục prompt `# Xưng hô`, check.
 use qt_ai_core::cast::*;
-use qt_ai_core::story::StringMap;
+use qt_ai_core::story::{AutoGlossaryEntry, StringMap};
 use qt_ai_core::story_fs::story_paths;
 use std::fs;
 
@@ -149,9 +149,9 @@ fn present_characters_theo_ten_ten_bo_ho_va_ho_kem_chuc_danh() {
     let names = map(&[("贺静昭", "Hạ Tĩnh Chiêu"), ("莫衡", "Mạc Hành"), ("宋时安", "Tống Thời An"), ("叶清禾", "Diệp Thanh Hòa")]);
     let cast = cast_with(&[("贺静昭", Gender::Female), ("莫衡", Gender::Male), ("宋时安", Gender::Male)]);
     let got = present_characters(&names, &cast, "时安笑道：“贺老师很擅长包饺子。”叶清禾点头。");
-    let listed: Vec<(&str, &str, Gender)> = got.iter().map(|c| (c.source.as_str(), c.name.as_str(), c.gender)).collect();
+    let listed: Vec<(&str, &str, Option<Gender>)> = got.iter().map(|c| (c.source.as_str(), c.name.as_str(), c.gender)).collect();
     // 莫衡 vắng; 叶清禾 có mặt nhưng chưa rõ giới → không liệt kê.
-    assert_eq!(listed, vec![("贺静昭", "Hạ Tĩnh Chiêu", Gender::Female), ("宋时安", "Tống Thời An", Gender::Male)]);
+    assert_eq!(listed, vec![("贺静昭", "Hạ Tĩnh Chiêu", Some(Gender::Female)), ("宋时安", "Tống Thời An", Some(Gender::Male))]);
 }
 
 #[test]
@@ -167,6 +167,7 @@ fn chapter_prompt_khong_cast_khong_tu_dien_thi_chi_them_luat_xung_ho_truoc_suffi
     assert!(section.contains("Danh xưng làm đại từ") && section.contains("Em đừng dọa chị được không"));
     assert!(section.contains("Độc thoại nội tâm") && section.contains("`mình`"));
     assert!(section.contains("老师 ngoài trường học"));
+    assert!(section.contains("đạn mạc") && section.contains("Tiêu đề chương là câu nói của nhân vật"));
     assert!(!got.contains("# Từ điển riêng của truyện") && !got.contains("# Nhân vật và xưng hô trong chương"));
 }
 
@@ -215,6 +216,7 @@ fn chapter_prompt_co_dai_khong_co_luat_lao_su_va_doc_thoai_la_ta() {
     assert!(got.contains("Độc thoại nội tâm") && got.contains("`ta`") && !got.contains("`mình`"));
     assert!(!got.contains("老师 ngoài trường học") && !got.contains("Em đừng dọa chị"));
     assert!(got.contains("Sư đệ đừng dọa sư tỷ"));
+    assert!(got.contains("Tiêu đề chương là câu nói của nhân vật") && !got.contains("đạn mạc"));
 }
 
 #[test]
@@ -233,13 +235,64 @@ fn chapter_prompt_liet_ke_nhan_vat_va_cap_hieu_luc_bo_ghi_chu_khoa_cung() {
     assert!(got.contains("- 贺静昭 (Hạ Tĩnh Chiêu): nữ") && got.contains("- 宋时安 (Tống Thời An): nam"));
     assert!(!got.contains("莫衡"), "nhân vật vắng không vào prompt: cả tên lẫn cặp xưng hô");
     // Cặp hiệu lực tại chương 0132 là mốc 0100, không phải giá trị gốc.
-    assert!(got.contains("\"宋时安→贺静昭\": \"em–chị\"") && !got.contains("tôi–cô Hạ"), "{got}");
+    assert!(got.contains("- 宋时安→贺静昭: em–chị (chốt từ ch.100)") && !got.contains("tôi–cô Hạ"), "{got}");
+    assert!(got.contains("Cặp xưng hô đang dùng (chương đang dịch: ch.132)"), "{got}");
     assert!(!got.contains("周涛"), "cặp một bên vắng không gửi");
-    assert!(!got.contains("giữ y hệt") && got.contains("Giữ đúng các cặp này"));
+    assert!(!got.contains("giữ y hệt") && !got.contains("Giữ đúng các cặp này") && got.contains("mặc định giữ"));
+    assert!(got.contains("thầy trò, chủ tớ"), "lời dặn nêu cả quan hệ thầy trò, chủ tớ");
     assert!(!got.contains("Cặp cần xét lại"), "chương không có dấu hiệu thân mật → không có khối xét lại");
     // Nhóm addressing không còn nằm trong JSON từ điển (đã chuyển sang mục Xưng hô).
     assert!(!got.contains("\"addressing\""));
     assert!(got.contains("\"贺静昭\": \"Hạ Tĩnh Chiêu\""));
+}
+
+#[test]
+fn danh_sach_nhan_vat_ghi_dai_tu_loi_ke_theo_gioi_bien_than_va_ghi_rieng() {
+    let names = [("贺静昭", "Hạ Tĩnh Chiêu"), ("宋时安", "Tống Thời An"), ("莫衡", "Mạc Hành"), ("叶清禾", "Diệp Thanh Hòa")];
+    let mut cast = cast_with(&[("贺静昭", Gender::Female), ("宋时安", Gender::Swap), ("莫衡", Gender::Male)]);
+    cast.characters.get_mut("莫衡").unwrap().narration = "lão".into();
+    cast.characters.insert("叶清禾".into(), Character { narration: "Ngài".into(), ..Character::default() });
+    let source = "宋时安看向贺静昭，莫衡与叶清禾都在。";
+    let modern = build_chapter_prompt(&TranslationGlossary::new(), &story("modern", &names, &[]), &cast, "0001", source);
+    assert!(modern.contains("- 贺静昭 (Hạ Tĩnh Chiêu): nữ — lời kể: `cô`"), "{modern}");
+    assert!(modern.contains("- 宋时安 (Tống Thời An): biến thân — lời kể theo đại từ của raw từng câu (他 → `hắn`, 她 → `cô`)"));
+    assert!(modern.contains("- 莫衡 (Mạc Hành): nam — lời kể: `lão` (ghi riêng)"));
+    assert!(modern.contains("- 叶清禾 (Diệp Thanh Hòa): lời kể: `Ngài` (ghi riêng)"), "chưa rõ giới mà có đại từ riêng vẫn liệt kê");
+    let ancient = build_chapter_prompt(&TranslationGlossary::new(), &story("ancient", &names, &[]), &cast, "0001", source);
+    assert!(ancient.contains("- 贺静昭 (Hạ Tĩnh Chiêu): nữ — lời kể: `nàng`"), "{ancient}");
+}
+
+#[test]
+fn bien_than_khong_bi_check_theo_gioi() {
+    let names = map(&[("贺静昭", "Hạ Tĩnh Chiêu")]);
+    let cast = cast_with(&[("贺静昭", Gender::Swap)]);
+    let raw = vec!["“贺老师很擅长包饺子。”".to_string()];
+    let out = vec![Some("“Thầy Hạ rất khéo gói sủi cảo.”".to_string())];
+    assert!(gender_violations(&raw, &out, &names, &cast).is_empty());
+    assert!(!pair_gender_conflict("宋时安→贺静昭", "tôi–anh", &cast));
+    assert_eq!(Gender::parse("Biến thân"), Some(Gender::Swap));
+}
+
+#[test]
+fn hoc_bien_than_doi_gioi_tu_hoc_nhung_khong_de_gioi_dat_tay() {
+    let names: std::collections::HashSet<String> = ["江柠", "白贞羽", "许浪"].iter().map(|s| s.to_string()).collect();
+    let mut cast = cast_with(&[("江柠", Gender::Female), ("白贞羽", Gender::Female), ("许浪", Gender::Swap)]);
+    cast.characters.get_mut("白贞羽").unwrap().source = EntrySource::User;
+    let entries = serde_json::json!([
+        {"source": "江柠", "category": "names", "gender": "biến thân"},
+        {"source": "白贞羽", "category": "names", "gender": "biến thân"},
+        {"source": "许浪", "category": "names", "gender": "nam"},
+    ]);
+    let raw = "江柠看着白贞羽，他心想许浪又来了，她叹气。";
+    let notes = learn_genders(&entries, raw, &names, &mut cast, "0050");
+    assert_eq!(cast.gender_of("江柠"), Some(Gender::Swap), "tự học nữ → biến thân");
+    assert_eq!(cast.characters["江柠"].chapter, "0050");
+    assert_eq!(cast.gender_of("白贞羽"), Some(Gender::Female), "đặt tay thì không đổi");
+    assert_eq!(cast.characters["白贞羽"].disputed, vec!["0050".to_string()]);
+    assert_eq!(cast.gender_of("许浪"), Some(Gender::Swap), "đã biến thân thì bỏ qua khai nam/nữ");
+    assert!(cast.characters["许浪"].disputed.is_empty());
+    assert_eq!(notes.len(), 2, "{notes:?}");
+    assert!(notes[0].contains("江柠 đổi từ nữ sang biến thân"), "{notes:?}");
 }
 
 // ---- Check: sai giới + lời gọi thô ----
@@ -467,6 +520,50 @@ fn pairs_to_review_chi_lay_cap_kieu_nguoi_la_khi_chuong_co_dau_hieu_than_mat() {
     assert_eq!((got[0].a.as_str(), got[0].b.as_str()), ("秦寻", "夏宁"));
     assert_eq!(got[0].markers, vec!["结婚"]);
     assert!(pairs_to_review(&pairs, &cast, "夏宁握着方向盘。秦寻怔住了。").is_empty(), "không có dấu hiệu → không xét");
+    assert_eq!(got[0].kind, ReviewKind::Intimacy);
+}
+
+#[test]
+fn pairs_to_review_bai_su_nhan_chu_ket_nghia_va_cap_to_cau_tao_may() {
+    let pairs = map(&[
+        ("陈钰→朱媺娖", "ta–ngươi"),
+        ("朱媺娖→陈钰", "ta–ngươi"),
+        ("陈钰→阿朱", "tớ–cậu"),
+        ("阿朱→陈钰", "tớ–cậu"),
+    ]);
+    let cast = Cast::default();
+    // Sự kiện bái sư → xét theo quan hệ mới; danh xưng chung 师父 một mình không bật.
+    let got = pairs_to_review(&pairs, &cast, "陈钰跪下拜师，朱媺娖收他为徒。阿朱在旁边看着。");
+    assert_eq!(got.len(), 2, "{got:?}");
+    assert!(got.iter().all(|review| review.kind == ReviewKind::Relation));
+    assert_eq!(got[0].markers, vec!["拜师", "为徒"]);
+    assert!(pairs_to_review(&pairs, &cast, "陈钰对师父说话。朱媺娖点头。阿朱笑了。").is_empty());
+    // Vừa có dấu hiệu thân mật vừa có kết nghĩa → xét theo người yêu/vợ chồng; tớ–cậu cũng là cặp xa cách.
+    // Luồng thật lọc cặp theo nhân vật có mặt trước (朱媺娖 vắng → cặp với nàng không xét).
+    let source = "阿朱说要和陈钰结婚，又说要结拜。";
+    let got = pairs_to_review(&chapter_addressing(&pairs, source), &cast, source);
+    assert_eq!(got.len(), 1, "{got:?}");
+    assert_eq!((got[0].a.as_str(), got[0].b.as_str(), got[0].kind), ("陈钰", "阿朱", ReviewKind::Intimacy));
+}
+
+#[test]
+fn chapter_label_va_addressing_since_tu_moc_cast_hoac_log_glossary() {
+    assert_eq!(chapter_label("0001_7445623259162542654"), "1");
+    assert_eq!(chapter_label("10021482_1040_第一千零四十章"), "1040");
+    assert_eq!(chapter_label("chuong-0392"), "392");
+    assert_eq!(chapter_label("phan-mo-dau"), "phan-mo-dau");
+    let pairs = map(&[("甲→乙", "anh–em"), ("乙→甲", "em–anh"), ("丙→丁", "ta–ngươi")]);
+    let mut cast = Cast::default();
+    cast.addressing.insert("甲→乙".into(), AddressTimeline { pinned: false, changes: vec![change("0050", "anh–em"), change("0200", "chồng–vợ")] });
+    let log = vec![
+        AutoGlossaryEntry { source: "乙→甲".into(), target: "tôi–anh".into(), category: "addressing".into(), chapter: "0003".into() },
+        AutoGlossaryEntry { source: "甲→乙".into(), target: "tôi–cô".into(), category: "addressing".into(), chapter: "0001".into() },
+    ];
+    let since = addressing_since(&pairs, &cast, &log, "0120");
+    // Mốc cast gần nhất ≤ chương đang dịch thắng log; mốc 0200 chưa tới.
+    assert_eq!(since.get("甲→乙").map(String::as_str), Some("0050"));
+    assert_eq!(since.get("乙→甲").map(String::as_str), Some("0003"));
+    assert_eq!(since.get("丙→丁"), None, "nhập tay, không có trong log");
 }
 
 #[test]
@@ -480,7 +577,7 @@ fn chapter_prompt_tach_cap_can_xet_lai_khoi_danh_sach_phai_giu() {
     let prompt = build_chapter_prompt(&TranslationGlossary::new(), &story, &Cast::default(), "0893", source);
     let got = &prompt[prompt.find("\n# Xưng hô\n").unwrap()..];
     let (keep, review) = got.split_once("Cặp cần xét lại trong chương này").expect("có khối xét lại");
-    assert!(keep.contains("\"夏宁→黄怀\": \"chị–em\"") && !keep.contains("秦寻→夏宁"), "cặp cần xét không nằm trong danh sách phải giữ");
+    assert!(keep.contains("- 夏宁→黄怀: chị–em") && !keep.contains("秦寻→夏宁"), "cặp cần xét không nằm trong danh sách phải giữ");
     // Thứ tự theo cặp gặp trước trong glossary (helper `story` xếp key theo mã chữ: 夏宁→秦寻 đứng trước).
     assert!(review.contains("- 夏宁 ↔ 秦寻: đang `夏宁→秦寻: tôi–anh`, `秦寻→夏宁: tôi–cô`; dấu hiệu trong raw: 结婚"), "{review}");
     assert!(review.contains("KHÔNG dùng cặp cũ") && review.contains("người yêu, vợ chồng thường là anh–em"));

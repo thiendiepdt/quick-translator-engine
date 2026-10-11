@@ -53,7 +53,7 @@ tên, nhân vật hay tóm tắt. Trả về đúng một JSON theo mẫu:\n\
   \"protagonist\": \"tên nhân vật chính (Hán-Việt nếu names là han, giữ dạng gốc nếu foreign)\",\n\
   \"summary\": \"tóm tắt 3-5 câu tiếng Việt, chỉ bám phần đã đọc, không spoil\",\n\
   \"genre\": {{\n\
-    \"setting\": \"ancient | modern | mixed — ancient: cổ đại/tiên hiệp/huyền huyễn/cung đấu/lịch sử; modern: đô thị/hiện đại/vô hạn lưu/hệ thống thời nay; mixed: xuyên qua lại cổ đại ↔ hiện đại hoặc đô thị tu tiên\",\n\
+    \"setting\": \"ancient | modern | mixed — ancient: cổ đại/tiên hiệp/huyền huyễn/cung đấu/lịch sử; modern: đô thị/hiện đại/vô hạn lưu/hệ thống thời nay; mixed: xuyên qua lại cổ đại ↔ hiện đại hoặc đô thị tu tiên, kể cả xuyên nhanh / xuyên chư thiên mà các thế giới gồm cả cổ đại lẫn hiện đại (tên truyện có 快穿 / xuyên nhanh gần như luôn vậy, dù vài chương đầu chỉ thấy một thế giới); truyện chỉ có prologue hoặc một arc ngắn khác bối cảnh thì chọn bối cảnh chiếm phần lớn\",\n\
     \"names\": \"han | foreign | mixed — han: nhân vật Trung Quốc; foreign: bối cảnh phương Tây/Nhật/Hàn; mixed: lẫn\",\n\
     \"tone\": \"neutral | romance | witty | punchy | lyrical | erotic | youth — romance: truyện nữ/ngôn tình (nữ chính, tình cảm là mạch chính, ngọt, hài, chớt nhả); witty: truyện nam giọng đùa, hậu cung nhật thường, người kể tưng tửng; punchy: chiến đấu, vô địch lưu, hệ thống, sảng văn dồn dập; lyrical: cổ ngôn văn thanh, tả cảnh tả tâm giàu hình ảnh; erotic: truyện sắc (sắc hiệp, sắc đô thị), cảnh thân mật là nội dung chính; youth: đô thị nhẹ nhàng, giải trí văn, học đường, nhật thường hiện đại của người trẻ; neutral: không rõ hoặc không thuộc nhóm nào\"\n\
   }},\n\

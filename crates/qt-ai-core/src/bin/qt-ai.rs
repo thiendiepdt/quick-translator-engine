@@ -92,6 +92,9 @@ fn run(argv: &[String]) -> Result<i32, CoreError> {
             for note in &result.cast_notes {
                 println!("Bảng nhân vật: {note}");
             }
+            if !result.glossary_fixes.is_empty() {
+                println!("Tự sửa theo glossary: {}", result.glossary_fixes.join(", "));
+            }
             if !result.warnings.is_empty() {
                 println!("Kèm {} cảnh báo — xem qt-ai status.", result.warnings.len());
             }

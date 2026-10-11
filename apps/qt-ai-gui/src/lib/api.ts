@@ -18,6 +18,8 @@ import {
   recentSummarySchema,
   retryRangeOutcomeSchema,
   scanCastViewSchema,
+  glossaryUsageSchema,
+  glossaryBackfillSchema,
   deleteOutcomeSchema,
   sessionStatusSchema,
   storyConfigSchema,
@@ -90,6 +92,12 @@ export const castScan = (root: string) => call("cast_scan", { root }, (v) => sca
 /** Xoá khỏi story.json các cặp xưng hô trái giới đã chốt; trả các key đã xoá. */
 export const castCleanAddressing = (root: string) =>
   call("cast_clean_addressing", { root }, (v) => z.array(z.string()).parse(v));
+/** Đoạn đã dịch có `key` trong raw mà bản dịch không chứa `target` (50 đoạn mẫu + tổng). */
+export const glossaryScan = (root: string, key: string, target: string) =>
+  call("glossary_scan", { root, key, target }, (v) => glossaryUsageSchema.parse(v));
+/** Thay `from` → `to` trong các đoạn có `key` ở raw; `apply = false` chỉ đếm để xem trước. */
+export const glossaryBackfill = (root: string, key: string, from: string, to: string, apply: boolean) =>
+  call("glossary_backfill", { root, key, from, to, apply }, (v) => glossaryBackfillSchema.parse(v));
 export const saveSettings = (root: string, settings: HarnessSettings) =>
   call("save_settings", { root, settings }, (v) => harnessSettingsSchema.parse(v));
 export const chapterRetry = (root: string, id: string) => call("chapter_retry", { root, id }, noop);

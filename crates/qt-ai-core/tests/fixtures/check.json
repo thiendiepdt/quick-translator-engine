@@ -33,7 +33,7 @@
       {
         "pattern": "(^|[“\"']|,\\s+)(?:mình|tôi)(?:\\s|[,.!?…])",
         "flags": "i",
-        "message": "Dùng mình/tôi làm đại từ → thay bằng ta trong style mặc định"
+        "message": "Dùng mình/tôi làm đại từ → ta, hoặc tự xưng theo thân phận (tiểu nhân/nô tỳ/thuộc hạ/đệ tử/con)"
       },
       {
         "pattern": "tinh thần đại chấn",
@@ -80,9 +80,14 @@
         "message": "não hải → đầu óc / tâm trí"
       },
       {
-        "pattern": "(?<!\\p{L})(?:Hừm|Ừm)(?!\\p{L})",
+        "pattern": "(?<!\\p{L})kiểm trắc(?!\\p{L})",
         "flags": "iu",
-        "message": "Hừm/Ừm → Ân"
+        "message": "检测 → phát hiện / quét thấy / kiểm tra, không dùng kiểm trắc"
+      },
+      {
+        "pattern": "(?<!\\p{L})liếm chó(?!\\p{L})",
+        "flags": "iu",
+        "message": "舔狗 → liếm cẩu, không dùng liếm chó"
       },
       {
         "pattern": "Ơ\\s*[?!,.…]",
@@ -335,6 +340,16 @@
         "message": "não hải → đầu óc / tâm trí"
       },
       {
+        "pattern": "(?<!\\p{L})kiểm trắc(?!\\p{L})",
+        "flags": "iu",
+        "message": "检测 → phát hiện / quét thấy / kiểm tra, không dùng kiểm trắc"
+      },
+      {
+        "pattern": "(?<!\\p{L})liếm chó(?!\\p{L})",
+        "flags": "iu",
+        "message": "舔狗 → liếm cẩu, không dùng liếm chó"
+      },
+      {
         "pattern": "\\bthập phần\\b",
         "message": "thập phần → vô cùng / hết sức"
       },
@@ -508,7 +523,7 @@
         "message": "Còn ký tự … → chuẩn hóa thành dấu chấm ASCII, giữ số lượng (… → ..., …… → ......)"
       },
       {
-        "pattern": "(?<!\\p{L})(?:ngươi|nàng|bọn ta|các ngươi)(?!\\p{L})",
+        "pattern": "(?<!\\p{L})(?<!con )(?<!cô )(?:ngươi|nàng|bọn ta|các ngươi)(?!\\p{L})(?!\\s(?:thơ|dâu|tiên)(?!\\p{L}))",
         "flags": "iu",
         "message": "Xưng hô cổ trang trong truyện hiện đại → hắn/cô trong lời kể, tôi/anh/em trong thoại"
       },
@@ -526,11 +541,6 @@
         "pattern": "nói đạo",
         "flags": "i",
         "message": "说道 → nói / đáp, không \"nói đạo\""
-      },
-      {
-        "pattern": "^[^\"“”]*(?<!\\p{L})tôi(?!\\p{L})[^\"“”]*$",
-        "flags": "iu",
-        "message": "Lời kể ngôi một dùng tôi → ta (tôi chỉ trong thoại theo quan hệ)"
       }
     ],
     "mixed": [
@@ -586,6 +596,16 @@
       {
         "pattern": "não hải",
         "message": "não hải → đầu óc / tâm trí"
+      },
+      {
+        "pattern": "(?<!\\p{L})kiểm trắc(?!\\p{L})",
+        "flags": "iu",
+        "message": "检测 → phát hiện / quét thấy / kiểm tra, không dùng kiểm trắc"
+      },
+      {
+        "pattern": "(?<!\\p{L})liếm chó(?!\\p{L})",
+        "flags": "iu",
+        "message": "舔狗 → liếm cẩu, không dùng liếm chó"
       },
       {
         "pattern": "\\bthập phần\\b",
@@ -762,10 +782,464 @@
       }
     ]
   },
+  "advisoryRules": {
+    "ancient": [
+      {
+        "pattern": "(?:^|[“\"'(—]|[.!?…]\\s+)Ân(?=\\s*[,.!?~…])",
+        "flags": "u",
+        "message": "嗯 → Ừ/Ừm/Ưm/Hả theo bảng Thán từ, không phiên âm Ân"
+      },
+      {
+        "pattern": "(?<!\\p{L})[\"“]?[Ââ]n[\"”]? một tiếng",
+        "flags": "u",
+        "message": "ân một tiếng → ừm một tiếng"
+      },
+      {
+        "pattern": "(?<!\\p{L})bản thân (?:hắn|nàng|cô|y|lão|gã|nó)(?!\\p{L})",
+        "flags": "iu",
+        "message": "自己 → hắn/nàng/cô hoặc lược, không ghép bản thân + đại từ"
+      },
+      {
+        "pattern": "[“\"](?:Thiếu gia|Chủ nhân|Lão gia|Đại nhân|Sư phụ|Sư tôn|Điện hạ|Bệ hạ|Tiền bối|Phụ thân|Mẫu thân|Phụ hoàng|Mẫu hậu)[,!.…][^”\"]{0,160}(?<!\\p{L})(?:các )?ngươi(?!\\p{L})",
+        "flags": "iu",
+        "message": "Gọi bề trên bằng danh xưng mà xưng ngươi → ngài/người hoặc danh xưng (mục Vai vế trong thoại)"
+      },
+      {
+        "pattern": "[“\"](?:Thiếu gia|Chủ nhân|Lão gia|Đại nhân|Sư phụ|Sư tôn|Điện hạ|Bệ hạ|Tiền bối|Phụ thân|Mẫu thân|Phụ hoàng|Mẫu hậu)[,!.…][^”\"]{0,160}(?<!chúng )(?<!bọn )(?<!người )(?<!\\p{L})ta(?!\\p{L})",
+        "flags": "iu",
+        "message": "Gọi bề trên bằng danh xưng mà tự xưng ta → tiểu nhân/nô tỳ/thuộc hạ/đệ tử/vãn bối/con (mục Vai vế trong thoại)"
+      },
+      {
+        "pattern": "(?<!\\p{L})(?:\\d[\\d.,]*|một|hai|ba|bốn|năm|sáu|bảy|tám|chín|mười|mươi|trăm|nghìn|ngàn|vạn|mấy|vài)\\s*ức(?!\\p{L})(?!\\s+(?:vạn|hiếp))",
+        "flags": "iu",
+        "message": "亿 → trăm triệu / tỷ (百亿 = 10 tỷ, 千亿 = 100 tỷ), không viết ức"
+      },
+      {
+        "pattern": "(?:^|[.!?…]\\s+|[“\"])Bản thân(?!\\s+(?:là|hắn|nàng|cô|y|lão|gã|nó)(?!\\p{L}))(?!\\p{L})",
+        "flags": "u",
+        "message": "自己 làm chủ ngữ → hắn/nàng/cô hoặc lược, không mở câu bằng Bản thân"
+      },
+      {
+        "pattern": "chiếm (?:hết )?tiện nghi",
+        "flags": "iu",
+        "message": "占便宜 → lợi dụng / sàm sỡ / bắt nạt theo cảnh, không chiếm tiện nghi"
+      },
+      {
+        "pattern": "tổng không thể",
+        "flags": "iu",
+        "message": "总不能 → đâu thể / chẳng lẽ, không tổng không thể"
+      }
+    ],
+    "modern": [
+      {
+        "pattern": "(?:^|[“\"'(—]|[.!?…]\\s+)Ân(?=\\s*[,.!?~…])",
+        "flags": "u",
+        "message": "嗯 → Ừ/Ừm/Ưm/Hả theo bảng Thán từ, không phiên âm Ân"
+      },
+      {
+        "pattern": "(?<!\\p{L})[\"“]?[Ââ]n[\"”]? một tiếng",
+        "flags": "u",
+        "message": "ân một tiếng → ừm một tiếng"
+      },
+      {
+        "pattern": "(?<!\\p{L})bản thân (?:hắn|nàng|cô|y|lão|gã|nó)(?!\\p{L})",
+        "flags": "iu",
+        "message": "自己 → hắn/nàng/cô hoặc lược, không ghép bản thân + đại từ"
+      },
+      {
+        "pattern": "^(?!Chương \\d)(?![【『])(?!\\[)(?![^:：\"“”]{1,40}[:：])[^\"“”『』]*(?<!\\p{L})tôi(?!\\p{L})[^\"“”『』]*$",
+        "flags": "iu",
+        "message": "Người kể ngôi một xưng tôi → ta (truyện kể ngôi ba thì bỏ qua)"
+      },
+      {
+        "pattern": "(?<!\\p{L})(?:\\d[\\d.,]*|một|hai|ba|bốn|năm|sáu|bảy|tám|chín|mười|mươi|trăm|nghìn|ngàn|vạn|mấy|vài)\\s*ức(?!\\p{L})(?!\\s+(?:vạn|hiếp))",
+        "flags": "iu",
+        "message": "亿 → trăm triệu / tỷ (百亿 = 10 tỷ, 千亿 = 100 tỷ), không viết ức"
+      },
+      {
+        "pattern": "(?<!\\p{L})(?:\\d[\\d.,]*|một|hai|ba|bốn|năm|sáu|bảy|tám|chín|mười|mấy|vài)\\s*vạn(?!\\p{L})(?!\\s+(?:tuế|vật|nhất|sự|năng|phần))",
+        "flags": "iu",
+        "message": "万 trong truyện hiện đại → nghìn / triệu (20万 = 200 nghìn), không viết vạn"
+      },
+      {
+        "pattern": "(?:^|[.!?…]\\s+|[“\"])Bản thân(?!\\s+(?:là|hắn|nàng|cô|y|lão|gã|nó)(?!\\p{L}))(?!\\p{L})",
+        "flags": "u",
+        "message": "自己 làm chủ ngữ → hắn/nàng/cô hoặc lược, không mở câu bằng Bản thân"
+      },
+      {
+        "pattern": "chiếm (?:hết )?tiện nghi",
+        "flags": "iu",
+        "message": "占便宜 → lợi dụng / sàm sỡ / bắt nạt theo cảnh, không chiếm tiện nghi"
+      },
+      {
+        "pattern": "tổng không thể",
+        "flags": "iu",
+        "message": "总不能 → đâu thể / chẳng lẽ, không tổng không thể"
+      }
+    ],
+    "mixed": [
+      {
+        "pattern": "(?:^|[“\"'(—]|[.!?…]\\s+)Ân(?=\\s*[,.!?~…])",
+        "flags": "u",
+        "message": "嗯 → Ừ/Ừm/Ưm/Hả theo bảng Thán từ, không phiên âm Ân"
+      },
+      {
+        "pattern": "(?<!\\p{L})[\"“]?[Ââ]n[\"”]? một tiếng",
+        "flags": "u",
+        "message": "ân một tiếng → ừm một tiếng"
+      },
+      {
+        "pattern": "(?<!\\p{L})bản thân (?:hắn|nàng|cô|y|lão|gã|nó)(?!\\p{L})",
+        "flags": "iu",
+        "message": "自己 → hắn/nàng/cô hoặc lược, không ghép bản thân + đại từ"
+      },
+      {
+        "pattern": "(?<!\\p{L})(?:\\d[\\d.,]*|một|hai|ba|bốn|năm|sáu|bảy|tám|chín|mười|mươi|trăm|nghìn|ngàn|vạn|mấy|vài)\\s*ức(?!\\p{L})(?!\\s+(?:vạn|hiếp))",
+        "flags": "iu",
+        "message": "亿 → trăm triệu / tỷ (百亿 = 10 tỷ, 千亿 = 100 tỷ), không viết ức"
+      },
+      {
+        "pattern": "(?:^|[.!?…]\\s+|[“\"])Bản thân(?!\\s+(?:là|hắn|nàng|cô|y|lão|gã|nó)(?!\\p{L}))(?!\\p{L})",
+        "flags": "u",
+        "message": "自己 làm chủ ngữ → hắn/nàng/cô hoặc lược, không mở câu bằng Bản thân"
+      },
+      {
+        "pattern": "chiếm (?:hết )?tiện nghi",
+        "flags": "iu",
+        "message": "占便宜 → lợi dụng / sàm sỡ / bắt nạt theo cảnh, không chiếm tiện nghi"
+      },
+      {
+        "pattern": "tổng không thể",
+        "flags": "iu",
+        "message": "总不能 → đâu thể / chẳng lẽ, không tổng không thể"
+      }
+    ]
+  },
+  "rawPairRules": [
+    {
+      "raw": "头颅|脑袋|人头",
+      "rawFlags": "u",
+      "unless": "骷髅|头骨",
+      "unlessFlags": "u",
+      "out": "đầu lâu",
+      "outFlags": "iu",
+      "message": "头颅/脑袋/人头 là cái đầu, thủ cấp → không dịch đầu lâu (sọ người)",
+      "advisory": false
+    },
+    {
+      "raw": "放肆",
+      "rawFlags": "u",
+      "unless": null,
+      "unlessFlags": null,
+      "out": "phóng túng",
+      "outFlags": "iu",
+      "message": "放肆 → láo xược / càn rỡ, không phóng túng",
+      "advisory": false
+    },
+    {
+      "raw": "翻.{0,2}白眼",
+      "rawFlags": "u",
+      "unless": null,
+      "unlessFlags": null,
+      "out": "trợn tròn",
+      "outFlags": "iu",
+      "message": "翻白眼 → trợn trắng mắt / lườm, không trợn tròn",
+      "advisory": false
+    },
+    {
+      "raw": "总不能",
+      "rawFlags": "u",
+      "unless": null,
+      "unlessFlags": null,
+      "out": "tổng thể",
+      "outFlags": "iu",
+      "message": "总不能 → đâu thể / chẳng lẽ, không tổng thể",
+      "advisory": false
+    },
+    {
+      "raw": "交[待代]",
+      "rawFlags": "u",
+      "unless": null,
+      "unlessFlags": null,
+      "out": "lời ăn tiếng nói",
+      "outFlags": "iu",
+      "message": "交待/交代 → lời giải thích / câu trả lời, không lời ăn tiếng nói",
+      "advisory": false
+    },
+    {
+      "raw": "一个头两个大",
+      "rawFlags": "u",
+      "unless": null,
+      "unlessFlags": null,
+      "out": "hai thứ tóc",
+      "outFlags": "iu",
+      "message": "一个头两个大 → đau cả đầu / rối như tơ vò, không một đầu hai thứ tóc",
+      "advisory": false
+    },
+    {
+      "raw": "拳力",
+      "rawFlags": "u",
+      "unless": "权力",
+      "unlessFlags": "u",
+      "out": "quyền lực",
+      "outFlags": "iu",
+      "message": "拳力 → lực quyền / sức đấm, không quyền lực",
+      "advisory": false
+    },
+    {
+      "raw": "藏着掖着",
+      "rawFlags": "u",
+      "unless": null,
+      "unlessFlags": null,
+      "out": "giấu đầu lòi đuôi",
+      "outFlags": "iu",
+      "message": "藏着掖着 → giấu giấu giếm giếm, không giấu đầu lòi đuôi",
+      "advisory": false
+    },
+    {
+      "raw": "呵",
+      "rawFlags": "u",
+      "unless": "哼|呵斥",
+      "unlessFlags": "u",
+      "out": "(?<!\\p{L})hừ(?!\\p{L})",
+      "outFlags": "iu",
+      "message": "呵 là cười khẩy / cười nhạt → Ha / Hà / Hề hề, không Hừ",
+      "advisory": true
+    }
+  ],
+  "rawPairCases": [
+    {
+      "raw": [
+        "他斩下敌人的头颅。",
+        "你放肆！",
+        "她翻了个白眼。",
+        "总不能不管吧。",
+        "给我一个交代。",
+        "我一个头两个大。",
+        "拳力惊人。",
+        "别藏着掖着。"
+      ],
+      "translated": [
+        "Hắn chém đứt đầu lâu kẻ địch.",
+        "Ngươi phóng túng!",
+        "Nàng trợn tròn mắt.",
+        "Tổng thể không thể mặc kệ.",
+        "Cho ta một lời ăn tiếng nói.",
+        "Ta một đầu hai thứ tóc.",
+        "Quyền lực kinh người.",
+        "Đừng giấu đầu lòi đuôi."
+      ],
+      "issues": [
+        {
+          "paragraph": 0,
+          "message": "头颅/脑袋/人头 là cái đầu, thủ cấp → không dịch đầu lâu (sọ người)",
+          "advisory": false
+        },
+        {
+          "paragraph": 1,
+          "message": "放肆 → láo xược / càn rỡ, không phóng túng",
+          "advisory": false
+        },
+        {
+          "paragraph": 2,
+          "message": "翻白眼 → trợn trắng mắt / lườm, không trợn tròn",
+          "advisory": false
+        },
+        {
+          "paragraph": 3,
+          "message": "总不能 → đâu thể / chẳng lẽ, không tổng thể",
+          "advisory": false
+        },
+        {
+          "paragraph": 4,
+          "message": "交待/交代 → lời giải thích / câu trả lời, không lời ăn tiếng nói",
+          "advisory": false
+        },
+        {
+          "paragraph": 5,
+          "message": "一个头两个大 → đau cả đầu / rối như tơ vò, không một đầu hai thứ tóc",
+          "advisory": false
+        },
+        {
+          "paragraph": 6,
+          "message": "拳力 → lực quyền / sức đấm, không quyền lực",
+          "advisory": false
+        },
+        {
+          "paragraph": 7,
+          "message": "藏着掖着 → giấu giấu giếm giếm, không giấu đầu lòi đuôi",
+          "advisory": false
+        }
+      ]
+    },
+    {
+      "raw": [
+        "墙上挂着骷髅头颅。",
+        "呵，好得很！",
+        "他冷哼一声：“呵。”",
+        "呵斥一声。",
+        "她呵呵一笑。",
+        "权力与拳力。",
+        "你放肆！"
+      ],
+      "translated": [
+        "Trên tường treo đầu lâu.",
+        "Hừ, tốt lắm!",
+        "Hắn hừ lạnh: “Hừ.”",
+        "Hừ một tiếng quát.",
+        "Nàng cười hừ hừ.",
+        "Quyền lực và quyền lực.",
+        null
+      ],
+      "issues": [
+        {
+          "paragraph": 1,
+          "message": "呵 là cười khẩy / cười nhạt → Ha / Hà / Hề hề, không Hừ",
+          "advisory": true
+        },
+        {
+          "paragraph": 4,
+          "message": "呵 là cười khẩy / cười nhạt → Ha / Hà / Hề hề, không Hừ",
+          "advisory": true
+        }
+      ]
+    }
+  ],
+  "advisoryCases": [
+    {
+      "name": "an",
+      "text": "“Ân.” Hắn ân một tiếng.\nHứa Ân, đi thôi.\nÂn công cứu mạng.\nNàng gật đầu. Ân~ được.\nKhổ nỗi tình hình của bản thân hắn có chút đặc thù.\nBản thân cũng chẳng muốn đi. Bản thân là chưởng môn, sao lùi được.\nHắn tự hỏi bản thân mình.\nTôi lắc đầu.\n“Tôi không đi.”\n【Tôi vốn đã định làm người phụ nữ của hắn】\n[Hệ thống: tôi]\nCá Muối Biết Bay: Bây giờ tôi đi đầu thai làm mèo\nChương 119: Dạo này tôi thể hiện không tốt sao?\n“Thiếu gia, ta nhớ là đã từng nói với ngài.”\n“Sư phụ, ngươi đừng lo.”\n“Thiếu gia, chúng ta đi thôi, người ta đợi.”\n“Thiếu gia, nô tỳ nhớ đã thưa với ngài.”\n“Công tử, ngươi là ai?”\nGom góp một trăm ức mua biệt thự.\nSố dư: 9,6 ức điểm.\nHắn bị ức hiếp, sống ức vạn năm, mấy ức vạn sinh linh.\nCó 20 vạn fan theo dõi.\nMười vạn đại quân áp sát.\nHô vạn tuế, vạn nhất có chuyện.\nToàn chiếm tiện nghi của ta.\nTiện nghi sư tôn lại tới.\nTổng không thể bỏ mặc nàng.",
+      "setting": "ancient",
+      "violations": [
+        {
+          "line": 1,
+          "message": "嗯 → Ừ/Ừm/Ưm/Hả theo bảng Thán từ, không phiên âm Ân",
+          "text": "“Ân.” Hắn ân một tiếng."
+        },
+        {
+          "line": 1,
+          "message": "ân một tiếng → ừm một tiếng",
+          "text": "“Ân.” Hắn ân một tiếng."
+        },
+        {
+          "line": 4,
+          "message": "嗯 → Ừ/Ừm/Ưm/Hả theo bảng Thán từ, không phiên âm Ân",
+          "text": "Nàng gật đầu. Ân~ được."
+        },
+        {
+          "line": 5,
+          "message": "自己 → hắn/nàng/cô hoặc lược, không ghép bản thân + đại từ",
+          "text": "Khổ nỗi tình hình của bản thân hắn có chút đặc thù."
+        },
+        {
+          "line": 6,
+          "message": "自己 làm chủ ngữ → hắn/nàng/cô hoặc lược, không mở câu bằng Bản thân",
+          "text": "Bản thân cũng chẳng muốn đi. Bản thân là chưởng môn, sao lùi được."
+        },
+        {
+          "line": 14,
+          "message": "Gọi bề trên bằng danh xưng mà tự xưng ta → tiểu nhân/nô tỳ/thuộc hạ/đệ tử/vãn bối/con (mục Vai vế trong thoại)",
+          "text": "“Thiếu gia, ta nhớ là đã từng nói với ngài.”"
+        },
+        {
+          "line": 15,
+          "message": "Gọi bề trên bằng danh xưng mà xưng ngươi → ngài/người hoặc danh xưng (mục Vai vế trong thoại)",
+          "text": "“Sư phụ, ngươi đừng lo.”"
+        },
+        {
+          "line": 19,
+          "message": "亿 → trăm triệu / tỷ (百亿 = 10 tỷ, 千亿 = 100 tỷ), không viết ức",
+          "text": "Gom góp một trăm ức mua biệt thự."
+        },
+        {
+          "line": 20,
+          "message": "亿 → trăm triệu / tỷ (百亿 = 10 tỷ, 千亿 = 100 tỷ), không viết ức",
+          "text": "Số dư: 9,6 ức điểm."
+        },
+        {
+          "line": 25,
+          "message": "占便宜 → lợi dụng / sàm sỡ / bắt nạt theo cảnh, không chiếm tiện nghi",
+          "text": "Toàn chiếm tiện nghi của ta."
+        },
+        {
+          "line": 27,
+          "message": "总不能 → đâu thể / chẳng lẽ, không tổng không thể",
+          "text": "Tổng không thể bỏ mặc nàng."
+        }
+      ]
+    },
+    {
+      "name": "an-modern",
+      "text": "“Ân.” Hắn ân một tiếng.\nHứa Ân, đi thôi.\nÂn công cứu mạng.\nNàng gật đầu. Ân~ được.\nKhổ nỗi tình hình của bản thân hắn có chút đặc thù.\nBản thân cũng chẳng muốn đi. Bản thân là chưởng môn, sao lùi được.\nHắn tự hỏi bản thân mình.\nTôi lắc đầu.\n“Tôi không đi.”\n【Tôi vốn đã định làm người phụ nữ của hắn】\n[Hệ thống: tôi]\nCá Muối Biết Bay: Bây giờ tôi đi đầu thai làm mèo\nChương 119: Dạo này tôi thể hiện không tốt sao?\n“Thiếu gia, ta nhớ là đã từng nói với ngài.”\n“Sư phụ, ngươi đừng lo.”\n“Thiếu gia, chúng ta đi thôi, người ta đợi.”\n“Thiếu gia, nô tỳ nhớ đã thưa với ngài.”\n“Công tử, ngươi là ai?”\nGom góp một trăm ức mua biệt thự.\nSố dư: 9,6 ức điểm.\nHắn bị ức hiếp, sống ức vạn năm, mấy ức vạn sinh linh.\nCó 20 vạn fan theo dõi.\nMười vạn đại quân áp sát.\nHô vạn tuế, vạn nhất có chuyện.\nToàn chiếm tiện nghi của ta.\nTiện nghi sư tôn lại tới.\nTổng không thể bỏ mặc nàng.",
+      "setting": "modern",
+      "violations": [
+        {
+          "line": 1,
+          "message": "嗯 → Ừ/Ừm/Ưm/Hả theo bảng Thán từ, không phiên âm Ân",
+          "text": "“Ân.” Hắn ân một tiếng."
+        },
+        {
+          "line": 1,
+          "message": "ân một tiếng → ừm một tiếng",
+          "text": "“Ân.” Hắn ân một tiếng."
+        },
+        {
+          "line": 4,
+          "message": "嗯 → Ừ/Ừm/Ưm/Hả theo bảng Thán từ, không phiên âm Ân",
+          "text": "Nàng gật đầu. Ân~ được."
+        },
+        {
+          "line": 5,
+          "message": "自己 → hắn/nàng/cô hoặc lược, không ghép bản thân + đại từ",
+          "text": "Khổ nỗi tình hình của bản thân hắn có chút đặc thù."
+        },
+        {
+          "line": 6,
+          "message": "自己 làm chủ ngữ → hắn/nàng/cô hoặc lược, không mở câu bằng Bản thân",
+          "text": "Bản thân cũng chẳng muốn đi. Bản thân là chưởng môn, sao lùi được."
+        },
+        {
+          "line": 8,
+          "message": "Người kể ngôi một xưng tôi → ta (truyện kể ngôi ba thì bỏ qua)",
+          "text": "Tôi lắc đầu."
+        },
+        {
+          "line": 19,
+          "message": "亿 → trăm triệu / tỷ (百亿 = 10 tỷ, 千亿 = 100 tỷ), không viết ức",
+          "text": "Gom góp một trăm ức mua biệt thự."
+        },
+        {
+          "line": 20,
+          "message": "亿 → trăm triệu / tỷ (百亿 = 10 tỷ, 千亿 = 100 tỷ), không viết ức",
+          "text": "Số dư: 9,6 ức điểm."
+        },
+        {
+          "line": 22,
+          "message": "万 trong truyện hiện đại → nghìn / triệu (20万 = 200 nghìn), không viết vạn",
+          "text": "Có 20 vạn fan theo dõi."
+        },
+        {
+          "line": 23,
+          "message": "万 trong truyện hiện đại → nghìn / triệu (20万 = 200 nghìn), không viết vạn",
+          "text": "Mười vạn đại quân áp sát."
+        },
+        {
+          "line": 25,
+          "message": "占便宜 → lợi dụng / sàm sỡ / bắt nạt theo cảnh, không chiếm tiện nghi",
+          "text": "Toàn chiếm tiện nghi của ta."
+        },
+        {
+          "line": 27,
+          "message": "总不能 → đâu thể / chẳng lẽ, không tổng không thể",
+          "text": "Tổng không thể bỏ mặc nàng."
+        }
+      ]
+    }
+  ],
   "cases": [
     {
       "name": "default",
-      "text": "Triệu Tĩnh Văn ngẩng đầu，nhìn tòa 高塔 nơi xa.\nBut nàng im lặng. Vợ của hắn và anh ấy đều biết.\n\"Mình không đi,\" nàng nói. Hừm. Ơ? Thập phần kỳ lạ…\nNão hải hắn KHẤP HUYẾT, cư nhiên Cư Nhiên. Lãnh diễm.\nDòng sạch không vi phạm gì cả.\n",
+      "text": "Triệu Tĩnh Văn ngẩng đầu，nhìn tòa 高塔 nơi xa.\nBut nàng im lặng. Vợ của hắn và anh ấy đều biết.\n\"Mình không đi,\" nàng nói. Hừm. Ơ? Thập phần kỳ lạ…\nNão hải hắn KHẤP HUYẾT, cư nhiên Cư Nhiên. Lãnh diễm.\nKiểm trắc thấy một kẻ liếm chó.\nDòng sạch không vi phạm gì cả.\n",
       "rules": null,
       "setting": "ancient",
       "violations": [
@@ -796,12 +1270,7 @@
         },
         {
           "line": 3,
-          "message": "Dùng mình/tôi làm đại từ → thay bằng ta trong style mặc định",
-          "text": "\"Mình không đi,\" nàng nói. Hừm. Ơ? Thập phần kỳ lạ…"
-        },
-        {
-          "line": 3,
-          "message": "Hừm/Ừm → Ân",
+          "message": "Dùng mình/tôi làm đại từ → ta, hoặc tự xưng theo thân phận (tiểu nhân/nô tỳ/thuộc hạ/đệ tử/con)",
           "text": "\"Mình không đi,\" nàng nói. Hừm. Ơ? Thập phần kỳ lạ…"
         },
         {
@@ -828,6 +1297,16 @@
           "line": 4,
           "message": "冷艳 → lạnh lùng sắc sảo / lạnh lùng kiêu sa",
           "text": "Não hải hắn KHẤP HUYẾT, cư nhiên Cư Nhiên. Lãnh diễm."
+        },
+        {
+          "line": 5,
+          "message": "检测 → phát hiện / quét thấy / kiểm tra, không dùng kiểm trắc",
+          "text": "Kiểm trắc thấy một kẻ liếm chó."
+        },
+        {
+          "line": 5,
+          "message": "舔狗 → liếm cẩu, không dùng liếm chó",
+          "text": "Kiểm trắc thấy một kẻ liếm chó."
         }
       ]
     },
@@ -914,7 +1393,7 @@
     },
     {
       "name": "modern-default",
-      "text": "Vợ anh đang đợi ở công ty.\nNgươi dám nói vậy sao?\nThê tử của tổng tài Lâm, ừm.",
+      "text": "Vợ anh đang đợi ở công ty.\nNgươi dám nói vậy sao?\nThê tử của tổng tài Lâm, ừm.\nCon ngươi đen láy, cô nàng ngổ ngáo, nàng thơ của tôi, nàng dâu mới.\nNàng thơ thẩn, các ngươi đi đi.",
       "rules": null,
       "setting": "modern",
       "violations": [
@@ -932,12 +1411,17 @@
           "line": 3,
           "message": "tổng tài → tổng giám đốc",
           "text": "Thê tử của tổng tài Lâm, ừm."
+        },
+        {
+          "line": 5,
+          "message": "Xưng hô cổ trang trong truyện hiện đại → hắn/cô trong lời kể, tôi/anh/em trong thoại",
+          "text": "Nàng thơ thẩn, các ngươi đi đi."
         }
       ]
     },
     {
       "name": "modern-story-rules-ignore-setting",
-      "text": "Vợ anh đang đợi ở công ty.\nNgươi dám nói vậy sao?\nThê tử của tổng tài Lâm, ừm.",
+      "text": "Vợ anh đang đợi ở công ty.\nNgươi dám nói vậy sao?\nThê tử của tổng tài Lâm, ừm.\nCon ngươi đen láy, cô nàng ngổ ngáo, nàng thơ của tôi, nàng dâu mới.\nNàng thơ thẩn, các ngươi đi đi.",
       "rules": [
         {
           "pattern": "x",
@@ -949,7 +1433,7 @@
     },
     {
       "name": "ancient-on-modern-text",
-      "text": "Vợ anh đang đợi ở công ty.\nNgươi dám nói vậy sao?\nThê tử của tổng tài Lâm, ừm.",
+      "text": "Vợ anh đang đợi ở công ty.\nNgươi dám nói vậy sao?\nThê tử của tổng tài Lâm, ừm.\nCon ngươi đen láy, cô nàng ngổ ngáo, nàng thơ của tôi, nàng dâu mới.\nNàng thơ thẩn, các ngươi đi đi.",
       "rules": null,
       "setting": "ancient",
       "violations": [
@@ -957,17 +1441,12 @@
           "line": 1,
           "message": "Dùng vợ/chồng → thay bằng thê tử/phu quân",
           "text": "Vợ anh đang đợi ở công ty."
-        },
-        {
-          "line": 3,
-          "message": "Hừm/Ừm → Ân",
-          "text": "Thê tử của tổng tài Lâm, ừm."
         }
       ]
     },
     {
       "name": "mixed-default",
-      "text": "Vợ anh đang đợi ở công ty.\nNgươi dám nói vậy sao?\nThê tử của tổng tài Lâm, ừm.",
+      "text": "Vợ anh đang đợi ở công ty.\nNgươi dám nói vậy sao?\nThê tử của tổng tài Lâm, ừm.\nCon ngươi đen láy, cô nàng ngổ ngáo, nàng thơ của tôi, nàng dâu mới.\nNàng thơ thẩn, các ngươi đi đi.",
       "rules": null,
       "setting": "mixed",
       "violations": []

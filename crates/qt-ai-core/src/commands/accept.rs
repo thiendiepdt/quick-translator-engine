@@ -1,4 +1,5 @@
 use crate::cast::{apply_address_changes, filter_new_pairs, learn_genders, load_cast, save_cast};
+use crate::check::fix_glossary_drifts;
 use crate::commands::check::{assemble_draft, run_check_readonly};
 use crate::error::{CoreError, Result};
 use crate::glossary::{
@@ -11,7 +12,7 @@ use crate::story_fs::{
     load_state, load_story_config, now_ms, read_raw_chapter, read_text, resolve_root, save_state,
     save_story_config, story_paths, work_file, write_atomic, ChapterState, ChapterStatus, WorkKind, WORK_KINDS,
 };
-use crate::titles::{first_line, load_titles, replace_first_line, save_titles, settle_title};
+use crate::titles::{first_line, load_titles, replace_first_line, save_titles, settle_title, tidy_chapter_title};
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -23,6 +24,8 @@ pub struct AcceptResult {
     pub warnings: Vec<String>,
     /// Ghi chú bảng nhân vật khi chốt: đổi xưng hô theo mốc chương, khai giới ngược.
     pub cast_notes: Vec<String>,
+    /// Tên lệch dấu so với glossary đã tự sửa trước khi ghi out (`"sai → đúng"`).
+    pub glossary_fixes: Vec<String>,
 }
 
 pub fn run_accept(root: &Path, id: &str, force: bool) -> Result<AcceptResult> {
@@ -39,7 +42,21 @@ pub fn run_accept(root: &Path, id: &str, force: bool) -> Result<AcceptResult> {
     }
 
     let draft = assemble_draft(root, id)?;
-    let mut output = format_translation(&strip_markers(&draft.final_text));
+    let mut story = load_story_config(&paths)?;
+    // Tên lệch dấu so với glossary (Đoạn Phong ↔ Đoàn Phong): glossary là chuẩn, sửa thẳng thay vì bắt model soát.
+    let base_glossary = crate::base::BaseStore::from_env().glossary(story.genre.setting);
+    let merged_glossary = crate::prompt::merge_story_glossary(&base_glossary, Some(&story));
+    let mut parsed = draft.parsed.clone();
+    let glossary_fixes = fix_glossary_drifts(&draft.paragraphs, &mut parsed, &merged_glossary);
+    let final_text = parsed.iter().flatten().cloned().collect::<Vec<_>>().join("\n\n");
+    let mut output = format_translation(&strip_markers(&final_text));
+    // Tiêu đề một định dạng `Chương N: Tên`, không kèm lời xin phiếu — sửa trước để titles.json ghi tên sạch.
+    if let Some(current) = first_line(&output) {
+        let tidy = tidy_chapter_title(&current);
+        if tidy != current {
+            output = replace_first_line(&output, &tidy);
+        }
+    }
     // Tiêu đề lặp (truyện chia phần): tên đã chốt bản dịch thì dùng lại y nguyên, đuôi số viết theo một luật.
     let mut titles = load_titles(&paths);
     let titles_before = titles.clone();
@@ -56,7 +73,6 @@ pub fn run_accept(root: &Path, id: &str, force: bool) -> Result<AcceptResult> {
         save_titles(&paths, &titles)?;
     }
 
-    let mut story = load_story_config(&paths)?;
     let mut added_glossary = 0;
     let mut cast_notes = Vec::new();
     let glossary_path = work_file(&paths, id, WorkKind::Glossary);
@@ -72,10 +88,8 @@ pub fn run_accept(root: &Path, id: &str, force: bool) -> Result<AcceptResult> {
         let existing = collect_glossary_keys(&TranslationGlossary::new(), &story.glossary);
         let pairs = drop_conflicting_readings(sanitize_extracted(&entries, &raw, &output, &existing), &story.glossary);
         // Bảng nhân vật: học giới trước rồi mới xét cặp xưng hô (cặp trái giới vừa học cũng bị bỏ).
-        let base_glossary = crate::base::BaseStore::from_env().glossary(story.genre.setting);
-        let merged = crate::prompt::merge_story_glossary(&base_glossary, Some(&story));
         let mut names: std::collections::HashSet<String> =
-            merged.get("names").map(|group| group.keys().cloned().collect()).unwrap_or_default();
+            merged_glossary.get("names").map(|group| group.keys().cloned().collect()).unwrap_or_default();
         names.extend(pairs.iter().filter(|pair| pair.category == "names").map(|pair| pair.source.clone()));
         let mut cast = load_cast(&paths);
         let before = cast.clone();
@@ -104,14 +118,16 @@ pub fn run_accept(root: &Path, id: &str, force: bool) -> Result<AcceptResult> {
         .get(id)
         .cloned()
         .ok_or_else(|| CoreError::StoryNotFound(format!("Không có chương {id} trong state.json.")))?;
-    // Vấn đề còn sót (hết vòng review chỉ còn vi phạm, hoặc --force) ghi vào state để status liệt kê.
+    // Vấn đề còn sót (hết vòng review chỉ còn vi phạm, hoặc --force) cùng rule chỉ cảnh báo ghi vào state
+    // để status/GUI liệt kê.
+    let warnings: Vec<String> = check.issues.iter().chain(&check.advisories).cloned().collect();
     state.chapters.insert(
         id.to_string(),
         ChapterState {
             status: ChapterStatus::Done,
             review_round: chapter.review_round,
             reason: None,
-            warnings: (!check.issues.is_empty()).then(|| check.issues.clone()),
+            warnings: (!warnings.is_empty()).then(|| warnings.clone()),
             updated_at: now_ms(),
         },
     );
@@ -120,5 +136,5 @@ pub fn run_accept(root: &Path, id: &str, force: bool) -> Result<AcceptResult> {
     for kind in WORK_KINDS {
         let _ = fs::remove_file(work_file(&paths, id, kind)); // force: true
     }
-    Ok(AcceptResult { out_path, added_glossary, warnings: check.issues, cast_notes })
+    Ok(AcceptResult { out_path, added_glossary, warnings, cast_notes, glossary_fixes })
 }

@@ -11,6 +11,12 @@ use std::sync::LazyLock;
 static HAN: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\p{Han}").unwrap());
 static ARROW: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"→|->|=>").unwrap());
 static DASH: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\s*[–—\-/]\s*").unwrap());
+/// Port `TITLE_NAME`: danh xưng gắn họ (`老张`, `李老师`, `苏夫人`…) không phải tên riêng.
+static TITLE_NAME: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^(?:老|小|阿)?(?:欧阳|上官|司马|诸葛|慕容|东方|南宫|西门|公孙|令狐|皇甫|尉迟|长孙|宇文|独孤|端木|夏侯|轩辕|拓跋|百里|呼延|澹台|司徒|司空|万俟|闻人|太史|申屠|东郭|\p{Han})[一二三四五六七八九十大]?(?:姑娘|夫人|管家|管事|阿姨|姨|老师|大夫|捕头|长老|女士|先生|小姐|奶奶|爷爷|老头|师姐|师兄|师妹|师弟|哥|姐|少|导|总|董|经理)$|^老\p{Han}$").unwrap()
+});
+/// Port `BOOK_TITLE`: `《X》` lưu thành `X`.
+static BOOK_TITLE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^《(.+)》$").unwrap());
 
 /// Key glossary có mặt trong chương: tên thường thì nguyên văn; cặp `甲→乙` thì cả hai bên đều có.
 pub fn glossary_key_touches_source(key: &str, text: &str) -> bool {
@@ -84,6 +90,8 @@ pub fn sanitize_extracted(
             }
             continue;
         }
+        let source = BOOK_TITLE.replace(&source, "$1").into_owned();
+        let target = BOOK_TITLE.replace(&target, "$1").into_owned();
         if HAN.find_iter(&source).count() < 2 {
             continue;
         }
@@ -93,12 +101,15 @@ pub fn sanitize_extracted(
         if !raw.contains(&source) || !translation.contains(&target) {
             continue;
         }
-        let category = record
-            .get("category")
-            .and_then(Value::as_str)
-            .filter(|category| GLOSSARY_CATEGORIES.contains(category))
-            .unwrap_or("names")
-            .to_string();
+        // Nhóm ghi sai (không thuộc nhóm nào) thì bỏ — rơi vào names sẽ biến từ chung thành tên riêng.
+        let category = match record.get("category").and_then(Value::as_str) {
+            Some(category) if GLOSSARY_CATEGORIES.contains(&category) => category.to_string(),
+            Some(_) => continue,
+            None => "names".to_string(),
+        };
+        if category == "names" && TITLE_NAME.is_match(&source) {
+            continue;
+        }
         seen.insert(source.clone());
         pairs.push(ExtractedPair { source, target, category });
     }

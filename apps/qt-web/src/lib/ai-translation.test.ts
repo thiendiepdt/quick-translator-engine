@@ -4,7 +4,9 @@ import {
   buildAiTranslationReviewPrompt,
   buildAiTranslationSystemPrompt,
   buildWorkspaceTranslationGlossary,
+  checkAdvisoryViolations,
   checkAiTranslationViolations,
+  defaultAdvisoryRules,
   defaultAiCheckRules,
   filterTranslationGlossaryForSource,
   formatAiTranslation,
@@ -90,6 +92,17 @@ describe("AI translation post-processing", () => {
     );
   });
 
+  it("turns straight quotes curly by context and tightens dashes next to punctuation", () => {
+    expect(formatAiTranslation("\"Ngươi đi đâu?\" Hắn hỏi.\n\"Cha, mẹ — \"\n\nHắn nói:\"Đi!\" \"Hừ,\" nàng đáp.")).toBe(
+      "“Ngươi đi đâu?” Hắn hỏi.\n“Cha, mẹ —”\n\nHắn nói:“Đi!” “Hừ,” nàng đáp.\n",
+    );
+    expect(formatAiTranslation("“Ngươi — !”\n“ — Giết!”\n“Đi đâu?\"")).toBe("“Ngươi —!”\n“— Giết!”\n“Đi đâu?”\n");
+    // Thoại kéo nhiều đoạn: đoạn đầu chỉ có ngoặc mở.
+    expect(formatAiTranslation("\"Thoại kéo dài,\n\"đoạn sau.\"")).toBe("“Thoại kéo dài,\n“đoạn sau.”\n");
+    // 『』 và nháy đơn giữ nguyên.
+    expect(formatAiTranslation("『Tên này — 』 O'Neil")).toBe("『Tên này —』 O'Neil\n");
+  });
+
   it("finds the ported automatic violations and builds a narrow review prompt", () => {
     const text = "But hắn còn nói…\n萧炎 bước vào】";
     const violations = checkAiTranslationViolations(text);
@@ -151,7 +164,6 @@ describe("AI translation post-processing", () => {
   it("still flags terms whose word boundaries are diacritics", () => {
     const text = [
       "Nàng là vợ hắn.",
-      "Ừm, cũng được.",
       "Hắn đặc ý tới đây.",
       "Giọng nói bi thê.",
       "Ánh mắt u thê.",
@@ -162,7 +174,6 @@ describe("AI translation post-processing", () => {
     expect(checkAiTranslationViolations(text).map((item) => item.message)).toEqual(
       expect.arrayContaining([
         "Dùng vợ/chồng → thay bằng thê tử/phu quân",
-        "Hừm/Ừm → Ân",
         "đặc ý → cố ý",
         "bi thê → bi thương",
         "u thê → u sầu",
@@ -254,23 +265,102 @@ describe("AI translation post-processing", () => {
       "3:Xưng hô cổ trang trong truyện hiện đại → hắn/cô trong lời kể, tôi/anh/em trong thoại",
       "4:Từ gia đình cổ trang → vợ/chồng/bố/mẹ",
       "4:tổng tài → tổng giám đốc",
-      "5:Lời kể ngôi một dùng tôi → ta (tôi chỉ trong thoại theo quan hệ)",
     ]);
+    expect(checkAdvisoryViolations(text, "modern").map((v) => `${v.line}:${v.message}`)).toEqual(["5:Người kể ngôi một xưng tôi → ta (truyện kể ngôi ba thì bỏ qua)"]);
     const ancient = checkAiTranslationViolations(text);
     expect(ancient.map((v) => v.message)).toContain("Dùng vợ/chồng → thay bằng thê tử/phu quân");
-    expect(ancient.map((v) => v.message)).toContain("Hừm/Ừm → Ân");
+    expect(ancient.map((v) => v.message)).not.toContain("Hừm/Ừm → Ân");
   });
 
-  it("modern: tôi ở dòng kể (không ngoặc kép) bị bắt, tôi trong thoại thì không", () => {
+  it("ancient không còn ép Ừm → Ân; Ân chỉ là cảnh báo, không nằm trong luật chính", () => {
+    expect(checkAiTranslationViolations("“Ừm, được.”\nHắn ừm một tiếng.")).toEqual([]);
+    expect(checkAiTranslationViolations("“Ân, được.”").map((v) => v.message)).toEqual([]);
+    const advisory = checkAdvisoryViolations("“Ân, được.” Hắn ân một tiếng.\nHứa Ân, đi thôi.\nÂn công cứu mạng.");
+    expect(advisory.map((v) => `${v.line}:${v.message}`)).toEqual([
+      "1:嗯 → Ừ/Ừm/Ưm/Hả theo bảng Thán từ, không phiên âm Ân",
+      "1:ân một tiếng → ừm một tiếng",
+    ]);
+    for (const setting of ["ancient", "modern", "mixed"] as const) {
+      expect(defaultAdvisoryRules(setting).map((rule) => rule.message)).toContain("ân một tiếng → ừm một tiếng");
+    }
+  });
+
+  it("cảnh báo số + ức ở mọi bối cảnh, số + vạn chỉ ở hiện đại; ức hiếp, ức vạn, vạn tuế thì qua", () => {
+    const text = [
+      "Gom góp một trăm ức mua biệt thự.",
+      "Số dư: 9,6 ức điểm.",
+      "Hắn bị ức hiếp, sống ức vạn năm, mấy ức vạn sinh linh.",
+      "Có 20 vạn fan theo dõi.",
+      "Mười vạn đại quân áp sát.",
+      "Hô vạn tuế, vạn nhất có chuyện.",
+    ].join("\n");
+    const lines = (setting: "ancient" | "modern" | "mixed") => checkAdvisoryViolations(text, setting).map((v) => v.line);
+    expect(lines("modern")).toEqual([1, 2, 4, 5]);
+    expect(lines("ancient")).toEqual([1, 2]);
+    expect(lines("mixed")).toEqual([1, 2]);
+  });
+
+  it("bắt kiểm trắc và liếm chó ở mọi bối cảnh", () => {
+    for (const setting of ["ancient", "modern", "mixed"] as const) {
+      expect(checkAiTranslationViolations("Kiểm trắc thấy một kẻ liếm chó.", undefined, setting).map((v) => v.message)).toEqual([
+        "检测 → phát hiện / quét thấy / kiểm tra, không dùng kiểm trắc",
+        "舔狗 → liếm cẩu, không dùng liếm chó",
+      ]);
+    }
+    expect(checkAiTranslationViolations("Phát hiện một kẻ liếm cẩu.", undefined, "modern")).toEqual([]);
+  });
+
+  it("cổ đại: cảnh báo gọi bề trên bằng danh xưng mà tự xưng ta hoặc gọi ngươi; chúng ta, người ta, Công tử thì qua", () => {
+    const text = [
+      "“Thiếu gia, ta nhớ là đã từng nói với ngài.”",
+      "“Sư phụ, ngươi đừng lo.”",
+      "“Thiếu gia, chúng ta đi thôi, người ta đợi.”",
+      "“Thiếu gia, nô tỳ nhớ đã thưa với ngài.”",
+      "“Công tử, ngươi là ai?”",
+    ].join("\n");
+    const got = checkAdvisoryViolations(text).map((v) => `${v.line}:${v.message.split(" →")[0]}`);
+    expect(got).toEqual([
+      "1:Gọi bề trên bằng danh xưng mà tự xưng ta",
+      "2:Gọi bề trên bằng danh xưng mà xưng ngươi",
+    ]);
+    expect(checkAdvisoryViolations(text, "modern")).toEqual([]);
+    expect(checkAiTranslationViolations("“Tôi đi ngay.”").map((v) => v.message)).toEqual([
+      "Dùng mình/tôi làm đại từ → ta, hoặc tự xưng theo thân phận (tiểu nhân/nô tỳ/thuộc hạ/đệ tử/con)",
+    ]);
+  });
+
+  it("cảnh báo chiếm tiện nghi và tổng không thể; tiện nghi + người thân thì qua", () => {
+    const text = "Toàn chiếm tiện nghi của ta.\nTiện nghi sư tôn lại tới.\nTổng không thể bỏ mặc nàng.";
+    for (const setting of ["ancient", "modern"] as const) {
+      expect(checkAdvisoryViolations(text, setting).map((v) => `${v.line}:${v.message.split(" →")[0]}`)).toEqual(["1:占便宜", "3:总不能"]);
+    }
+  });
+
+  it("cảnh báo 自己 dịch thành bản thân + đại từ hoặc mở câu bằng Bản thân; bản thân mình, Bản thân là thì qua", () => {
+    const text = [
+      "Khổ nỗi tình hình của bản thân hắn có chút đặc thù.",
+      "Bản thân cũng chẳng muốn đi.",
+      "Bản thân là chưởng môn, sao lùi được.",
+      "Hắn tự hỏi bản thân mình.",
+      "“Bản thân nàng còn lo chưa xong.”",
+    ].join("\n");
+    expect(checkAdvisoryViolations(text).map((v) => v.line)).toEqual([1, 2, 5]);
+  });
+
+  it("modern: tôi ở dòng kể chỉ bị cảnh báo; thoại, 【】, đạn mạc, tiêu đề thì qua", () => {
     const text = [
       "Tôi lắc đầu.",
       "Sáu năm trước, tôi vì Cao Kiện mà đâm người trọng thương.",
       "Hứa Như Vân cố tình cao giọng: \"Tôi cố tình đấy thì sao, em gái tôi muốn đến ở thì anh không cho.\"",
       "\"Ban ngày anh đi làm, chỉ có một mình tôi ở nhà.\"",
       "Ta lắc đầu.",
+      "【Tôi vốn đã định làm người phụ nữ của hắn】",
+      "Cá Muối Biết Bay: Bây giờ tôi đi đầu thai làm mèo",
+      "Chương 119: Dạo này tôi thể hiện không tốt sao?",
     ].join("\n");
-    expect(checkAiTranslationViolations(text, undefined, "modern").map((v) => v.line)).toEqual([1, 2]);
-    expect(checkAiTranslationViolations(text, undefined, "mixed")).toEqual([]);
+    expect(checkAiTranslationViolations(text, undefined, "modern")).toEqual([]);
+    expect(checkAdvisoryViolations(text, "modern").map((v) => v.line)).toEqual([1, 2]);
+    expect(checkAdvisoryViolations(text, "mixed")).toEqual([]);
   });
 
   it("mixed chỉ chạy rule trung lập: vợ, ngươi, Ừm qua; dấu câu Trung vẫn bắt", () => {

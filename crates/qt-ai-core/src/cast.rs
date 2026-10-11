@@ -17,6 +17,9 @@ use std::fs;
 pub enum Gender {
     Male,
     Female,
+    /// Biến thân (xuyên vào / biến thành thân xác khác giới): raw đổi 他/她 theo từng câu, nên không ép một giới —
+    /// lời kể theo đại từ của raw, check theo giới bỏ qua.
+    Swap,
 }
 
 impl Gender {
@@ -24,16 +27,23 @@ impl Gender {
         match self {
             Gender::Male => "nam",
             Gender::Female => "nữ",
+            Gender::Swap => "biến thân",
         }
     }
 
-    /// Nhận cách model/người dùng hay viết: nam/nữ, male/female.
+    /// Nhận cách model/người dùng hay viết: nam/nữ/biến thân, male/female/swap.
     pub fn parse(text: &str) -> Option<Gender> {
         match text.trim().to_lowercase().as_str() {
             "nam" | "male" | "m" => Some(Gender::Male),
             "nữ" | "nu" | "female" | "f" => Some(Gender::Female),
+            "biến thân" | "bien than" | "swap" => Some(Gender::Swap),
             _ => None,
         }
+    }
+
+    /// Nam hoặc nữ cố định — giới mà các check xưng hô dựa vào được.
+    pub fn fixed(self) -> Option<Gender> {
+        (self != Gender::Swap).then_some(self)
     }
 }
 
@@ -58,6 +68,9 @@ pub struct Character {
     /// Các chương khai giới ngược lại — không tự đổi, để người dùng xét.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub disputed: Vec<String>,
+    /// Đại từ lời kể người dùng chốt riêng (`lão`, `bà`, `Ngài`…); rỗng thì theo giới.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub narration: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -98,6 +111,11 @@ impl Default for Cast {
 impl Cast {
     pub fn gender_of(&self, name: &str) -> Option<Gender> {
         self.characters.get(name).and_then(|character| character.gender)
+    }
+
+    /// Giới nam/nữ cố định — nhân vật biến thân hay chưa rõ giới thì None.
+    pub fn fixed_gender_of(&self, name: &str) -> Option<Gender> {
+        self.gender_of(name).and_then(Gender::fixed)
     }
 }
 
@@ -213,7 +231,7 @@ pub fn normalize_pair(target: &str) -> Option<(String, String)> {
 pub fn pair_gender_conflict(key: &str, target: &str, cast: &Cast) -> bool {
     let sides = addressing_sides(key);
     let (Some((own, other)), [speaker, listener]) = (normalize_pair(target), sides.as_slice()) else { return false };
-    let clash = |name: &str, term: &str| match (cast.gender_of(name), term_gender(term)) {
+    let clash = |name: &str, term: &str| match (cast.fixed_gender_of(name), term_gender(term)) {
         (Some(known), Some(implied)) => known != implied,
         _ => false,
     };
@@ -276,19 +294,48 @@ pub fn title_aliases(name: &str, source: &str) -> Vec<String> {
 pub struct PresentCharacter {
     pub source: String,
     pub name: String,
-    pub gender: Gender,
+    pub gender: Option<Gender>,
+    /// Đại từ lời kể chốt riêng; rỗng thì theo giới.
+    pub narration: String,
 }
 
-/// Nhân vật đã rõ giới có mặt trong chương: tên đầy đủ, tên bỏ họ, hoặc họ + chức danh (`贺老师`).
+/// Nhân vật đã rõ giới hoặc có đại từ lời kể riêng, có mặt trong chương: tên đầy đủ, tên bỏ họ, hoặc họ + chức
+/// danh (`贺老师`).
 pub fn present_characters(names: &StringMap, cast: &Cast, source: &str) -> Vec<PresentCharacter> {
     names
         .iter()
         .filter_map(|(han, viet)| {
-            let gender = cast.gender_of(han)?;
+            let character = cast.characters.get(han)?;
+            let narration = character.narration.trim().to_string();
+            if character.gender.is_none() && narration.is_empty() {
+                return None;
+            }
             let present = glossary_entry_matches_source(han, source) || !title_aliases(han, source).is_empty();
-            present.then(|| PresentCharacter { source: han.clone(), name: viet.clone(), gender })
+            present.then(|| PresentCharacter { source: han.clone(), name: viet.clone(), gender: character.gender, narration })
         })
         .collect()
+}
+
+/// Một dòng trong danh sách nhân vật có mặt: giới + đại từ lời kể (ghi riêng > theo giới; biến thân theo raw).
+fn present_line(character: &PresentCharacter, setting: GenreSetting) -> String {
+    let head = format!("- {} ({})", character.source, character.name);
+    let she = match setting {
+        GenreSetting::Ancient => "`nàng`",
+        GenreSetting::Modern => "`cô`",
+        GenreSetting::Mixed => "`nàng` (cảnh cổ đại) / `cô` (cảnh hiện đại)",
+    };
+    let narration = match (character.narration.as_str(), character.gender) {
+        ("", Some(Gender::Male)) => "lời kể: `hắn`".to_string(),
+        ("", Some(Gender::Female)) => format!("lời kể: {she}"),
+        ("", Some(Gender::Swap)) => {
+            format!("lời kể theo đại từ của raw từng câu (他 → `hắn`, 她 → {she}); người khác gọi theo vẻ ngoài lúc đó")
+        }
+        (own, _) => format!("lời kể: `{own}` (ghi riêng)"),
+    };
+    match character.gender {
+        Some(gender) => format!("{head}: {} — {narration}", gender.label()),
+        None => format!("{head}: {narration}"),
+    }
 }
 
 fn addressing_rules(setting: GenreSetting) -> String {
@@ -316,8 +363,12 @@ fn addressing_rules(setting: GenreSetting) -> String {
         GenreSetting::Mixed => "mặc định `mình` ở cảnh hiện đại, `ta` ở cảnh cổ đại",
     };
     rules.push(format!(
-        "- **Độc thoại nội tâm.** Ý nghĩ đặt trong ngoặc kép mà không nói với ai: mỗi nhân vật chốt MỘT ngôi tự xưng trong cả chương, {own}; không đổi qua lại giữa các ngôi."
+        "- **Độc thoại nội tâm.** Ý nghĩ đặt trong ngoặc kép, `【】` hoặc `『』` mà không nói với ai: mỗi nhân vật chốt MỘT ngôi tự xưng trong cả chương, {own}; không đổi qua lại giữa các ngôi."
     ));
+    if modern {
+        rules.push("- **Bình luận, đạn mạc, tin nhắn, bài đăng mạng.** Người viết ưu tiên tự xưng `tui` / `mình` / `tao` theo giọng, gọi người được nói tới `anh ấy` / `cô ấy` / `ảnh` / `bả` hoặc tên; KHÔNG `ta`, `hắn`, `ngươi` dù dòng đó nằm ngoài ngoặc kép.".to_string());
+    }
+    rules.push("- **Tiêu đề chương là câu nói của nhân vật** (raw là lời thoại): xưng hô như trong thoại của chính nhân vật đó ở thân chương, không theo luật người kể.".to_string());
     if modern {
         rules.push("- **老师 ngoài trường học.** 老师 dùng để gọi nghệ sĩ, tiền bối trong nghề, nhân viên đoàn phim… vẫn là `thầy` / `cô` + họ theo giới người được gọi (`贺老师` là nữ → `cô Hạ`); `各位老师` → `các thầy cô`.".to_string());
     }
@@ -330,7 +381,22 @@ const INTIMACY_MARKERS: &[&str] = &[
     "亲吻", "恋人", "情侣", "夫妻", "我爱你", "我喜欢你", "表白", "约会", "成亲", "洞房", "夫君", "娘子", "相公", "道侣",
 ];
 
-/// Một đôi nhân vật mà cặp xưng hô đang là kiểu người lạ trong khi chương có dấu hiệu thân mật.
+/// Dấu hiệu quan hệ mới theo SỰ KIỆN (bái sư, nhận chủ, kết nghĩa, nhận thân). Không lấy danh xưng chung
+/// như 师父/主人 vì truyện tu tiên chương nào cũng có — chỉ sự kiện mới cho thấy quan hệ vừa đổi.
+const RELATION_MARKERS: &[&str] = &[
+    "拜师", "收徒", "为徒", "认主", "效忠", "臣服", "结拜", "结义", "金兰", "认亲", "义父", "义母", "干爹", "干妈",
+];
+
+/// Loại dấu hiệu khiến harness đưa một đôi ra xét lại.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReviewKind {
+    /// Thành người yêu, đính hôn, vợ chồng.
+    Intimacy,
+    /// Bái sư, nhận chủ, kết nghĩa, nhận thân.
+    Relation,
+}
+
+/// Một đôi nhân vật mà cặp xưng hô đang là kiểu người lạ trong khi chương có dấu hiệu quan hệ đã đổi.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PairReview {
     pub a: String,
@@ -339,24 +405,70 @@ pub struct PairReview {
     pub forward: Option<String>,
     pub backward: Option<String>,
     pub markers: Vec<String>,
+    pub kind: ReviewKind,
 }
 
-/// Cặp kiểu người lạ: tự xưng `tôi`, hoặc cổ đại `ta` + gọi `ngươi`/`cô nương`/`công tử`…
+/// Cặp kiểu người lạ/ngang hàng xa cách: tự xưng `tôi`/`tớ`/`tao`/`bổn cung`/`lão phu`/`bổn tọa`…, hoặc
+/// cổ đại `ta` + gọi `ngươi`/`cô nương`/`công tử`…
 fn is_distant(target: &str) -> bool {
     let Some((own, other)) = normalize_pair(target) else { return false };
     let (own, other) = (own.to_lowercase(), other.to_lowercase());
-    own == "tôi" || (own == "ta" && ["ngươi", "cô nương", "công tử", "đạo hữu", "các hạ"].contains(&other.as_str()))
+    ["tôi", "tớ", "tao", "bổn cung", "bản cung", "lão phu", "bổn tọa", "bản tọa"].contains(&own.as_str())
+        || (own == "ta" && ["ngươi", "cô nương", "công tử", "đạo hữu", "các hạ"].contains(&other.as_str()))
+}
+
+/// Nhãn ngắn của chương cho prompt: số thứ tự đầu id (`0001_744…` → `1`, `10021482_1040_第…` → `1040`,
+/// `chuong-0392` → `392`); không có thì giữ nguyên id.
+pub fn chapter_label(id: &str) -> String {
+    id.split(['_', '-'])
+        .find(|part| !part.is_empty() && part.len() <= 5 && part.chars().all(|c| c.is_ascii_digit()))
+        .map(|digits| digits.trim_start_matches('0').to_string())
+        .map(|digits| if digits.is_empty() { "0".to_string() } else { digits })
+        .unwrap_or_else(|| id.to_string())
+}
+
+/// Chương chốt của cặp đang hiệu lực: mốc đổi gần nhất trong cast (≤ chương đang dịch), không có thì chương
+/// glossary tự sinh ghi cặp đó. Cặp người dùng nhập tay (không có trong log) thì không có.
+pub fn addressing_since(
+    pairs: &StringMap,
+    cast: &Cast,
+    log: &[crate::story::AutoGlossaryEntry],
+    chapter_id: &str,
+) -> StringMap {
+    pairs
+        .keys()
+        .filter_map(|key| {
+            let changed = cast.addressing.get(key).and_then(|timeline| {
+                timeline
+                    .changes
+                    .iter()
+                    .filter(|change| natural_chapter_compare(&change.from, chapter_id) != Ordering::Greater)
+                    .max_by(|a, b| natural_chapter_compare(&a.from, &b.from))
+                    .map(|change| change.from.clone())
+            });
+            let logged = || {
+                log.iter()
+                    .find(|entry| entry.category == "addressing" && entry.source == *key)
+                    .map(|entry| entry.chapter.clone())
+            };
+            changed.or_else(logged).map(|from| (key.clone(), from))
+        })
+        .collect()
 }
 
 /// Harness tự tìm đôi cần xét lại thay vì trông vào model tự nhận ra: model coi cặp trong danh sách là lệnh
 /// phải giữ (thử thật: đang bàn chuyện cưới vẫn `tôi–cô`). Điều kiện: chương có dấu hiệu thân mật, một chiều
 /// của đôi còn kiểu người lạ, không chiều nào bị người dùng ghim. `pairs` là cặp hiệu lực đã lọc theo chương.
 pub fn pairs_to_review(pairs: &StringMap, cast: &Cast, source: &str) -> Vec<PairReview> {
-    let markers: Vec<String> =
-        INTIMACY_MARKERS.iter().filter(|marker| source.contains(*marker)).take(4).map(|m| m.to_string()).collect();
-    if markers.is_empty() {
-        return vec![];
-    }
+    let found = |list: &[&str]| -> Vec<String> {
+        list.iter().filter(|marker| source.contains(*marker)).take(4).map(|m| m.to_string()).collect()
+    };
+    // Dấu hiệu thân mật ưu tiên: chương vừa cưới vừa nhắc 结拜 thì vẫn xét theo người yêu/vợ chồng.
+    let (markers, kind) = match (found(INTIMACY_MARKERS), found(RELATION_MARKERS)) {
+        (intimacy, _) if !intimacy.is_empty() => (intimacy, ReviewKind::Intimacy),
+        (_, relation) if !relation.is_empty() => (relation, ReviewKind::Relation),
+        _ => return vec![],
+    };
     let pinned = |key: &str| cast.addressing.get(key).is_some_and(|timeline| timeline.pinned);
     let mut reviews: Vec<PairReview> = Vec::new();
     for key in pairs.keys() {
@@ -371,7 +483,7 @@ pub fn pairs_to_review(pairs: &StringMap, cast: &Cast, source: &str) -> Vec<Pair
         if !distant || pinned(key) || pinned(&reverse) {
             continue;
         }
-        reviews.push(PairReview { a: a.to_string(), b: b.to_string(), forward, backward, markers: markers.clone() });
+        reviews.push(PairReview { a: a.to_string(), b: b.to_string(), forward, backward, markers: markers.clone(), kind });
     }
     reviews
 }
@@ -391,14 +503,18 @@ pub fn addressing_rules_section(setting: GenreSetting) -> String {
 pub fn chapter_addressing_section(
     present: &[PresentCharacter],
     pairs: &StringMap,
+    since: &StringMap,
     reviews: &[PairReview],
     setting: GenreSetting,
+    chapter_id: &str,
 ) -> String {
     let mut section = String::new();
     if !present.is_empty() {
-        let list: Vec<String> =
-            present.iter().map(|c| format!("- {} ({}): {}", c.source, c.name, c.gender.label())).collect();
-        section.push_str(&format!("\nNhân vật có mặt trong chương — giới tính đã chốt:\n\n{}\n", list.join("\n")));
+        let list: Vec<String> = present.iter().map(|c| present_line(c, setting)).collect();
+        section.push_str(&format!(
+            "\nNhân vật có mặt trong chương — giới tính và đại từ lời kể (ngoài thoại) đã chốt; đại từ theo giới là mặc định, nhân vật lớn tuổi được dùng `lão` / `bà` nếu hợp, mục ghi riêng thì theo đúng ghi riêng:\n\n{}\n",
+            list.join("\n")
+        ));
     }
     let arrow = crate::story::ADDRESSING_ARROW;
     let under_review = |key: &str| {
@@ -407,18 +523,23 @@ pub fn chapter_addressing_section(
     let keep: StringMap =
         pairs.iter().filter(|(key, _)| !under_review(key)).map(|(key, target)| (key.clone(), target.clone())).collect();
     if !keep.is_empty() {
+        let list: Vec<String> = keep
+            .iter()
+            .map(|(key, target)| match since.get(key) {
+                Some(from) => format!("- {key}: {target} (chốt từ ch.{})", chapter_label(from)),
+                None => format!("- {key}: {target}"),
+            })
+            .collect();
         section.push_str(&format!(
-            "\nCặp xưng hô đang dùng — `甲→乙: X–Y` nghĩa là trong thoại 甲 tự xưng X và gọi 乙 là Y (cặp ngược `乙→甲` có mục riêng):\n\n{}\n\nGiữ đúng các cặp này. Chỉ đổi khi chương này cho thấy quan hệ hai người đã khác hẳn lúc chốt cặp (thành người yêu, vợ chồng, kết nghĩa, trở mặt thành thù); khi đổi phải đổi cả hai chiều và khai lại cặp trong danh sách glossary đề xuất kèm `note`.\n",
-            crate::prompt::json_pretty(&keep)
+            "\nCặp xưng hô đang dùng (chương đang dịch: ch.{}) — `甲→乙: X–Y` nghĩa là trong thoại 甲 tự xưng X và gọi 乙 là Y (cặp ngược `乙→甲` có mục riêng):\n\n{}\n\nĐây là cặp gần nhất đã ghi, kèm chương chốt; mặc định giữ. Nếu chương này cho thấy quan hệ hai người đã khác lúc chốt — thoại gọi nhau bằng danh xưng khác hẳn (师父/师尊, 主人, 夫君/相公/老公/老婆, 姐/哥, 宝贝…), hoặc đã thành người yêu, vợ chồng, thầy trò, chủ tớ, kết nghĩa, trở mặt thành thù — thì dịch theo quan hệ hiện tại cho cả hai chiều trong cả chương và khai lại cặp trong danh sách glossary đề xuất kèm `note`.\n",
+            chapter_label(chapter_id),
+            list.join("\n")
         ));
     }
-    if !reviews.is_empty() {
-        let lovers = match setting {
-            GenreSetting::Ancient => "tình nhân, phu thê thường là ta–nàng và thiếp–chàng",
-            GenreSetting::Modern => "người yêu, vợ chồng thường là anh–em; nữ lớn tuổi hơn hẳn thì chị–em",
-            GenreSetting::Mixed => "hiện đại: người yêu, vợ chồng thường là anh–em; cổ đại: ta–nàng và thiếp–chàng",
-        };
-        let list: Vec<String> = reviews
+    let (intimacy, relation): (Vec<PairReview>, Vec<PairReview>) =
+        reviews.iter().cloned().partition(|review| review.kind == ReviewKind::Intimacy);
+    let review_list = |reviews: &[PairReview]| -> String {
+        reviews
             .iter()
             .map(|r| {
                 let current: Vec<String> = [(&r.a, &r.b, &r.forward), (&r.b, &r.a, &r.backward)]
@@ -427,10 +548,31 @@ pub fn chapter_addressing_section(
                     .collect();
                 format!("- {} ↔ {}: đang {}; dấu hiệu trong raw: {}", r.a, r.b, current.join(", "), r.markers.join(", "))
             })
-            .collect();
+            .collect::<Vec<_>>()
+            .join("\n")
+    };
+    if !relation.is_empty() {
+        let relations = match setting {
+            GenreSetting::Ancient => "sư đồ: `vi sư`/`ta` – `đồ nhi`/`con` và `đệ tử`/`con` – `sư phụ`; chủ tớ: `nô tỳ`/`thuộc hạ` – `chủ nhân`; kết nghĩa: `huynh–đệ`, `tỷ–muội`; cha mẹ nuôi: `con` – `nghĩa phụ`/`nghĩa mẫu`",
+            GenreSetting::Modern => "thầy trò: `thầy`/`cô` – `em`/`con`; kết nghĩa: `anh–em`, `chị–em`; cha mẹ nuôi: `bố`/`mẹ` – `con`",
+            GenreSetting::Mixed => "cổ đại: sư đồ `vi sư`/`ta` – `đồ nhi`/`con`, chủ tớ `nô tỳ`/`thuộc hạ` – `chủ nhân`, kết nghĩa `huynh–đệ`; hiện đại: thầy trò `thầy`/`cô` – `em`, kết nghĩa `anh–em`, `chị–em`",
+        };
+        section.push_str(&format!(
+            "\nCặp cần xét lại trong chương này vì quan hệ mới — xưng hô dưới đây chốt từ lúc hai người còn xa lạ, mà chương có dấu hiệu bái sư, nhận chủ, kết nghĩa hoặc nhận thân:\n\n{}\n\nĐọc chương rồi quyết định cho từng đôi. Nếu chính hai người này vừa đổi quan hệ như dấu hiệu: dùng cặp hợp quan hệ mới cho cả hai chiều trong cả chương ({relations}) và BẮT BUỘC khai lại cả hai chiều trong danh sách glossary đề xuất kèm `note`. Nếu dấu hiệu nói về người khác hoặc việc chưa thành: giữ cặp cũ và không khai.\n",
+            review_list(&relation)
+        ));
+    }
+    if !intimacy.is_empty() {
+        let reviews = &intimacy;
+        let lovers = match setting {
+            GenreSetting::Ancient => "tình nhân, phu thê thường là ta–nàng và thiếp–chàng",
+            GenreSetting::Modern => "người yêu, vợ chồng thường là anh–em; nữ lớn tuổi hơn hẳn thì chị–em",
+            GenreSetting::Mixed => "hiện đại: người yêu, vợ chồng thường là anh–em; cổ đại: ta–nàng và thiếp–chàng",
+        };
+        let list = review_list(reviews);
         section.push_str(&format!(
             "\nCặp cần xét lại trong chương này — xưng hô dưới đây chốt từ lúc hai người còn xa lạ, mà chương có dấu hiệu quan hệ thân mật:\n\n{}\n\nĐọc chương rồi quyết định cho từng đôi. Nếu hai người đã là người yêu, đính hôn hoặc vợ chồng: KHÔNG dùng cặp cũ — dùng cặp hợp quan hệ hiện tại cho cả hai chiều trong cả chương ({lovers}) và BẮT BUỘC khai lại cả hai chiều trong danh sách glossary đề xuất kèm `note`. Nếu dấu hiệu chỉ là nói đùa, nói về người khác, hoặc hai người chưa thành đôi: giữ cặp cũ và không khai.\n",
-            list.join("\n")
+            list
         ));
     }
     if section.is_empty() {
@@ -473,6 +615,7 @@ fn wrong_gender_terms(gender: Gender) -> &'static [&'static str] {
     match gender {
         Gender::Female => &["thầy", "anh", "ông", "chú"],
         Gender::Male => &["cô", "chị", "bà", "dì"],
+        Gender::Swap => &[],
     }
 }
 
@@ -496,7 +639,7 @@ pub fn gender_violations(
         let Some(text) = text else { continue };
         let chars: Vec<char> = text.chars().collect();
         for (han, viet) in names {
-            let Some(gender) = cast.gender_of(han) else { continue };
+            let Some(gender) = cast.fixed_gender_of(han) else { continue };
             let aliases = title_aliases(han, raw_paragraph);
             let Some(alias) = aliases.first() else { continue };
             let same: Vec<&String> =
@@ -575,9 +718,14 @@ const FEMALE_MARKERS: &[&str] = &["她", "女", "姐", "妹", "妈", "娘", "妻
 const MALE_MARKERS: &[&str] = &["他", "男", "哥", "弟", "爸", "爹", "叔", "伯", "爷", "先生", "公子", "兄", "丈夫"];
 
 /// Raw có dấu hiệu của giới `gender` (她/女/姐… hoặc 他/男/哥…) — chốt chặn tối thiểu cho giới model khai.
+/// Biến thân: raw có dấu hiệu của một trong hai giới.
 pub fn gender_evidence(text: &str, gender: Gender) -> bool {
-    let markers = if gender == Gender::Female { FEMALE_MARKERS } else { MALE_MARKERS };
-    markers.iter().any(|marker| text.contains(marker))
+    let has = |markers: &[&str]| markers.iter().any(|marker| text.contains(marker));
+    match gender {
+        Gender::Female => has(FEMALE_MARKERS),
+        Gender::Male => has(MALE_MARKERS),
+        Gender::Swap => has(FEMALE_MARKERS) || has(MALE_MARKERS),
+    }
 }
 
 fn pair_text(target: &str) -> String {
@@ -588,7 +736,9 @@ fn pair_text(target: &str) -> String {
 }
 
 /// Nhận giới model khai kèm entry `names`: tên phải là nhân vật đã biết (`names`), có mặt trong raw chương,
-/// và raw có dấu hiệu của đúng giới đó. Đã có giới thì không đè; khai ngược ghi vào `disputed`.
+/// và raw có dấu hiệu của đúng giới đó. Đã có giới thì không đè; khai ngược ghi vào `disputed`. Biến thân: khai
+/// "biến thân" đổi nhân vật tự học nam/nữ sang biến thân (người dùng đặt tay thì chỉ ghi `disputed`); đã là biến
+/// thân thì bỏ qua mọi lần khai nam/nữ — raw của nhân vật này vốn đổi 他/她 theo câu.
 pub fn learn_genders(
     entries: &Value,
     raw: &str,
@@ -614,6 +764,12 @@ pub fn learn_genders(
                 character.gender = Some(gender);
                 character.source = EntrySource::Auto;
                 character.chapter = chapter_id.to_string();
+            }
+            Some(Gender::Swap) => {}
+            Some(known) if gender == Gender::Swap && character.source == EntrySource::Auto => {
+                character.gender = Some(Gender::Swap);
+                character.chapter = chapter_id.to_string();
+                notes.push(format!("{source} đổi từ {} sang biến thân", known.label()));
             }
             Some(known) if known != gender => {
                 if !character.disputed.iter().any(|chapter| chapter == chapter_id) {

@@ -350,6 +350,8 @@ fn next_phat_chuong_dau_prompt_du_3_phan_state_translating() {
     assert!(!prompt.contains("Không Xuất Hiện"));
     assert!(prompt.contains("[[1]] 赵静文抬头。"));
     assert!(prompt.contains("0001.draft.md") && prompt.contains("0001.glossary.json"));
+    // Thuật ngữ riêng của truyện (面板, 末世…) được khai vào nhóm common, không chỉ tên riêng.
+    assert!(prompt.contains("skills|common") && prompt.contains("THUẬT NGỮ RIÊNG CỦA TRUYỆN"));
     assert!(prompt.contains("phải phiên cùng âm"), "chỉ dẫn glossary: tên mới theo âm entry sẵn có");
     assert_eq!(load_state(&paths).unwrap().chapters["0001"].status, ChapterStatus::Translating);
 
@@ -463,6 +465,37 @@ fn check_het_vong_con_thieu_doan_thi_error() {
 }
 
 #[test]
+fn rule_chi_canh_bao_khong_lam_truot_check_khong_tang_vong_nhung_accept_ghi_warnings() {
+    let dir = story_with_draft(
+        "[[1]] Triệu Tĩnh Văn ngẩng đầu nhìn về tòa tháp cao nơi xa, rồi ân một tiếng.\n\n[[2]] “Ân. Nàng im lặng hồi lâu không nói lời nào.”",
+        None,
+    );
+    let paths = story_paths(dir.path());
+    let result = run_check(dir.path(), "0001").unwrap();
+    assert!(result.pass && result.violations.is_empty() && result.issues.is_empty(), "{:?}", result.issues);
+    assert_eq!(result.advisories.len(), 2, "{:?}", result.advisories);
+    assert!(result.advisories[0].starts_with("[[1]]") && result.advisories[0].contains("ân một tiếng"));
+    assert!(result.advisories[1].starts_with("[[2]]") && result.advisories[1].contains("không phiên âm Ân"));
+    assert_eq!(load_state(&paths).unwrap().chapters["0001"].review_round, 0);
+    let accepted = run_accept(dir.path(), "0001", false).unwrap();
+    assert_eq!(accepted.warnings, result.advisories);
+    assert_eq!(load_state(&paths).unwrap().chapters["0001"].warnings.as_ref().unwrap(), &result.advisories);
+}
+
+#[test]
+fn bay_dong_am_so_doan_raw_voi_doan_dich_cung_nhan() {
+    let raw = "他一刀斩下了敌人的头颅，鲜血溅了一地。\n\n“呵，好得很！”他看着满地狼藉，冷冷地说道。";
+    let draft = "[[1]] Hắn vung đao chém đứt đầu lâu kẻ địch, máu tươi văng khắp mặt đất.\n\n[[2]] “Hừ, tốt lắm!” Hắn nhìn cảnh hỗn loạn khắp nơi, lạnh lùng nói.";
+    let dir = story_with_glossary(raw, &[], draft);
+    let result = run_check(dir.path(), "0001").unwrap();
+    assert!(!result.pass);
+    assert_eq!(result.violations.len(), 1, "{:?}", result.violations);
+    assert!(result.issues[0].starts_with("[[1]]") && result.issues[0].contains("đầu lâu"), "{:?}", result.issues);
+    assert_eq!(result.advisories.len(), 1, "{:?}", result.advisories);
+    assert!(result.advisories[0].starts_with("[[2]] 呵 là cười khẩy"), "{:?}", result.advisories);
+}
+
+#[test]
 fn check_het_vong_chi_con_vi_pham_thi_pass_kem_canh_bao_accept_ghi_warnings() {
     let dir = story_with_draft(
         "[[1]] Triệu Tĩnh Văn ngẩng đầu, trong não hải hiện lên tòa tháp cao nơi xa.\n\n[[2]] Nàng im lặng hồi lâu không nói lời nào.",
@@ -551,15 +584,59 @@ fn story_with_glossary(raw: &str, names: &[(&str, &str)], draft: &str) -> TempDi
 }
 
 #[test]
-fn check_bat_ten_lech_dau_so_voi_glossary_theo_doan() {
+fn ten_lech_dau_glossary_khong_bat_soat_accept_tu_sua_theo_glossary() {
     let dir = story_with_glossary(
         RAW_DOAN,
         &[("段锋", "Đoàn Phong")],
-        "[[1]] Đoàn Phong dẫn người vào thành.\n\n[[2]] Lý Hiền và Lý Hiển sóng vai đi tới.\n\n[[3]] Đoạn Phong gật gật đầu.",
+        "[[1]] Đoàn Phong dẫn người vào thành.\n\n[[2]] Lý Hiền và Lý Hiển sóng vai đi tới.\n\n[[3]] Đoạn Phong gật gật đầu, Đoạn Phong cười.",
     );
     let result = run_check(dir.path(), "0001").unwrap();
+    assert!(result.pass && result.issues.is_empty(), "{:?}", result.issues);
+    let accepted = run_accept(dir.path(), "0001", false).unwrap();
+    assert_eq!(accepted.glossary_fixes, vec!["Đoạn Phong → Đoàn Phong"]);
+    assert!(accepted.warnings.is_empty(), "{:?}", accepted.warnings);
+    let out = fs::read_to_string(&accepted.out_path).unwrap();
+    assert!(out.contains("Đoàn Phong gật gật đầu, Đoàn Phong cười.") && !out.contains("Đoạn"), "{out}");
+    // Lý Hiền / Lý Hiển không có entry → giữ nguyên.
+    assert!(out.contains("Lý Hiền và Lý Hiển"), "{out}");
+}
+
+#[test]
+fn check_bat_ten_viet_gan_dung_glossary_va_review_co_muc_bat_buoc() {
+    let raw = "毛千亦走了进来。\n\n苏小白和林青云并肩走来。\n\n延禧宫的灯亮了。";
+    let names = [
+        ("毛千亦", "Mao Thiên Dịch"),
+        ("苏小白", "Tô Tiểu Bạch"),
+        ("林青云", "Lâm Thanh Vân"),
+        ("林青峰", "Lâm Thanh Phong"),
+        ("延禧宫", "Diên Hi Cung"),
+    ];
+    let draft = "[[1]] Mao Thiên Dực bước vào.\n\n[[2]] Tô Tiểu Bạc cùng Lâm Thanh Phong sóng vai đi tới.\n\n[[3]] Đèn ở Diên Hy Cung đã sáng.";
+    let dir = story_with_glossary(raw, &names, draft);
+    let paths = story_paths(dir.path());
+    let result = run_check(dir.path(), "0001").unwrap();
     assert!(!result.pass);
-    assert_eq!(result.issues, vec!["[[3]] Tên lệch glossary: 段锋 là `Đoàn Phong`, bản dịch viết `Đoạn Phong` — \"Đoạn Phong gật gật đầu.\""]);
+    // Bắt: Dực ↔ Dịch, Bạc ↔ Bạch. Không bắt: "Lâm Thanh Phong" trùng target 林青峰; Hy/Hi là một âm.
+    assert_eq!(
+        result.issues,
+        vec![
+            "[[1]] Tên theo glossary: 毛千亦 là `Mao Thiên Dịch`, bản dịch viết `Mao Thiên Dực` — \"Mao Thiên Dực bước vào.\"",
+            "[[2]] Tên theo glossary: 苏小白 là `Tô Tiểu Bạch`, bản dịch viết `Tô Tiểu Bạc` — \"Tô Tiểu Bạc cùng Lâm Thanh Phong sóng vai đi tới.\"",
+        ]
+    );
+    let review = fs::read_to_string(work_file(&paths, "0001", WorkKind::Review)).unwrap();
+    assert!(review.starts_with("# Tên theo từ điển — BẮT BUỘC sửa"), "{review}");
+    assert!(!review.contains("# Vi phạm rule"), "không có vi phạm rule khác thì không có mục đó");
+}
+
+#[test]
+fn check_khong_bat_ten_gan_dung_khi_ten_ngan_hoac_viet_thuong() {
+    // Tên 2 tiếng và target có tiếng viết thường hay trùng ngẫu nhiên với từ khác → không xét.
+    let raw = "神都很大。\n\n他修到了筑基期。";
+    let names = [("神都", "Thần Đô"), ("筑基期", "Trúc Cơ kỳ")];
+    let dir = story_with_glossary(raw, &names, "[[1]] Nhân Đồ rất lớn.\n\n[[2]] Hắn tu tới Trúc Cơ sơ kỳ.");
+    let result = run_check(dir.path(), "0001").unwrap();
+    assert!(result.pass, "{:?}", result.issues);
 }
 
 #[test]
