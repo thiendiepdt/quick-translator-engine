@@ -373,6 +373,14 @@ fn addressing_rules(setting: GenreSetting) -> String {
     if modern {
         rules.push("- **Bình luận, đạn mạc, tin nhắn, bài đăng mạng.** Người viết ưu tiên tự xưng `tui` / `mình` / `tao` theo giọng, gọi người được nói tới `anh ấy` / `cô ấy` / `ảnh` / `bả` hoặc tên; KHÔNG `ta`, `hắn`, `ngươi` dù dòng đó nằm ngoài ngoặc kép.".to_string());
     }
+    let she = match setting {
+        GenreSetting::Ancient => "`nàng`",
+        GenreSetting::Modern => "`cô`",
+        GenreSetting::Mixed => "`nàng` (cảnh cổ đại) / `cô` (cảnh hiện đại)",
+    };
+    rules.push(format!(
+        "- **Đại từ lời kể theo nhân vật.** Ngoài ngoặc kép, nhân vật nam là `hắn`, nữ là {she}, kể cả thiếu niên; trẻ nhỏ (chưa tới tuổi thiếu niên) mặc định `nó`, cả trai lẫn gái. KHÔNG `cậu`, `cậu ta`, `cậu ấy`, `anh ta` trong lời kể. Chỉ nhân vật có đại từ ghi riêng trong danh sách nhân vật có mặt (`lời kể: … (ghi riêng)`) mới dùng đại từ đó. Mỗi người MỘT đại từ lời kể trong cả chương, không lẫn `cậu ta` với `hắn` cho cùng một người."
+    ));
     rules.push("- **Tiêu đề chương là câu nói của nhân vật** (raw là lời thoại): xưng hô như trong thoại của chính nhân vật đó ở thân chương, không theo luật người kể.".to_string());
     if modern {
         rules.push("- **老师 ngoài trường học.** 老师 dùng để gọi nghệ sĩ, tiền bối trong nghề, nhân viên đoàn phim… vẫn là `thầy` / `cô` + họ theo giới người được gọi (`贺老师` là nữ → `cô Hạ`); `各位老师` → `các thầy cô`.".to_string());
@@ -560,7 +568,7 @@ pub fn chapter_addressing_section(
     if !present.is_empty() {
         let list: Vec<String> = present.iter().map(|c| present_line(c, setting)).collect();
         section.push_str(&format!(
-            "\nNhân vật có mặt trong chương — giới tính và đại từ lời kể (ngoài thoại) đã chốt; đại từ theo giới là mặc định, nhân vật lớn tuổi được dùng `lão` / `bà` nếu hợp, mục ghi riêng thì theo đúng ghi riêng:\n\n{}\n",
+            "\nNhân vật có mặt trong chương — giới tính và đại từ lời kể (ngoài thoại) đã chốt; đại từ theo giới là mặc định, nhân vật lớn tuổi được dùng `lão` / `bà` nếu hợp, trẻ nhỏ được dùng `nó`, mục ghi riêng thì theo đúng ghi riêng:\n\n{}\n",
             list.join("\n")
         ));
     }

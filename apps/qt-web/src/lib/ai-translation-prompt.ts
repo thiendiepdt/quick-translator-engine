@@ -11,8 +11,8 @@ import type { GenreNames, GenreSetting, GenreTone, StoryGenre } from "@/lib/ai-s
 // bỏ luật 嗯 → "Ân", bảng Thán từ & tiếng cười, luật 自己 bỏ ví dụ "bản thân hắn", mục Vai vế trong thoại,
 // 老X viết thường, bỏ dòng ép "kiểm trắc", mục Số và đơn vị
 // — docs/reviews/2026-10-06-chat-luong-dich/tien-trinh-sua.md; 2026-10-12 thêm ghi chú Gọi cha mẹ: 爹 → cha,
-// 娘 → nương, 爹娘 → cha nương).
-export const LEGACY_BASE_PROMPT_FNV1A64 = "b4ecd131d89d3f09";
+// 娘 → nương, 爹娘 → cha nương; 他 không dùng cậu, cậu ta).
+export const LEGACY_BASE_PROMPT_FNV1A64 = "07c4ced479a6d8dc";
 
 const CORE_HEAD: string[] = [
   "Bạn là dịch giả tiểu thuyết Trung Quốc sang tiếng Việt. Nhiệm vụ của bạn là chuyển ngữ trung thành, không phải sáng tác lại hay biên tập nâng giọng.",
@@ -419,7 +419,7 @@ const ancient: SettingModule = {
     "",
     "| Tiếng Trung | Dùng                             | KHÔNG dùng     |",
     "| ----------- | -------------------------------- | -------------- |",
-    "| 他          | **hắn**                          | anh ấy, anh ta, ông ta, ông ấy |",
+    "| 他          | **hắn**                          | anh ấy, anh ta, ông ta, ông ấy, cậu, cậu ta |",
     "| 她          | **nàng** / **cô** (tùy ngữ cảnh) | cô ấy, chị ấy, bà ta, bà ấy |",
     "| 我          | **ta**                           | tôi, mình      |",
     "| 你          | **ngươi**                        | bạn, mày, cậu, ông, bà |",
@@ -639,7 +639,7 @@ const modern: SettingModule = {
     "",
     "| Tiếng Trung | Dùng                             | KHÔNG dùng     |",
     "| ----------- | -------------------------------- | -------------- |",
-    "| 他          | **hắn** (lời kể ngôi ba, mọi nhân vật); trong thoại theo quan hệ (anh ta, cậu ta, ông ta) | anh, anh ấy, anh ta (trong lời kể); y, gã (trừ khi giọng kể mỉa) |",
+    "| 他          | **hắn** (lời kể ngôi ba, mọi nhân vật); trong thoại theo quan hệ (anh ta, cậu ta, ông ta) | anh, anh ấy, anh ta, cậu, cậu ta, cậu ấy (trong lời kể); y, gã (trừ khi giọng kể mỉa) |",
     "| 她          | **cô** (lời kể ngôi ba); trong thoại theo quan hệ (cô ta, chị ta, bà ta) | nàng; cô ấy, chị ấy (trong lời kể) |",
     "| 我          | **ta** (lời kể ngôi một); trong thoại theo quan hệ (tôi, anh, em, tớ, tao) | tôi, mình trong lời kể; ta trong thoại |",
     "| 你          | **anh / em / cậu / ông / mày / bác** theo quan hệ và tuổi | ngươi |",

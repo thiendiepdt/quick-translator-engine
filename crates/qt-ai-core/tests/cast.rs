@@ -673,3 +673,25 @@ fn hon_hop_cap_toi_uu_tien_khoi_tu_xung_moi_hon_khoi_than_mat() {
     assert!(legacy.contains("`苏昊→刘源: tôi–tiền bối`") && legacy.contains("`刘源→苏昊: tôi–cậu`"), "{section}");
     assert!(!section.contains("dấu hiệu quan hệ thân mật"), "{section}");
 }
+
+#[test]
+fn loi_ke_ngoi_ba_mac_dinh_han_chi_nhan_vat_ghi_rieng_moi_dung_cau() {
+    use qt_ai_core::story::GenreSetting;
+    for setting in [GenreSetting::Ancient, GenreSetting::Modern, GenreSetting::Mixed] {
+        let got = addressing_rules_section(setting);
+        assert!(got.contains("- **Đại từ lời kể theo nhân vật.**"), "{got}");
+        assert!(got.contains("KHÔNG `cậu`, `cậu ta`, `cậu ấy`"), "{got}");
+        assert!(got.contains("trẻ nhỏ (chưa tới tuổi thiếu niên) mặc định `nó`"), "{got}");
+        assert!(got.contains("không lẫn `cậu ta` với `hắn` cho cùng một người"), "{got}");
+    }
+    // Nhân vật được ghi riêng đại từ lời kể thì danh sách có mặt nêu đúng đại từ đó.
+    let story = story("modern", &[("唐晨", "Đường Thần")], &[]);
+    let mut cast = Cast::default();
+    cast.characters.insert(
+        "唐晨".into(),
+        serde_json::from_value(json!({ "gender": "male", "narration": "cậu", "source": "user" })).unwrap(),
+    );
+    let got = build_chapter_prompt(&TranslationGlossary::new(), &story, &cast, "0001", "唐晨看着爸爸。");
+    assert!(got.contains("- 唐晨 (Đường Thần): nam — lời kể: `cậu` (ghi riêng)"), "{got}");
+    assert!(got.contains("trẻ nhỏ được dùng `nó`"), "danh sách có mặt không ép `hắn` cho trẻ nhỏ");
+}

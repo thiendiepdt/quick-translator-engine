@@ -163,8 +163,8 @@ export function CastPanel({ root, names, addressing, chapterIds, running, onStor
       <p className="text-xs text-muted-foreground">
         Giới tính ở đây quyết định thầy/cô, anh/chị, ông/bà… trong bản dịch và được check tự động. Model tự khai khi dịch
         chương mới; sửa tay ở đây luôn thắng. "Biến thân": nhân vật đổi giới, lời kể theo 他/她 của raw từng câu. "Đại từ
-        lời kể" để trống thì theo giới (hắn / nàng hoặc cô); ghi riêng khi muốn cố định lão, bà, Ngài…. Lưu ở file{" "}
-        <code>cast.json</code> cạnh story.json.
+        lời kể" để trống thì theo giới (hắn / nàng hoặc cô); ghi riêng khi muốn cố định lão, bà, Ngài…, hoặc cậu cho
+        thiếu niên, bé trai trong truyện học đường. Lưu ở file <code>cast.json</code> cạnh story.json.
       </p>
       <div className="flex flex-wrap items-center gap-2">
         <Button type="button" size="sm" variant="secondary" disabled={busy || running || dirty} onClick={() => void scan()}>

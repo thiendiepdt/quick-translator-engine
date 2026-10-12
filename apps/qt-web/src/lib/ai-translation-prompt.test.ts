@@ -157,6 +157,18 @@ describe("composeBasePrompt", () => {
     }
   });
 
+  it("lời kể ngôi ba không dùng cậu / cậu ta ở mọi bối cảnh", () => {
+    const modern = composeBasePrompt({ setting: "modern", names: "han", tone: "neutral" });
+    const ancient = composeBasePrompt({ setting: "ancient", names: "han", tone: "neutral" });
+    const mixed = composeBasePrompt({ setting: "mixed", names: "han", tone: "neutral" });
+    const modernRow = "| anh, anh ấy, anh ta, cậu, cậu ta, cậu ấy (trong lời kể); y, gã (trừ khi giọng kể mỉa) |";
+    const ancientRow = "| 他          | **hắn**                          | anh ấy, anh ta, ông ta, ông ấy, cậu, cậu ta |";
+    expect(modern).toContain(modernRow);
+    expect(ancient).toContain(ancientRow);
+    expect(mixed).toContain(modernRow);
+    expect(mixed).toContain(ancientRow);
+  });
+
   it("tớ–cậu chỉ cho tuổi học trò; hỗn hợp thay `tôi` bằng `ta` trong ghi chú", () => {
     const modern = composeBasePrompt({ setting: "modern", names: "han", tone: "neutral" });
     const mixed = composeBasePrompt({ setting: "mixed", names: "han", tone: "neutral" });
