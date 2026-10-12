@@ -363,7 +363,22 @@ describe("AI translation post-processing", () => {
     expect(checkAdvisoryViolations(text, "mixed")).toEqual([]);
   });
 
-  it("mixed chỉ chạy rule trung lập: vợ, ngươi, Ừm qua; dấu câu Trung vẫn bắt", () => {
+  it("mixed bắt `tôi` trong thoại (trừ tôi luyện); ngoài ngoặc kép và truyện hiện đại thì không", () => {
+    const message = "Truyện hỗn hợp tự xưng `ta` trong thoại (hoặc theo quan hệ, thân phận: anh/em, con, vãn bối…), không `tôi`";
+    const flagged = (text: string, setting: "mixed" | "modern") =>
+      checkAiTranslationViolations(text, undefined, setting).filter((v) => v.message === message).map((v) => v.line);
+    const text = [
+      "“Nói thật cho tôi biết đi, đây có phải con của Thanh Tuyết không?”",
+      "Tô Hạo lắc đầu: “Tôi cũng không rõ.”",
+      "“Ta còn phải tôi luyện nhục thân thêm.”",
+      "Hắn tôi luyện nhục thân, cảm thấy tôi nghiệp.",
+      "“Ta không biết.”",
+    ].join("\n");
+    expect(flagged(text, "mixed")).toEqual([1, 2]);
+    expect(flagged(text, "modern")).toEqual([]);
+  });
+
+  it("mixed chỉ thêm luật tôi, còn lại trung lập: vợ, ngươi, Ừm qua; dấu câu Trung vẫn bắt", () => {
     const messages = defaultAiCheckRules("mixed").map((r) => r.message);
     expect(messages).not.toContain("Dùng vợ/chồng → thay bằng thê tử/phu quân");
     expect(messages).not.toContain("Xưng hô cổ trang trong truyện hiện đại → hắn/cô trong lời kể, tôi/anh/em trong thoại");

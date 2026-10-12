@@ -94,10 +94,10 @@ pub fn run_accept(root: &Path, id: &str, force: bool) -> Result<AcceptResult> {
         let mut cast = load_cast(&paths);
         let before = cast.clone();
         cast_notes.extend(learn_genders(&entries, &raw, &names, &mut cast, id));
-        let pairs = filter_new_pairs(pairs, &names, &cast);
+        let pairs = filter_new_pairs(pairs, &names, &cast, story.genre.setting);
         let no_pairs = crate::story::StringMap::new();
         let addressing = story.glossary.get("addressing").unwrap_or(&no_pairs);
-        cast_notes.extend(apply_address_changes(&entries, &raw, addressing, &mut cast, id));
+        cast_notes.extend(apply_address_changes(&entries, &raw, addressing, &mut cast, id, story.genre.setting));
         if cast != before {
             save_cast(&paths, &cast)?;
         }

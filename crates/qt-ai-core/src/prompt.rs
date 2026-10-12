@@ -217,9 +217,15 @@ pub fn build_chapter_prompt(
         source_text,
     );
     let present = crate::cast::present_characters(merged.get("names").unwrap_or(&empty), cast, source_text);
-    let reviews = crate::cast::pairs_to_review(&pairs, cast, source_text);
-    let since = crate::cast::addressing_since(&pairs, cast, &story.auto_glossary_log, chapter_id);
     let setting = story.genre.setting;
+    // Hỗn hợp: cặp còn tự xưng `tôi` xét trước — khối thân mật/quan hệ mới có nhánh "giữ cặp cũ" sẽ giữ luôn `tôi`.
+    let legacy = crate::cast::legacy_self_pairs(&pairs, cast, setting, &[]);
+    let mut reviews: Vec<crate::cast::PairReview> = crate::cast::pairs_to_review(&pairs, cast, source_text)
+        .into_iter()
+        .filter(|review| !legacy.iter().any(|l| (l.a == review.a && l.b == review.b) || (l.a == review.b && l.b == review.a)))
+        .collect();
+    reviews.extend(legacy);
+    let since = crate::cast::addressing_since(&pairs, cast, &story.auto_glossary_log, chapter_id);
 
     merged.shift_remove("addressing");
     let mut glossary = filter_glossary_for_source(&merged, source_text);

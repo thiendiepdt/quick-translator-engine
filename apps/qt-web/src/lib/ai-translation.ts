@@ -112,6 +112,8 @@ const CHECK_RULES: Array<[RegExp, string, GenreSetting?]> = [
   // "con ngươi", "cô nàng", "nàng thơ/dâu/tiên" là tiếng Việt hiện đại hợp lệ, không phải xưng hô cổ trang.
   [/(?<!\p{L})(?<!con )(?<!cô )(?:ngươi|nàng|bọn ta|các ngươi)(?!\p{L})(?!\s(?:thơ|dâu|tiên)(?!\p{L}))/iu, "Xưng hô cổ trang trong truyện hiện đại → hắn/cô trong lời kể, tôi/anh/em trong thoại", "modern"],
   [/(?<!\p{L})(?:thê tử|phu quân|lang quân|phụ thân|mẫu thân)(?!\p{L})/iu, "Từ gia đình cổ trang → vợ/chồng/bố/mẹ", "modern"],
+  // Hỗn hợp: tự xưng `ta` mọi cảnh. Bắt `tôi` nằm trong ngoặc kép; bỏ qua động từ 淬 (tôi luyện/tôi rèn/tôi thể).
+  [/[“"][^”"]*(?<!\p{L})tôi(?!\p{L})(?!\s+(?:luyện|rèn|thể)(?!\p{L}))/iu, "Truyện hỗn hợp tự xưng `ta` trong thoại (hoặc theo quan hệ, thân phận: anh/em, con, vãn bối…), không `tôi`", "mixed"],
   [/(?<!\p{L})tổng tài(?!\p{L})/iu, "tổng tài → tổng giám đốc", "modern"],
   [/nói đạo/i, "说道 → nói / đáp, không \"nói đạo\"", "modern"],
 ];

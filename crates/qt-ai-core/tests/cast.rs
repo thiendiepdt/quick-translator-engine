@@ -591,3 +591,85 @@ fn chapter_prompt_tach_cap_can_xet_lai_khoi_danh_sach_phai_giu() {
     assert!(review.contains("- 夏宁 ↔ 秦寻: đang `夏宁→秦寻: tôi–anh`, `秦寻→夏宁: tôi–cô`; dấu hiệu trong raw: 结婚"), "{review}");
     assert!(review.contains("KHÔNG dùng cặp cũ") && review.contains("người yêu, vợ chồng thường là anh–em"));
 }
+
+// ---- Hỗn hợp: tự xưng `ta` mọi cảnh, cặp `tôi–…` cũ phải xét lại ----
+
+#[test]
+fn hon_hop_doc_thoai_mac_dinh_ta() {
+    let got = addressing_rules_section(qt_ai_core::story::GenreSetting::Mixed);
+    assert!(got.contains("mỗi nhân vật chốt MỘT ngôi tự xưng trong cả chương, mặc định `ta`;"), "{got}");
+    assert!(!got.contains("`mình` ở cảnh hiện đại"));
+}
+
+#[test]
+fn hon_hop_cap_con_tu_xung_toi_dua_ra_xet_lai_khong_nam_trong_danh_sach_giu() {
+    let story = story(
+        "mixed",
+        &[("刘源", "Lưu Nguyên"), ("林薇薇", "Lâm Vi Vi"), ("苏清雪", "Tô Thanh Tuyết")],
+        &[("刘源→林薇薇", "tôi–cô"), ("林薇薇→刘源", "tôi–trưởng khoa"), ("刘源→苏清雪", "anh–em")],
+    );
+    let source = "刘源看着林薇薇，又看了看苏清雪。";
+    let got = build_chapter_prompt(&TranslationGlossary::new(), &story, &Cast::default(), "0010", source);
+    let section = &got[got.find("\n# Nhân vật và xưng hô trong chương\n").unwrap()..];
+    let (keep, legacy) = section.split_once("Cặp còn tự xưng `tôi`").expect("có khối cặp tự xưng tôi");
+    assert!(keep.contains("- 刘源→苏清雪: anh–em") && !keep.contains("刘源→林薇薇"), "{keep}");
+    assert!(legacy.contains("`林薇薇→刘源: tôi–trưởng khoa`") && legacy.contains("`刘源→林薇薇: tôi–cô`"), "{legacy}");
+    assert!(legacy.contains("bề dưới với bề trên") && legacy.contains("BẮT BUỘC khai lại"), "{legacy}");
+
+    // Cặp người dùng đã ghim thì tôn trọng, không đưa ra xét; truyện hiện đại không có khối này.
+    let mut pinned = Cast::default();
+    pinned.addressing.insert("刘源→林薇薇".into(), AddressTimeline { pinned: true, changes: vec![] });
+    let got = build_chapter_prompt(&TranslationGlossary::new(), &story, &pinned, "0010", source);
+    assert!(!got.contains("Cặp còn tự xưng `tôi`"));
+    let modern = story_with_setting(&story, "modern");
+    let got = build_chapter_prompt(&TranslationGlossary::new(), &modern, &Cast::default(), "0010", source);
+    assert!(!got.contains("Cặp còn tự xưng `tôi`"));
+}
+
+fn story_with_setting(base: &StoryConfig, setting: &str) -> StoryConfig {
+    let mut value = serde_json::to_value(base).unwrap();
+    value["genre"]["setting"] = json!(setting);
+    StoryConfig::normalize(&value)
+}
+
+#[test]
+fn hon_hop_khong_hoc_cap_tu_xung_toi_moi() {
+    use qt_ai_core::glossary::ExtractedPair;
+    use qt_ai_core::story::GenreSetting;
+    let names: std::collections::HashSet<String> = ["刘源", "林薇薇", "苏昊"].iter().map(|s| s.to_string()).collect();
+    let pair = |source: &str, target: &str| ExtractedPair { source: source.into(), target: target.into(), category: "addressing".into() };
+    let pairs = vec![pair("刘源→林薇薇", "tôi–cô"), pair("苏昊→刘源", "vãn bối–tiền bối"), pair("刘源→苏昊", "ta–cậu")];
+    let kept: Vec<String> = filter_new_pairs(pairs.clone(), &names, &Cast::default(), GenreSetting::Mixed)
+        .into_iter()
+        .map(|p| p.source)
+        .collect();
+    assert_eq!(kept, vec!["苏昊→刘源", "刘源→苏昊"]);
+    assert_eq!(filter_new_pairs(pairs, &names, &Cast::default(), GenreSetting::Modern).len(), 3);
+
+    // Đổi cặp cũ sang `tôi–…` cũng không nhận; đổi từ `tôi–…` sang `ta–…` thì nhận.
+    let base = map(&[("刘源→林薇薇", "tôi–cô"), ("刘源→苏昊", "tôi–cậu")]);
+    let entries = json!([
+        { "category": "addressing", "source": "刘源→林薇薇", "target": "ta–cô", "note": "tự xưng theo luật mới" },
+        { "category": "addressing", "source": "刘源→苏昊", "target": "tôi–anh", "note": "đổi" },
+    ]);
+    let mut cast = Cast::default();
+    apply_address_changes(&entries, "刘源对林薇薇和苏昊说。", &base, &mut cast, "0010", GenreSetting::Mixed);
+    assert_eq!(cast.addressing["刘源→林薇薇"].changes[0].target, "ta–cô");
+    assert!(!cast.addressing.contains_key("刘源→苏昊"));
+}
+
+#[test]
+fn hon_hop_cap_toi_uu_tien_khoi_tu_xung_moi_hon_khoi_than_mat() {
+    // Chương có 老婆 (nói về vợ người khác) — đôi 苏昊↔刘源 vẫn phải nằm ở khối tự xưng mới, không ở khối thân mật
+    // (khối đó dặn "dấu hiệu nói về người khác thì giữ cặp cũ", tức giữ `tôi`).
+    let story = story(
+        "mixed",
+        &[("刘源", "Lưu Nguyên"), ("苏昊", "Tô Hạo")],
+        &[("苏昊→刘源", "tôi–tiền bối"), ("刘源→苏昊", "tôi–cậu")],
+    );
+    let got = build_chapter_prompt(&TranslationGlossary::new(), &story, &Cast::default(), "0105", "苏昊对刘源说：“前辈的老婆真好。”");
+    let section = &got[got.find("\n# Nhân vật và xưng hô trong chương\n").unwrap()..];
+    let (_, legacy) = section.split_once("Cặp còn tự xưng `tôi`").expect("có khối tự xưng mới");
+    assert!(legacy.contains("`苏昊→刘源: tôi–tiền bối`") && legacy.contains("`刘源→苏昊: tôi–cậu`"), "{section}");
+    assert!(!section.contains("dấu hiệu quan hệ thân mật"), "{section}");
+}

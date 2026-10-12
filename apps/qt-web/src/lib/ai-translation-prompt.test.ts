@@ -114,11 +114,25 @@ describe("composeBasePrompt", () => {
     expect(mixed).toContain("| 吃瓜 |");
   });
 
+  it("mixed tự xưng `ta` trong thoại ở mọi cảnh, hạn chế `tôi`; modern giữ nguyên bảng cũ", () => {
+    const mixed = composeBasePrompt({ setting: "mixed", names: "han", tone: "neutral" });
+    const modern = composeBasePrompt({ setting: "modern", names: "han", tone: "neutral" });
+    const modernRow = "| 我          | **ta** (lời kể ngôi một); trong thoại theo quan hệ (tôi, anh, em, tớ, tao) | tôi, mình trong lời kể; ta trong thoại |";
+    expect(modern).toContain(modernRow);
+    expect(mixed).not.toContain(modernRow);
+    expect(mixed).toContain("| 我          | **ta** (lời kể ngôi một và trong thoại, cảnh hiện đại cũng vậy); theo quan hệ khi có (anh, em, bố, mẹ, con, cháu) | tôi, mình |");
+    expect(mixed).not.toContain("**chúng tôi** / **chúng ta** / **bọn tôi**");
+    expect(mixed).not.toMatch(/trong thoại `tôi`|tôi\/anh\/em trong thoại/);
+    // Vai vế cổ đại vẫn giữ: bề dưới với bề trên không xưng ta.
+    expect(mixed).toContain("> **Vai vế trong thoại:**");
+    expect(mixed).toContain("bề dưới nói với bề trên tự xưng theo thân phận");
+  });
+
   it("mixed có cả hai bộ xưng hô, hai bảng thuật ngữ", () => {
     const mixed = composeBasePrompt({ setting: "mixed", names: "han", tone: "neutral" });
     expect(mixed).toContain("| 我          | **ta**");
     expect(mixed).toContain("| 他          | **hắn** (lời kể ngôi ba, mọi nhân vật)");
-    expect(mixed).toContain("lời kể `hắn`/`cô`, người kể ngôi một `ta`, trong thoại `tôi`/`anh`/`em`/`cậu`");
+    expect(mixed).toContain("Riêng tự xưng thì cảnh nào cũng vậy: nhân vật tự xưng `ta` trong thoại");
     expect(mixed).toContain("### Tu tiên / Xianxia");
     expect(mixed).toContain("### Đô thị / Hiện đại");
     expect(mixed).toContain("theo cảnh");

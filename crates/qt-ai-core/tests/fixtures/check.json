@@ -809,6 +809,11 @@
       {
         "pattern": "…",
         "message": "Còn ký tự … → chuẩn hóa thành dấu chấm ASCII, giữ số lượng (… → ..., …… → ......)"
+      },
+      {
+        "pattern": "[“\"][^”\"]*(?<!\\p{L})tôi(?!\\p{L})(?!\\s+(?:luyện|rèn|thể)(?!\\p{L}))",
+        "flags": "iu",
+        "message": "Truyện hỗn hợp tự xưng `ta` trong thoại (hoặc theo quan hệ, thân phận: anh/em, con, vãn bối…), không `tôi`"
       }
     ]
   },

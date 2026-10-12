@@ -737,10 +737,21 @@ const modern: SettingModule = {
 /** Bỏ heading "## 1." + dòng trống đầu và "---" cuối để ghép một mục vào mục lớn hơn. */
 const stripSection = (lines: string[]) => lines.slice(2, lines.lastIndexOf("---"));
 
-/** Xuyên qua lại cổ đại ↔ hiện đại, đô thị tu tiên: cả hai bộ xưng hô, chọn theo cảnh; rule chỉ trung lập. */
+/**
+ * Bảng hiện đại trong truyện hỗn hợp: tự xưng `ta` cả ở cảnh hiện đại (đô thị tu luyện đọc "tôi" thấy lạc giọng),
+ * nên thay đúng các dòng nói `tôi`; mọi dòng khác giữ như truyện hiện đại.
+ */
+const MIXED_MODERN_ROWS: Record<string, string> = {
+  "| 我          | **ta** (lời kể ngôi một); trong thoại theo quan hệ (tôi, anh, em, tớ, tao) | tôi, mình trong lời kể; ta trong thoại |":
+    "| 我          | **ta** (lời kể ngôi một và trong thoại, cảnh hiện đại cũng vậy); theo quan hệ khi có (anh, em, bố, mẹ, con, cháu) | tôi, mình |",
+  "| 我们        | **chúng tôi** / **chúng ta** / **bọn tôi** | bọn ta |":
+    "| 我们        | **chúng ta** / **bọn ta** | chúng tôi, bọn tôi |",
+};
+
+/** Xuyên qua lại cổ đại ↔ hiện đại, đô thị tu tiên: cả hai bộ xưng hô, chọn theo cảnh; tự xưng `ta` mọi cảnh. */
 const mixedSetting: SettingModule = {
   constraints: [
-    "Truyện đổi bối cảnh theo cảnh hoặc chương (xuyên không qua lại, đô thị có tu luyện). Trước mỗi đoạn, xác định cảnh đang ở thời nào qua tín hiệu trong raw: điện thoại, xe, công ty, trường học, mạng → hiện đại; cung điện, tu vi, đan dược, tước vị, kiệu ngựa → cổ đại. Cảnh cổ đại dùng bộ xưng hô cổ (`ta`/`ngươi`/`hắn`/`nàng`), cảnh hiện đại dùng bộ hiện đại (lời kể `hắn`/`cô`, người kể ngôi một `ta`, trong thoại `tôi`/`anh`/`em`/`cậu` theo quan hệ); chốt cho từng cặp nhân vật trong từng cảnh, đổi cảnh thì đổi cả bộ, tuyệt đối không lai hai bộ trong cùng một câu. Nhân vật xuyên không giữ thói quen xưng hô cũ nếu raw thể hiện vậy.",
+    "Truyện đổi bối cảnh theo cảnh hoặc chương (xuyên không qua lại, đô thị có tu luyện). Trước mỗi đoạn, xác định cảnh đang ở thời nào qua tín hiệu trong raw: điện thoại, xe, công ty, trường học, mạng → hiện đại; cung điện, kiệu ngựa, tước vị, cảnh ở tông môn/Thiên giới → cổ đại; tu vi, đan dược đơn thuần không đủ để coi là cổ đại vì đô thị tu luyện cũng có. Một chương có thể có nhiều cảnh — xét theo từng đoạn, không chốt một bộ cho cả chương. Cảnh quyết định lời kể (`hắn`/`nàng` ở cảnh cổ, `hắn`/`cô` ở cảnh hiện đại), cách gọi người đối diện (`ngươi` ở cảnh cổ; `cậu`/`anh`/`cô`/`ông` theo quan hệ ở cảnh hiện đại) và từ gia đình. Riêng tự xưng thì cảnh nào cũng vậy: nhân vật tự xưng `ta` trong thoại; có quan hệ thân thì xưng theo quan hệ (vợ chồng, người yêu `anh`–`em`; `bố`/`mẹ`–`con`; `cháu` với bậc ông bà, cô chú); bề dưới nói với bề trên tự xưng theo thân phận (`vãn bối`, `thuộc hạ`, `đệ tử`, ở công sở hiện đại `em`) như mục `Vai vế trong thoại`. KHÔNG dùng `tôi`, `mình` để tự xưng trong thoại. Chốt cho từng cặp nhân vật, tuyệt đối không lai hai bộ trong cùng một câu.",
     "Thán từ theo cảnh, theo bảng `Thán từ & tiếng cười` ở mục 5: cảnh cổ đại giật mình dùng `A?` / `Hả?`; cảnh hiện đại dùng `Ơ?` / `À` / `Ôi`. Không phiên âm `Ân` ở bất kỳ cảnh nào. Không đem thán từ hiện đại (`Okay`, `Wow`) vào cảnh cổ.",
   ],
   pronouns: [
@@ -751,7 +762,7 @@ const mixedSetting: SettingModule = {
     ...stripSection(ancient.pronouns),
     "### Cảnh hiện đại",
     "",
-    ...stripSection(modern.pronouns),
+    ...stripSection(modern.pronouns).map((line) => MIXED_MODERN_ROWS[line] ?? line),
     "---",
     "",
   ],
@@ -769,7 +780,7 @@ const mixedSetting: SettingModule = {
     "",
   ],
   editing: [
-    "Soát lại xưng hô theo cảnh: mỗi cảnh chỉ dùng một bộ (cổ: ta/ngươi/hắn/nàng; hiện đại: hắn/cô trong lời kể, người kể ngôi một ta, tôi/anh/em trong thoại), không lẫn `ngươi`/`nàng` vào cảnh hiện đại hay `anh/tôi` vào cảnh cổ; không tự thêm hành động raw không có.",
+    "Soát lại xưng hô theo cảnh: mỗi cảnh chỉ dùng một bộ (cổ: ta/ngươi/hắn/nàng; hiện đại: hắn/cô trong lời kể, tự xưng ta hoặc theo quan hệ, gọi cậu/anh/cô trong thoại), không lẫn `ngươi`/`nàng` vào cảnh hiện đại; không còn `tôi`/`mình` tự xưng trong thoại ở bất kỳ cảnh nào; không tự thêm hành động raw không có.",
   ],
 };
 

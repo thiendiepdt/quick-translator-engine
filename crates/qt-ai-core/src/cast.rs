@@ -365,7 +365,7 @@ fn addressing_rules(setting: GenreSetting) -> String {
     let own = match setting {
         GenreSetting::Ancient => "mặc định `ta`",
         GenreSetting::Modern => "mặc định `mình`",
-        GenreSetting::Mixed => "mặc định `mình` ở cảnh hiện đại, `ta` ở cảnh cổ đại",
+        GenreSetting::Mixed => "mặc định `ta`",
     };
     rules.push(format!(
         "- **Độc thoại nội tâm.** Ý nghĩ đặt trong ngoặc kép, `【】` hoặc `『』` mà không nói với ai: mỗi nhân vật chốt MỘT ngôi tự xưng trong cả chương, {own}; không đổi qua lại giữa các ngôi."
@@ -399,6 +399,8 @@ pub enum ReviewKind {
     Intimacy,
     /// Bái sư, nhận chủ, kết nghĩa, nhận thân.
     Relation,
+    /// Truyện hỗn hợp: cặp còn tự xưng `tôi`, chốt từ trước khi hỗn hợp đổi sang tự xưng `ta` mọi cảnh.
+    LegacySelf,
 }
 
 /// Một đôi nhân vật mà cặp xưng hô đang là kiểu người lạ trong khi chương có dấu hiệu quan hệ đã đổi.
@@ -495,6 +497,47 @@ pub fn pairs_to_review(pairs: &StringMap, cast: &Cast, source: &str) -> Vec<Pair
 
 /// Luật xưng hô chung của bối cảnh — phần TĨNH (giống nhau ở mọi chương của truyện), đứng trước từ điển
 /// để nằm trong đoạn đầu prompt mà nhà cung cấp cache được. Nằm ngoài base để truyện dùng base sửa
+/// Cặp mà người nói tự xưng `tôi` (`tôi–cô`, `Tôi – cậu`).
+fn self_is_toi(target: &str) -> bool {
+    normalize_pair(target).is_some_and(|(own, _)| own.to_lowercase() == "tôi")
+}
+
+/// Truyện hỗn hợp tự xưng `ta` mọi cảnh: cặp có mặt trong chương mà còn tự xưng `tôi` (học trước khi đổi luật)
+/// được đưa ra xét lại thay vì nằm trong danh sách phải giữ. Bỏ qua đôi đã có trong `reviews` và đôi có chiều
+/// bị người dùng ghim.
+pub fn legacy_self_pairs(pairs: &StringMap, cast: &Cast, setting: GenreSetting, reviews: &[PairReview]) -> Vec<PairReview> {
+    if setting != GenreSetting::Mixed {
+        return vec![];
+    }
+    let arrow = crate::story::ADDRESSING_ARROW;
+    let pinned = |key: &str| cast.addressing.get(key).is_some_and(|timeline| timeline.pinned);
+    let mut found: Vec<PairReview> = Vec::new();
+    for (key, target) in pairs {
+        if !self_is_toi(target) {
+            continue;
+        }
+        let sides = addressing_sides(key);
+        let [a, b] = sides.as_slice() else { continue };
+        let same = |r: &PairReview| (r.a == *a && r.b == *b) || (r.a == *b && r.b == *a);
+        if reviews.iter().any(same) || found.iter().any(same) {
+            continue;
+        }
+        let reverse = format!("{b}{arrow}{a}");
+        if pinned(key) || pinned(&reverse) {
+            continue;
+        }
+        found.push(PairReview {
+            a: a.to_string(),
+            b: b.to_string(),
+            forward: Some(target.clone()),
+            backward: pairs.get(&reverse).cloned(),
+            markers: vec![],
+            kind: ReviewKind::LegacySelf,
+        });
+    }
+    found
+}
+
 /// tay/prompt riêng cũng nhận.
 pub fn addressing_rules_section(setting: GenreSetting) -> String {
     format!(
@@ -541,8 +584,12 @@ pub fn chapter_addressing_section(
             list.join("\n")
         ));
     }
-    let (intimacy, relation): (Vec<PairReview>, Vec<PairReview>) =
-        reviews.iter().cloned().partition(|review| review.kind == ReviewKind::Intimacy);
+    let legacy: Vec<&PairReview> = reviews.iter().filter(|review| review.kind == ReviewKind::LegacySelf).collect();
+    let (intimacy, relation): (Vec<PairReview>, Vec<PairReview>) = reviews
+        .iter()
+        .filter(|review| review.kind != ReviewKind::LegacySelf)
+        .cloned()
+        .partition(|review| review.kind == ReviewKind::Intimacy);
     let review_list = |reviews: &[PairReview]| -> String {
         reviews
             .iter()
@@ -578,6 +625,22 @@ pub fn chapter_addressing_section(
         section.push_str(&format!(
             "\nCặp cần xét lại trong chương này — xưng hô dưới đây chốt từ lúc hai người còn xa lạ, mà chương có dấu hiệu quan hệ thân mật:\n\n{}\n\nĐọc chương rồi quyết định cho từng đôi. Nếu hai người đã là người yêu, đính hôn hoặc vợ chồng: KHÔNG dùng cặp cũ — dùng cặp hợp quan hệ hiện tại cho cả hai chiều trong cả chương ({lovers}) và BẮT BUỘC khai lại cả hai chiều trong danh sách glossary đề xuất kèm `note`. Nếu dấu hiệu chỉ là nói đùa, nói về người khác, hoặc hai người chưa thành đôi: giữ cặp cũ và không khai.\n",
             list
+        ));
+    }
+    if !legacy.is_empty() {
+        let list: Vec<String> = legacy
+            .iter()
+            .map(|r| {
+                let current: Vec<String> = [(&r.a, &r.b, &r.forward), (&r.b, &r.a, &r.backward)]
+                    .into_iter()
+                    .filter_map(|(from, to, target)| target.as_ref().map(|t| format!("`{from}{arrow}{to}: {t}`")))
+                    .collect();
+                format!("- {} ↔ {}: đang {}", r.a, r.b, current.join(", "))
+            })
+            .collect();
+        section.push_str(&format!(
+            "\nCặp còn tự xưng `tôi` — chốt theo luật cũ; truyện này nay tự xưng `ta` trong thoại ở mọi cảnh:\n\n{}\n\nDịch chương này theo luật mới cho các đôi trên: ngang hàng hoặc nói với bề dưới → `ta`; có quan hệ thân → xưng theo quan hệ (`anh`–`em`, `bố`–`con`, `cháu`…); bề dưới với bề trên → theo thân phận (`vãn bối`, `thuộc hạ`, `đệ tử`; ở công sở hiện đại `em`). Giữ cách gọi người kia nếu vẫn hợp. BẮT BUỘC khai lại mọi chiều đã đổi trong danh sách glossary đề xuất kèm `note`: \"tự xưng theo luật mới\".\n",
+            list.join("\n")
         ));
     }
     if section.is_empty() {
@@ -794,6 +857,7 @@ pub fn filter_new_pairs(
     pairs: Vec<crate::glossary::ExtractedPair>,
     names: &std::collections::HashSet<String>,
     cast: &Cast,
+    setting: GenreSetting,
 ) -> Vec<crate::glossary::ExtractedPair> {
     pairs
         .into_iter()
@@ -806,6 +870,9 @@ pub fn filter_new_pairs(
                 return None;
             }
             pair.target = pair_text(&pair.target);
+            if setting == GenreSetting::Mixed && self_is_toi(&pair.target) {
+                return None;
+            }
             (!pair_gender_conflict(&pair.source, &pair.target, cast)).then_some(pair)
         })
         .collect()
@@ -820,6 +887,7 @@ pub fn apply_address_changes(
     base: &StringMap,
     cast: &mut Cast,
     chapter_id: &str,
+    setting: GenreSetting,
 ) -> Vec<String> {
     let mut notes = Vec::new();
     for item in entries.as_array().into_iter().flatten() {
@@ -832,6 +900,9 @@ pub fn apply_address_changes(
             continue;
         };
         let target = pair_text(&target);
+        if setting == GenreSetting::Mixed && self_is_toi(&target) {
+            continue;
+        }
         if !base.contains_key(&key) && !cast.addressing.contains_key(&key) {
             continue; // cặp mới → đi đường học cặp mới
         }
