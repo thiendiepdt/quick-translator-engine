@@ -69,7 +69,7 @@ fn data_stats() -> AgyDataStats {
 /// Đếm hội thoại agy do app sinh ra (và phần còn lại) — mở từng file hội thoại nên vài trăm cái mất vài giây.
 #[tauri::command]
 pub async fn agy_data_stats() -> CmdResult<AgyDataStats> {
-    blocking(|| Ok(data_stats())).await
+    blocking(move || Ok(data_stats())).await
 }
 
 /// Xoá hội thoại agy do app sinh ra, trừ của truyện đang có phiên chạy và hội thoại vừa ghi (xem
