@@ -129,7 +129,7 @@ pub const DEFAULT_RULES: &[(&str, &str, &str, Option<&str>)] = &[
     (r"trời sinh [A-Z]", "", "Danh xưng lai nửa Việt nửa Hán → dùng Hán-Việt cả cụm (Thiên Sinh ...)", None),
     (r"…", "", "Còn ký tự … → chuẩn hóa thành dấu chấm ASCII, giữ số lượng (… → ..., …… → ......)", None),
     (r"(?<!\p{L})(?<!con )(?<!cô )(?:ngươi|nàng|bọn ta|các ngươi)(?!\p{L})(?!\s(?:thơ|dâu|tiên)(?!\p{L}))", "iu", "Xưng hô cổ trang trong truyện hiện đại → hắn/cô trong lời kể, tôi/anh/em trong thoại", Some("modern")),
-    (r"(?<!\p{L})(?:thê tử|phu quân|lang quân|phụ thân|mẫu thân)(?!\p{L})", "iu", "Từ gia đình cổ trang → vợ/chồng/bố/mẹ", Some("modern")),
+    (r"(?<!\p{L})(?:thê tử|phu quân|lang quân|phụ thân|mẫu thân)(?!\p{L})", "iu", "Từ gia đình cổ trang → vợ/chồng/cha/mẹ", Some("modern")),
     // Hỗn hợp: tự xưng `ta` mọi cảnh. Bắt `tôi` nằm trong ngoặc kép; bỏ qua động từ 淬 (tôi luyện/tôi rèn/tôi thể).
     (r#"[“"][^”"]*(?<!\p{L})tôi(?!\p{L})(?!\s+(?:luyện|rèn|thể)(?!\p{L}))"#, "iu", "Truyện hỗn hợp tự xưng `ta` trong thoại (hoặc theo quan hệ, thân phận: anh/em, con, vãn bối…), không `tôi`", Some("mixed")),
     (r"(?<!\p{L})tổng tài(?!\p{L})", "iu", "tổng tài → tổng giám đốc", Some("modern")),

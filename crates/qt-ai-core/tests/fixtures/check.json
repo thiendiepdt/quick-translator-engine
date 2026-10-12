@@ -550,7 +550,7 @@
       {
         "pattern": "(?<!\\p{L})(?:thê tử|phu quân|lang quân|phụ thân|mẫu thân)(?!\\p{L})",
         "flags": "iu",
-        "message": "Từ gia đình cổ trang → vợ/chồng/bố/mẹ"
+        "message": "Từ gia đình cổ trang → vợ/chồng/cha/mẹ"
       },
       {
         "pattern": "(?<!\\p{L})tổng tài(?!\\p{L})",
@@ -1470,7 +1470,7 @@
         },
         {
           "line": 3,
-          "message": "Từ gia đình cổ trang → vợ/chồng/bố/mẹ",
+          "message": "Từ gia đình cổ trang → vợ/chồng/cha/mẹ",
           "text": "Thê tử của tổng tài Lâm, ừm."
         },
         {

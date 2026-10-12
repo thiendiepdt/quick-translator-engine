@@ -10,8 +10,9 @@ import type { GenreNames, GenreSetting, GenreTone, StoryGenre } from "@/lib/ai-s
 // Đổi hash này chỉ khi cố ý sửa prompt ancient/han (lần gần nhất 2026-10-10, từ đợt thẩm định 61 truyện:
 // bỏ luật 嗯 → "Ân", bảng Thán từ & tiếng cười, luật 自己 bỏ ví dụ "bản thân hắn", mục Vai vế trong thoại,
 // 老X viết thường, bỏ dòng ép "kiểm trắc", mục Số và đơn vị
-// — docs/reviews/2026-10-06-chat-luong-dich/tien-trinh-sua.md).
-export const LEGACY_BASE_PROMPT_FNV1A64 = "533b87dfe4e7d3c0";
+// — docs/reviews/2026-10-06-chat-luong-dich/tien-trinh-sua.md; 2026-10-12 thêm ghi chú Gọi cha mẹ: 爹 → cha,
+// 娘 → nương, 爹娘 → cha nương).
+export const LEGACY_BASE_PROMPT_FNV1A64 = "b4ecd131d89d3f09";
 
 const CORE_HEAD: string[] = [
   "Bạn là dịch giả tiểu thuyết Trung Quốc sang tiếng Việt. Nhiệm vụ của bạn là chuyển ngữ trung thành, không phải sáng tác lại hay biên tập nâng giọng.",
@@ -437,6 +438,8 @@ const ancient: SettingModule = {
     "",
     "> **Nhân vật lớn tuổi, bề trên:** Hoàng đế, Thái hậu, lão phu nhân, ngự y, phụ thân… vẫn theo bảng: `他` → `hắn` (hoặc `lão` khi giọng kể mỉa, khinh), `她` → `nàng`, hoặc `bà` với bậc trưởng bối. KHÔNG dùng `ông ta` / `bà ta` / `ông ấy` / `bà ấy` — âm sắc hiện đại, đọc như truyện đô thị. Trong thoại, dùng `ngươi` hay `ngài` với người già theo mục `Vai vế trong thoại` (`您` → `ngài`); muốn tỏ kính thì gọi bằng danh xưng (`Thái y`, `lão phu nhân`, `Phụ hoàng`) chứ không đổi sang `ông` / `bà`.",
     "",
+    "> **Gọi cha mẹ:** `爹` / `爹爹` → `cha`; `娘` / `娘亲` (con gọi mẹ) → `nương` — gọi thẳng `Cha!`, `Nương!`, cha mẹ tự xưng với con `cha` / `nương`; `爹娘` → `cha nương`; `父亲` / `母亲` (trang trọng, lời kể) → `phụ thân` / `mẫu thân`. KHÔNG `bố`, `ba`, `mẹ`, `má` trong cổ đại. Từ ghép giữ Hán-Việt: `姑娘` → `cô nương`, `娘娘` → `nương nương`, `娘子` → `nương tử`, `新娘` → `tân nương`. Glossary của truyện đã chốt cặp với `mẹ` thì giữ `mẹ` cho cả truyện để thống nhất.",
+    "",
     "> **Lời kể gián tiếp:** Ngoài ngoặc kép, `自己` chỉ nhân vật đang được kể dịch bằng đại từ ngôi ba của nhân vật đó (`hắn`/`nàng`) hoặc lược đi khi chủ thể đã rõ, kể cả khi cả câu là ý nghĩ của nhân vật đó. `自己` là đại từ hồi chỉ, không phải danh từ \"bản thân\": KHÔNG dùng `bản thân` làm chủ ngữ, sau giới từ (`của bản thân`, `với bản thân hắn`) hay ghép với đại từ (`bản thân hắn`, `bản thân nàng`). Chỉ dùng `chính hắn` / `tự mình` khi raw nhấn đối lập (`他自己也…`, `自己动手`). Ví dụ: `奈何自己这情况特殊` → `Khổ nỗi tình cảnh của hắn đặc thù`, không phải `tình hình của bản thân hắn`. Chỉ dùng `ta` bên trong ngoặc kép hoặc khi truyện kể ở ngôi thứ nhất suốt. Tuyệt đối không đổi ngôi giữa chừng một mạch kể liền nhau — `自己` dịch thành `ta` ở câu này rồi `hắn` ở câu sau là lỗi.",
     "",
     "---",
@@ -648,6 +651,10 @@ const modern: SettingModule = {
     "",
     "> **Chốt xưng hô theo cặp:** Với mỗi cặp nhân vật đối thoại, chọn một cặp xưng hô (ví dụ Lâm Phong–Tô Vũ: anh–em) ngay trong phần suy nghĩ và dùng nhất quán cả chương. Chỉ đổi khi raw cho thấy quan hệ thay đổi (thân lên, cãi nhau, xưng tên) và đổi cho cả hai chiều.",
     "",
+    "> **Tớ–cậu chỉ cho tuổi học trò:** `tớ`–`cậu` dùng cho học sinh, sinh viên, bạn bè nhỏ tuổi, hoặc bạn thơ ấu nói chuyện như hồi nhỏ. Người lớn ngang hàng (đồng nghiệp, bạn bè đã đi làm, người mới quen) xưng `tôi`, gọi `anh` / `chị` / `cô` / `cậu` theo tuổi và độ thân; bạn thân người lớn `tao`–`mày` hoặc `tôi`–`ông` / `bà`. KHÔNG để người lớn xưng `tớ`.",
+    "",
+    "> **Gọi cha mẹ:** `爸` / `爸爸` / `爹` / `老爸` → `cha`; `妈` / `妈妈` / `老妈` → `mẹ`; `爸妈` → `cha mẹ` — gọi thẳng `Cha!`, `Mẹ!`; cha mẹ tự xưng với con `cha` / `mẹ`; nói về cha mẹ người khác cũng vậy (`你爸妈` → `cha mẹ cậu`). Riêng trẻ nhỏ hoặc con gái nũng nịu gọi `爸爸` thì được dùng `ba` (`Ba ơi!`, `ba mẹ`) cho tự nhiên. Mỗi cặp cha–con chốt MỘT cách (`cha` hoặc `ba`) và giữ cả truyện, không đổi qua lại giữa các chương. KHÔNG `bố`. Glossary của truyện đã chốt cặp với `bố` thì giữ `bố` cho cả truyện để thống nhất.",
+    "",
     "> **Lời kể gián tiếp:** Ngoài ngoặc kép, `自己` chỉ nhân vật đang được kể dịch bằng đại từ ngôi ba của nhân vật đó (`hắn`/`cô`) hoặc lược đi khi chủ thể đã rõ, kể cả khi cả câu là ý nghĩ của nhân vật đó. `自己` là đại từ hồi chỉ, không phải danh từ \"bản thân\": KHÔNG dùng `bản thân` làm chủ ngữ, sau giới từ (`của bản thân`, `với bản thân hắn`) hay ghép với đại từ (`bản thân hắn`, `bản thân cô`). Chỉ dùng `chính hắn` / `tự mình` khi raw nhấn đối lập (`他自己也…`, `自己动手`). Ví dụ: `奈何自己这情况特殊` → `Khổ nỗi tình cảnh của hắn đặc thù`, không phải `tình hình của bản thân hắn`. Truyện kể ngôi thứ nhất suốt thì người kể tự xưng `ta` ngoài ngoặc kép; `tôi` chỉ sống bên trong ngoặc kép theo quan hệ. Cặp xưng hô tôi–anh, anh–em, tớ–cậu… chỉ sống trong ngoặc kép; ra ngoài ngoặc kép, nhân vật trở lại `hắn`/`cô` (hoặc `ta` nếu là người kể).",
     "",
     "---",
@@ -661,7 +668,7 @@ const modern: SettingModule = {
     "| Raw | Dùng | KHÔNG dùng |",
     "| --- | --- | --- |",
     "| 老公 / 老婆 | chồng / vợ | phu quân / thê tử |",
-    "| 爸 / 妈 / 爸妈 | bố / mẹ / bố mẹ | phụ thân / mẫu thân |",
+    "| 爸 / 爸爸 / 妈 / 爸妈 / 父亲 / 母亲 | cha (trẻ nhỏ, con gái nũng nịu: ba) / mẹ / cha mẹ — gọi thẳng `Cha!`, `Mẹ!`; cha mẹ tự xưng với con `cha` / `mẹ` | bố; phụ thân / mẫu thân |",
     "| 老师 | thầy / cô | lão sư |",
     "| 学长 / 学姐 | anh khoá trên / chị khoá trên | học trưởng / học tỷ |",
     "| 同事 | đồng nghiệp | đồng sự |",
@@ -726,7 +733,7 @@ const modern: SettingModule = {
   vocabulary: [
     "### Ưu tiên từ đời thường",
     "",
-    "Dùng \"vợ\", \"chồng\", \"bố\", \"mẹ\", \"bạn trai\", \"bạn gái\", \"sếp\". KHÔNG dùng thê tử, phu quân, lang quân, phu nhân, phụ thân, mẫu thân, công tử, tiểu thư trừ khi raw dùng từ cổ có chủ ý hoặc glossary quy định.",
+    "Dùng \"vợ\", \"chồng\", \"cha\", \"mẹ\", \"bạn trai\", \"bạn gái\", \"sếp\". KHÔNG dùng thê tử, phu quân, lang quân, phu nhân, phụ thân, mẫu thân, công tử, tiểu thư trừ khi raw dùng từ cổ có chủ ý hoặc glossary quy định.",
     "",
   ],
   editing: [
@@ -743,7 +750,9 @@ const stripSection = (lines: string[]) => lines.slice(2, lines.lastIndexOf("---"
  */
 const MIXED_MODERN_ROWS: Record<string, string> = {
   "| 我          | **ta** (lời kể ngôi một); trong thoại theo quan hệ (tôi, anh, em, tớ, tao) | tôi, mình trong lời kể; ta trong thoại |":
-    "| 我          | **ta** (lời kể ngôi một và trong thoại, cảnh hiện đại cũng vậy); theo quan hệ khi có (anh, em, bố, mẹ, con, cháu) | tôi, mình |",
+    "| 我          | **ta** (lời kể ngôi một và trong thoại, cảnh hiện đại cũng vậy); theo quan hệ khi có (anh, em, cha, mẹ, con, cháu) | tôi, mình |",
+  "> **Tớ–cậu chỉ cho tuổi học trò:** `tớ`–`cậu` dùng cho học sinh, sinh viên, bạn bè nhỏ tuổi, hoặc bạn thơ ấu nói chuyện như hồi nhỏ. Người lớn ngang hàng (đồng nghiệp, bạn bè đã đi làm, người mới quen) xưng `tôi`, gọi `anh` / `chị` / `cô` / `cậu` theo tuổi và độ thân; bạn thân người lớn `tao`–`mày` hoặc `tôi`–`ông` / `bà`. KHÔNG để người lớn xưng `tớ`.":
+    "> **Tớ–cậu chỉ cho tuổi học trò:** `tớ`–`cậu` dùng cho học sinh, sinh viên, bạn bè nhỏ tuổi, hoặc bạn thơ ấu nói chuyện như hồi nhỏ. Người lớn ngang hàng (đồng nghiệp, bạn bè đã đi làm, người mới quen) xưng `ta`, gọi `anh` / `chị` / `cô` / `cậu` theo tuổi và độ thân; bạn thân người lớn `tao`–`mày`. KHÔNG để người lớn xưng `tớ`.",
   "| 我们        | **chúng tôi** / **chúng ta** / **bọn tôi** | bọn ta |":
     "| 我们        | **chúng ta** / **bọn ta** | chúng tôi, bọn tôi |",
 };
@@ -751,7 +760,7 @@ const MIXED_MODERN_ROWS: Record<string, string> = {
 /** Xuyên qua lại cổ đại ↔ hiện đại, đô thị tu tiên: cả hai bộ xưng hô, chọn theo cảnh; tự xưng `ta` mọi cảnh. */
 const mixedSetting: SettingModule = {
   constraints: [
-    "Truyện đổi bối cảnh theo cảnh hoặc chương (xuyên không qua lại, đô thị có tu luyện). Trước mỗi đoạn, xác định cảnh đang ở thời nào qua tín hiệu trong raw: điện thoại, xe, công ty, trường học, mạng → hiện đại; cung điện, kiệu ngựa, tước vị, cảnh ở tông môn/Thiên giới → cổ đại; tu vi, đan dược đơn thuần không đủ để coi là cổ đại vì đô thị tu luyện cũng có. Một chương có thể có nhiều cảnh — xét theo từng đoạn, không chốt một bộ cho cả chương. Cảnh quyết định lời kể (`hắn`/`nàng` ở cảnh cổ, `hắn`/`cô` ở cảnh hiện đại), cách gọi người đối diện (`ngươi` ở cảnh cổ; `cậu`/`anh`/`cô`/`ông` theo quan hệ ở cảnh hiện đại) và từ gia đình. Riêng tự xưng thì cảnh nào cũng vậy: nhân vật tự xưng `ta` trong thoại; có quan hệ thân thì xưng theo quan hệ (vợ chồng, người yêu `anh`–`em`; `bố`/`mẹ`–`con`; `cháu` với bậc ông bà, cô chú); bề dưới nói với bề trên tự xưng theo thân phận (`vãn bối`, `thuộc hạ`, `đệ tử`, ở công sở hiện đại `em`) như mục `Vai vế trong thoại`. KHÔNG dùng `tôi`, `mình` để tự xưng trong thoại. Chốt cho từng cặp nhân vật, tuyệt đối không lai hai bộ trong cùng một câu.",
+    "Truyện đổi bối cảnh theo cảnh hoặc chương (xuyên không qua lại, đô thị có tu luyện). Trước mỗi đoạn, xác định cảnh đang ở thời nào qua tín hiệu trong raw: điện thoại, xe, công ty, trường học, mạng → hiện đại; cung điện, kiệu ngựa, tước vị, cảnh ở tông môn/Thiên giới → cổ đại; tu vi, đan dược đơn thuần không đủ để coi là cổ đại vì đô thị tu luyện cũng có. Một chương có thể có nhiều cảnh — xét theo từng đoạn, không chốt một bộ cho cả chương. Cảnh quyết định lời kể (`hắn`/`nàng` ở cảnh cổ, `hắn`/`cô` ở cảnh hiện đại), cách gọi người đối diện (`ngươi` ở cảnh cổ; `cậu`/`anh`/`cô`/`ông` theo quan hệ ở cảnh hiện đại) và từ gia đình. Riêng tự xưng thì cảnh nào cũng vậy: nhân vật tự xưng `ta` trong thoại; có quan hệ thân thì xưng theo quan hệ (vợ chồng, người yêu `anh`–`em`; `cha`/`mẹ`–`con`; `cháu` với bậc ông bà, cô chú); bề dưới nói với bề trên tự xưng theo thân phận (`vãn bối`, `thuộc hạ`, `đệ tử`, ở công sở hiện đại `em`) như mục `Vai vế trong thoại`. KHÔNG dùng `tôi`, `mình` để tự xưng trong thoại. Chốt cho từng cặp nhân vật, tuyệt đối không lai hai bộ trong cùng một câu.",
     "Thán từ theo cảnh, theo bảng `Thán từ & tiếng cười` ở mục 5: cảnh cổ đại giật mình dùng `A?` / `Hả?`; cảnh hiện đại dùng `Ơ?` / `À` / `Ôi`. Không phiên âm `Ân` ở bất kỳ cảnh nào. Không đem thán từ hiện đại (`Okay`, `Wow`) vào cảnh cổ.",
   ],
   pronouns: [
@@ -776,7 +785,7 @@ const mixedSetting: SettingModule = {
   vocabulary: [
     "### Từ gia đình theo cảnh",
     "",
-    'Cảnh cổ đại: thê tử, phu nhân, phu quân, lang quân, phụ thân, mẫu thân — KHÔNG dùng "vợ", "chồng". Cảnh hiện đại: vợ, chồng, bố, mẹ, bạn trai, bạn gái — KHÔNG dùng thê tử, phu quân, phụ thân, mẫu thân trừ khi nhân vật cố tình nói cổ.',
+    'Cảnh cổ đại: thê tử, phu nhân, phu quân, lang quân, phụ thân, mẫu thân — KHÔNG dùng "vợ", "chồng". Cảnh hiện đại: vợ, chồng, cha, mẹ, bạn trai, bạn gái — KHÔNG dùng thê tử, phu quân, phụ thân, mẫu thân trừ khi nhân vật cố tình nói cổ.',
     "",
   ],
   editing: [

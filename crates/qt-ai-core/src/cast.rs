@@ -606,7 +606,7 @@ pub fn chapter_addressing_section(
     if !relation.is_empty() {
         let relations = match setting {
             GenreSetting::Ancient => "sư đồ: `vi sư`/`ta` – `đồ nhi`/`con` và `đệ tử`/`con` – `sư phụ`; chủ tớ: `nô tỳ`/`thuộc hạ` – `chủ nhân`; kết nghĩa: `huynh–đệ`, `tỷ–muội`; cha mẹ nuôi: `con` – `nghĩa phụ`/`nghĩa mẫu`",
-            GenreSetting::Modern => "thầy trò: `thầy`/`cô` – `em`/`con`; kết nghĩa: `anh–em`, `chị–em`; cha mẹ nuôi: `bố`/`mẹ` – `con`",
+            GenreSetting::Modern => "thầy trò: `thầy`/`cô` – `em`/`con`; kết nghĩa: `anh–em`, `chị–em`; cha mẹ nuôi: `cha`/`mẹ` – `con`",
             GenreSetting::Mixed => "cổ đại: sư đồ `vi sư`/`ta` – `đồ nhi`/`con`, chủ tớ `nô tỳ`/`thuộc hạ` – `chủ nhân`, kết nghĩa `huynh–đệ`; hiện đại: thầy trò `thầy`/`cô` – `em`, kết nghĩa `anh–em`, `chị–em`",
         };
         section.push_str(&format!(
@@ -639,7 +639,7 @@ pub fn chapter_addressing_section(
             })
             .collect();
         section.push_str(&format!(
-            "\nCặp còn tự xưng `tôi` — chốt theo luật cũ; truyện này nay tự xưng `ta` trong thoại ở mọi cảnh:\n\n{}\n\nDịch chương này theo luật mới cho các đôi trên: ngang hàng hoặc nói với bề dưới → `ta`; có quan hệ thân → xưng theo quan hệ (`anh`–`em`, `bố`–`con`, `cháu`…); bề dưới với bề trên → theo thân phận (`vãn bối`, `thuộc hạ`, `đệ tử`; ở công sở hiện đại `em`). Giữ cách gọi người kia nếu vẫn hợp. BẮT BUỘC khai lại mọi chiều đã đổi trong danh sách glossary đề xuất kèm `note`: \"tự xưng theo luật mới\".\n",
+            "\nCặp còn tự xưng `tôi` — chốt theo luật cũ; truyện này nay tự xưng `ta` trong thoại ở mọi cảnh:\n\n{}\n\nDịch chương này theo luật mới cho các đôi trên: ngang hàng hoặc nói với bề dưới → `ta`; có quan hệ thân → xưng theo quan hệ (`anh`–`em`, `cha`–`con`, `cháu`…); bề dưới với bề trên → theo thân phận (`vãn bối`, `thuộc hạ`, `đệ tử`; ở công sở hiện đại `em`). Giữ cách gọi người kia nếu vẫn hợp. BẮT BUỘC khai lại mọi chiều đã đổi trong danh sách glossary đề xuất kèm `note`: \"tự xưng theo luật mới\".\n",
             list.join("\n")
         ));
     }

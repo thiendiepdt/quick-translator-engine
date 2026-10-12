@@ -263,7 +263,7 @@ describe("AI translation post-processing", () => {
     expect(modern.map((v) => `${v.line}:${v.message}`)).toEqual([
       "2:Xưng hô cổ trang trong truyện hiện đại → hắn/cô trong lời kể, tôi/anh/em trong thoại",
       "3:Xưng hô cổ trang trong truyện hiện đại → hắn/cô trong lời kể, tôi/anh/em trong thoại",
-      "4:Từ gia đình cổ trang → vợ/chồng/bố/mẹ",
+      "4:Từ gia đình cổ trang → vợ/chồng/cha/mẹ",
       "4:tổng tài → tổng giám đốc",
     ]);
     expect(checkAdvisoryViolations(text, "modern").map((v) => `${v.line}:${v.message}`)).toEqual(["5:Người kể ngôi một xưng tôi → ta (truyện kể ngôi ba thì bỏ qua)"]);

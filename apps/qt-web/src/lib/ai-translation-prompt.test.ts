@@ -120,12 +120,54 @@ describe("composeBasePrompt", () => {
     const modernRow = "| 我          | **ta** (lời kể ngôi một); trong thoại theo quan hệ (tôi, anh, em, tớ, tao) | tôi, mình trong lời kể; ta trong thoại |";
     expect(modern).toContain(modernRow);
     expect(mixed).not.toContain(modernRow);
-    expect(mixed).toContain("| 我          | **ta** (lời kể ngôi một và trong thoại, cảnh hiện đại cũng vậy); theo quan hệ khi có (anh, em, bố, mẹ, con, cháu) | tôi, mình |");
+    expect(mixed).toContain("| 我          | **ta** (lời kể ngôi một và trong thoại, cảnh hiện đại cũng vậy); theo quan hệ khi có (anh, em, cha, mẹ, con, cháu) | tôi, mình |");
     expect(mixed).not.toContain("**chúng tôi** / **chúng ta** / **bọn tôi**");
     expect(mixed).not.toMatch(/trong thoại `tôi`|tôi\/anh\/em trong thoại/);
     // Vai vế cổ đại vẫn giữ: bề dưới với bề trên không xưng ta.
     expect(mixed).toContain("> **Vai vế trong thoại:**");
     expect(mixed).toContain("bề dưới nói với bề trên tự xưng theo thân phận");
+  });
+
+  it("cổ đại: 爹 → cha, 娘 → nương, 父亲/母亲 → phụ thân/mẫu thân; hỗn hợp có ở cảnh cổ đại", () => {
+    const note = "> **Gọi cha mẹ:** `爹` / `爹爹` → `cha`; `娘` / `娘亲` (con gọi mẹ) → `nương`";
+    for (const setting of ["ancient", "mixed"] as const) {
+      const prompt = composeBasePrompt({ setting, names: "han", tone: "neutral" });
+      expect(prompt).toContain(note);
+      expect(prompt).toContain("`爹娘` → `cha nương`");
+      expect(prompt).toContain("Glossary của truyện đã chốt cặp với `mẹ` thì giữ `mẹ` cho cả truyện");
+    }
+    expect(composeBasePrompt({ setting: "modern", names: "han", tone: "neutral" })).not.toContain(note);
+  });
+
+  it("爸 → cha ở hiện đại và hỗn hợp, không còn bố; luật nằm ở mục Đại từ nhân xưng", () => {
+    for (const setting of ["modern", "mixed"] as const) {
+      const prompt = composeBasePrompt({ setting, names: "han", tone: "neutral" });
+      const note = prompt.indexOf("> **Gọi cha mẹ:** `爸` / `爸爸` / `爹` / `老爸` → `cha`");
+      expect(note).toBeGreaterThan(prompt.indexOf("## 1. Đại từ nhân xưng"));
+      expect(note).toBeLessThan(prompt.indexOf("## 2."));
+      expect(prompt).toContain("Glossary của truyện đã chốt cặp với `bố` thì giữ `bố` cho cả truyện");
+      // `ba` được dùng có điều kiện (trẻ nhỏ, con gái nũng nịu), chốt một cách cho mỗi cặp; `bố` thì không.
+      expect(prompt).toContain("trẻ nhỏ hoặc con gái nũng nịu gọi `爸爸` thì được dùng `ba`");
+      expect(prompt).toContain("Mỗi cặp cha–con chốt MỘT cách (`cha` hoặc `ba`) và giữ cả truyện");
+      expect(prompt).toContain("KHÔNG `bố`.");
+      expect(prompt).not.toContain("KHÔNG `bố`, `ba`.");
+      expect(prompt).toContain("| 爸 / 爸爸 / 妈 / 爸妈 / 父亲 / 母亲 | cha (trẻ nhỏ, con gái nũng nịu: ba) / mẹ / cha mẹ");
+      expect(prompt).not.toContain("| 爸 / 妈 / 爸妈 | bố / mẹ / bố mẹ |");
+      expect(prompt).not.toMatch(/"bố"|, bố, mẹ|vợ, chồng, bố|\(anh, em, bố/);
+    }
+  });
+
+  it("tớ–cậu chỉ cho tuổi học trò; hỗn hợp thay `tôi` bằng `ta` trong ghi chú", () => {
+    const modern = composeBasePrompt({ setting: "modern", names: "han", tone: "neutral" });
+    const mixed = composeBasePrompt({ setting: "mixed", names: "han", tone: "neutral" });
+    const ancient = composeBasePrompt({ setting: "ancient", names: "han", tone: "neutral" });
+    expect(modern).toContain("> **Tớ–cậu chỉ cho tuổi học trò:**");
+    expect(modern).toContain("Người lớn ngang hàng (đồng nghiệp, bạn bè đã đi làm, người mới quen) xưng `tôi`");
+    expect(modern).toContain("KHÔNG để người lớn xưng `tớ`");
+    expect(mixed).toContain("> **Tớ–cậu chỉ cho tuổi học trò:**");
+    expect(mixed).toContain("Người lớn ngang hàng (đồng nghiệp, bạn bè đã đi làm, người mới quen) xưng `ta`");
+    expect(mixed).not.toContain("người mới quen) xưng `tôi`");
+    expect(ancient).not.toContain("Tớ–cậu");
   });
 
   it("mixed có cả hai bộ xưng hô, hai bảng thuật ngữ", () => {
