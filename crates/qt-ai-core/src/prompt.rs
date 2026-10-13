@@ -251,6 +251,35 @@ pub fn build_chapter_prompt(
     )
 }
 
+/// Nhân vật có mặt chưa có cặp xưng hô với ai trong chương — cho lời dặn khai glossary (agy và API).
+pub fn chapter_unpaired(
+    workspace: &TranslationGlossary,
+    story: &StoryConfig,
+    cast: &crate::cast::Cast,
+    chapter_id: &str,
+    source_text: &str,
+) -> Vec<(String, String)> {
+    let merged = merge_story_glossary(workspace, Some(story));
+    let empty = StringMap::new();
+    let pairs = crate::cast::chapter_addressing(
+        &crate::cast::effective_addressing(merged.get("addressing").unwrap_or(&empty), cast, chapter_id),
+        source_text,
+    );
+    crate::cast::unpaired_present(merged.get("names").unwrap_or(&empty), &pairs, source_text)
+}
+
+/// Dòng nêu đích danh nhân vật chưa có cặp; rỗng khi không có ai.
+pub fn unpaired_line(unpaired: &[(String, String)]) -> String {
+    if unpaired.is_empty() {
+        return String::new();
+    }
+    let list: Vec<String> = unpaired.iter().map(|(han, viet)| format!("{han} ({viet})")).collect();
+    format!(
+        "Nhân vật có mặt chưa có cặp xưng hô với ai trong chương: {}\nAi trong số này nói chuyện trực tiếp với người khác trong chương thì khai cặp cho đôi đó, mỗi chiều một mục, đúng như bạn vừa dịch.",
+        list.join(", ")
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

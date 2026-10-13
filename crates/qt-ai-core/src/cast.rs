@@ -274,6 +274,18 @@ pub fn chapter_addressing(pairs: &StringMap, source: &str) -> StringMap {
         .collect()
 }
 
+/// Nhân vật có mặt trong chương (tên đầy đủ có trong raw) mà chưa có cặp xưng hô nào với người khác cũng có mặt
+/// — `pairs` là cặp hiệu lực đã lọc theo chương. Nêu đích danh để agent khai cặp: thử thật cho thấy chương không
+/// có tên mới thì agent ghi glossary rỗng, bỏ luôn cặp xưng hô (Tận thế ch.63: dịch đúng tao–mày nhưng không khai).
+pub fn unpaired_present(names: &StringMap, pairs: &StringMap, source: &str) -> Vec<(String, String)> {
+    let paired: std::collections::HashSet<&str> = pairs.keys().flat_map(|key| addressing_sides(key)).collect();
+    names
+        .iter()
+        .filter(|(han, _)| han.chars().count() >= 2 && source.contains(han.as_str()) && !paired.contains(han.as_str()))
+        .map(|(han, viet)| (han.clone(), viet.clone()))
+        .collect()
+}
+
 /// Chức danh tiếng Trung không mang giới, hay đi sau họ (`贺老师`, `周总`) — bản dịch phải tự chọn giới.
 const NEUTRAL_TITLES: &[&str] = &[
     "老师", "老板", "总", "导", "医生", "教授", "主任", "队长", "经理", "教练", "前辈", "同学", "律师", "警官", "校长",

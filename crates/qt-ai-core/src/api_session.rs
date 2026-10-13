@@ -61,7 +61,8 @@ target \"X–Y\" với X là cách 甲 tự xưng và Y là cách 甲 gọi 乙 
 Cặp ĐÃ CÓ trong mục \"Cặp xưng hô đang dùng\" mà chương này cho thấy quan hệ hai người đã khác lúc chốt cặp \
 (đã là người yêu, đính hôn, vợ chồng, thầy trò, chủ tớ, nhận người thân, kết nghĩa, trở mặt thành thù) nên bạn đã dịch bằng cặp khác: \
 khai lại cặp đó với target đúng như vừa dịch và \"note\": \"lý do ngắn\", cả hai chiều; giận dỗi nhất thời, đóng kịch, nói đùa thì không khai. \
-Không có gì mới thì {\"entries\": []}. Khối này nằm ngoài bản dịch, không có nhãn [[n]].";
+Cặp xưng hô khai cả khi không có tên mới; chỉ trả {\"entries\": []} khi không có cả tên mới lẫn cặp xưng hô mới. \
+Khối này nằm ngoài bản dịch, không có nhãn [[n]].";
 
 /// Tách khối `[[glossary]]` cuối output lượt dịch: (phần bản dịch, mảng entries nếu parse được).
 /// Chịu rào ```json quanh JSON. Không có dấu → trả nguyên văn.
@@ -118,6 +119,8 @@ struct Chapter<'a> {
     /// Glossary app + truyện đã gộp — check dùng để bắt tên lệch, soát dùng để chấm bản soát.
     glossary: &'a Glossary,
     cast: &'a crate::cast::Cast,
+    /// Dòng nêu nhân vật có mặt chưa có cặp xưng hô (rỗng nếu không có) — nối vào lời dặn khối glossary.
+    unpaired: &'a str,
     cancel: &'a AtomicBool,
     log: Log<'a>,
     /// Token cộng dồn mọi lượt gọi của chương (provider không báo thì giữ 0).
@@ -242,7 +245,8 @@ fn retranslate(
 /// nếu model trả khối `[[glossary]]` cuối output.
 fn translate_full(chapter: &Chapter) -> std::result::Result<(Vec<String>, Option<Value>), ApiError> {
     let paragraphs = chapter.paragraphs;
-    let payload = format!("{}\n\n{GLOSSARY_INLINE_INSTRUCTION}", labeled_source_payload(paragraphs));
+    let unpaired = if chapter.unpaired.is_empty() { String::new() } else { format!("\n{}", chapter.unpaired) };
+    let payload = format!("{}\n\n{GLOSSARY_INLINE_INSTRUCTION}{unpaired}", labeled_source_payload(paragraphs));
     let mut output = generate(chapter, ApiStep::Translate, "dịch", chapter.system, &payload)?;
     let (mut text, mut glossary) = split_glossary_block(&output);
     let mut parsed = parse_labeled_translation(text, paragraphs.len());
@@ -410,6 +414,8 @@ pub fn translate_chapter(
     let cast = crate::cast::load_cast(&paths);
     let system = build_chapter_prompt(&base_glossary, &story, &cast, id, &raw);
     let glossary = merge_story_glossary(&base_glossary, Some(&story));
+    let unpaired =
+        crate::prompt::unpaired_line(&crate::prompt::chapter_unpaired(&base_glossary, &story, &cast, id, &raw));
     let min_ratio = load_state(&paths)?.settings.min_length_ratio;
     let chapter = Chapter {
         model,
@@ -419,6 +425,7 @@ pub fn translate_chapter(
         story: &story,
         glossary: &glossary,
         cast: &cast,
+        unpaired: &unpaired,
         cancel,
         log,
         usage: Mutex::new(Usage::default()),

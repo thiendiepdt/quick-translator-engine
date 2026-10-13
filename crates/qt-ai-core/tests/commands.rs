@@ -368,6 +368,33 @@ fn next_phat_chuong_dau_prompt_du_3_phan_state_translating() {
 }
 
 #[test]
+fn next_prompt_buoc_rieng_cho_cap_xung_ho_va_neu_nhan_vat_chua_co_cap() {
+    // Mọi tên đã có trong từ điển (không có tên mới) — agent vẫn phải khai cặp cho người chưa có cặp.
+    let raw = "唐泽看向宁清伟：“你叫什么？”宁清伟低头：“大哥，我叫宁清伟。”孙婷站在唐泽身后。";
+    let dir = make_story_dir(&[("0001", raw)]);
+    run_init(dir.path(), "qt-ai").unwrap();
+    let paths = story_paths(dir.path());
+    let mut story = load_story_config(&paths).unwrap();
+    let names = story.glossary.entry("names".to_string()).or_default();
+    names.insert("唐泽".into(), "Đường Trạch".into());
+    names.insert("宁清伟".into(), "Ninh Thanh Vĩ".into());
+    names.insert("孙婷".into(), "Tôn Đình".into());
+    let pairs = story.glossary.entry("addressing".to_string()).or_default();
+    pairs.insert("孙婷→唐泽".into(), "em–chủ nhân".into());
+    pairs.insert("唐泽→孙婷".into(), "tôi–cô".into());
+    save_story_config(&paths, &story).unwrap();
+    let prompt = fs::read_to_string(run_next(dir.path()).unwrap().prompt_path).unwrap();
+    let agent = &prompt[prompt.find("# Việc của agent").unwrap()..];
+    assert!(agent.contains("3. Cặp xưng hô — làm cả khi không có tên mới:"), "{agent}");
+    // 唐泽 đã có cặp với 孙婷 nhưng chưa có với 宁清伟 → cả hai được nêu; 孙婷 không được nêu.
+    let (_, rest) = agent.split_once("Nhân vật có mặt chưa có cặp xưng hô với ai trong chương:").expect("có danh sách");
+    let line = rest.lines().next().unwrap();
+    assert!(line.contains("宁清伟 (Ninh Thanh Vĩ)") && !line.contains("孙婷"), "{line}");
+    assert!(agent.contains("Chỉ ghi {\"entries\": []} khi không có cả tên mới lẫn cặp xưng hô mới."), "{agent}");
+    assert!(agent.contains("4. Chạy: qt-ai check"), "{agent}");
+}
+
+#[test]
 fn next_prompt_co_muc_xung_ho_theo_cast_json() {
     let dir = make_story_dir(&[("0001", "贺静昭点头。贺老师很擅长包饺子。")]);
     run_init(dir.path(), "qt-ai").unwrap();
