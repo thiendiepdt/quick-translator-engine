@@ -31,9 +31,14 @@
         "message": "ông ta/bà ta cho nhân vật lớn tuổi trong bối cảnh cổ → hắn/lão, nàng/bà"
       },
       {
-        "pattern": "(^|[“\"']|,\\s+)(?:mình|tôi)(?:\\s|[,.!?…])",
+        "pattern": "(^|[“\"']|,\\s+)mình(?:\\s|[,.!?…])",
         "flags": "i",
-        "message": "Dùng mình/tôi làm đại từ → ta, hoặc tự xưng theo thân phận (tiểu nhân/nô tỳ/thuộc hạ/đệ tử/con)"
+        "message": "Dùng mình làm đại từ → ta, hoặc tự xưng theo thân phận (tiểu nhân/nô tỳ/thuộc hạ/đệ tử/con)"
+      },
+      {
+        "pattern": "(?:^|,\\s+|[“\"][^”\"]*)(?<!\\p{L})(?<!bề )(?<!bầy )(?<!vua )tôi(?!\\p{L})(?!\\s+(?:luyện|rèn|thể|tớ|đòi)(?!\\p{L}))",
+        "flags": "iu",
+        "message": "Dùng tôi/chúng tôi tự xưng → ta/chúng ta, hoặc tự xưng theo thân phận (tiểu nhân/nô tỳ/thuộc hạ/đệ tử/con)"
       },
       {
         "pattern": "tinh thần đại chấn",
@@ -1295,7 +1300,7 @@
   "cases": [
     {
       "name": "default",
-      "text": "Triệu Tĩnh Văn ngẩng đầu，nhìn tòa 高塔 nơi xa.\nBut nàng im lặng. Vợ của hắn và anh ấy đều biết.\n\"Mình không đi,\" nàng nói. Hừm. Ơ? Thập phần kỳ lạ…\nNão hải hắn KHẤP HUYẾT, cư nhiên Cư Nhiên. Lãnh diễm.\nKiểm trắc thấy một kẻ liếm chó.\nChiêu lãm hắn về Đông Cung, rồi dùng chiêu Lãm Tước Vĩ.\nMột trận chiến không tiền khoáng hậu, đúng là vô tiền khoáng hậu.\nDòng sạch không vi phạm gì cả.\n",
+      "text": "Triệu Tĩnh Văn ngẩng đầu，nhìn tòa 高塔 nơi xa.\nBut nàng im lặng. Vợ của hắn và anh ấy đều biết.\n\"Mình không đi,\" nàng nói. Hừm. Ơ? Thập phần kỳ lạ…\nNão hải hắn KHẤP HUYẾT, cư nhiên Cư Nhiên. Lãnh diễm.\nKiểm trắc thấy một kẻ liếm chó.\nChiêu lãm hắn về Đông Cung, rồi dùng chiêu Lãm Tước Vĩ.\nMột trận chiến không tiền khoáng hậu, đúng là vô tiền khoáng hậu.\nTiểu nhị cười: “Chỗ khác chẳng ngon bằng chỗ chúng tôi đâu.”\n“Bề tôi trung thành, bầy tôi của bệ hạ, vua tôi một lòng, kẻ tôi tớ, tôi luyện thân thể.”\nDòng sạch không vi phạm gì cả.\n",
       "rules": null,
       "setting": "ancient",
       "violations": [
@@ -1326,7 +1331,7 @@
         },
         {
           "line": 3,
-          "message": "Dùng mình/tôi làm đại từ → ta, hoặc tự xưng theo thân phận (tiểu nhân/nô tỳ/thuộc hạ/đệ tử/con)",
+          "message": "Dùng mình làm đại từ → ta, hoặc tự xưng theo thân phận (tiểu nhân/nô tỳ/thuộc hạ/đệ tử/con)",
           "text": "\"Mình không đi,\" nàng nói. Hừm. Ơ? Thập phần kỳ lạ…"
         },
         {
@@ -1373,6 +1378,11 @@
           "line": 7,
           "message": "空前绝后 → vô tiền khoáng hậu, không dùng không tiền khoáng hậu",
           "text": "Một trận chiến không tiền khoáng hậu, đúng là vô tiền khoáng hậu."
+        },
+        {
+          "line": 8,
+          "message": "Dùng tôi/chúng tôi tự xưng → ta/chúng ta, hoặc tự xưng theo thân phận (tiểu nhân/nô tỳ/thuộc hạ/đệ tử/con)",
+          "text": "Tiểu nhị cười: “Chỗ khác chẳng ngon bằng chỗ chúng tôi đâu.”"
         }
       ]
     },

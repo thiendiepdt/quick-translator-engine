@@ -176,6 +176,8 @@ const CHECK_TEXT = [
   "Kiểm trắc thấy một kẻ liếm chó.",
   "Chiêu lãm hắn về Đông Cung, rồi dùng chiêu Lãm Tước Vĩ.",
   "Một trận chiến không tiền khoáng hậu, đúng là vô tiền khoáng hậu.",
+  "Tiểu nhị cười: “Chỗ khác chẳng ngon bằng chỗ chúng tôi đâu.”",
+  "“Bề tôi trung thành, bầy tôi của bệ hạ, vua tôi một lòng, kẻ tôi tớ, tôi luyện thân thể.”",
   "Dòng sạch không vi phạm gì cả.",
   "",
 ].join("\n");

@@ -139,6 +139,14 @@ describe("composeBasePrompt", () => {
     expect(composeBasePrompt({ setting: "modern", names: "han", tone: "neutral" })).not.toContain(note);
   });
 
+  it("cổ đại: 我们 → chúng ta/bọn ta kể cả khi không gộp người nghe, cấm chúng tôi; hỗn hợp có ở cảnh cổ đại", () => {
+    const row = "| 我们        | **chúng ta** / **bọn ta** — kể cả khi người nói không gộp người nghe (tiểu nhị nói với khách `我们这` → `chỗ chúng ta`) | chúng tôi, bọn tôi |";
+    for (const setting of ["ancient", "mixed"] as const) {
+      expect(composeBasePrompt({ setting, names: "han", tone: "neutral" })).toContain(row);
+    }
+    expect(composeBasePrompt({ setting: "modern", names: "han", tone: "neutral" })).not.toContain(row);
+  });
+
   it("爸 → cha ở hiện đại và hỗn hợp, không còn bố; luật nằm ở mục Đại từ nhân xưng", () => {
     for (const setting of ["modern", "mixed"] as const) {
       const prompt = composeBasePrompt({ setting, names: "han", tone: "neutral" });

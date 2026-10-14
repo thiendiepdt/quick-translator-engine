@@ -12,7 +12,7 @@ import type { GenreNames, GenreSetting, GenreTone, StoryGenre } from "@/lib/ai-s
 // 老X viết thường, bỏ dòng ép "kiểm trắc", mục Số và đơn vị
 // — docs/reviews/2026-10-06-chat-luong-dich/tien-trinh-sua.md; 2026-10-12 thêm ghi chú Gọi cha mẹ: 爹 → cha,
 // 娘 → nương, 爹娘 → cha nương; 他 không dùng cậu, cậu ta).
-export const LEGACY_BASE_PROMPT_FNV1A64 = "07c4ced479a6d8dc";
+export const LEGACY_BASE_PROMPT_FNV1A64 = "5f0818379f8a470b";
 
 const CORE_HEAD: string[] = [
   "Bạn là dịch giả tiểu thuyết Trung Quốc sang tiếng Việt. Nhiệm vụ của bạn là chuyển ngữ trung thành, không phải sáng tác lại hay biên tập nâng giọng.",
@@ -423,7 +423,7 @@ const ancient: SettingModule = {
     "| 她          | **nàng** / **cô** (tùy ngữ cảnh) | cô ấy, chị ấy, bà ta, bà ấy |",
     "| 我          | **ta**                           | tôi, mình      |",
     "| 你          | **ngươi**                        | bạn, mày, cậu, ông, bà |",
-    "| 我们        | **chúng ta** / **bọn ta**        |                |",
+    "| 我们        | **chúng ta** / **bọn ta** — kể cả khi người nói không gộp người nghe (tiểu nhị nói với khách `我们这` → `chỗ chúng ta`) | chúng tôi, bọn tôi |",
     "| 他们        | **bọn họ** / **bọn hắn** / **chúng** |            |",
     "| 她们        | **các nàng** / **bọn họ**        |                |",
     "| 你们        | **các ngươi** (khi gọi từng người là ngươi) / **các vị** / **hai người** / **mọi người** | các bạn |",

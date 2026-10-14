@@ -571,6 +571,20 @@ Tổng 3.455 dòng / 2.638 file. Bỏ qua 6 file số đoạn raw ≠ bản dị
 
 **Kiểm.** Test story-page: chạy AI điền ở truyện A, chuyển sang B → hộp thoại đóng, không gọi lưu; mở lại ở B thì tên là của B và Áp dụng bị khoá. GUI 250 xanh, typecheck và lint sạch.
 
+## 33. Cổ đại lọt `chúng tôi` / `nhà tôi` trong thoại (ngoài lộ trình)
+
+**Hiện tượng.** Trường sinh là mèo ch.286: tiểu nhị nói với khách `我们这` → "chỗ chúng tôi" (3 chỗ); ch.243: `我家孙子` → "cháu nhà tôi". Glossary xưng hô của truyện không có cặp `tôi`.
+
+**Nguyên nhân.** Bảng đại từ cổ đại cấm `tôi` ở dòng 我 nhưng dòng 我们 bỏ trống cột cấm — người nói không gộp người nghe (tiểu nhị với khách) thì model né `chúng ta` sang `chúng tôi`. Rule soát cổ đại chỉ bắt `tôi` đầu câu thoại hoặc sau dấu phẩy nên `tôi` giữa câu lọt. Đo 38 truyện cổ đại trong common (21.724 chương): `tôi` lọt trong thoại ở 282 chương (1,3%), "chúng tôi" chiếm 402 lần, kế đó "nhà tôi", "của tôi" (20).
+
+**Sửa.**
+
+- Prompt cổ đại (và cảnh cổ của hỗn hợp): dòng 我们 → `chúng ta` / `bọn ta` kể cả khi không gộp người nghe (`我们这` → `chỗ chúng ta`), cấm `chúng tôi`, `bọn tôi`. Người dùng chọn giữ `chúng ta` dù lệch nghĩa gộp/không gộp, không đổi theo thân phận. Hash prompt cổ đại cập nhật.
+- Check cổ đại tách đôi: rule `mình` giữ nguyên vị trí cũ; rule `tôi` bắt mọi chỗ trong ngoặc kép, đầu đoạn, sau dấu phẩy → vào soát; bỏ qua bề tôi, bầy tôi, vua tôi, tôi tớ, tôi đòi, tôi luyện/rèn/thể. Ước tính thêm 1 vòng soát cho ~1,3% chương.
+- Bản dịch cũ không sửa.
+
+**Kiểm.** Test qt-web: bắt "chỗ chúng tôi", "cháu nhà tôi", "Tôi lắc đầu.", ", tôi cũng…"; bề tôi/vua tôi/tôi tớ/tôi luyện qua; dòng 我们 có ở cổ đại và hỗn hợp, không ở hiện đại. Golden thêm 2 dòng mẫu, core khớp. qt-web 203, core xanh.
+
 ---
 
 ## Ghi chú kiểm thử

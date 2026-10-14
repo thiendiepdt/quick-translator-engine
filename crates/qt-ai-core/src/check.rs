@@ -69,7 +69,10 @@ pub const DEFAULT_RULES: &[(&str, &str, &str, Option<&str>)] = &[
     (r"(?<!\p{L})(?:đàn ông|đàn bà|phụ nữ)(?!\p{L})", "iu", "Từ chỉ người đời thường trong bối cảnh cổ → nam nhân/nữ nhân (nam tử/nữ tử)", Some("ancient")),
     (r"\banh ấy\b|\banh ta\b|\bcô ấy\b|\bchị ấy\b", "i", "Đại từ sai → dùng hắn/nàng", Some("ancient")),
     (r"(?<!\p{L})(?:ông ta|ông ấy|bà ta|bà ấy)(?!\p{L})", "iu", "ông ta/bà ta cho nhân vật lớn tuổi trong bối cảnh cổ → hắn/lão, nàng/bà", Some("ancient")),
-    (r#"(^|[“"']|,\s+)(?:mình|tôi)(?:\s|[,.!?…])"#, "i", "Dùng mình/tôi làm đại từ → ta, hoặc tự xưng theo thân phận (tiểu nhân/nô tỳ/thuộc hạ/đệ tử/con)", Some("ancient")),
+    (r#"(^|[“"']|,\s+)mình(?:\s|[,.!?…])"#, "i", "Dùng mình làm đại từ → ta, hoặc tự xưng theo thân phận (tiểu nhân/nô tỳ/thuộc hạ/đệ tử/con)", Some("ancient")),
+    // `tôi` ở mọi chỗ trong ngoặc kép (chúng tôi, nhà tôi giữa câu), đầu đoạn, sau dấu phẩy; bỏ qua danh từ bề tôi/bầy tôi/vua tôi,
+    // tôi tớ/tôi đòi và động từ 淬 (tôi luyện/tôi rèn/tôi thể).
+    (r#"(?:^|,\s+|[“"][^”"]*)(?<!\p{L})(?<!bề )(?<!bầy )(?<!vua )tôi(?!\p{L})(?!\s+(?:luyện|rèn|thể|tớ|đòi)(?!\p{L}))"#, "iu", "Dùng tôi/chúng tôi tự xưng → ta/chúng ta, hoặc tự xưng theo thân phận (tiểu nhân/nô tỳ/thuộc hạ/đệ tử/con)", Some("ancient")),
     (r"tinh thần đại chấn", "", "精神大振 → dùng tinh thần phấn chấn hẳn lên", None),
     (r"mơ hồ nghiệm ra|mùi vị không bình thường", "", "品出意味 → dùng nhận ra/nhận thấy điều bất thường", None),
     (r"bình loạn bắt sống", "", "平叛生擒 → dùng dẹp loạn, bắt sống", None),

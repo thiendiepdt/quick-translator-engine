@@ -325,8 +325,25 @@ describe("AI translation post-processing", () => {
     ]);
     expect(checkAdvisoryViolations(text, "modern")).toEqual([]);
     expect(checkAiTranslationViolations("“Tôi đi ngay.”").map((v) => v.message)).toEqual([
-      "Dùng mình/tôi làm đại từ → ta, hoặc tự xưng theo thân phận (tiểu nhân/nô tỳ/thuộc hạ/đệ tử/con)",
+      "Dùng tôi/chúng tôi tự xưng → ta/chúng ta, hoặc tự xưng theo thân phận (tiểu nhân/nô tỳ/thuộc hạ/đệ tử/con)",
     ]);
+    expect(checkAiTranslationViolations("“Mình đi ngay.”").map((v) => v.message)).toEqual([
+      "Dùng mình làm đại từ → ta, hoặc tự xưng theo thân phận (tiểu nhân/nô tỳ/thuộc hạ/đệ tử/con)",
+    ]);
+  });
+
+  it("cổ đại: bắt tôi giữa câu thoại, đầu đoạn, sau dấu phẩy; bề tôi, vua tôi, tôi tớ, tôi luyện thì qua", () => {
+    const text = [
+      "Tiểu nhị cười: “Chỗ khác chẳng ngon bằng chỗ chúng tôi đâu.”",
+      "“Đúng rồi, nhờ nó kể cho cháu nhà tôi được không?”",
+      "Tôi lắc đầu.",
+      "Hắn ngẩng lên, tôi cũng ngẩng lên.",
+      "“Bề tôi trung thành, bầy tôi của bệ hạ, vua tôi một lòng, kẻ tôi tớ, tôi đòi trong phủ.”",
+      "“Tôi luyện thân thể, tôi rèn ý chí.”",
+      "Bản dịch kể chuyện bề tôi của hắn.",
+    ].join("\n");
+    expect(checkAiTranslationViolations(text).map((v) => v.line)).toEqual([1, 2, 3, 4]);
+    expect(checkAiTranslationViolations(text, undefined, "modern").filter((v) => v.message.startsWith("Dùng tôi"))).toEqual([]);
   });
 
   it("cảnh báo chiếm tiện nghi và tổng không thể; tiện nghi + người thân thì qua", () => {
