@@ -164,6 +164,16 @@ export const storySnapshotSchema = z.object({
   settings: harnessSettingsSchema,
   story: storyConfigSchema,
   sessionRunning: z.boolean(),
+  /** Độ lệch state.json ↔ out/ (Drive sync lệch) — chỉ có khi mở / quét lại / vừa đồng bộ; snapshot thường là null. */
+  progressDrift: z.object({ untracked: z.number(), missing: z.number() }).nullable().optional(),
+});
+
+/** Chương chưa done mà out/ đã có bản dịch (untracked) và chương done mà chưa thấy bản dịch (missing). */
+export const progressDriftSchema = z.object({ untracked: z.array(z.string()), missing: z.array(z.string()) });
+export const syncProgressResultSchema = z.object({
+  markedDone: z.array(z.string()),
+  missing: z.array(z.string()),
+  snapshot: storySnapshotSchema,
 });
 
 export const chapterViewSchema = z.object({

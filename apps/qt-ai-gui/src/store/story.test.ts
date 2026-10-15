@@ -205,3 +205,20 @@ describe("baseVersion", () => {
     expect(useStoryStore.getState().baseVersion).toBe(before + 1);
   });
 });
+
+describe("setSnapshot · độ lệch tiến độ", () => {
+  it("snapshot thường (không kèm độ lệch) giữ độ lệch đã biết của cùng truyện; snapshot kèm độ lệch thì thay", () => {
+    const store = useStoryStore.getState();
+    store.openStory({ ...snapshotFor(A), progressDrift: { untracked: 549, missing: 0 } });
+    useStoryStore.getState().setSnapshot(snapshotFor(A));
+    expect(useStoryStore.getState().snapshot?.progressDrift).toEqual({ untracked: 549, missing: 0 });
+    useStoryStore.getState().setSnapshot({ ...snapshotFor(A), progressDrift: null });
+    expect(useStoryStore.getState().snapshot?.progressDrift).toEqual({ untracked: 549, missing: 0 });
+    useStoryStore.getState().setSnapshot({ ...snapshotFor(A), progressDrift: { untracked: 0, missing: 1 } });
+    expect(useStoryStore.getState().snapshot?.progressDrift).toEqual({ untracked: 0, missing: 1 });
+    // Truyện khác không kế thừa.
+    useStoryStore.getState().setSnapshot({ ...snapshotFor(A), progressDrift: { untracked: 5, missing: 0 } });
+    useStoryStore.getState().setSnapshot(snapshotFor(B));
+    expect(useStoryStore.getState().snapshot?.progressDrift ?? null).toBeNull();
+  });
+});

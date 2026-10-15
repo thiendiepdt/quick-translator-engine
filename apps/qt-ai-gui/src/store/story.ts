@@ -142,6 +142,13 @@ export const selectCurrentProgress = (s: StoryState): Progress | undefined =>
   s.root ? s.progress[pathKey(s.root)] : undefined;
 export const selectCurrentLogs = (s: StoryState): LogLine[] => (s.root ? (s.logs[pathKey(s.root)] ?? NO_LOGS) : NO_LOGS);
 
+/** Độ lệch tiến độ chỉ tính lúc mở / quét lại / đồng bộ; snapshot thường (null) của cùng truyện giữ con số đã biết để
+ * banner nhắc đồng bộ không tắt chỉ vì người dùng sửa gì đó khác — bấm Dịch lúc đó là dịch lại cả trăm chương. */
+function keepProgressDrift(previous: StorySnapshot | undefined, next: StorySnapshot): StorySnapshot {
+  if (next.progressDrift != null || !previous?.progressDrift || !samePath(previous.root, next.root)) return next;
+  return { ...next, progressDrift: previous.progressDrift };
+}
+
 /** Vào một truyện: `page` là trang sẽ hiện (picker → translate; dock/dialog → giữ trang hiện tại). */
 function enterStory(state: StoryState, snapshot: StorySnapshot, page: Page): Partial<StoryState> {
   const key = pathKey(snapshot.root);
@@ -194,7 +201,7 @@ export const useStoryStore = create<StoryState>()((set) => ({
   setPage: (page) => set({ page }),
   setSnapshot: (snapshot) =>
     set((state) => ({
-      snapshot,
+      snapshot: keepProgressDrift(state.snapshot, snapshot),
       issues: withIssues(state.issues, pathKey(snapshot.root), snapshot.counts.skipped, snapshot.counts.error),
     })),
   select: (id) => set({ selectedId: id }),

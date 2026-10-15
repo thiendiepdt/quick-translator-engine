@@ -6,7 +6,13 @@ import { RetryRangeDialog } from "@/components/retry-range-dialog";
 import { chaptersRetry, storySnapshot } from "@/lib/api";
 import type { ChapterRow } from "@/lib/types";
 
-vi.mock("@/lib/api", () => ({ chaptersRetry: vi.fn(), storySnapshot: vi.fn() }));
+vi.mock("@/lib/api", () => ({
+  chaptersRetry: vi.fn(),
+  storySnapshot: vi.fn(),
+  storyReset: vi.fn(),
+  progressDrift: vi.fn(() => Promise.resolve({ untracked: ["0004"], missing: [] })),
+  syncProgress: vi.fn(),
+}));
 
 const row = (id: string, status: ChapterRow["status"]): ChapterRow => ({ id, status, reviewRound: 0, reason: null, warnings: [] });
 const chapters = [row("0001", "done"), row("0002", "error"), row("0003", "queued"), row("0004", "done")];
@@ -44,5 +50,16 @@ describe("RetryRangeDialog", () => {
     await user.clear(screen.getByLabelText("Đến chương"));
     await user.type(screen.getByLabelText("Đến chương"), "9");
     expect(screen.getByText("không có chương này")).toBeInTheDocument();
+  });
+
+  it("Đồng bộ tiến độ… cạnh Reset: đóng dialog này, mở dialog đồng bộ", async () => {
+    const user = userEvent.setup();
+    const { progressDrift } = await import("@/lib/api");
+    const onOpenChange = vi.fn();
+    render(<RetryRangeDialog root={"D:\\t"} chapters={chapters} open onOpenChange={onOpenChange} />);
+    await user.click(screen.getByRole("button", { name: "Đồng bộ tiến độ…" }));
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    await waitFor(() => expect(progressDrift).toHaveBeenCalledWith("D:\\t"));
+    expect(await screen.findByText(/1 chương đã có bản dịch trong out\//)).toBeInTheDocument();
   });
 });

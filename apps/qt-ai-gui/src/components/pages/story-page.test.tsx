@@ -11,6 +11,8 @@ vi.mock("@/lib/api", () => ({
   storySnapshot: vi.fn(),
   aiFillStory: vi.fn(),
   storyReset: vi.fn(),
+  progressDrift: vi.fn(() => Promise.resolve({ untracked: ["0001", "0002"], missing: [] })),
+  syncProgress: vi.fn(),
   castLoad: vi.fn(() => Promise.resolve({ version: 1, characters: { 赵静文: { gender: "female", source: "auto" } }, addressing: {} })),
   castSave: vi.fn(),
   castScan: vi.fn(),
@@ -112,6 +114,19 @@ describe("StoryPage", () => {
     expect(storyReset).toHaveBeenCalledWith(snapshot.root);
     expect(useStoryStore.getState().snapshot?.story.glossary.names).toEqual({});
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("Đồng bộ tiến độ… ở chân trang mở dialog xem trước; đang chạy phiên thì khoá", async () => {
+    const user = userEvent.setup();
+    const { progressDrift } = await import("@/lib/api");
+    const { unmount } = render(<StoryPage />);
+    await user.click(screen.getByRole("button", { name: "Đồng bộ tiến độ…" }));
+    expect(progressDrift).toHaveBeenCalledWith(snapshot.root);
+    expect(await screen.findByText(/2 chương đã có bản dịch trong out\//)).toBeInTheDocument();
+    unmount();
+    useStoryStore.setState({ sessions: { "d:\\t": { status: "running", sessionNo: 1 } } });
+    render(<StoryPage />);
+    expect(screen.getByRole("button", { name: "Đồng bộ tiến độ…" })).toBeDisabled();
   });
 
   it("reset khi đang mở tab Nhân vật thì nạp lại bảng nhân vật từ đĩa, không giữ bảng cũ trong bộ nhớ", async () => {

@@ -21,12 +21,14 @@ vi.mock("@tauri-apps/api/webview", () => ({
 
 vi.mock("@/lib/api", () => ({
   importChapters: vi.fn(),
+  progressDrift: vi.fn(),
   readChapter: vi.fn(),
   rescanStory: vi.fn(),
   revealFolder: vi.fn(() => Promise.resolve()),
   sessionStart: vi.fn(),
   sessionStop: vi.fn(),
   storySnapshot: vi.fn(),
+  syncProgress: vi.fn(),
 }));
 
 const story = {
@@ -110,5 +112,46 @@ describe("TranslatePage · chưa có chương, Quét lại, kéo thả", () => {
     useStoryStore.setState({ sessions: { "d:\\lib\\t": { status: "running", sessionNo: 1 } } });
     render(<TranslatePage />);
     expect(screen.getByRole("button", { name: "Quét lại" })).toBeDisabled();
+  });
+});
+
+describe("TranslatePage · banner tiến độ lệch sau sync Drive", () => {
+  beforeEach(() => {
+    useStoryStore.setState({
+      screen: "workbench",
+      root: oneChapter.root,
+      snapshot: { ...oneChapter, progressDrift: { untracked: 549, missing: 0 } },
+      config,
+      sessions: {},
+      progress: {},
+      logs: {},
+      roots: {},
+      selectedId: undefined,
+    });
+  });
+
+  it("snapshot có chương lệch thì hiện banner; bấm Đồng bộ… mở dialog xem trước", async () => {
+    const user = userEvent.setup();
+    const { progressDrift } = await import("@/lib/api");
+    vi.mocked(progressDrift).mockResolvedValue({ untracked: ["0001"], missing: [] });
+    render(<TranslatePage />);
+    expect(
+      screen.getByText("549 chương đã có bản dịch nhưng tiến độ chưa ghi — có thể do Google Drive đồng bộ lệch."),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Đồng bộ…" }));
+    await waitFor(() => expect(progressDrift).toHaveBeenCalledWith(oneChapter.root));
+    expect(await screen.findByRole("dialog", { name: "Đồng bộ tiến độ" })).toBeInTheDocument();
+  });
+
+  it("không lệch hoặc snapshot không kèm độ lệch thì không hiện; đồng bộ xong (untracked 0) thì banner tắt", () => {
+    useStoryStore.setState({ snapshot: oneChapter });
+    const { rerender } = render(<TranslatePage />);
+    expect(screen.queryByText(/tiến độ chưa ghi/)).not.toBeInTheDocument();
+    useStoryStore.setState({ snapshot: { ...oneChapter, progressDrift: { untracked: 3, missing: 0 } } });
+    rerender(<TranslatePage />);
+    expect(screen.getByText(/3 chương đã có bản dịch nhưng tiến độ chưa ghi/)).toBeInTheDocument();
+    useStoryStore.setState({ snapshot: { ...oneChapter, progressDrift: { untracked: 0, missing: 2 } } });
+    rerender(<TranslatePage />);
+    expect(screen.queryByText(/tiến độ chưa ghi/)).not.toBeInTheDocument();
   });
 });

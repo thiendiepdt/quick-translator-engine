@@ -1,9 +1,10 @@
-import { FileDown, FolderOpen } from "lucide-react";
-import { useCallback } from "react";
+import { FileDown, FolderOpen, TriangleAlert } from "lucide-react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
 import { ChapterList } from "@/components/chapter-list";
 import { ChapterReader } from "@/components/chapter-reader";
+import { SyncProgressDialog } from "@/components/sync-progress-dialog";
 import { TranslateToolbar } from "@/components/translate-toolbar";
 import { Button } from "@/components/ui/button";
 import { describeImport, useChapterDrop } from "@/hooks/use-chapter-drop";
@@ -23,6 +24,7 @@ export function TranslatePage() {
   const setFilter = useStoryStore((s) => s.setStatusFilter);
   const setQuery = useStoryStore((s) => s.setSearchQuery);
   const setSnapshot = useStoryStore((s) => s.setSnapshot);
+  const [syncOpen, setSyncOpen] = useState(false);
   const onImported = useCallback(
     (outcome: ImportOutcome) => {
       setSnapshot(outcome.snapshot);
@@ -39,9 +41,22 @@ export function TranslatePage() {
   const index = visible.findIndex((c) => c.id === selectedId);
   const row = index >= 0 ? visible[index] : snapshot.chapters.find((c) => c.id === selectedId);
   const empty = snapshot.counts.total === 0;
+  const untracked = snapshot.progressDrift?.untracked ?? 0;
   return (
     <div className="relative flex h-full flex-col">
       <TranslateToolbar />
+      {untracked > 0 && (
+        <div role="status" className="flex items-center gap-2 border-b border-status-warning/30 bg-status-warning/10 px-4 py-2 text-sm">
+          <TriangleAlert className="size-4 shrink-0 text-status-warning" aria-hidden />
+          <span className="flex-1">
+            {`${untracked} chương đã có bản dịch nhưng tiến độ chưa ghi — có thể do Google Drive đồng bộ lệch.`}
+          </span>
+          <Button type="button" variant="outline" size="sm" onClick={() => setSyncOpen(true)}>
+            Đồng bộ…
+          </Button>
+        </div>
+      )}
+      <SyncProgressDialog root={root} open={syncOpen} onOpenChange={setSyncOpen} />
       <div className="grid min-h-0 flex-1 grid-cols-[280px_1fr]">
         <aside className="min-h-0 border-r bg-card/50">
           {empty ? (

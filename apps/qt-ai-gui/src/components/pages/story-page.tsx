@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Download, History, Save, Sparkles, Upload } from "lucide-react";
+import { Download, History, RefreshCw, Save, Sparkles, Upload } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
@@ -11,6 +11,7 @@ import { GlossaryEditor } from "@/components/glossary-editor";
 import { GlossaryExportDialog } from "@/components/glossary-export-dialog";
 import { PromptEditor } from "@/components/prompt-editor";
 import { ResetStoryDialog } from "@/components/reset-story-dialog";
+import { SyncProgressDialog } from "@/components/sync-progress-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -96,6 +97,7 @@ export function StoryPage() {
   const [fillRoot, setFillRoot] = useState<string>();
   const [exportOpen, setExportOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
+  const [syncOpen, setSyncOpen] = useState(false);
   // Tăng sau mỗi lần reset để CastPanel dựng lại và đọc cast.json mới từ đĩa.
   const [castEpoch, setCastEpoch] = useState(0);
   // Cặp xưng hô đã có mốc trong cast.json → nhóm xưng hô của glossary ghi kèm cặp đang áp.
@@ -403,6 +405,16 @@ export function StoryPage() {
           >
             <History /> Reset truyện…
           </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={running}
+            title="Đánh dấu đã dịch các chương đã có bản dịch trong out/ (state.json lệch sau khi đồng bộ Google Drive)"
+            onClick={() => setSyncOpen(true)}
+          >
+            <RefreshCw /> Đồng bộ tiến độ…
+          </Button>
           <div className="flex-1" />
           {dirty && <span className="text-xs text-muted-foreground">Có thay đổi chưa lưu</span>}
           <Button type="submit" disabled={running || !dirty || form.formState.isSubmitting}>
@@ -417,6 +429,7 @@ export function StoryPage() {
           onOpenChange={setResetOpen}
           onReset={() => setCastEpoch((epoch) => epoch + 1)}
         />
+        <SyncProgressDialog root={currentRoot} open={syncOpen} onOpenChange={setSyncOpen} />
         {/* Chỉ dựng khi mở và gắn theo truyện: đổi truyện thì hộp thoại cũ (tên, link, kết quả AI của truyện trước) bị
             huỷ — từng có kết quả AI điền của truyện này bị Áp dụng vào truyện khác sau khi chuyển truyện. */}
         {fillRoot === currentRoot && (

@@ -18,6 +18,8 @@ import {
   type ApiStep,
   type exportOutcomeSchema,
   type deleteOutcomeSchema,
+  type progressDriftSchema,
+  type syncProgressResultSchema,
   type retryRangeOutcomeSchema,
   type harnessSettingsSchema,
   type progressSchema,
@@ -100,6 +102,8 @@ export type AiFillResult = z.infer<typeof aiFillResultSchema>;
 export type ExportOutcome = z.infer<typeof exportOutcomeSchema>;
 export type RetryRangeOutcome = z.infer<typeof retryRangeOutcomeSchema>;
 export type DeleteOutcome = z.infer<typeof deleteOutcomeSchema>;
+export type ProgressDrift = z.infer<typeof progressDriftSchema>;
+export type SyncProgressResult = z.infer<typeof syncProgressResultSchema>;
 export type RecentSummary = z.infer<typeof recentSummarySchema>;
 export type AgyDataStats = z.infer<typeof agyDataStatsSchema>;
 export type TitleGroup = z.infer<typeof titleGroupSchema>;

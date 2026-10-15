@@ -1,9 +1,10 @@
-import { History, RotateCcw } from "lucide-react";
+import { History, RefreshCw, RotateCcw } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { ChapterRefHint } from "@/components/chapter-ref-hint";
 import { ResetStoryDialog } from "@/components/reset-story-dialog";
+import { SyncProgressDialog } from "@/components/sync-progress-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -35,6 +36,7 @@ export function RetryRangeDialog({ root, chapters, open, onOpenChange }: Props) 
   const [to, setTo] = useState("");
   const [busy, setBusy] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
+  const [syncOpen, setSyncOpen] = useState(false);
   // Ô nhập nhận số thứ tự (1-based, như cột # trong danh sách) hoặc nguyên mã chương.
   const fromIndex = resolveChapterRef(chapters, from);
   const toIndex = resolveChapterRef(chapters, to);
@@ -134,6 +136,17 @@ export function RetryRangeDialog({ root, chapters, open, onOpenChange }: Props) 
             >
               <History /> Reset cả truyện…
             </Button>
+            <Button
+              variant="ghost"
+              disabled={busy}
+              title="Đánh dấu đã dịch các chương đã có bản dịch trong out/ (state.json lệch sau khi đồng bộ Google Drive)"
+              onClick={() => {
+                onOpenChange(false);
+                setSyncOpen(true);
+              }}
+            >
+              <RefreshCw /> Đồng bộ tiến độ…
+            </Button>
             <Button variant="outline" disabled={busy} onClick={() => onOpenChange(false)}>
               Huỷ
             </Button>
@@ -154,6 +167,7 @@ export function RetryRangeDialog({ root, chapters, open, onOpenChange }: Props) 
         open={resetOpen}
         onOpenChange={setResetOpen}
       />
+      <SyncProgressDialog root={root} open={syncOpen} onOpenChange={setSyncOpen} />
     </>
   );
 }

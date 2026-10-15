@@ -26,11 +26,13 @@ import {
   replaceUndoOutcomeSchema,
   glossaryBackfillSchema,
   deleteOutcomeSchema,
+  progressDriftSchema,
   sessionStatusSchema,
   sourceImageSchema,
   storyConfigSchema,
   storyDefaultsSchema,
   storySnapshotSchema,
+  syncProgressResultSchema,
   titleSurveySchema,
   titlesAppliedSchema,
   vnEntrySchema,
@@ -147,6 +149,10 @@ export const chaptersRetryIds = (root: string, ids: string[]) =>
 /** Xoá hẳn chương: gỡ state, xoá raw/ + work/; out/<id>.txt giữ nguyên (keptOutputs). */
 /** Reset truyện về như lúc vừa tạo: chỉ giữ tên + link; raw/, out/, export/ còn nguyên; mọi chương về hàng đợi. */
 export const storyReset = (root: string) => call("story_reset", { root }, (v) => storySnapshotSchema.parse(v));
+/** Chương lệch giữa state.json và out/ (Drive sync lệch) — chỉ đọc, để xem trước. */
+export const progressDrift = (root: string) => call("progress_drift", { root }, (v) => progressDriftSchema.parse(v));
+/** Đánh dấu đã dịch các chương có bản dịch trong out/; trả kèm snapshot mới. Bị chặn khi phiên đang chạy. */
+export const syncProgress = (root: string) => call("sync_progress", { root }, (v) => syncProgressResultSchema.parse(v));
 export const chaptersDelete = (root: string, ids: string[]) =>
   call("chapters_delete", { root, ids }, (v) => deleteOutcomeSchema.parse(v));
 export const chapterSkip = (root: string, id: string, reason: string) =>
