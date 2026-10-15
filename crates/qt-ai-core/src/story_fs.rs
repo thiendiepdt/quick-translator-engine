@@ -214,8 +214,19 @@ fn chapter_state_from(value: &Value) -> Option<ChapterState> {
 }
 
 /// File bản dịch còn chữ thật — file rỗng hay toàn byte 0 (mất điện lúc đang ghi) không tính.
-fn has_translation(out: &Path) -> bool {
+pub(crate) fn has_translation(out: &Path) -> bool {
     fs::read(out).map(|bytes| bytes.iter().any(|byte| *byte != 0 && !byte.is_ascii_whitespace())).unwrap_or(false)
+}
+
+/// Chương done dựng lại từ out/<id>.txt đã có chữ: reviewRound 0, không lý do/cảnh báo, updatedAt = mtime file
+/// (đọc mtime lỗi thì lấy giờ hiện tại).
+pub(crate) fn done_from_out(out: &Path) -> ChapterState {
+    let mut chapter = ChapterState::fresh(ChapterStatus::Done);
+    let modified = fs::metadata(out).and_then(|meta| meta.modified()).ok();
+    if let Some(ms) = modified.and_then(|time| time.duration_since(UNIX_EPOCH).ok()) {
+        chapter.updated_at = ms.as_millis() as u64;
+    }
+    chapter
 }
 
 /// state.json không parse nổi (toàn byte 0, cụt giữa chừng…) → dựng lại từ đĩa như một lần init: chương có
@@ -225,14 +236,7 @@ fn rebuild_state(paths: &StoryPaths) -> Result<StoryState> {
     let mut state = StoryState::new();
     for id in list_raw_chapter_ids(paths)? {
         let out = paths.out_dir.join(format!("{id}.txt"));
-        let mut chapter = ChapterState::fresh(ChapterStatus::Queued);
-        if has_translation(&out) {
-            chapter.status = ChapterStatus::Done;
-            let modified = fs::metadata(&out).and_then(|meta| meta.modified()).ok();
-            if let Some(ms) = modified.and_then(|time| time.duration_since(UNIX_EPOCH).ok()) {
-                chapter.updated_at = ms.as_millis() as u64;
-            }
-        }
+        let chapter = if has_translation(&out) { done_from_out(&out) } else { ChapterState::fresh(ChapterStatus::Queued) };
         state.chapters.insert(id, chapter);
     }
     let mut corrupt = paths.state_json.as_os_str().to_owned();

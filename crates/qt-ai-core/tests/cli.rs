@@ -116,3 +116,24 @@ fn accept_in_thang_canh_bao_vn_vi_status_khong_liet_ke() {
     assert!(text.contains("[VN] 1 chỗ nhạy cảm về Việt Nam") && text.contains("không cần sửa bản dịch"), "{text}");
     assert!(!text.contains("xem qt-ai status"), "status không liệt kê dòng [VN] nên không được dẫn sang đó: {text}");
 }
+
+#[test]
+fn sync_progress_qua_binary_in_so_chuong_danh_dau_va_chuong_thieu() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    fs::create_dir_all(root.join("raw")).unwrap();
+    fs::write(root.join("raw").join("0001.txt"), "一").unwrap();
+    fs::write(root.join("raw").join("0002.txt"), "二").unwrap();
+    assert_eq!(qt_ai(&["init", "."], root).status.code(), Some(0));
+    fs::write(root.join("out").join("0001.txt"), "Chương một.").unwrap();
+
+    let out = qt_ai(&["sync-progress", "."], root);
+    assert_eq!(out.status.code(), Some(0), "{}", stderr(&out));
+    assert!(stdout(&out).contains("Đã đánh dấu 1 chương đã dịch theo out/"), "{}", stdout(&out));
+    assert!(stdout(&out).contains("0 chương ghi đã dịch nhưng chưa thấy bản dịch"), "{}", stdout(&out));
+    assert!(fs::read_to_string(root.join("state.json")).unwrap().contains("\"done\""));
+    let out = qt_ai(&["sync-progress", "."], root);
+    assert!(stdout(&out).contains("Đã đánh dấu 0 chương"), "{}", stdout(&out));
+    let out = qt_ai(&[], root);
+    assert!(stderr(&out).contains("sync-progress <root>"));
+}

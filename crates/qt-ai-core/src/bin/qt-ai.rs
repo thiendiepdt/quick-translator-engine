@@ -10,6 +10,7 @@ use qt_ai_core::commands::next::run_next;
 use qt_ai_core::commands::retry::{run_retry, run_retry_range};
 use qt_ai_core::commands::skip::run_skip;
 use qt_ai_core::commands::status::run_status;
+use qt_ai_core::commands::sync_progress::run_sync_progress;
 use qt_ai_core::CoreError;
 use std::path::{Path, PathBuf};
 
@@ -26,6 +27,7 @@ Lệnh:
   delete <root> <id> [<id>…]         Xoá chương khỏi truyện: gỡ state, xoá raw/ + work/ (out/ giữ nguyên)
   export <root> [--from <id>] [--to <id>] [--out <file>]
                                      Gộp các chương done thành một file txt
+  sync-progress <root>               Đánh dấu đã dịch các chương có bản dịch trong out/ (state.json lệch sau sync Drive)
   vn-check <root>                    Quét nội dung nhạy cảm về Việt Nam
   status <root>                      Bảng tiến độ";
 
@@ -159,6 +161,15 @@ fn run(argv: &[String]) -> Result<i32, CoreError> {
             if !result.gaps.is_empty() {
                 println!("Hổng {} chương chưa done trong khoảng: {}", result.gaps.len(), result.gaps.join(", "));
             }
+            Ok(0)
+        }
+        "sync-progress" => {
+            let outcome = run_sync_progress(root)?;
+            println!(
+                "Đã đánh dấu {} chương đã dịch theo out/; {} chương ghi đã dịch nhưng chưa thấy bản dịch (giữ nguyên — có thể Drive chưa sync xong).",
+                outcome.marked_done.len(),
+                outcome.missing.len()
+            );
             Ok(0)
         }
         "vn-check" => {

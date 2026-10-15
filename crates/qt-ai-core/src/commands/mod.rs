@@ -8,3 +8,4 @@ pub mod delete;
 pub mod status;
 pub mod export;
 pub mod reset;
+pub mod sync_progress;

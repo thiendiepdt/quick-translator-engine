@@ -9,6 +9,7 @@ use qt_ai_core::commands::reset::run_reset;
 use qt_ai_core::commands::retry::{retry_backup_path, run_retry, run_retry_ids, run_retry_range};
 use qt_ai_core::commands::skip::run_skip;
 use qt_ai_core::commands::status::run_status;
+use qt_ai_core::commands::sync_progress::{progress_drift, run_sync_progress};
 use qt_ai_core::story::StoryConfig;
 use qt_ai_core::story_fs::*;
 use qt_ai_core::CoreError;
@@ -1333,4 +1334,93 @@ fn accept_canh_bao_cho_nhay_cam_vn_chua_xac_minh() {
     let open = qt_ai_core::vn_check::check_chapter(&paths, &lexicon, "0001").unwrap();
     assert_eq!(open, 0);
     assert_eq!(qt_ai_core::vn_check::chapter_warning(open), None);
+}
+
+/// Truyện đồng bộ qua Google Drive: out/ về đủ nhưng state.json là bản cũ hơn.
+fn story_with_drift() -> TempDir {
+    let ids = ["1", "2", "3", "4", "5", "6", "7", "8", "10"];
+    let chapters: Vec<(&str, &str)> = ids.iter().map(|id| (*id, "章")).collect();
+    let dir = make_story_dir(&chapters);
+    let root = dir.path();
+    run_init(root, "qt-ai").unwrap();
+    let paths = story_paths(root);
+    let mut state = load_state(&paths).unwrap();
+    let mut set = |id: &str, status: ChapterStatus, reason: Option<&str>, round: u32| {
+        let chapter = state.chapters.get_mut(id).unwrap();
+        chapter.status = status;
+        chapter.reason = reason.map(String::from);
+        chapter.review_round = round;
+        chapter.updated_at = 5;
+    };
+    set("2", ChapterStatus::Translating, None, 2);
+    set("3", ChapterStatus::Error, Some("quá vòng review"), 3);
+    set("4", ChapterStatus::Skipped, Some("model từ chối"), 0);
+    set("6", ChapterStatus::Done, None, 1);
+    set("10", ChapterStatus::Done, None, 0);
+    save_state(&paths, &state).unwrap();
+    // Chương có bản dịch thật: 1 (queued), 2 (translating), 3 (error), 4 (skipped), 10 (done, khớp).
+    for id in ["1", "2", "3", "4", "10"] {
+        fs::write(paths.out_dir.join(format!("{id}.txt")), format!("Chương {id}.\n")).unwrap();
+    }
+    // 5: chỉ khoảng trắng; 7: toàn byte 0 (mất điện lúc ghi); 8: chỉ có .bak — đều không tính là đã dịch.
+    fs::write(paths.out_dir.join("5.txt"), " \n\t\n").unwrap();
+    fs::write(paths.out_dir.join("7.txt"), vec![0u8; 16]).unwrap();
+    fs::write(paths.out_dir.join("8.txt.bak"), "bản cũ").unwrap();
+    // 9: có out/ nhưng không có trong state (raw chưa có) — không được kéo vào.
+    fs::write(paths.out_dir.join("9.txt"), "Mồ côi.\n").unwrap();
+    // 6: ghi done nhưng chưa thấy out/ (Drive chưa sync xong).
+    dir
+}
+
+#[test]
+fn progress_drift_dem_chuong_lech_giua_state_va_out_khong_ghi_gi() {
+    let dir = story_with_drift();
+    let paths = story_paths(dir.path());
+    let before = fs::read(&paths.state_json).unwrap();
+    let drift = progress_drift(dir.path()).unwrap();
+    assert_eq!(drift.untracked, vec!["1", "2", "3", "4"]);
+    assert_eq!(drift.missing, vec!["6"]);
+    assert_eq!(fs::read(&paths.state_json).unwrap(), before, "chỉ đọc");
+    let json = serde_json::to_value(&drift).unwrap();
+    assert_eq!(json["untracked"].as_array().unwrap().len(), 4);
+    assert_eq!(json["missing"][0], "6");
+}
+
+#[test]
+fn sync_progress_danh_dau_done_theo_out_giu_nguyen_chuong_thieu_va_idempotent() {
+    let dir = story_with_drift();
+    let paths = story_paths(dir.path());
+    let mtime = fs::metadata(paths.out_dir.join("3.txt"))
+        .unwrap()
+        .modified()
+        .unwrap()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64;
+
+    let outcome = run_sync_progress(dir.path()).unwrap();
+    assert_eq!(outcome.marked_done, vec!["1", "2", "3", "4"]);
+    assert_eq!(outcome.missing, vec!["6"]);
+
+    let state = load_state(&paths).unwrap();
+    for id in ["1", "2", "3", "4", "10"] {
+        assert_eq!(state.chapters[id].status, ChapterStatus::Done, "chương {id}");
+    }
+    let error = &state.chapters["3"];
+    assert_eq!((error.review_round, error.reason.as_deref(), error.updated_at), (0, None, mtime));
+    assert_eq!(state.chapters["4"].reason, None, "lý do skip không còn nghĩa khi đã done");
+    assert_eq!(state.chapters["2"].review_round, 0);
+    for id in ["5", "7", "8"] {
+        assert_eq!(state.chapters[id].status, ChapterStatus::Queued, "chương {id}");
+    }
+    let missing = &state.chapters["6"];
+    assert_eq!((missing.status, missing.review_round, missing.updated_at), (ChapterStatus::Done, 1, 5), "giữ nguyên");
+    assert_eq!(state.chapters["10"].updated_at, 5, "chương vốn khớp không bị đụng");
+    assert!(!state.chapters.contains_key("9"), "không kéo chương ngoài state vào");
+    assert!(!paths.root.join("state.json.tmp").exists());
+
+    let again = run_sync_progress(dir.path()).unwrap();
+    assert!(again.marked_done.is_empty());
+    assert_eq!(again.missing, vec!["6"]);
+    assert!(progress_drift(dir.path()).unwrap().untracked.is_empty());
 }
