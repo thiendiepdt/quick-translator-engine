@@ -10,6 +10,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 indexmap = { version = "2", features = ["serde"] }
 regex = "1"
+aho-corasick = "1"
 fancy-regex = "0.18.0"
 thiserror = "2"
 # API key mode: gọi Gemini / OpenAI-compatible thẳng. rustls + ring để build Windows không cần OpenSSL/cmake/NASM.

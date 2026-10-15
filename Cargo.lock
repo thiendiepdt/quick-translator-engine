@@ -2874,6 +2874,7 @@ dependencies = [
 name = "qt-ai-core"
 version = "0.1.0"
 dependencies = [
+ "aho-corasick",
  "fancy-regex",
  "flate2",
  "indexmap 2.14.0",

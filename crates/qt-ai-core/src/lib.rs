@@ -24,5 +24,8 @@ pub mod source_http;
 pub mod book_meta;
 pub mod epub;
 pub mod han_viet;
+pub mod vn_lexicon;
+pub mod vn_check;
+pub mod vn_ai;
 
 pub use error::{CoreError, Result};
