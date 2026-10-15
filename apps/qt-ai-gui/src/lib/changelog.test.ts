@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { CHANGELOG_ENTRIES, compareVersions, entryFor, inlineTokens, parseChangelog, releasedEntries } from "@/lib/changelog";
+import { CHANGELOG_ENTRIES, compareVersions, entriesSince, entryFor, inlineTokens, parseChangelog, releasedEntries } from "@/lib/changelog";
 
 const SAMPLE = `# Có gì mới
 
@@ -59,6 +59,21 @@ describe("releasedEntries / entryFor", () => {
   it("entryFor tìm đúng bản, không có thì undefined; không bao giờ trả Chưa phát hành", () => {
     expect(entryFor("1.0.9", entries)?.items).toEqual(["Chín."]);
     expect(entryFor("9.9.9", entries)).toBeUndefined();
+  });
+});
+
+describe("entriesSince", () => {
+  const entries = parseChangelog(SAMPLE);
+
+  it("các bản sau `since` tới bản đang dùng, mới nhất trước", () => {
+    expect(entriesSince("1.0.10", "1.0.2", entries).map((e) => e.version)).toEqual(["1.0.10", "1.0.9"]);
+    expect(entriesSince("1.0.10", "1.0.9", entries).map((e) => e.version)).toEqual(["1.0.10"]);
+    expect(entriesSince("1.0.9", "1.0.10", entries)).toEqual([]);
+  });
+
+  it("since null (cập nhật từ bản không rõ) thì chỉ bản đang dùng", () => {
+    expect(entriesSince("1.0.10", null, entries).map((e) => e.version)).toEqual(["1.0.10"]);
+    expect(entriesSince("9.9.9", null, entries)).toEqual([]);
   });
 });
 

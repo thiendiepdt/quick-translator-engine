@@ -42,7 +42,10 @@ export default function App() {
   useThemeSync();
   useUndoFallback();
   useUpdateCheck();
-  const whatsNew = useWhatsNew();
+  // Dấu hiệu đã dùng app trước bản có "Có gì mới" (chưa có khoá last-seen): config.json trên đĩa đã có truyện gần đây
+  // hoặc thư viện. Không dùng khoá palette/theme trong localStorage: useThemeSync ghi chúng ngay khi config nạp,
+  // nên máy cài mới cũng có trước khi kịp kiểm tra.
+  const whatsNew = useWhatsNew(config ? config.recent.length > 0 || config.libraryRoot !== null : undefined);
 
   // Chỉ dò agy khi động cơ là agy: người dùng API key không phải chờ, không bị màn "Chưa thấy agy".
   // `probing` chặn dò chồng: mỗi lượt dò spawn `agy --version` + `agy models` (~2s), dò chồng liên tục
@@ -122,6 +125,7 @@ export default function App() {
   const whatsNewDialog = (
     <WhatsNewDialog
       version={whatsNew.version}
+      since={whatsNew.since}
       onClose={whatsNew.dismiss}
       onShowAll={
         screen === "workbench"

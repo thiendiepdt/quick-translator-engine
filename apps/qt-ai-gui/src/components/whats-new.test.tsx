@@ -82,8 +82,30 @@ describe("WhatsNewDialog", () => {
     render(<WhatsNewDialog version="1.0.6" entries={ENTRIES} onClose={vi.fn()} />);
     const dialog = screen.getByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: "Xem tất cả" }));
-    expect(within(dialog).getAllByRole("button", { name: /^Bản 1\.0\./ }).length).toBeGreaterThan(1);
-    expect(within(dialog).queryByRole("button", { name: "Xem tất cả" })).not.toBeInTheDocument();
+    // Mở thẳng đủ mọi bản tới bản đang dùng, không bắt bấm "Xem tất cả" lần hai.
+    expect(within(dialog).getAllByRole("button", { name: /^Bản 1\.0\./ })).toHaveLength(6);
+    expect(within(dialog).getByRole("button", { name: "Thu gọn" })).toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: /Xem tất cả/ })).not.toBeInTheDocument();
+  });
+
+  it("bỏ qua vài bản: hiện mọi bản sau bản đã thấy tới bản đang dùng, mới nhất trước, đều mở sẵn", () => {
+    render(<WhatsNewDialog version="1.0.6" since="1.0.4" entries={ENTRIES} onClose={vi.fn()} />);
+    const dialog = screen.getByRole("dialog", { name: "Có gì mới ở bản 1.0.6" });
+    const headings = within(dialog).getAllByRole("heading", { level: 3 });
+    expect(headings.map((h) => h.textContent)).toEqual([expect.stringContaining("Bản 1.0.6"), expect.stringContaining("Bản 1.0.5")]);
+    expect(within(dialog).getByText("Ghi chú 6.")).toBeInTheDocument();
+    expect(within(dialog).getByText("Ghi chú 5.")).toBeInTheDocument();
+    expect(within(dialog).queryByText("Ghi chú 4.")).not.toBeInTheDocument();
+    expect(within(dialog).getByText(/kể từ bản 1\.0\.4/)).toBeInTheDocument();
+  });
+
+  it("quá 5 bản thì chỉ hiện 5 bản mới nhất, phần còn lại qua Xem tất cả", () => {
+    render(<WhatsNewDialog version="1.0.8" since="1.0.0" entries={ENTRIES} onClose={vi.fn()} />);
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getAllByRole("heading", { level: 3 })).toHaveLength(5);
+    expect(within(dialog).getByText("Ghi chú 4.")).toBeInTheDocument();
+    expect(within(dialog).queryByText("Ghi chú 3.")).not.toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Xem tất cả" })).toBeInTheDocument();
   });
 
   it("không có version thì không hiện gì", () => {

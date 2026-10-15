@@ -92,4 +92,21 @@ describe("updatePrompt", () => {
     expect(text).toContain("• Mục 12.\n…\n\nBạn có muốn cập nhật ngay không?");
     expect(text).not.toContain("\r");
   });
+
+  it("bullet quá dài bị cắt ~160 ký tự kèm …; tổng phần ghi chú không quá ~1200 ký tự, cắt thì thêm …", () => {
+    const long = "x".repeat(400);
+    const text = updatePrompt("1.0.22", Array.from({ length: 12 }, (_, i) => `- ${i} ${long}`).join("\n"));
+    const notes = text.slice(text.indexOf("Có gì mới:\n") + "Có gì mới:\n".length, text.indexOf("\n\nBạn có muốn"));
+    const lines = notes.split("\n");
+    expect(lines[0]).toBe(`• 0 ${"x".repeat(157)}…`);
+    for (const line of lines) expect(line.length).toBeLessThanOrEqual(162);
+    expect(notes.length).toBeLessThanOrEqual(1200);
+    expect(lines[lines.length - 1]).toBe("…");
+    expect(lines.length).toBeLessThan(12);
+  });
+
+  it("ghi chú ngắn vừa ngân sách thì giữ nguyên, không thêm …", () => {
+    const text = updatePrompt("1.0.22", "- Một.\n- Hai.");
+    expect(text).not.toContain("…");
+  });
 });

@@ -66,11 +66,36 @@ describe("App · Có gì mới sau khi cập nhật", () => {
     vi.mocked(appConfigGet).mockReset().mockResolvedValue(apiConfig);
   });
 
-  it("lần đầu chạy: không hiện hộp thoại, chỉ ghi nhớ version", async () => {
+  it("cài mới (chưa có truyện gần đây, chưa có khoá): không hiện hộp thoại, chỉ ghi nhớ version", async () => {
     render(<App />);
     await screen.findByText("PICKER");
     await waitFor(() => expect(localStorage.getItem(LAST_SEEN_KEY)).toBe("1.0.21"));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("bản đầu có tính năng này, người dùng cũ (đã có truyện gần đây) chưa có khoá: hiện Có gì mới của bản đang dùng", async () => {
+    vi.mocked(appConfigGet).mockResolvedValue({ ...apiConfig, recent: ["D:\\truyen"] });
+    render(<App />);
+    const dialog = await screen.findByRole("dialog", { name: "Có gì mới ở bản 1.0.21" });
+    expect(within(dialog).queryAllByRole("heading", { level: 3 })).toHaveLength(0);
+    expect(localStorage.getItem(LAST_SEEN_KEY)).toBe("1.0.21");
+  });
+
+  it("bỏ qua bản 1.0.20 (1.0.19 → 1.0.21): hộp thoại có cả 1.0.21 và 1.0.20", async () => {
+    localStorage.setItem(LAST_SEEN_KEY, "1.0.19");
+    render(<App />);
+    const dialog = await screen.findByRole("dialog", { name: "Có gì mới ở bản 1.0.21" });
+    const headings = within(dialog).getAllByRole("heading", { level: 3 });
+    expect(headings.map((h) => h.textContent)).toEqual([expect.stringContaining("1.0.21"), expect.stringContaining("1.0.20")]);
+  });
+
+  it("hạ bản (đã thấy 1.0.22): không hiện, giữ 1.0.22", async () => {
+    localStorage.setItem(LAST_SEEN_KEY, "1.0.22");
+    render(<App />);
+    await screen.findByText("PICKER");
+    await act(() => new Promise((r) => setTimeout(r, 30)));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(localStorage.getItem(LAST_SEEN_KEY)).toBe("1.0.22");
   });
 
   it("ở màn chọn truyện: hiện Có gì mới của bản vừa lên; Xem tất cả mở danh sách ngay trong hộp thoại; Đã hiểu đóng", async () => {

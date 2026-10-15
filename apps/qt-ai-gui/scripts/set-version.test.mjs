@@ -3,7 +3,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { applyVersion, isValidVersion } from "./set-version.mjs";
+import { sectionBody } from "./changelog.mjs";
+import { applyVersion, isValidVersion, localDate, planChangelog, releaseVersion } from "./set-version.mjs";
 
 function fixture() {
   const dir = mkdtempSync(join(tmpdir(), "set-version-"));
@@ -82,5 +83,52 @@ describe("applyVersion", () => {
     expect(isValidVersion("v1.2.3")).toBe(false);
     expect(isValidVersion("1.2.3")).toBe(true);
     expect(() => applyVersion(fixture(), "abc")).toThrow(/x\.y\.z/);
+  });
+});
+
+const CHANGELOG = "# Có gì mới\n\n## Chưa phát hành\n- Thêm X.\n\n## 0.1.0 — 2026-09-10\n- Bản đầu.\n";
+
+describe("releaseVersion", () => {
+  it("chốt changelog cùng lúc với 4 file version: Chưa phát hành thành bản mới", () => {
+    const dir = fixture();
+    writeFileSync(join(dir, "CHANGELOG.md"), CHANGELOG);
+    const result = releaseVersion(dir, "0.2.0", ["feat: bỏ qua"], new Date(2026, 9, 5));
+    expect(result.changelogChanged).toBe(true);
+    expect(result.written).toHaveLength(5);
+    expect(readFileSync(join(dir, "CHANGELOG.md"), "utf8")).toBe(CHANGELOG.replace("## Chưa phát hành", "## 0.2.0 — 2026-10-05"));
+    expect(JSON.parse(readFileSync(join(dir, "package.json"), "utf8")).version).toBe("0.2.0");
+  });
+
+  it("không có Chưa phát hành: nháp từ commit; đã có mục thì không ghi lại changelog", () => {
+    const dir = fixture();
+    writeFileSync(join(dir, "CHANGELOG.md"), "# Có gì mới\n\n## 0.1.0 — 2026-09-10\n- Bản đầu.\n");
+    releaseVersion(dir, "0.2.0", ["fix(gui): nút lưu", "chore: x"], new Date(2026, 0, 9));
+    const text = readFileSync(join(dir, "CHANGELOG.md"), "utf8");
+    expect(sectionBody(text, "0.2.0")).toBe("- Nút lưu.");
+    expect(text).toContain("## 0.2.0 — 2026-01-09");
+    const again = releaseVersion(dir, "0.2.0", [], new Date());
+    expect(again.changelogChanged).toBe(false);
+    expect(again.written).toHaveLength(4);
+  });
+
+  it("thiếu CHANGELOG.md: dừng trước khi ghi bất kỳ file version nào", () => {
+    const dir = fixture();
+    const before = readFileSync(join(dir, "package.json"), "utf8");
+    expect(() => releaseVersion(dir, "0.2.0", [], new Date())).toThrow();
+    expect(readFileSync(join(dir, "package.json"), "utf8")).toBe(before);
+    expect(readFileSync(join(dir, "src-tauri", "Cargo.toml"), "utf8")).toContain('version = "0.1.0"');
+  });
+
+  it("mục của bản đó đã có nhưng rỗng: báo lỗi, không ghi gì", () => {
+    const dir = fixture();
+    writeFileSync(join(dir, "CHANGELOG.md"), "# Có gì mới\n\n## 0.2.0 — 2026-10-01\n\n## 0.1.0 — 2026-09-10\n- Bản đầu.\n");
+    const before = readFileSync(join(dir, "package.json"), "utf8");
+    expect(() => planChangelog(dir, "0.2.0", [], new Date())).toThrow(/0\.2\.0/);
+    expect(() => releaseVersion(dir, "0.2.0", [], new Date())).toThrow(/0\.2\.0/);
+    expect(readFileSync(join(dir, "package.json"), "utf8")).toBe(before);
+  });
+
+  it("localDate dùng giờ máy, không phải UTC", () => {
+    expect(localDate(new Date(2026, 9, 15, 0, 30))).toBe("2026-10-15");
   });
 });

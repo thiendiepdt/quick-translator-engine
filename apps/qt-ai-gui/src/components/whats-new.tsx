@@ -3,7 +3,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { CHANGELOG_ENTRIES, entryFor, inlineTokens, releasedEntries, type ChangelogEntry } from "@/lib/changelog";
+import { CHANGELOG_ENTRIES, entriesSince, inlineTokens, releasedEntries, type ChangelogEntry } from "@/lib/changelog";
 import { cn } from "@/lib/utils";
 
 const COLLAPSED_COUNT = 5;
@@ -48,10 +48,19 @@ function Bullets({ items }: { items: string[] }) {
 }
 
 /** Danh sách các bản đã phát hành tới bản đang dùng, mới nhất trước: bản đang dùng mở sẵn, bản cũ bấm để mở. */
-export function ChangelogList({ currentVersion, entries = CHANGELOG_ENTRIES }: { currentVersion: string; entries?: readonly ChangelogEntry[] }) {
+export function ChangelogList({
+  currentVersion,
+  entries = CHANGELOG_ENTRIES,
+  initialShowAll = false,
+}: {
+  currentVersion: string;
+  entries?: readonly ChangelogEntry[];
+  /** true = hiện đủ mọi bản ngay (người dùng vừa bấm "Xem tất cả" ở nơi khác). */
+  initialShowAll?: boolean;
+}) {
   const released = releasedEntries(currentVersion, entries);
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set([currentVersion]));
-  const [showAll, setShowAll] = useState(false);
+  const [showAll, setShowAll] = useState(initialShowAll);
   const visible = showAll ? released : released.slice(0, COLLAPSED_COUNT);
 
   function toggle(version: string) {
@@ -100,29 +109,51 @@ export function ChangelogList({ currentVersion, entries = CHANGELOG_ENTRIES }: {
   );
 }
 
+const DIALOG_MAX_ENTRIES = 5;
+
 interface WhatsNewDialogProps {
   /** Bản vừa cập nhật lên; undefined = đóng. */
   version: string | undefined;
+  /** Bản đã thấy lần trước: hiện mọi bản sau nó tới `version`. null/không truyền = chỉ `version`. */
+  since?: string | null;
   onClose: () => void;
   /** Có thì "Xem tất cả" chuyển sang Cài đặt; không (màn chọn truyện chưa có Cài đặt) thì mở danh sách ngay trong hộp thoại. */
   onShowAll?: () => void;
   entries?: readonly ChangelogEntry[];
 }
 
-/** Hộp thoại "Có gì mới" hiện một lần ngay sau khi app được cập nhật lên bản mới. */
-export function WhatsNewDialog({ version, onClose, onShowAll, entries = CHANGELOG_ENTRIES }: WhatsNewDialogProps) {
+/** Hộp thoại "Có gì mới" hiện một lần ngay sau khi app được cập nhật lên bản mới (gồm cả các bản đã bỏ qua). */
+export function WhatsNewDialog({ version, since = null, onClose, onShowAll, entries = CHANGELOG_ENTRIES }: WhatsNewDialogProps) {
   const [expandedList, setExpandedList] = useState(false);
-  const entry = version ? entryFor(version, entries) : undefined;
-  if (!version || !entry) return null;
+  const range = version ? entriesSince(version, since, entries).slice(0, DIALOG_MAX_ENTRIES) : [];
+  if (!version || range.length === 0) return null;
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Có gì mới ở bản {version}</DialogTitle>
-          <DialogDescription>App vừa được cập nhật ({formatDate(entry.date)}).</DialogDescription>
+          <DialogDescription>
+            {since ? `Các thay đổi kể từ bản ${since}.` : `App vừa được cập nhật (${formatDate(range[0].date)}).`}
+          </DialogDescription>
         </DialogHeader>
         <div className="fine-scrollbar -mx-6 min-h-0 flex-1 overflow-y-auto px-6">
-          {expandedList ? <ChangelogList currentVersion={version} entries={entries} /> : <Bullets items={entry.items} />}
+          {expandedList ? (
+            <ChangelogList currentVersion={version} entries={entries} initialShowAll />
+          ) : range.length === 1 ? (
+            <Bullets items={range[0].items} />
+          ) : (
+            <div className="flex flex-col gap-4">
+              {range.map((entry) => (
+                <section key={entry.version} className="flex flex-col gap-1.5">
+                  <h3 className="flex items-baseline gap-2 text-sm font-semibold">
+                    Bản {entry.version}
+                    <span className="text-xs font-normal text-muted-foreground tabular-nums">{formatDate(entry.date)}</span>
+                  </h3>
+                  <Bullets items={entry.items} />
+                </section>
+              ))}
+            </div>
+          )}
         </div>
         <DialogFooter className="sm:items-center sm:justify-between">
           {expandedList ? (

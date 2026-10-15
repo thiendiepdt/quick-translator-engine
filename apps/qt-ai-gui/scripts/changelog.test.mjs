@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import { draftFromCommits, FALLBACK_ITEM, parseChangelog, promoteUnreleased, sectionBody } from "./changelog.mjs";
-import { updateChangelog } from "./set-version.mjs";
+import { parseChangelog as parseChangelogTs } from "../src/lib/changelog.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const script = join(here, "changelog.mjs");
@@ -190,20 +190,11 @@ describe("CHANGELOG.md thật", () => {
   });
 });
 
-describe("updateChangelog (set-version)", () => {
-  it("ghi CHANGELOG.md trong appDir: đổi Chưa phát hành thành bản mới", () => {
-    const dir = mkdtempSync(join(tmpdir(), "set-version-changelog-"));
-    writeFileSync(join(dir, "CHANGELOG.md"), SAMPLE);
-    expect(updateChangelog(dir, "1.0.2", ["feat: bỏ qua"], new Date(2026, 9, 5))).toBe(true);
-    expect(readFileSync(join(dir, "CHANGELOG.md"), "utf8")).toBe(SAMPLE.replace("## Chưa phát hành", "## 1.0.2 — 2026-10-05"));
-  });
-
-  it("không có Chưa phát hành: dựng nháp từ commit; đã có mục thì không ghi", () => {
-    const dir = mkdtempSync(join(tmpdir(), "set-version-changelog-"));
-    writeFileSync(join(dir, "CHANGELOG.md"), RELEASED_ONLY);
-    expect(updateChangelog(dir, "1.0.2", ["fix(gui): nút lưu", "chore: x"], new Date(2026, 0, 9))).toBe(true);
-    expect(sectionBody(readFileSync(join(dir, "CHANGELOG.md"), "utf8"), "1.0.2")).toBe("- Nút lưu.");
-    expect(parseChangelog(readFileSync(join(dir, "CHANGELOG.md"), "utf8"))[0].date).toBe("2026-01-09");
-    expect(updateChangelog(dir, "1.0.2", [], new Date())).toBe(false);
+describe("parser TS của app (src/lib/changelog.ts) cùng ngữ nghĩa với parser script", () => {
+  it("cho cùng kết quả trên CHANGELOG.md thật và trên mẫu (kể cả CRLF, dòng lạc)", () => {
+    const real = readFileSync(realPath, "utf8");
+    const samples = [real, SAMPLE, RELEASED_ONLY, SAMPLE.replace(/\n/g, "\r\n"), "# Có gì mới\n## 1.0.0 — 2026-09-10\nlạc\n- Một.\n## Lạ\n- bỏ\n"];
+    for (const text of samples) expect(parseChangelogTs(text)).toEqual(parseChangelog(text));
+    expect(parseChangelog(real).length).toBeGreaterThan(20);
   });
 });

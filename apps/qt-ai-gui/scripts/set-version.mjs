@@ -6,7 +6,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { draftFromCommits, promoteUnreleased } from "./changelog.mjs";
+import { draftFromCommits, promoteUnreleased, sectionBody } from "./changelog.mjs";
 
 export function isValidVersion(text) {
   return /^\d+\.\d+\.\d+$/.test(text);
@@ -48,21 +48,39 @@ export function localDate(now = new Date()) {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
-/** Chốt CHANGELOG.md trong appDir cho `version`; `subjects` là subject commit để dựng nháp. Trả true nếu đã ghi file. */
-export function updateChangelog(appDir, version, subjects, now = new Date()) {
+/**
+ * Dựng CHANGELOG.md đã chốt cho `version` (chưa ghi): đọc file, đổi "Chưa phát hành"/chèn nháp từ `subjects`.
+ * Thiếu file hoặc mục của bản đó rỗng thì ném lỗi — gọi trước khi ghi file version để không để lại nửa vời.
+ */
+export function planChangelog(appDir, version, subjects, now = new Date()) {
   const path = join(appDir, "CHANGELOG.md");
   const text = readFileSync(path, "utf8");
   const next = promoteUnreleased(text, version, localDate(now), draftFromCommits(subjects));
-  if (next === text) return false;
-  writeFileSync(path, next);
-  return true;
+  if (!sectionBody(next, version)) throw new Error(`CHANGELOG.md có mục ${version} nhưng rỗng — thêm ghi chú rồi chạy lại`);
+  return { path, text: next, changed: next !== text };
 }
 
-/** Subject commit từ tag qt-ai-gui-v* gần nhất tới HEAD; không có tag hoặc git lỗi thì rỗng (nháp dùng câu mặc định). */
-function commitSubjectsSinceLastTag(cwd) {
+/** Đổi version ở 4 file và chốt CHANGELOG.md; changelog được kiểm tra trước khi ghi bất kỳ file nào. */
+export function releaseVersion(appDir, version, subjects, now = new Date()) {
+  if (!isValidVersion(version)) throw new Error(`Version phải dạng x.y.z, nhận "${version}"`);
+  const changelog = planChangelog(appDir, version, subjects, now);
+  const written = applyVersion(appDir, version);
+  if (changelog.changed) {
+    writeFileSync(changelog.path, changelog.text);
+    written.push(changelog.path);
+  }
+  return { written, changelogChanged: changelog.changed };
+}
+
+/**
+ * Subject commit từ tag qt-ai-gui-v* gần nhất tới HEAD, chỉ commit đụng app hoặc qt-ai-core (sidecar dịch);
+ * không có tag hoặc git lỗi thì rỗng (nháp dùng câu mặc định). `repoRoot` là gốc repo: pathspec tính từ cwd.
+ */
+function commitSubjectsSinceLastTag(repoRoot) {
   try {
-    const tag = execFileSync("git", ["describe", "--tags", "--abbrev=0", "--match", "qt-ai-gui-v*"], { cwd, encoding: "utf8" }).trim();
-    const log = execFileSync("git", ["log", "--format=%s", `${tag}..HEAD`], { cwd, encoding: "utf8" });
+    const git = (args) => execFileSync("git", args, { cwd: repoRoot, encoding: "utf8" });
+    const tag = git(["describe", "--tags", "--abbrev=0", "--match", "qt-ai-gui-v*"]).trim();
+    const log = git(["log", "--format=%s", `${tag}..HEAD`, "--", "apps/qt-ai-gui", "crates/qt-ai-core"]);
     return log.split(/\r?\n/).filter(Boolean);
   } catch {
     return [];
@@ -76,13 +94,13 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
     process.exit(1);
   }
   const app = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-  for (const file of applyVersion(app, version)) console.log(`Đã ghi ${file}`);
-  execFileSync("cargo", ["update", "-p", "qt-ai-gui", "--offline"], { cwd: resolve(app, "../.."), stdio: "inherit" });
-  if (updateChangelog(app, version, commitSubjectsSinceLastTag(app))) {
-    console.log("Đã ghi CHANGELOG.md — kiểm tra lại câu chữ trước khi commit");
-  } else {
-    console.log(`CHANGELOG.md đã có mục ${version}, giữ nguyên`);
-  }
+  const repoRoot = resolve(app, "../..");
+  const { written, changelogChanged } = releaseVersion(app, version, commitSubjectsSinceLastTag(repoRoot));
+  for (const file of written) console.log(`Đã ghi ${file}`);
+  execFileSync("cargo", ["update", "-p", "qt-ai-gui", "--offline"], { cwd: repoRoot, stdio: "inherit" });
+  console.log(
+    changelogChanged ? "Đã ghi CHANGELOG.md — kiểm tra lại câu chữ trước khi commit" : `CHANGELOG.md đã có mục ${version}, giữ nguyên`,
+  );
   console.log(
     `Xong: ${version}. Tiếp: sửa CHANGELOG.md nếu cần, rồi git commit -am "release(qt-ai-gui): ${version}" (gồm CHANGELOG.md) && git tag qt-ai-gui-v${version} && git push origin HEAD --tags`,
   );

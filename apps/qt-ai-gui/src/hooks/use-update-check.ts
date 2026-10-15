@@ -21,10 +21,18 @@ export type UpdateCheckResult = "none" | "declined" | "installed" | "failed";
 export const UPDATE_TITLE = "Cập nhật VNCVT AI Translator";
 
 const MAX_NOTES = 12;
+const MAX_NOTE_CHARS = 160;
+/** Hộp thoại native không cuộn: giữ cả phần ghi chú trong khoảng này để nút bấm không bị đẩy ra ngoài màn hình. */
+const MAX_NOTES_CHARS = 1200;
+
+function clip(note: string): string {
+  return note.length > MAX_NOTE_CHARS ? `${note.slice(0, MAX_NOTE_CHARS - 1).trimEnd()}…` : note;
+}
 
 /**
  * Câu hỏi cập nhật cho hộp thoại native (chỉ chữ thuần): bullet "- " của release notes thành "• ", bỏ ** và `,
- * tối đa 12 dòng. Không có bullet nào (bản cũ không ghi chú) thì giữ câu hỏi ngắn.
+ * mỗi dòng tối đa ~160 ký tự, tối đa 12 dòng và ~1200 ký tự; bị cắt thì thêm dòng "…".
+ * Không có bullet nào (bản cũ không ghi chú) thì giữ câu hỏi ngắn.
  */
 export function updatePrompt(version: string, body?: string): string {
   const notes = (body ?? "")
@@ -33,8 +41,16 @@ export function updatePrompt(version: string, body?: string): string {
     .map((note) => note.replace(/\*\*|`/g, "").trim())
     .filter(Boolean);
   if (notes.length === 0) return `Phiên bản mới ${version} đã có! Bạn có muốn cập nhật ngay không?`;
-  const shown = notes.slice(0, MAX_NOTES).map((line) => `• ${line}`);
-  if (notes.length > MAX_NOTES) shown.push("…");
+  const shown: string[] = [];
+  let used = 0;
+  for (const note of notes.slice(0, MAX_NOTES)) {
+    const line = `• ${clip(note)}`;
+    const cost = line.length + (shown.length > 0 ? 1 : 0);
+    if (used + cost > MAX_NOTES_CHARS - 2) break; // chừa chỗ cho "\n…"
+    shown.push(line);
+    used += cost;
+  }
+  if (shown.length < notes.length) shown.push("…");
   return `Phiên bản mới ${version} đã có!\n\nCó gì mới:\n${shown.join("\n")}\n\nBạn có muốn cập nhật ngay không?`;
 }
 

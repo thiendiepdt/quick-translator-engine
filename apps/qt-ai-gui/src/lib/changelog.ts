@@ -68,6 +68,18 @@ export function entryFor(version: string, entries: readonly ChangelogEntry[] = C
   return entries.filter(isReleased).find((entry) => entry.version === version);
 }
 
+/**
+ * Các bản vừa có thêm khi cập nhật từ `since` lên `current` (since < v ≤ current), mới nhất trước.
+ * `since` null = không rõ bản trước (người dùng cũ chưa từng lưu version) → chỉ bản đang dùng.
+ */
+export function entriesSince(current: string, since: string | null, entries: readonly ChangelogEntry[] = CHANGELOG_ENTRIES): ReleasedEntry[] {
+  if (since === null) {
+    const entry = entryFor(current, entries);
+    return entry ? [entry] : [];
+  }
+  return releasedEntries(current, entries).filter((entry) => compareVersions(entry.version, since) > 0);
+}
+
 export interface InlineToken {
   kind: "text" | "bold" | "code";
   text: string;
