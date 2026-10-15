@@ -76,6 +76,14 @@ function StoryRow({
             <>
               <p className="flex items-center gap-2 truncate font-medium">
                 <span className="truncate">{item.name}</span>
+                {(item.vnFlags ?? 0) > 0 && (
+                  <span
+                    title={`${item.vnFlags} chỗ nhạy cảm về Việt Nam chưa xác minh`}
+                    className="shrink-0 rounded-full bg-destructive/15 px-2 py-0.5 text-[11px] font-medium text-destructive"
+                  >
+                    ⚠ VN {item.vnFlags}
+                  </span>
+                )}
                 {onStop && (
                   <span
                     className={cn(

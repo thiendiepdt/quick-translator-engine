@@ -76,6 +76,19 @@ describe("StoryPicker · Mở gần đây", () => {
     await waitFor(() => expect(useStoryStore.getState().config?.recent).toEqual([]));
     expect(screen.queryByText("Mở gần đây")).not.toBeInTheDocument();
   });
+
+  it("huy hiệu ⚠ VN chỉ hiện khi vnFlags > 0", async () => {
+    vi.mocked(recentSummaries).mockResolvedValue([
+      { root: "D:\\truyen-a", name: "Truyện A", done: 2, total: 10, vnFlags: 3 },
+      { root: "D:\\truyen-hong", name: "Truyện Hồng", done: 1, total: 5, vnFlags: 0 },
+      { root: "D:\\truyen-c", name: "Truyện C", done: 1, total: 5, vnFlags: null },
+    ]);
+    useStoryStore.setState({ config: appConfigSchema.parse({ ...config, recent: ["D:\\truyen-a", "D:\\truyen-hong", "D:\\truyen-c"] }) });
+    render(<StoryPicker />);
+    expect(await screen.findByText("Truyện A")).toBeInTheDocument();
+    expect(screen.getByTitle("3 chỗ nhạy cảm về Việt Nam chưa xác minh")).toBeInTheDocument();
+    expect(screen.getAllByTitle(/chỗ nhạy cảm về Việt Nam/)).toHaveLength(1);
+  });
 });
 
 describe("StoryPicker · Thư viện", () => {
