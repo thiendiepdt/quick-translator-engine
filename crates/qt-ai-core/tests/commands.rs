@@ -1306,3 +1306,24 @@ fn export_epub_cung_khoang_voi_txt_muc_luc_moi_chuong_mot_file() {
     assert!(archive.by_name("OEBPS/images/cover.jpg").is_err());
     assert!(archive.by_name("OEBPS/text/c00001.xhtml").is_ok());
 }
+
+#[test]
+fn accept_canh_bao_cho_nhay_cam_vn_chua_xac_minh() {
+    let dir = make_story_dir(&[("0001", "第1章\n\n坐船转到越南。")]);
+    let root = dir.path();
+    run_init(root, "qt-ai").unwrap();
+    let paths = story_paths(root);
+    run_next(root).unwrap();
+    fs::write(work_file(&paths, "0001", WorkKind::Draft), "[[1]] Chương 1\n\n[[2]] Ngồi thuyền chuyển qua Việt Nam.").unwrap();
+    let accepted = run_accept(root, "0001", true).unwrap();
+    let warning = accepted.warnings.iter().find(|w| w.starts_with(qt_ai_core::vn_check::VN_WARNING_PREFIX)).expect("có cảnh báo VN");
+    assert!(warning.contains("1 chỗ nhạy cảm về Việt Nam"), "{warning}");
+    assert!(root.join(qt_ai_core::vn_check::VN_FILE).exists());
+    // Người dùng chốt "Không sao" → quét lại chương không còn cảnh báo.
+    let ids: Vec<String> = qt_ai_core::vn_check::load_file(&paths).hits.iter().map(|h| h.id.clone()).collect();
+    qt_ai_core::vn_check::set_status(&paths, &ids, qt_ai_core::vn_check::Status::Ok).unwrap();
+    let lexicon = qt_ai_core::vn_lexicon::Lexicon::builtin();
+    let open = qt_ai_core::vn_check::check_chapter(&paths, &lexicon, "0001").unwrap();
+    assert_eq!(open, 0);
+    assert_eq!(qt_ai_core::vn_check::chapter_warning(open), None);
+}

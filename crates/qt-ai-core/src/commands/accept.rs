@@ -120,7 +120,12 @@ pub fn run_accept(root: &Path, id: &str, force: bool) -> Result<AcceptResult> {
         .ok_or_else(|| CoreError::StoryNotFound(format!("Không có chương {id} trong state.json.")))?;
     // Vấn đề còn sót (hết vòng review chỉ còn vi phạm, hoặc --force) cùng rule chỉ cảnh báo ghi vào state
     // để status/GUI liệt kê.
-    let warnings: Vec<String> = check.issues.iter().chain(&check.advisories).cloned().collect();
+    let mut warnings: Vec<String> = check.issues.iter().chain(&check.advisories).cloned().collect();
+    // Kiểm tra VN chỉ cảnh báo; lỗi đọc/ghi vn-check.json không được chặn chốt chương.
+    let lexicon = crate::vn_lexicon::Lexicon::load(&crate::base::BaseStore::from_env());
+    if let Some(warning) = crate::vn_check::check_chapter(&paths, &lexicon, id).ok().and_then(crate::vn_check::chapter_warning) {
+        warnings.push(warning);
+    }
     state.chapters.insert(
         id.to_string(),
         ChapterState {

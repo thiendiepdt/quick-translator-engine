@@ -88,6 +88,13 @@ pub fn scan_chapter(lex: &Lexicon, raw: &str, out: Option<&str>) -> Vec<Finding>
 
 pub const VN_FILE: &str = "vn-check.json";
 
+/// Đầu chuỗi cảnh báo chương do kiểm tra VN ghi — GUI nhận ra để dẫn sang tab Kiểm tra VN.
+pub const VN_WARNING_PREFIX: &str = "[VN]";
+
+pub fn chapter_warning(open: usize) -> Option<String> {
+    (open > 0).then(|| format!("{VN_WARNING_PREFIX} {open} chỗ nhạy cảm về Việt Nam chưa xác minh — xem tab Kiểm tra VN"))
+}
+
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Status {

@@ -26,6 +26,7 @@ Lệnh:
   delete <root> <id> [<id>…]         Xoá chương khỏi truyện: gỡ state, xoá raw/ + work/ (out/ giữ nguyên)
   export <root> [--from <id>] [--to <id>] [--out <file>]
                                      Gộp các chương done thành một file txt
+  vn-check <root>                    Quét nội dung nhạy cảm về Việt Nam
   status <root>                      Bảng tiến độ";
 
 /// Lệnh chạy chính binary này, render vào AGENTS.md — bọc ngoặc kép vì đường dẫn Windows hay có khoảng trắng.
@@ -151,6 +152,23 @@ fn run(argv: &[String]) -> Result<i32, CoreError> {
             println!("Đã gộp {} chương → {}", result.ids.len(), result.out_path.display());
             if !result.gaps.is_empty() {
                 println!("Hổng {} chương chưa done trong khoảng: {}", result.gaps.len(), result.gaps.join(", "));
+            }
+            Ok(0)
+        }
+        "vn-check" => {
+            let paths = qt_ai_core::story_fs::story_paths(root);
+            let lexicon = qt_ai_core::vn_lexicon::Lexicon::load(&qt_ai_core::base::BaseStore::from_env());
+            let started = std::time::Instant::now();
+            let summary = qt_ai_core::vn_check::refresh(&paths, &lexicon)?;
+            println!(
+                "Kiểm tra VN: {} chỗ ({} chưa xét/cần xử lý), quét {} chương, {} ms",
+                summary.hits,
+                summary.open,
+                summary.scanned,
+                started.elapsed().as_millis()
+            );
+            for hit in qt_ai_core::vn_check::load_file(&paths).hits.iter().filter(|h| h.status != qt_ai_core::vn_check::Status::Ok) {
+                println!("  {} [{:?}] {} ×{}", hit.id, hit.side, hit.matched, hit.count);
             }
             Ok(0)
         }
