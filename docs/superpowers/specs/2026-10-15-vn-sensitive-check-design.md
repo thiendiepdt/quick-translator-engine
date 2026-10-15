@@ -14,7 +14,7 @@ Chỉ cảnh báo, không chặn dịch/chốt/export.
 
 ## Từ điển
 
-Nằm trong qt-ai-core (hằng số), người dùng thêm mục hoặc tắt mục có sẵn trong Cài đặt (lưu ở config app).
+Nằm trong qt-ai-core (hằng số), người dùng thêm mục hoặc tắt mục có sẵn trong Cài đặt (lưu ở `vn-terms.json` trong thư mục bản mặc định, để cả GUI lẫn `qt-ai accept` do agy gọi đều đọc được).
 
 Mỗi mục:
 
@@ -22,10 +22,10 @@ Mỗi mục:
 | --- | --- |
 | `group` | `ten` tên gọi VN & người Việt (kể cả miệt thị) · `cq` chủ quyền biển đảo · `ls` chiến tranh / lịch sử · `hd` địa danh & nhân vật VN hiện đại |
 | `level` | `mietthi` (chửi rõ) · `canxem` |
-| `strength` | `strong` · `weak` (chỉ báo khi cùng đoạn có từ đi kèm, xem dưới) |
+| `weak` | `true` = từ yếu, chỉ báo khi cùng đoạn có từ đi kèm (xem dưới); mặc định `false` (strong) |
 | `zh` | các dạng chữ Hán trong raw |
 | `vi` | các dạng tiếng Việt trong bản dịch |
-| `exclude_zh` / `exclude_vi` | mẫu loại trừ xét trong cửa sổ quanh chỗ khớp |
+| `exclude` | regex loại trừ (chữ Hán lẫn tiếng Việt), xét trong cửa sổ ±12 ký tự quanh chỗ khớp |
 
 Danh sách khởi đầu (đủ để test; bổ sung dần):
 
@@ -58,7 +58,7 @@ Thăm dò trên 66 truyện bằng script nháp: không luật nào ~2.800 chỗ
 
 - Aho-Corasick (crate `aho-corasick`, đã có trong cây phụ thuộc qua `regex`) — một lượt tìm mọi dạng `zh` / `vi`; luật loại trừ, từ yếu, đối chiếu chỉ chạy tại chỗ khớp.
 - Quét tăng dần: `vn-check.json` ghi dấu từng chương (kích thước + mtime của raw và out); quét lại chỉ đọc chương mới/đổi.
-- Song song như `replace.rs` (`std::thread::scope`, ≤ 8 luồng), chạy trong `blocking` của Tauri, có sự kiện tiến độ cho lần quét đầu.
+- Song song như `replace.rs` (`std::thread::scope`, ≤ 8 luồng), chạy trong `blocking` của Tauri. Lần quét đầu chỉ vài giây nên tab hiện "Đang quét…", không có sự kiện tiến độ.
 - Accept chỉ quét một chương.
 
 Mục tiêu: lần đầu truyện 2.500 chương ≤ vài giây; quét lại không đổi gì ≤ 100 ms; cả thư viện 66 truyện lần đầu ≤ 10 giây.
@@ -87,12 +87,12 @@ Quét lại: hit mới cùng `id` và cùng `fingerprint` giữ `status` + `ai`;
 
 - Lọc theo nhóm, mức, trạng thái, nhãn AI; nhóm theo mục từ điển hoặc theo chương.
 - Mỗi chỗ: đoạn raw + đoạn dịch, tô chỗ khớp; nút "Xem thêm" mở một đoạn trước/sau; nút **Không sao** / **Cần xử lý**; liên kết mở chương ở trang đọc.
-- **AI xét** (chọn một/nhiều/tất cả đang lọc): lô ≤ 20 chỗ mỗi lời gọi, mỗi chỗ gửi đoạn trước + đoạn chứa + đoạn sau (raw và dịch). Trả JSON `[{id, label, reason}]`. Động cơ: API key nếu có (`TextModel::complete_json`), không thì `agy -p --output-format json --json-schema`, model theo ô chọn model. JSON hỏng / thiếu id → giữ `pending`, báo số lỗi.
+- **AI xét** (chọn một/nhiều/tất cả đang lọc): lô ≤ 20 chỗ mỗi lời gọi, mỗi chỗ gửi đoạn trước + đoạn chứa + đoạn sau (raw và dịch). Trả JSON `[{id, label, reason}]`. Động cơ theo cài đặt động cơ dịch: API (`TextModel::complete_json`), hoặc agy (một phiên `run_once`: agent đọc `work/vn-verify-input.json`, ghi `work/vn-verify-output.json`, cùng cách `fill_story_via_agy`), model theo ô chọn model. JSON hỏng / thiếu id → giữ `pending`, báo số lỗi.
 - Huy hiệu và cảnh báo chương chỉ đếm `pending` + `action`.
 
 ## Thay thế
 
-- **Bảng thay** trong Cài đặt (config app): `{from, to, setting: ancient|modern|any}`. Mặc định — cổ đại: Giao Chỉ, An Nam, Giao Châu, Đại Việt → Chiêm Thành; hiện đại: Việt Nam → Thái Lan, người Việt → người Thái, tiếng Việt → tiếng Thái, Hà Nội → Băng Cốc, Sài Gòn / TP Hồ Chí Minh → Chiang Mai. Nhóm `cq`, `ls` không có mặc định.
+- **Bảng thay** trong Cài đặt (cùng file `vn-terms.json`): `{from, to, setting: ancient|modern|any}`. Mặc định — cổ đại: Giao Chỉ, An Nam, Giao Châu, Đại Việt → Chiêm Thành; hiện đại: Việt Nam → Thái Lan, người Việt → người Thái, tiếng Việt → tiếng Thái, Hà Nội → Băng Cốc, Sài Gòn / TP Hồ Chí Minh → Chiang Mai. Nhóm `cq`, `ls` không có mặc định.
 - Từ tab Kiểm tra VN: chọn chỗ (hoặc lọc), "Thay thế…" → hộp thoại điền sẵn `from` (chữ khớp) + `to` (theo bảng, sửa được), chọn phạm vi: các chỗ đang chọn · một/nhiều chương (khoảng hoặc tick) · tất cả chương có chỗ khớp. Xem trước số chỗ/chương.
 - Áp bằng engine `replace.rs` (`replace_in_story` với `excluded_chapters` / `excluded_hits` để giới hạn đúng phạm vi) → có hoàn tác lần thay gần nhất. Xong quét lại các chương đó.
 - Chỉ thay `out/`; raw giữ nguyên; chỗ chỉ khớp ở raw không thay được (chưa dịch).
