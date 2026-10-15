@@ -200,7 +200,7 @@ export function VnCheckPanel({ root, running, setting }: Props) {
         <Button type="button" size="sm" variant="ghost" disabled={scanning} onClick={() => void rescan()}>
           <RefreshCw /> Quét lại
         </Button>
-        <Button type="button" size="sm" variant="secondary" disabled={busy || chosen.length === 0} onClick={() => void verify()}>
+        <Button type="button" size="sm" variant="secondary" disabled={busy || running || chosen.length === 0} onClick={() => void verify()}>
           <Sparkles /> AI xét {chosen.length} chỗ
         </Button>
         <Button type="button" size="sm" disabled={running || chosen.length === 0} onClick={() => setReplaceOpen(true)}>

@@ -82,6 +82,17 @@ pub fn parse_verdicts(text: &str) -> Vec<Verdict> {
         .collect()
 }
 
+/// Chỉ giữ verdict của các mục đã gửi, mỗi id một verdict (trùng thì lấy cái đầu).
+pub fn known_verdicts(verdicts: Vec<Verdict>, items: &[VerifyItem]) -> Vec<Verdict> {
+    let mut known: Vec<Verdict> = Vec::new();
+    for verdict in verdicts {
+        if items.iter().any(|item| item.id == verdict.id) && !known.iter().any(|k| k.id == verdict.id) {
+            known.push(verdict);
+        }
+    }
+    known
+}
+
 pub fn save_verdicts(paths: &StoryPaths, verdicts: &[Verdict], model: &str) -> Result<usize> {
     let at = now_ms();
     let list: Vec<(String, AiVerdict)> = verdicts
@@ -111,12 +122,7 @@ pub fn verify_with_model(paths: &StoryPaths, model: &dyn TextModel, ids: &[Strin
                 vec![]
             }
         };
-        let mut known: Vec<Verdict> = Vec::new();
-        for verdict in verdicts {
-            if batch.iter().any(|item| item.id == verdict.id) && !known.iter().any(|k| k.id == verdict.id) {
-                known.push(verdict);
-            }
-        }
+        let known = known_verdicts(verdicts, batch);
         outcome.failed += batch.len() - known.len();
         outcome.verified += save_verdicts(paths, &known, &model.label())?;
     }

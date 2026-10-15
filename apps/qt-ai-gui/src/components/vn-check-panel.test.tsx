@@ -193,13 +193,13 @@ describe("VnCheckPanel", () => {
     expect(vnRefresh).toHaveBeenCalledTimes(2);
   });
 
-  it("đang dịch thì không cho Thay thế", async () => {
+  it("đang dịch thì không cho Thay thế và AI xét (agy xét sẽ dọn mất hội thoại của phiên)", async () => {
     const user = userEvent.setup();
     renderPanel(true);
     const item = (await screen.findByText("0226")).closest("li")!;
     await user.click(within(item).getByRole("checkbox", { name: "Chọn 0226:4:khi-viet" }));
     expect(screen.getByRole("button", { name: /Thay thế/ })).toBeDisabled();
-    expect(screen.getByRole("button", { name: /AI xét 1 chỗ/ })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /AI xét 1 chỗ/ })).toBeDisabled();
   });
 
   it("nút Không sao / Cần xử lý có aria-pressed theo trạng thái", async () => {

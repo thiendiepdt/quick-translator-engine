@@ -4,13 +4,16 @@ use crate::app_config::Engine;
 use crate::error::{blocking, CmdResult, CommandError};
 use crate::replace_cmds::refuse_if_running;
 use crate::session_cmds::{resolve_agy, resolve_api, session_config};
+use crate::session_registry::root_key;
 use crate::AppState;
 use qt_ai_core::api::HttpModel;
 use qt_ai_core::base::BaseStore;
 use qt_ai_core::replace::{find_in_story, replace_in_story, FindQuery, HitRef, ReplaceOutcome};
 use qt_ai_core::session::run_once;
-use qt_ai_core::story_fs::story_paths;
-use qt_ai_core::vn_ai::{agy_prompt, items, parse_verdicts, payload, save_verdicts, verify_with_model, VerifyOutcome};
+use qt_ai_core::story_fs::{story_paths, StoryPaths};
+use qt_ai_core::vn_ai::{
+    agy_prompt, items, known_verdicts, parse_verdicts, payload, save_verdicts, verify_with_model, VerifyOutcome,
+};
 use qt_ai_core::vn_check::{refresh, report, set_status, HitView, Status, VnSummary};
 use qt_ai_core::vn_lexicon::{builtin_entries, load_settings, save_settings, Entry, Lexicon, VnSettings};
 use serde::Deserialize;
@@ -113,10 +116,70 @@ pub async fn vn_replace<R: Runtime>(app: AppHandle<R>, root: String, request: Vn
     .await
 }
 
+/// Truyện đang được AI xét (khoá `root_key`) — mỗi truyện một lượt: agy dùng file work/ cố định, hai lượt
+/// song song sẽ ghi đè nhau.
+static VERIFYING: std::sync::LazyLock<std::sync::Mutex<HashSet<String>>> = std::sync::LazyLock::new(Default::default);
+
+/// Bỏ truyện khỏi `VERIFYING` khi lượt xét kết thúc (kể cả lỗi / panic).
+#[derive(Debug)]
+pub struct VerifyGuard(String);
+
+impl Drop for VerifyGuard {
+    fn drop(&mut self) {
+        VERIFYING.lock().unwrap_or_else(|e| e.into_inner()).remove(&self.0);
+    }
+}
+
+pub fn begin_verify(root: &str) -> CmdResult<VerifyGuard> {
+    let key = root_key(root);
+    if !VERIFYING.lock().unwrap_or_else(|e| e.into_inner()).insert(key.clone()) {
+        return Err(CommandError::new("vn_verify_running", "Truyện này đang được AI xét — chờ lượt trước xong."));
+    }
+    Ok(VerifyGuard(key))
+}
+
+/// Đường agy: ghi các chỗ cần xét ra work/, `run` chạy agent (ghi kết quả ra file đầu ra), đọc + lưu nhãn rồi
+/// dọn file. `run` trả lỗi dạng chuỗi để giữ làm lý do cho GUI.
+pub fn verify_via_agy(
+    paths: &StoryPaths,
+    ids: &[String],
+    label: &str,
+    run: impl FnOnce(&Path, &Path) -> Result<(), String>,
+) -> CmdResult<VerifyOutcome> {
+    let all = items(&report(paths), ids);
+    if all.is_empty() {
+        return Ok(VerifyOutcome::default());
+    }
+    std::fs::create_dir_all(&paths.work_dir).map_err(|e| CommandError::new("io", e.to_string()))?;
+    let input = paths.work_dir.join("vn-verify-input.json");
+    let output = paths.work_dir.join("vn-verify-output.json");
+    std::fs::write(&input, payload(&all)).map_err(|e| CommandError::new("io", e.to_string()))?;
+    let _ = std::fs::remove_file(&output);
+    // Lỗi chạy agy không được bỏ qua bước dọn file work/.
+    let run_error = run(&input, &output).err();
+    let text = std::fs::read_to_string(&output).unwrap_or_default();
+    let verdicts = known_verdicts(parse_verdicts(&text), &all);
+    let saved = save_verdicts(paths, &verdicts, label);
+    let _ = std::fs::remove_file(&input);
+    let _ = std::fs::remove_file(&output);
+    let verified = saved?;
+    let error = run_error.or_else(|| {
+        if text.trim().is_empty() {
+            Some("agy không ghi kết quả (file đầu ra thiếu hoặc rỗng).".to_string())
+        } else if verdicts.is_empty() {
+            Some("Agent không trả JSON hợp lệ".to_string())
+        } else {
+            None
+        }
+    });
+    Ok(VerifyOutcome { verified, failed: all.len().saturating_sub(verified), error })
+}
+
 /// AI xét các chỗ `ids`: động cơ API dùng API key; agy ghi đầu vào ra work/, agent ghi kết quả ra work/.
 #[tauri::command]
 pub async fn vn_ai_verify<R: Runtime>(app: AppHandle<R>, root: String, ids: Vec<String>) -> CmdResult<VerifyOutcome> {
     blocking(move || {
+        let _verifying = begin_verify(&root)?;
         let state = app.state::<AppState>();
         let (engine, api, model) = {
             let config = state.config.lock().unwrap();
@@ -129,36 +192,19 @@ pub async fn vn_ai_verify<R: Runtime>(app: AppHandle<R>, root: String, ids: Vec<
                 Ok(verify_with_model(&paths, &model, &ids, &AtomicBool::new(false))?)
             }
             Engine::Agy => {
-                let all = items(&report(&paths), &ids);
-                std::fs::create_dir_all(&paths.work_dir).map_err(|e| CommandError::new("io", e.to_string()))?;
-                let input = paths.work_dir.join("vn-verify-input.json");
-                let output = paths.work_dir.join("vn-verify-output.json");
-                std::fs::write(&input, payload(&all)).map_err(|e| CommandError::new("io", e.to_string()))?;
-                let _ = std::fs::remove_file(&output);
-                let cleanup = || {
-                    let _ = std::fs::remove_file(&input);
-                    let _ = std::fs::remove_file(&output);
-                };
-                let agy = match resolve_agy(&state) {
-                    Ok(agy) => agy,
-                    Err(e) => {
-                        cleanup();
-                        return Err(e);
-                    }
-                };
+                // run_once dọn hội thoại agy của truyện khi xong — sẽ xoá mất hội thoại của phiên dịch đang chạy.
+                if state.sessions.lock().unwrap().is_running(&root) {
+                    return Err(CommandError::new(
+                        "session_locked",
+                        "Truyện này đang có phiên dịch chạy — bấm Dừng trước khi để agy xét.",
+                    ));
+                }
+                let agy = resolve_agy(&state)?;
                 let config = session_config(Path::new(&root), agy, model.clone(), 1, false);
-                // Lỗi chạy agy không được bỏ qua bước dọn file work/; giữ lại làm lý do cho GUI.
-                let run_error = run_once(&config, &agy_prompt(&input, &output), &|_| {}).err().map(|e| e.to_string());
-                let text = std::fs::read_to_string(&output).unwrap_or_default();
-                let verdicts: Vec<_> = parse_verdicts(&text).into_iter().filter(|v| ids.contains(&v.id)).collect();
                 let label = format!("agy {}", model.unwrap_or_else(|| "mặc định".into()));
-                let saved = save_verdicts(&paths, &verdicts, &label);
-                cleanup();
-                let verified = saved?;
-                let error = run_error.or_else(|| {
-                    text.trim().is_empty().then(|| "agy không ghi kết quả (file đầu ra thiếu hoặc rỗng).".to_string())
-                });
-                Ok(VerifyOutcome { verified, failed: all.len().saturating_sub(verified), error })
+                verify_via_agy(&paths, &ids, &label, |input, output| {
+                    run_once(&config, &agy_prompt(input, output), &|_| {}).map(|_| ()).map_err(|e| e.to_string())
+                })
             }
         }
     })
@@ -211,6 +257,54 @@ mod tests {
         let lex = Lexicon::builtin();
         let request = VnReplaceRequest { from: "Việt Nam".into(), to: "Thái Lan".into(), chapters: vec!["0001".into(), "0002".into()], paragraphs: None };
         assert_eq!(replace_inner(dir.path(), &request, &lex).unwrap().occurrences, 3);
+    }
+
+    #[test]
+    fn moi_truyen_chi_mot_lan_ai_xet_cung_luc() {
+        let first = begin_verify("D:/t/a").unwrap();
+        assert_eq!(begin_verify("d:\\t\\a\\").unwrap_err().kind, "vn_verify_running");
+        let _other = begin_verify("D:/t/b").unwrap();
+        drop(first);
+        begin_verify("D:/t/a").unwrap();
+    }
+
+    #[test]
+    fn agy_khong_co_cho_nao_thi_khong_chay_agent() {
+        let dir = story();
+        let paths = story_paths(dir.path());
+        refresh_inner(dir.path(), &Lexicon::builtin()).unwrap();
+        let outcome = verify_via_agy(&paths, &["khong-co".to_string()], "agy", |_, _| panic!("không được chạy agy")).unwrap();
+        assert_eq!(outcome, VerifyOutcome { verified: 0, failed: 0, error: None });
+    }
+
+    #[test]
+    fn agy_id_trung_lay_cai_dau_va_bao_loi_khi_khong_tra_json() {
+        let dir = story();
+        let paths = story_paths(dir.path());
+        refresh_inner(dir.path(), &Lexicon::builtin()).unwrap();
+        let ids = vec!["0001:1:viet-nam".to_string(), "0001:2:viet-nam".to_string()];
+        let outcome = verify_via_agy(&paths, &ids, "agy m", |input, output| {
+            assert!(input.is_file());
+            fs::write(
+                output,
+                r#"{"verdicts":[{"id":"0001:1:viet-nam","label":"trungtinh","reason":"a"},{"id":"0001:1:viet-nam","label":"xucpham","reason":"b"}]}"#,
+            )
+            .unwrap();
+            Ok(())
+        })
+        .unwrap();
+        assert_eq!(outcome, VerifyOutcome { verified: 1, failed: 1, error: None });
+        let file = qt_ai_core::vn_check::load_file(&paths);
+        let ai = file.hits.iter().find(|h| h.id == "0001:1:viet-nam").unwrap().ai.clone().unwrap();
+        assert_eq!((ai.label.as_str(), ai.model.as_str()), ("trungtinh", "agy m"), "id trùng: lấy cái đầu");
+        assert!(!paths.work_dir.join("vn-verify-input.json").exists() && !paths.work_dir.join("vn-verify-output.json").exists());
+
+        let outcome = verify_via_agy(&paths, &ids, "agy m", |_, output| {
+            fs::write(output, "Tôi đã xét xong.").unwrap();
+            Ok(())
+        })
+        .unwrap();
+        assert_eq!(outcome, VerifyOutcome { verified: 0, failed: 2, error: Some("Agent không trả JSON hợp lệ".into()) });
     }
 
     #[test]
