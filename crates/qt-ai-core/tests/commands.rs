@@ -9,7 +9,7 @@ use qt_ai_core::commands::reset::run_reset;
 use qt_ai_core::commands::retry::{retry_backup_path, run_retry, run_retry_ids, run_retry_range};
 use qt_ai_core::commands::skip::run_skip;
 use qt_ai_core::commands::status::run_status;
-use qt_ai_core::commands::sync_progress::{progress_drift, run_sync_progress};
+use qt_ai_core::commands::sync_progress::{progress_drift, progress_untracked, requeue_untracked, run_sync_progress};
 use qt_ai_core::story::StoryConfig;
 use qt_ai_core::story_fs::*;
 use qt_ai_core::CoreError;
@@ -1458,4 +1458,35 @@ fn sync_progress_danh_dau_done_theo_out_giu_nguyen_chuong_thieu_va_idempotent() 
     assert!(again.marked_done.is_empty());
     assert_eq!(again.missing, vec!["6"]);
     assert!(progress_drift(dir.path()).unwrap().untracked.is_empty());
+}
+
+#[test]
+fn progress_untracked_chi_xet_chuong_chua_done_khop_progress_drift() {
+    let dir = story_with_drift();
+    assert_eq!(progress_untracked(dir.path()).unwrap(), progress_drift(dir.path()).unwrap().untracked);
+    assert_eq!(progress_untracked(dir.path()).unwrap(), vec!["1", "2", "3", "4"]);
+}
+
+#[test]
+fn requeue_untracked_cat_ban_dich_sang_bak_dua_ve_hang_doi_het_lech() {
+    let dir = story_with_drift();
+    let paths = story_paths(dir.path());
+    fs::write(work_file(&paths, "2", WorkKind::Draft), "nháp dở").unwrap();
+    let before = fs::read(paths.out_dir.join("3.txt")).unwrap();
+
+    let requeued = requeue_untracked(dir.path()).unwrap();
+    assert_eq!(requeued, vec!["1", "2", "3", "4"]);
+    let state = load_state(&paths).unwrap();
+    for id in ["1", "2", "3", "4"] {
+        let chapter = &state.chapters[id];
+        assert_eq!((chapter.status, chapter.review_round, chapter.reason.as_deref()), (ChapterStatus::Queued, 0, None), "chương {id}");
+        assert!(chapter.updated_at > 5, "updatedAt làm mới");
+        assert!(!paths.out_dir.join(format!("{id}.txt")).exists(), "chương {id}");
+    }
+    assert_eq!(fs::read(retry_backup_path(&paths, "3")).unwrap(), before, "bản dịch cũ cất .bak như retry");
+    assert!(!work_file(&paths, "2", WorkKind::Draft).exists(), "dọn work/ như retry");
+    assert_eq!(state.chapters["6"].status, ChapterStatus::Done, "chương thiếu bản dịch giữ nguyên");
+    assert_eq!(state.chapters["10"].updated_at, 5, "chương vốn khớp không bị đụng");
+    assert!(progress_drift(dir.path()).unwrap().untracked.is_empty());
+    assert!(requeue_untracked(dir.path()).unwrap().is_empty());
 }

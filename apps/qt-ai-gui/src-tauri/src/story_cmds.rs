@@ -465,6 +465,35 @@ pub async fn sync_progress<R: Runtime>(app: AppHandle<R>, root: String) -> CmdRe
     .await
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RequeueUntrackedView {
+    pub requeued: Vec<String>,
+    pub snapshot: StorySnapshot,
+}
+
+pub fn requeue_untracked_inner(root: &Path, session_running: bool) -> CmdResult<RequeueUntrackedView> {
+    if session_running {
+        return Err(CommandError::new(
+            "session_locked",
+            "Truyện này đang có phiên dịch chạy — bấm Dừng trước khi dịch lại chương.",
+        ));
+    }
+    let requeued = qt_ai_core::commands::sync_progress::requeue_untracked(root)?;
+    Ok(RequeueUntrackedView { requeued, snapshot: snapshot_with_drift(root, false)? })
+}
+
+/// Lối thoát khi báo lệch nhầm: đưa các chương lệch về hàng đợi dịch lại, bản dịch cũ cất .bak.
+/// Chặn khi phiên đang chạy như `chapter_retry`.
+#[tauri::command]
+pub async fn requeue_untracked<R: Runtime>(app: AppHandle<R>, root: String) -> CmdResult<RequeueUntrackedView> {
+    blocking(move || {
+        let running = session_running(&app.state::<AppState>(), &root);
+        requeue_untracked_inner(Path::new(&root), running)
+    })
+    .await
+}
+
 #[tauri::command]
 pub fn chapter_skip(root: String, id: String, reason: String) -> CmdResult<()> {
     Ok(run_skip(Path::new(&root), &id, &reason)?)
@@ -667,6 +696,22 @@ pub(crate) mod tests {
         let snap = snapshot_with_drift(dir.path(), false).unwrap();
         assert_eq!(snap.progress_drift, Some(DriftCounts { untracked: 1, missing: 0 }));
         assert_eq!(serde_json::to_value(&snap).unwrap()["progressDrift"]["untracked"], 1);
+    }
+
+    #[test]
+    fn requeue_untracked_chan_khi_phien_chay_xong_thi_cat_bak_va_het_lech() {
+        let dir = story();
+        let paths = story_paths(dir.path());
+        write_later(&paths.out_dir.join("0002.txt"), "Chương hai.");
+        assert_eq!(requeue_untracked_inner(dir.path(), true).unwrap_err().kind, "session_locked");
+        assert!(paths.out_dir.join("0002.txt").exists(), "bị chặn thì không đụng gì");
+
+        let result = requeue_untracked_inner(dir.path(), false).unwrap();
+        assert_eq!(result.requeued, vec!["0002"]);
+        assert!(paths.out_dir.join("0002.txt.bak").exists() && !paths.out_dir.join("0002.txt").exists());
+        assert_eq!(result.snapshot.progress_drift, Some(DriftCounts { untracked: 0, missing: 0 }));
+        let json = serde_json::to_value(&result).unwrap();
+        assert_eq!(json["requeued"][0], "0002");
     }
 
     #[test]

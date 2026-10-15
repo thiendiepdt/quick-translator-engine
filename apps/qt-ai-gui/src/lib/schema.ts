@@ -170,6 +170,7 @@ export const storySnapshotSchema = z.object({
 
 /** Chương chưa done mà out/ đã có bản dịch (untracked) và chương done mà chưa thấy bản dịch (missing). */
 export const progressDriftSchema = z.object({ untracked: z.array(z.string()), missing: z.array(z.string()) });
+export const requeueUntrackedResultSchema = z.object({ requeued: z.array(z.string()), snapshot: storySnapshotSchema });
 export const syncProgressResultSchema = z.object({
   markedDone: z.array(z.string()),
   missing: z.array(z.string()),

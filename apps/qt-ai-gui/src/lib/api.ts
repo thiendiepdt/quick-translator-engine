@@ -27,6 +27,7 @@ import {
   glossaryBackfillSchema,
   deleteOutcomeSchema,
   progressDriftSchema,
+  requeueUntrackedResultSchema,
   sessionStatusSchema,
   sourceImageSchema,
   storyConfigSchema,
@@ -153,6 +154,9 @@ export const storyReset = (root: string) => call("story_reset", { root }, (v) =>
 export const progressDrift = (root: string) => call("progress_drift", { root }, (v) => progressDriftSchema.parse(v));
 /** Đánh dấu đã dịch các chương có bản dịch trong out/; trả kèm snapshot mới. Bị chặn khi phiên đang chạy. */
 export const syncProgress = (root: string) => call("sync_progress", { root }, (v) => syncProgressResultSchema.parse(v));
+/** Báo lệch nhầm: các chương lệch về hàng đợi dịch lại, out/<id>.txt cất .bak; trả kèm snapshot mới. */
+export const requeueUntracked = (root: string) =>
+  call("requeue_untracked", { root }, (v) => requeueUntrackedResultSchema.parse(v));
 export const chaptersDelete = (root: string, ids: string[]) =>
   call("chapters_delete", { root, ids }, (v) => deleteOutcomeSchema.parse(v));
 export const chapterSkip = (root: string, id: string, reason: string) =>

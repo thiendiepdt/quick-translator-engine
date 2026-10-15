@@ -1,10 +1,10 @@
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, RotateCcw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { progressDrift, syncProgress } from "@/lib/api";
+import { progressDrift, requeueUntracked, syncProgress } from "@/lib/api";
 import type { ProgressDrift } from "@/lib/types";
 import { isRunning, useStoryStore } from "@/store/story";
 
@@ -54,6 +54,21 @@ function SyncProgressContent({ root, onOpenChange }: Omit<Props, "open">) {
     }
   }
 
+  /** Báo nhầm (vd sau Reset mà file bản dịch bị đổi): cất bản cũ sang .bak, đưa các chương này về hàng đợi. */
+  async function requeue() {
+    setBusy(true);
+    try {
+      const result = await requeueUntracked(root);
+      setSnapshot(result.snapshot);
+      toast.success(`Đã đưa ${result.requeued.length} chương về hàng đợi dịch lại (bản cũ giữ .bak)`);
+      onOpenChange(false);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Không dịch lại được");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const untracked = drift?.untracked.length ?? 0;
   const missing = drift?.missing.length ?? 0;
   return (
@@ -87,10 +102,16 @@ function SyncProgressContent({ root, onOpenChange }: Omit<Props, "open">) {
           <Button variant="outline" disabled={busy} onClick={() => onOpenChange(false)}>
             Huỷ
           </Button>
+          <Button variant="secondary" disabled={busy || running || untracked === 0} onClick={() => void requeue()}>
+            <RotateCcw /> Dịch lại các chương này
+          </Button>
           <Button disabled={busy || running || untracked === 0} onClick={() => void run()}>
             <RefreshCw /> Đồng bộ
           </Button>
         </DialogFooter>
+        <p className="text-xs text-muted-foreground">
+          Đồng bộ = ghi nhận đã dịch. Dịch lại = cất bản dịch cũ sang .bak rồi dịch lại (dùng khi báo nhầm, vd sau Reset mà giờ file bị đổi).
+        </p>
       </DialogContent>
     </Dialog>
   );

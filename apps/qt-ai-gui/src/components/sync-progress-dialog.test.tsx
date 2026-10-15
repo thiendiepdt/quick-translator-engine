@@ -4,12 +4,12 @@ import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SyncProgressDialog } from "@/components/sync-progress-dialog";
-import { progressDrift, syncProgress } from "@/lib/api";
+import { progressDrift, requeueUntracked, syncProgress } from "@/lib/api";
 import { pathKey } from "@/lib/paths";
 import { storySnapshotSchema } from "@/lib/schema";
 import { useStoryStore } from "@/store/story";
 
-vi.mock("@/lib/api", () => ({ progressDrift: vi.fn(), syncProgress: vi.fn() }));
+vi.mock("@/lib/api", () => ({ progressDrift: vi.fn(), syncProgress: vi.fn(), requeueUntracked: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 const ROOT = "D:\\lib\\t";
@@ -83,5 +83,29 @@ describe("SyncProgressDialog", () => {
   it("đóng thì không gọi xem trước", () => {
     render(<SyncProgressDialog root={ROOT} open={false} onOpenChange={vi.fn()} />);
     expect(progressDrift).not.toHaveBeenCalled();
+  });
+
+  it("Dịch lại các chương này (báo nhầm): gọi lệnh cất .bak, nạp snapshot, đóng; có dòng giải thích hai nút", async () => {
+    const user = userEvent.setup();
+    const onOpenChange = vi.fn();
+    vi.mocked(progressDrift).mockResolvedValue({ untracked: ["0001", "0002"], missing: [] });
+    vi.mocked(requeueUntracked)
+      .mockReset()
+      .mockResolvedValue({ requeued: ["0001", "0002"], snapshot: synced });
+    render(<SyncProgressDialog root={ROOT} open onOpenChange={onOpenChange} />);
+    await screen.findByText(/2 chương đã có bản dịch/);
+    expect(screen.getByText(/Đồng bộ = ghi nhận đã dịch\. Dịch lại = cất bản dịch cũ sang \.bak rồi dịch lại/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Dịch lại các chương này" }));
+    await waitFor(() => expect(requeueUntracked).toHaveBeenCalledWith(ROOT));
+    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+    expect(syncProgress).not.toHaveBeenCalled();
+    expect(useStoryStore.getState().snapshot).toEqual(synced);
+  });
+
+  it("không có chương lệch hoặc phiên đang chạy thì nút Dịch lại cũng khoá", async () => {
+    vi.mocked(progressDrift).mockResolvedValue({ untracked: [], missing: [] });
+    render(<SyncProgressDialog root={ROOT} open onOpenChange={vi.fn()} />);
+    await screen.findByText(/0 chương đã có bản dịch/);
+    expect(screen.getByRole("button", { name: "Dịch lại các chương này" })).toBeDisabled();
   });
 });

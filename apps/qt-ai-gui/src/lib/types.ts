@@ -20,6 +20,7 @@ import {
   type deleteOutcomeSchema,
   type progressDriftSchema,
   type syncProgressResultSchema,
+  type requeueUntrackedResultSchema,
   type retryRangeOutcomeSchema,
   type harnessSettingsSchema,
   type progressSchema,
@@ -104,6 +105,7 @@ export type RetryRangeOutcome = z.infer<typeof retryRangeOutcomeSchema>;
 export type DeleteOutcome = z.infer<typeof deleteOutcomeSchema>;
 export type ProgressDrift = z.infer<typeof progressDriftSchema>;
 export type SyncProgressResult = z.infer<typeof syncProgressResultSchema>;
+export type RequeueUntrackedResult = z.infer<typeof requeueUntrackedResultSchema>;
 export type RecentSummary = z.infer<typeof recentSummarySchema>;
 export type AgyDataStats = z.infer<typeof agyDataStatsSchema>;
 export type TitleGroup = z.infer<typeof titleGroupSchema>;

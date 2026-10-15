@@ -132,15 +132,16 @@ pub async fn session_start<R: Runtime>(app: AppHandle<R>, root: String, model: O
 /// Chặn bắt đầu phiên khi out/ có bản dịch mà state.json (bản cũ sau sync Drive) ghi chưa dịch: phiên sẽ dịch lại
 /// đúng các chương đó. Đọc state lỗi (chưa init…) thì để phần bắt đầu phiên tự báo lỗi của nó.
 pub(crate) fn refuse_start_if_drifted(root: &Path) -> CmdResult<()> {
-    let Ok(drift) = qt_ai_core::commands::sync_progress::progress_drift(root) else { return Ok(()) };
-    if drift.untracked.is_empty() {
+    // Chỉ đọc out/ của chương chưa done — bắt đầu phiên không cần biết chương done nào thiếu bản dịch.
+    let Ok(untracked) = qt_ai_core::commands::sync_progress::progress_untracked(root) else { return Ok(()) };
+    if untracked.is_empty() {
         return Ok(());
     }
     Err(CommandError::new(
         "progress_drift",
         format!(
             "{} chương đã có bản dịch trong out/ nhưng tiến độ chưa ghi — bấm Đồng bộ tiến độ trước khi dịch để khỏi dịch lại.",
-            drift.untracked.len()
+            untracked.len()
         ),
     ))
 }
