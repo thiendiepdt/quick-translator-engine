@@ -96,8 +96,14 @@ fn run(argv: &[String]) -> Result<i32, CoreError> {
             if !result.glossary_fixes.is_empty() {
                 println!("Tự sửa theo glossary: {}", result.glossary_fixes.join(", "));
             }
-            if !result.warnings.is_empty() {
-                println!("Kèm {} cảnh báo — xem qt-ai status.", result.warnings.len());
+            // Dòng kiểm tra VN không lưu vào state nên in thẳng; cảnh báo còn lại xem ở status.
+            let (vn, stored): (Vec<&String>, Vec<&String>) =
+                result.warnings.iter().partition(|w| w.starts_with(qt_ai_core::vn_check::VN_WARNING_PREFIX));
+            for warning in vn {
+                println!("{warning}");
+            }
+            if !stored.is_empty() {
+                println!("Kèm {} cảnh báo — xem qt-ai status.", stored.len());
             }
             Ok(0)
         }

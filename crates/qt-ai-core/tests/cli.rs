@@ -91,3 +91,28 @@ fn skip_thieu_id_in_usage_thay_vi_hieu_nham_reason() {
     assert_eq!(out.status.code(), Some(0));
     assert!(stdout(&out).contains("về hàng đợi"));
 }
+
+#[test]
+fn accept_in_thang_canh_bao_vn_vi_status_khong_liet_ke() {
+    let dir = tempfile::tempdir().unwrap();
+    let base = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    fs::create_dir_all(root.join("raw")).unwrap();
+    fs::write(root.join("raw").join("0001.txt"), "第1章\n\n坐船转到越南。").unwrap();
+    let run = |args: &[&str]| {
+        Command::new(env!("CARGO_BIN_EXE_qt-ai"))
+            .args(args)
+            .current_dir(root)
+            .env(qt_ai_core::base::BASE_DIR_ENV, base.path())
+            .output()
+            .expect("chạy được binary qt-ai")
+    };
+    assert_eq!(run(&["init", "."]).status.code(), Some(0));
+    assert_eq!(run(&["next", "."]).status.code(), Some(0));
+    fs::write(root.join("work").join("0001.draft.md"), "[[1]] Chương 1\n\n[[2]] Ngồi thuyền chuyển qua Việt Nam.").unwrap();
+    let out = run(&["accept", ".", "0001", "--force"]);
+    assert_eq!(out.status.code(), Some(0), "{}", stderr(&out));
+    let text = stdout(&out);
+    assert!(text.contains("[VN] 1 chỗ nhạy cảm về Việt Nam") && text.contains("không cần sửa bản dịch"), "{text}");
+    assert!(!text.contains("xem qt-ai status"), "status không liệt kê dòng [VN] nên không được dẫn sang đó: {text}");
+}
