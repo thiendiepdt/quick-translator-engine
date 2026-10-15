@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { getVersion } from "@tauri-apps/api/app";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -7,6 +8,7 @@ import { agyDataClean, agyDataStats, appConfigSet, baseGet } from "@/lib/api";
 import { appConfigSchema, storySnapshotSchema } from "@/lib/schema";
 import { useStoryStore } from "@/store/story";
 
+vi.mock("@tauri-apps/api/app", () => ({ getVersion: vi.fn(() => Promise.resolve("1.0.21")) }));
 vi.mock("sonner", () => ({ toast: { message: vi.fn(), success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/lib/api", () => ({
   agyDataClean: vi.fn(),
@@ -216,5 +218,30 @@ describe("SettingsPage · Hội thoại agy", () => {
     render(<SettingsPage />);
     expect(await screen.findByText("Máy này chưa có dữ liệu agy CLI.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Dọn hội thoại của app" })).not.toBeInTheDocument();
+  });
+});
+
+describe("SettingsPage · Có gì mới", () => {
+  beforeEach(() => {
+    useStoryStore.setState({ root: snapshot.root, snapshot, config, sessions: {} });
+  });
+
+  it("liệt kê các bản tới bản đang dùng, mới nhất trước: bản đang dùng mở sẵn, 5 bản đầu + Xem tất cả", async () => {
+    vi.mocked(getVersion).mockResolvedValueOnce("1.0.20");
+    const user = userEvent.setup();
+    render(<SettingsPage />);
+    const card = (await screen.findByRole("heading", { name: "Có gì mới" })).closest("section");
+    if (!card) throw new Error("thiếu card Có gì mới");
+    const current = await within(card).findByRole("button", { name: /Bản 1\.0\.20/ });
+    expect(current).toHaveAttribute("aria-expanded", "true");
+    expect(within(card).queryByRole("button", { name: /Bản 1\.0\.21/ })).not.toBeInTheDocument();
+    const versions = within(card).getAllByRole("button", { name: /^Bản / });
+    expect(versions).toHaveLength(5);
+    expect(versions[1]).toHaveTextContent("1.0.19");
+    expect(versions[1]).toHaveAttribute("aria-expanded", "false");
+    expect(within(card).getByText(/Đang dùng bản 1\.0\.20/)).toBeInTheDocument();
+
+    await user.click(within(card).getByRole("button", { name: /^Xem tất cả/ }));
+    expect(within(card).getAllByRole("button", { name: /^Bản / })).toHaveLength(21);
   });
 });

@@ -1,9 +1,11 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "@/app";
 import { agyStatus, appConfigGet } from "@/lib/api";
 import { appConfigSchema } from "@/lib/schema";
+import { LAST_SEEN_KEY } from "@/hooks/use-whats-new";
 import { useStoryStore } from "@/store/story";
 
 vi.mock("@/lib/api", () => ({
@@ -12,6 +14,7 @@ vi.mock("@/lib/api", () => ({
   appConfigSet: vi.fn(),
   pickAgyFile: vi.fn(),
 }));
+vi.mock("@tauri-apps/api/app", () => ({ getVersion: vi.fn(() => Promise.resolve("1.0.21")) }));
 vi.mock("@/hooks/use-session-events", () => ({ useSessionEvents: () => undefined }));
 vi.mock("@/hooks/use-theme", () => ({ useThemeSync: () => undefined }));
 vi.mock("@/components/story-picker", () => ({ StoryPicker: () => <div>PICKER</div> }));
@@ -51,5 +54,46 @@ describe("App · dò agy lúc khởi động", () => {
     await waitFor(() => expect(useStoryStore.getState().agy?.found).toBe(false));
     expect(useStoryStore.getState().agy?.message).toBe("agy models thoát mã 1");
     expect(agyStatus).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("App · Có gì mới sau khi cập nhật", () => {
+  const apiConfig = appConfigSchema.parse({ agyPath: null, model: null, maxSessions: 50, recent: [], engine: "api" });
+
+  beforeEach(() => {
+    localStorage.clear();
+    useStoryStore.setState({ config: undefined, agy: undefined, screen: "picker", page: "translate", root: undefined });
+    vi.mocked(appConfigGet).mockReset().mockResolvedValue(apiConfig);
+  });
+
+  it("lần đầu chạy: không hiện hộp thoại, chỉ ghi nhớ version", async () => {
+    render(<App />);
+    await screen.findByText("PICKER");
+    await waitFor(() => expect(localStorage.getItem(LAST_SEEN_KEY)).toBe("1.0.21"));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("ở màn chọn truyện: hiện Có gì mới của bản vừa lên; Xem tất cả mở danh sách ngay trong hộp thoại; Đã hiểu đóng", async () => {
+    localStorage.setItem(LAST_SEEN_KEY, "1.0.20");
+    const user = userEvent.setup();
+    render(<App />);
+    const dialog = await screen.findByRole("dialog", { name: "Có gì mới ở bản 1.0.21" });
+    expect(screen.getByText("PICKER")).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Xem tất cả" }));
+    expect(within(dialog).getByRole("button", { name: /Bản 1\.0\.20/ })).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Đã hiểu" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(localStorage.getItem(LAST_SEEN_KEY)).toBe("1.0.21");
+  });
+
+  it("đang trong truyện: Xem tất cả chuyển sang trang Cài đặt và đóng hộp thoại", async () => {
+    localStorage.setItem(LAST_SEEN_KEY, "1.0.20");
+    useStoryStore.setState({ screen: "workbench", page: "translate", root: "D:\\t" });
+    const user = userEvent.setup();
+    render(<App />);
+    const dialog = await screen.findByRole("dialog", { name: "Có gì mới ở bản 1.0.21" });
+    await user.click(within(dialog).getByRole("button", { name: "Xem tất cả" }));
+    expect(useStoryStore.getState().page).toBe("settings");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 });

@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { VnSettingsEditor } from "@/components/vn-settings-editor";
+import { ChangelogList } from "@/components/whats-new";
 import { useReadingWidth } from "@/hooks/use-reading-width";
 import { useThemeActions } from "@/hooks/use-theme";
 import {
@@ -27,6 +28,7 @@ import {
   saveSettings,
   storySnapshot,
 } from "@/lib/api";
+import { useAppVersion } from "@/lib/app-version";
 import { apiSettingsFromForm, engineFormFromConfig, engineFormSchema } from "@/lib/engine-form";
 import { READING_WIDTH_LABELS, READING_WIDTHS } from "@/lib/reading";
 import { DEFAULT_API_MODELS, GEMINI_EFFORTS, OPENAI_EFFORTS } from "@/lib/schema";
@@ -279,6 +281,19 @@ function AgyDataCard() {
   );
 }
 
+/** Card "Có gì mới": ghi chú phát hành (CHANGELOG.md nhúng lúc build) tới bản đang chạy. */
+function ChangelogCard() {
+  const version = useAppVersion();
+  return (
+    <Card
+      title="Có gì mới"
+      description={version ? `Đang dùng bản ${version}. Ghi chú các bản đã phát hành, mới nhất trước.` : "Đang đọc phiên bản…"}
+    >
+      {version && <ChangelogList currentVersion={version} />}
+    </Card>
+  );
+}
+
 export function SettingsPage() {
   const root = useStoryStore((s) => s.root);
   const config = useStoryStore((s) => s.config);
@@ -517,6 +532,7 @@ export function SettingsPage() {
               })}
             </Card>
           </form>
+          <ChangelogCard />
         </div>
       </div>
       <SaveBar dirty={form.formState.isDirty} running={running} saving={form.formState.isSubmitting} onReset={() => form.reset()} />

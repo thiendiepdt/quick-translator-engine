@@ -11,10 +11,12 @@ import { StoryPage } from "@/components/pages/story-page";
 import { TranslatePage } from "@/components/pages/translate-page";
 import { StoryPicker } from "@/components/story-picker";
 import { StorySidebar } from "@/components/story-sidebar";
+import { WhatsNewDialog } from "@/components/whats-new";
 import { useSessionEvents } from "@/hooks/use-session-events";
 import { useThemeSync } from "@/hooks/use-theme";
 import { useUndoFallback } from "@/hooks/use-undo-fallback";
 import { useUpdateCheck } from "@/hooks/use-update-check";
+import { useWhatsNew } from "@/hooks/use-whats-new";
 import { agyStatus, appConfigGet, appConfigSet, pickAgyFile } from "@/lib/api";
 import { useStoryStore, type Page } from "@/store/story";
 
@@ -40,6 +42,7 @@ export default function App() {
   useThemeSync();
   useUndoFallback();
   useUpdateCheck();
+  const whatsNew = useWhatsNew();
 
   // Chỉ dò agy khi động cơ là agy: người dùng API key không phải chờ, không bị màn "Chưa thấy agy".
   // `probing` chặn dò chồng: mỗi lượt dò spawn `agy --version` + `agy models` (~2s), dò chồng liên tục
@@ -115,7 +118,29 @@ export default function App() {
       />
     );
   }
-  if (screen === "picker") return <StoryPicker />;
+  // Cài đặt chỉ có trong truyện: ở màn chọn truyện, "Xem tất cả" mở danh sách ngay trong hộp thoại.
+  const whatsNewDialog = (
+    <WhatsNewDialog
+      version={whatsNew.version}
+      onClose={whatsNew.dismiss}
+      onShowAll={
+        screen === "workbench"
+          ? () => {
+              setPage("settings");
+              whatsNew.dismiss();
+            }
+          : undefined
+      }
+    />
+  );
+  if (screen === "picker") {
+    return (
+      <>
+        <StoryPicker />
+        {whatsNewDialog}
+      </>
+    );
+  }
   const Current = PAGES[page];
   return (
     <div className="flex h-full">
@@ -125,6 +150,7 @@ export default function App() {
         <Current key={root} />
       </main>
       <StorySidebar />
+      {whatsNewDialog}
     </div>
   );
 }
