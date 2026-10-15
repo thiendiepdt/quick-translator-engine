@@ -14,6 +14,9 @@ pub const SETTINGS_FILE: &str = "vn-terms.json";
 const WINDOW: usize = 12;
 /// `越…越` (越战越勇, 越大越好, 他越战…越快): 越 là phó từ "càng", không phải nước Việt.
 const CANG: &str = r"越[^，。！？、\n]{0,8}越";
+/// Phiên bản luật khớp (COOCCUR, CANG, `scan_chapter`, `resolve`…), trộn vào `Lexicon::hash`.
+/// Tăng khi đổi luật khớp mà từ điển giữ nguyên, để mọi truyện được quét lại.
+const RULES_VERSION: u32 = 1;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -188,6 +191,11 @@ pub(crate) fn fnv64(text: &str) -> u64 {
     hash
 }
 
+fn lexicon_hash(entries: &[Entry], rules_version: u32) -> String {
+    let json = serde_json::to_string(entries).unwrap_or_default();
+    format!("{:016x}", fnv64(&format!("{rules_version}\u{1}{json}")))
+}
+
 fn automaton(patterns: &[String], ascii_case_insensitive: bool) -> Option<AhoCorasick> {
     if patterns.is_empty() {
         return None;
@@ -213,7 +221,7 @@ impl Lexicon {
             }
         }
         let exclude = entries.iter().map(|entry| entry.exclude.iter().filter_map(|p| Regex::new(p).ok()).collect()).collect();
-        let hash = format!("{:016x}", fnv64(&serde_json::to_string(&entries).unwrap_or_default()));
+        let hash = lexicon_hash(&entries, RULES_VERSION);
         Lexicon { zh: automaton(&zh, false), zh_owner, vi: automaton(&vi, true), vi_owner, exclude, hash, entries }
     }
 
@@ -311,4 +319,16 @@ pub fn save_settings(base: &BaseStore, settings: &VnSettings) -> Result<()> {
     }
     let text = serde_json::to_string_pretty(settings).expect("VnSettings luôn serialize được");
     crate::story_fs::write_atomic(&path, &format!("{text}\n"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn hash_gom_ca_phien_ban_luat_khop() {
+        let entries = builtin_entries();
+        assert_eq!(Lexicon::builtin().hash, lexicon_hash(&entries, RULES_VERSION));
+        assert_ne!(lexicon_hash(&entries, 1), lexicon_hash(&entries, 2), "đổi luật khớp → quét lại dù từ điển giữ nguyên");
+    }
 }
