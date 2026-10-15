@@ -1,0 +1,122 @@
+# Có gì mới
+
+## Chưa phát hành
+- Thêm kiểm tra nội dung nhạy cảm về Việt Nam: app tự quét chương gốc và bản dịch khi mở truyện, quét chương mới hay chốt chương, rồi đánh dấu những chỗ nhắc tới Việt Nam cần xem lại (chỉ cảnh báo, không chặn dịch hay export).
+- Thêm tab **Kiểm tra VN** trong trang Truyện để lọc và xem từng chỗ kèm ngữ cảnh, đánh dấu **Không sao** hoặc **Cần xử lý**, và bấm **AI xét** để AI sơ loại trước khi bạn tự xem.
+- Thêm **Thay thế…** cho chỗ nhạy cảm VN theo từng chỗ, theo chương hoặc cả truyện; thay nhiều cụm trong một lượt với cụm thay gợi ý sẵn, và hoàn tác cả lượt ở trang **Tìm & thay**.
+- Thêm huy hiệu **⚠ VN** ở màn chọn truyện cho truyện còn chỗ nhạy cảm về Việt Nam chưa xác minh.
+- Thêm thẻ **Kiểm tra nội dung nhạy cảm về Việt Nam** trong **Cài đặt** để bật/tắt từng mục từ điển có sẵn, thêm mục riêng và sửa bảng cụm thay gợi ý theo bối cảnh cổ đại hoặc hiện đại.
+- Thêm export EPUB ở trang **Export**: sách có bìa (tự tải từ link nguồn Fanqie, QQ đọc sách, Qidian, Qimao, SFACG, Tấn Giang hoặc bìa mặc định vẽ tên truyện), trang tiêu đề, trang mục lục bấm tới từng chương, tên tác giả chữ Hán được phiên sang Hán-Việt.
+- Thêm **Đồng bộ tiến độ…** cho truyện đồng bộ qua Google Drive giữa nhiều máy: khi tiến độ lệch với bản dịch đã có, trang Dịch hiện thông báo và chặn bắt đầu dịch cho tới khi bạn đánh dấu các chương đó là đã dịch hoặc chọn **Dịch lại các chương này**.
+- Sửa lỗi truyện cổ đại còn lọt "chúng tôi", "nhà tôi" trong lời thoại; bộ kiểm tra bản dịch giờ bắt "tôi" trong thoại để đưa vào soát lại.
+
+## 1.0.21 — 2026-10-13
+- Sửa lỗi cặp xưng hô không được ghi lại ở những chương không có tên riêng mới; app giờ nhắc khai cặp xưng hô ở mọi chương và nêu tên nhân vật có mặt chưa có cặp, nên bảng xưng hô học đầy đủ hơn.
+
+## 1.0.20 — 2026-10-12
+- Cải thiện prompt dịch: lời kể ngôi ba không còn dùng "cậu" hay "cậu ta", nam là "hắn", nữ là "nàng" hoặc "cô", trẻ nhỏ mặc định là "nó", mỗi nhân vật giữ một đại từ suốt chương.
+- Cải thiện tab **Nhân vật** với gợi ý ghi đại từ lời kể "cậu" cho thiếu niên, bé trai trong truyện học đường khi muốn giữ cách gọi này.
+
+## 1.0.19 — 2026-10-12
+- Cải thiện truyện bối cảnh hỗn hợp: nhân vật tự xưng "ta" trong lời thoại ở mọi cảnh, hạn chế "tôi"; bộ kiểm tra bản dịch bắt "tôi" trong thoại để đưa vào soát.
+- Cải thiện xưng hô gia đình: truyện cổ đại dùng cha, nương, phụ thân, mẫu thân; truyện hiện đại dùng cha, cha mẹ thay cho "bố"; truyện đã chốt cách gọi trong glossary thì giữ nguyên.
+- Cải thiện cách dùng "tớ–cậu": chỉ dành cho học sinh, sinh viên, bạn nhỏ tuổi; người lớn ngang hàng xưng "tôi", bạn thân người lớn xưng "tao–mày".
+
+## 1.0.18 — 2026-10-12
+- Sửa lỗi kết quả **AI điền hồ sơ** của truyện trước bị áp vào truyện đang mở sau khi chuyển truyện.
+- Sửa lỗi kết quả tìm kiếm và hộp thoại của truyện trước còn sót lại khi chuyển sang truyện khác.
+
+## 1.0.17 — 2026-10-12
+- Thêm trang **Tìm & thay** (Ctrl+Shift+F) để sửa một từ dịch sai trên toàn bộ bản dịch đã chốt: xem từng chỗ kèm câu gốc, bỏ tick chỗ không muốn thay và hoàn tác lần thay gần nhất.
+- Thêm nút **Rà chương cũ** ở tab **Glossary** để tìm những đoạn đã dịch chưa theo cách dịch hiện tại, xem trước rồi thay.
+- Thêm lựa chọn **Biến thân** và ô đại từ lời kể cho từng nhân vật ở tab **Nhân vật**, kèm lời nhắc khi nhân vật chưa có mốc đổi xưng hô.
+- Cải thiện prompt dịch theo đợt thẩm định chất lượng: thán từ và tiếng cười, số và đơn vị, tiếng lóng và meme, dấu ngoặc kép cong, tiêu đề chương viết hoa kiểu câu, bỏ lời xin phiếu cuối chương.
+- Cải thiện bộ kiểm tra bản dịch: bớt báo nhầm, thêm loại lỗi chỉ cảnh báo mà không bắt soát lại, tên lệch dấu so với glossary được tự sửa khi chốt chương.
+- Cải thiện cách dịch chức danh hiện đại (chủ tịch huyện, trưởng phòng, giám đốc sở…) và nhận ra thêm nhiều chức danh để biết nhân vật nào có mặt trong chương.
+- Cải thiện truyện bối cảnh hiện đại hoặc hỗn hợp: kiểu tên riêng tự chuyển sang Hỗn hợp khi dựng hồ sơ hoặc khi đổi bối cảnh.
+- Sửa các lỗi dịch kiểu convert như "chiêu lãm", "người tộc", "không tiền khoáng hậu"; bộ kiểm tra bản dịch bắt và đưa vào soát.
+
+## 1.0.16 — 2026-10-10
+- Sửa lỗi Antigravity bản 1.3 báo không nhận ra model đã chọn; danh sách model hiện tên dễ đọc và nhắc chọn lại nếu model cũ không còn.
+
+## 1.0.15 — 2026-10-06
+- Thêm nút **Quét chương mới** ở màn chọn truyện để quét chương mới cho cả thư viện, và **Dịch tất cả truyện chưa xong** để bắt đầu dịch mọi truyện còn chương chờ.
+- Thêm báo giờ quota Antigravity mở lại khi hết quota, kèm tuỳ chọn **Tự dịch tiếp khi quota agy reset** trong Cài đặt.
+- Thêm mục **Tiêu đề chương** trong Hồ sơ truyện: tiêu đề lặp lại của truyện chia phần được dịch thống nhất, đuôi số theo một quy tắc, có thể sửa rồi áp dụng lại cho các chương đã dịch.
+- Thêm số dòng ở trang đọc chương, tô sáng dòng còn sót chữ Hán và hiện số chữ của bản gốc và bản dịch.
+- Thêm thẻ **Hội thoại agy** trong Cài đặt; app tự dọn các hội thoại Antigravity do app tạo sau mỗi lượt dịch (trước đây có thể chiếm vài GB), hội thoại bạn tự chat không bị đụng tới.
+- Cải thiện thẻ truyện ở cột phải: hiện số chương bị bỏ qua hoặc lỗi, kể cả với truyện đang dịch nền.
+- Sửa lỗi mất điện hoặc tắt máy đột ngột lúc đang ghi làm hỏng truyện; nếu file tiến độ bị hỏng, app tự dựng lại từ chương gốc và bản dịch đã có.
+
+## 1.0.14 — 2026-10-01
+- Thêm tab **Nhân vật** trong Hồ sơ truyện để lưu giới tính nhân vật và các mốc chương đổi xưng hô (ví dụ từ "tôi–cô" sang "anh–em"), có thể ghim cặp xưng hô và đặt mốc bằng tay.
+- Thêm nút **Reset truyện…** để đưa truyện về như lúc vừa tạo rồi dịch lại; chương gốc và bản dịch cũ được giữ, hồ sơ cũ có bản sao lưu.
+- Cải thiện prompt dịch dựa trên giới tính nhân vật để tránh gọi sai (nữ bị gọi "thầy"); bộ kiểm tra bản dịch bắt lỗi sai giới và cách gọi "đàn em/đàn chị" trong thoại.
+- Cải thiện chi phí dịch bằng API key nhờ sắp xếp lại prompt dịch để phần giống nhau giữa các chương được nhà cung cấp lưu đệm.
+- Sửa vị trí thông báo: hiện ở giữa cạnh dưới, không còn che các nút ở góc trên phải.
+
+## 1.0.13 — 2026-09-30
+- Sửa lỗi chữ Hán còn sót trong bản dịch vẫn được chốt: đoạn còn chữ Hán giờ được dịch lại, hết vòng soát vẫn còn thì chương báo lỗi.
+- Sửa lỗi tên riêng lệch dấu so với glossary (ví dụ "Đoạn Phong" thay vì "Đoàn Phong") lọt qua; bộ kiểm tra bản dịch giờ bắt để soát lại, và glossary tự động không học âm đọc trái với âm đã chốt.
+
+## 1.0.12 — 2026-09-25
+- Cải thiện prompt dịch truyện hiện đại: 老大, 大哥, 大佬 được gọi theo giới tính người được gọi, nhân vật nữ không bị dịch thành "đại ca".
+
+## 1.0.11 — 2026-09-24
+- Cải thiện prompt dịch Hán-Việt với bảng họ có cách đọc riêng (ví dụ 段 là Đoàn), để cụm họ kèm chức danh được phiên đúng.
+- Sửa lỗi chương đã dịch xong vẫn bị bỏ qua khi dịch bằng API key vì cờ lọc nội dung ở cuối câu trả lời; bước soát bị chặn giờ giữ lại bản dịch.
+
+## 1.0.10 — 2026-09-19
+- Sửa lỗi khi dịch bằng API key kiểu OpenAI: model từ chối hoặc bị lọc nội dung giờ được nhận ra ngay và chương được bỏ qua kèm lý do, thay vì báo sai định dạng và gọi lại vô ích.
+
+## 1.0.9 — 2026-09-19
+- Sửa lỗi các truyện trong cột **Phiên này** đổi chỗ mỗi lần chuyển truyện; giờ giữ nguyên thứ tự mở lần đầu.
+
+## 1.0.8 — 2026-09-19
+- Sửa lỗi cập nhật trên máy chưa từng cài đặt đầy đủ (bản portable, exe rời): bộ cài giờ tạo thêm shortcut ngoài Desktop.
+
+## 1.0.7 — 2026-09-18
+- Cải thiện bộ cài: chỉ phát hành dạng `.exe`, bỏ bộ cài MSI.
+- Sửa lỗi sau khi cập nhật không tìm thấy app trong Start Menu và Windows Search; bộ cài tự tạo lại shortcut nếu thiếu.
+- Sửa lỗi truyện tạo bằng app bản cũ không nhận được hướng dẫn dịch mới cho Antigravity; giờ được cập nhật khi mở truyện, trừ khi bạn đã sửa tay.
+
+## 1.0.6 — 2026-09-18
+- Cải thiện prompt dịch truyện cổ đại: nhân vật lớn tuổi, bề trên vẫn là "hắn" hoặc "nàng" thay vì "ông ta", "bà ta"; bộ kiểm tra bản dịch bắt các cách gọi này.
+- Cải thiện dịch bằng Antigravity: khi bộ lọc nội dung chặn, chương được dịch lại tối đa 3 lượt trước khi bị bỏ qua.
+- Cải thiện hướng dẫn dịch trong thư mục truyện: tự cập nhật theo bản mới của app khi mở truyện, trừ khi bạn đã sửa tay.
+
+## 1.0.5 — 2026-09-17
+- Thêm mục **Giọng văn** trong Hồ sơ truyện với 7 lựa chọn (trung tính, ngôn tình, hài hước, sảng văn, cổ phong, sắc, thanh xuân); **AI điền hồ sơ** cũng đề xuất giọng văn.
+- Thêm nút **Export Names.txt…** ở tab **Glossary** để xuất glossary ra Names.txt hoặc Names2.txt dùng cho bản convert.
+- Thêm nút **Dịch lại cả N** ở dòng cảnh báo chương hổng để đưa mọi chương bị bỏ qua hoặc lỗi về hàng đợi.
+- Cải thiện prompt dịch giữ tên riêng nhất quán: một chữ Hán một âm Hán-Việt, viết hoa tước vị và địa danh, tiêu đề dạng `Chương N: Tiêu đề`; bộ kiểm tra bản dịch bắt lỗi kiểu "đắc được", "thu hoạch được".
+- Cải thiện thanh cuộn to hơn, dễ bấm; bấm chip chương hổng sẽ cuộn danh sách tới đúng chương đó.
+
+## 1.0.4 — 2026-09-12
+- Thêm số token vào, ra và suy nghĩ của từng lượt và tổng mỗi chương vào log (khi nhà cung cấp có báo).
+- Cải thiện dịch bằng API key: glossary được trích ngay trong lượt dịch, bớt một lượt gọi model cho mỗi chương.
+
+## 1.0.3 — 2026-09-12
+- Thêm xoá chương ngay trong app, từng chương hoặc theo khoảng; bản dịch đã có được giữ lại.
+- Thêm chọn khoảng bằng số thứ tự chương ở trang **Export**, kèm danh sách chương có nút Từ/Đến.
+- Thêm bảng **Mức nghĩ theo bước** (dịch, soát, trích glossary, AI điền) trong Cài đặt động cơ dịch; số truyện dịch song song tối đa tăng lên 20.
+- Thêm thanh công cụ định dạng (tiêu đề, danh sách, bảng…) cho ô sửa prompt; gõ prompt và cuộn trong hộp thoại không còn giật.
+- Cải thiện vòng soát: model giữ nguyên bản dịch thì chốt ngay, đỡ tốn lượt gọi; bỏ vài luật kiểm tra bắt nhầm từ tiếng Việt hợp lệ.
+- Sửa lỗi xoá file chương gốc rồi mở app thì báo lỗi; **Quét lại** giờ gỡ các chương đã mất file gốc.
+
+## 1.0.2 — 2026-09-11
+- Thêm cảnh báo trên thanh công cụ trang Dịch khi còn chương bị bỏ qua hoặc lỗi nằm trước chương đã dịch cuối cùng; bấm vào chip để mở chương đó.
+
+## 1.0.1 — 2026-09-11
+- Cải thiện prompt dịch để model bớt từ chối oan các tình tiết nhạy cảm trong truyện hư cấu đã xuất bản.
+- Sửa lỗi lượt dịch bằng Antigravity bị cắt giữa chừng sau 5 phút.
+
+## 1.0.0 — 2026-09-11
+- Thêm dịch truyện chữ tiếng Trung bằng hai động cơ: Antigravity hoặc API key (Gemini và các dịch vụ tương thích OpenAI).
+- Thêm thư viện truyện: tạo truyện mới, kéo thả file chương vào, quét lại chương, mở nhanh truyện gần đây.
+- Thêm Hồ sơ truyện gồm thông tin, thể loại (bối cảnh, kiểu tên riêng), glossary, văn phong và luật kiểm tra, có **AI điền hồ sơ** từ vài chương đầu.
+- Thêm bộ kiểm tra bản dịch tự bắt thiếu đoạn, sót chữ Hán, từ cấm rồi cho model soát lại trước khi chốt chương.
+- Thêm trang Dịch với tiến độ, danh sách chương, khung đọc bản dịch và bản gốc, sửa tay bản dịch, dịch lại toàn bộ hoặc theo khoảng chương.
+- Thêm dịch nhiều truyện song song và cột chuyển nhanh giữa các truyện (Ctrl+K).
+- Thêm export bản dịch ra file TXT theo khoảng chương, có báo chương còn hổng.
+- Thêm 3 bộ màu sáng/tối, prompt và luật mặc định sửa được, bản portable và tự cập nhật qua GitHub Releases.
