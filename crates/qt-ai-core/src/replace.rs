@@ -322,6 +322,76 @@ pub fn replace_in_story(
     excluded_chapters: &[String],
     excluded_hits: &[HitRef],
 ) -> Result<ReplaceOutcome> {
+    replace_once(paths, query, excluded_chapters, excluded_hits, &mut None)
+}
+
+/// Một cặp trong lượt thay nhiều cặp: như tham số của `replace_in_story`.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ReplaceJob {
+    pub query: FindQuery,
+    pub excluded_chapters: Vec<String>,
+    pub excluded_hits: Vec<HitRef>,
+}
+
+/// Thay nhiều cặp lần lượt, gộp thành MỘT lần hoàn tác: mỗi chương giữ bản trước cả lượt và bản cuối cùng,
+/// `find`/`replace` là các cặp có thay nối bằng "; ". Không thay được gì thì giữ nguyên lần hoàn tác trước.
+///
+/// Job được lấy từ `jobs` từng cái một, ngay trước khi chạy: `excluded_hits` đánh số chỗ khớp theo bản dịch lúc đó
+/// (sau các job trước), nên truyền iterator lười dựng job bằng `find_in_story` — vd
+/// `requests.iter().map(|r| dựng_job(r))` — thì số thứ tự chỗ khớp luôn đúng. Lỗi dựng job dừng lượt; các job đã
+/// chạy vẫn hoàn tác được. `chapters` của kết quả là số chương khác nhau bị sửa.
+pub fn replace_batch_in_story(
+    paths: &StoryPaths,
+    jobs: impl IntoIterator<Item = Result<ReplaceJob>>,
+) -> Result<ReplaceOutcome> {
+    let mut undo = None;
+    let mut occurrences = 0;
+    for job in jobs {
+        let job = job?;
+        occurrences += replace_once(paths, &job.query, &job.excluded_chapters, &job.excluded_hits, &mut undo)?.occurrences;
+    }
+    Ok(ReplaceOutcome { chapters: undo.map_or(0, |record: UndoRecord| record.chapters.len()), occurrences })
+}
+
+/// Gộp phần thay của một job vào lần hoàn tác đang dồn: chương đã có giữ `original` cũ, lấy `written` mới.
+fn merge_undo<'a>(
+    undo: &'a mut Option<UndoRecord>,
+    query: &FindQuery,
+    occurrences: usize,
+    chapters: Vec<UndoChapter>,
+) -> &'a UndoRecord {
+    let record = undo.get_or_insert_with(|| UndoRecord {
+        find: String::new(),
+        replace: String::new(),
+        occurrences: 0,
+        created_at: 0,
+        chapters: Vec::new(),
+    });
+    for part in [(&mut record.find, &query.find), (&mut record.replace, &query.replace)] {
+        if !part.0.is_empty() {
+            part.0.push_str("; ");
+        }
+        part.0.push_str(part.1);
+    }
+    record.occurrences += occurrences;
+    record.created_at = now_ms();
+    for chapter in chapters {
+        match record.chapters.iter_mut().find(|known| known.id == chapter.id) {
+            Some(known) => known.written = chapter.written,
+            None => record.chapters.push(chapter),
+        }
+    }
+    record
+}
+
+/// Thân của `replace_in_story`; `undo` = lần hoàn tác đang dồn của lượt thay nhiều cặp (None = lượt mới).
+fn replace_once(
+    paths: &StoryPaths,
+    query: &FindQuery,
+    excluded_chapters: &[String],
+    excluded_hits: &[HitRef],
+    undo: &mut Option<UndoRecord>,
+) -> Result<ReplaceOutcome> {
     let width = query.find.chars().count();
     let mut outcome = ReplaceOutcome::default();
     if width == 0 || query.find == query.replace {
@@ -374,15 +444,9 @@ pub fn replace_in_story(
         return Ok(outcome);
     }
     // Ghi bản gốc trước rồi mới sửa chương: lỡ dừng giữa chừng vẫn hoàn tác được phần đã ghi.
-    let record = UndoRecord {
-        find: query.find.clone(),
-        replace: query.replace.clone(),
-        occurrences: outcome.occurrences,
-        created_at: now_ms(),
-        chapters: changed.iter().map(|(_, undo)| undo.clone()).collect(),
-    };
+    let record = merge_undo(undo, query, outcome.occurrences, changed.iter().map(|(_, undo)| undo.clone()).collect());
     std::fs::create_dir_all(&paths.work_dir).map_err(CoreError::io(&paths.work_dir))?;
-    let json = serde_json::to_string(&record).map_err(|e| CoreError::Internal(e.to_string()))?;
+    let json = serde_json::to_string(record).map_err(|e| CoreError::Internal(e.to_string()))?;
     write_atomic(&undo_path(paths), &json)?;
     for (path, undo) in &changed {
         write_atomic(path, &undo.written)?;

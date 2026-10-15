@@ -1,5 +1,7 @@
 //! Tìm & thay trong bản dịch đã chốt.
-use qt_ai_core::replace::{find_in_story, replace_in_story, undo_info, undo_last_replace, FindQuery, HitRef};
+use qt_ai_core::replace::{
+    find_in_story, replace_batch_in_story, replace_in_story, undo_info, undo_last_replace, FindQuery, HitRef, ReplaceJob,
+};
 use qt_ai_core::story_fs::story_paths;
 use std::fs;
 
@@ -92,5 +94,72 @@ fn khong_co_cho_khop_thi_khong_ghi_va_giu_lan_hoan_tac_truoc() {
     replace_in_story(&paths, &query("Một", "1"), &[], &[]).unwrap();
     let none = replace_in_story(&paths, &query("không có", "x"), &[], &[]).unwrap();
     assert_eq!(none.occurrences, 0);
+    assert_eq!(undo_info(&paths).unwrap().find, "Một");
+}
+
+fn job(find: &str, replace: &str) -> ReplaceJob {
+    ReplaceJob { query: FindQuery { case_sensitive: true, ..query(find, replace) }, excluded_chapters: vec![], excluded_hits: vec![] }
+}
+
+#[test]
+fn thay_nhieu_cap_mot_lan_hoan_tac_chung() {
+    let dir = story(&[
+        ("0001", "a", "Con khỉ Việt Nam kêu, Việt Nam xa.\n"),
+        ("0002", "b", "Giao Chỉ gần Việt Nam.\n"),
+        ("0003", "c", "Không dính gì.\n"),
+    ]);
+    let paths = story_paths(dir.path());
+    let jobs = [
+        job("khỉ Việt Nam", "khỉ Thái Lan"),
+        job("không có", "x"),
+        job("Việt Nam", "Thái Lan"),
+        job("Giao Chỉ", "Chiêm Thành"),
+    ];
+    let done = replace_batch_in_story(&paths, jobs.into_iter().map(Ok)).unwrap();
+    assert_eq!((done.chapters, done.occurrences), (2, 4), "số chương không đếm trùng");
+    assert_eq!(read(&dir, "0001"), "Con khỉ Thái Lan kêu, Thái Lan xa.\n");
+    assert_eq!(read(&dir, "0002"), "Chiêm Thành gần Thái Lan.\n");
+    let info = undo_info(&paths).unwrap();
+    assert_eq!(
+        (info.find.as_str(), info.replace.as_str(), info.chapters, info.occurrences),
+        ("khỉ Việt Nam; Việt Nam; Giao Chỉ", "khỉ Thái Lan; Thái Lan; Chiêm Thành", 2, 4),
+        "chỉ ghi các cặp có thay"
+    );
+    let undone = undo_last_replace(&paths).unwrap();
+    assert_eq!((undone.restored, undone.conflicts.len()), (2, 0));
+    assert_eq!(read(&dir, "0001"), "Con khỉ Việt Nam kêu, Việt Nam xa.\n", "về bản trước cả lượt");
+    assert_eq!(read(&dir, "0002"), "Giao Chỉ gần Việt Nam.\n");
+    assert!(undo_info(&paths).is_none());
+}
+
+#[test]
+fn thay_nhieu_cap_dung_job_sau_dua_tren_ban_da_thay_cua_job_truoc() {
+    let dir = story(&[("0001", "a", "khỉ Việt Nam, Việt Nam, Việt Nam.\n")]);
+    let paths = story_paths(dir.path());
+    let first = job("khỉ Việt Nam", "khỉ Thái Lan");
+    let mut built = 0;
+    let jobs = [first.query.clone(), job("Việt Nam", "Thái Lan").query].into_iter().map(|query| {
+        built += 1;
+        if built == 1 {
+            return Ok(first.clone());
+        }
+        // Job 2 dựng lúc job 1 đã ghi xong: chỉ còn 2 chỗ "Việt Nam", bỏ chỗ thứ 2 (occurrence 1).
+        let found = find_in_story(&paths, &query, usize::MAX)?;
+        assert_eq!(found.total, 2, "thấy bản đã thay của job trước");
+        let skip = HitRef { chapter: "0001".into(), paragraph: 0, occurrence: 1 };
+        Ok(ReplaceJob { query, excluded_chapters: vec![], excluded_hits: vec![skip] })
+    });
+    let done = replace_batch_in_story(&paths, jobs).unwrap();
+    assert_eq!(done.occurrences, 2);
+    assert_eq!(read(&dir, "0001"), "khỉ Thái Lan, Thái Lan, Việt Nam.\n");
+}
+
+#[test]
+fn thay_nhieu_cap_khong_thay_gi_thi_giu_lan_hoan_tac_truoc() {
+    let dir = story(&[("0001", "a", "Một hai.\n")]);
+    let paths = story_paths(dir.path());
+    replace_in_story(&paths, &query("Một", "1"), &[], &[]).unwrap();
+    let none = replace_batch_in_story(&paths, [job("không có", "x"), job("hai", "hai")].into_iter().map(Ok)).unwrap();
+    assert_eq!((none.chapters, none.occurrences), (0, 0));
     assert_eq!(undo_info(&paths).unwrap().find, "Một");
 }
