@@ -29,6 +29,12 @@ pub struct AcceptResult {
 }
 
 pub fn run_accept(root: &Path, id: &str, force: bool) -> Result<AcceptResult> {
+    let lexicon = crate::vn_lexicon::Lexicon::load(&crate::base::BaseStore::from_env());
+    run_accept_with(root, id, force, &lexicon)
+}
+
+/// Như `run_accept` nhưng nhận từ điển kiểm tra VN từ ngoài (test truyền bản cứng, không đọc env).
+pub fn run_accept_with(root: &Path, id: &str, force: bool, lexicon: &crate::vn_lexicon::Lexicon) -> Result<AcceptResult> {
     let paths = story_paths(&resolve_root(root));
     // Chỉ chấm, không đếm vòng soát: accept không phải một lượt soát.
     let check = run_check_readonly(root, id)?;
@@ -122,8 +128,7 @@ pub fn run_accept(root: &Path, id: &str, force: bool) -> Result<AcceptResult> {
     // để status/GUI liệt kê.
     let mut warnings: Vec<String> = check.issues.iter().chain(&check.advisories).cloned().collect();
     // Kiểm tra VN chỉ cảnh báo; lỗi đọc/ghi vn-check.json không được chặn chốt chương.
-    let lexicon = crate::vn_lexicon::Lexicon::load(&crate::base::BaseStore::from_env());
-    if let Some(warning) = crate::vn_check::check_chapter(&paths, &lexicon, id).ok().and_then(crate::vn_check::chapter_warning) {
+    if let Some(warning) = crate::vn_check::check_chapter(&paths, lexicon, id).ok().and_then(crate::vn_check::chapter_warning) {
         warnings.push(warning);
     }
     state.chapters.insert(

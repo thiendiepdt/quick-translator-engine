@@ -1,5 +1,5 @@
 //! State machine trên tempdir — tương đương bộ vitest của apps/qt-ai-cli.
-use qt_ai_core::commands::accept::run_accept;
+use qt_ai_core::commands::accept::{run_accept, run_accept_with};
 use qt_ai_core::commands::check::run_check;
 use qt_ai_core::commands::delete::run_delete;
 use qt_ai_core::commands::export::{run_export, run_export_epub, ExportOptions};
@@ -1315,7 +1315,8 @@ fn accept_canh_bao_cho_nhay_cam_vn_chua_xac_minh() {
     let paths = story_paths(root);
     run_next(root).unwrap();
     fs::write(work_file(&paths, "0001", WorkKind::Draft), "[[1]] Chương 1\n\n[[2]] Ngồi thuyền chuyển qua Việt Nam.").unwrap();
-    let accepted = run_accept(root, "0001", true).unwrap();
+    // Từ điển bản cứng truyền thẳng — không đọc vn-terms.json của máy chạy test.
+    let accepted = run_accept_with(root, "0001", true, &qt_ai_core::vn_lexicon::Lexicon::builtin()).unwrap();
     let warning = accepted.warnings.iter().find(|w| w.starts_with(qt_ai_core::vn_check::VN_WARNING_PREFIX)).expect("có cảnh báo VN");
     assert!(warning.contains("1 chỗ nhạy cảm về Việt Nam"), "{warning}");
     assert!(root.join(qt_ai_core::vn_check::VN_FILE).exists());
