@@ -163,3 +163,14 @@ fn thay_nhieu_cap_khong_thay_gi_thi_giu_lan_hoan_tac_truoc() {
     assert_eq!((none.chapters, none.occurrences), (0, 0));
     assert_eq!(undo_info(&paths).unwrap().find, "Một");
 }
+
+#[test]
+fn thay_nhieu_cap_cum_thay_rong_van_giu_dau_phan_cach() {
+    let dir = story(&[("0001", "a", "Ồ, Một hai.\n")]);
+    let paths = story_paths(dir.path());
+    let jobs = [job("Ồ, ", ""), job("Một", "1"), job("hai", "")];
+    replace_batch_in_story(&paths, jobs.into_iter().map(Ok)).unwrap();
+    assert_eq!(read(&dir, "0001"), "1 .\n");
+    let info = undo_info(&paths).unwrap();
+    assert_eq!((info.find.as_str(), info.replace.as_str()), ("Ồ, ; Một; hai", "; 1; "), "find/replace thẳng hàng");
+}

@@ -272,4 +272,30 @@ describe("VnReplaceDialog", () => {
       { from: "Giao Chỉ", to: "Chiêm Thành", chapters: ["0354", "0009"] },
     ]);
   });
+
+  it("Cụm thay trùng Cụm gốc thì dòng đó không tính và không gửi", async () => {
+    const user = userEvent.setup();
+    renderDialog([a, giao]);
+    await screen.findByDisplayValue("Thái Lan");
+    await user.type(screen.getByLabelText("Cụm thay 2"), " Giao Chỉ ");
+    expect(screen.getByText("Sẽ thay 1 chỗ ở 1 chương.")).toBeInTheDocument();
+    await user.clear(screen.getByLabelText("Cụm thay 1"));
+    await user.type(screen.getByLabelText("Cụm thay 1"), "Việt Nam");
+    expect(screen.getByText("Sẽ thay 0 chỗ ở 0 chương.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Thay" })).toBeDisabled();
+  });
+
+  it("gợi ý theo phần chứa chọn dòng bảng hợp bối cảnh cổ đại", async () => {
+    vi.mocked(vnSettingsGet).mockResolvedValue({
+      extra: [],
+      disabled: [],
+      replacements: [
+        { from: "Việt Nam", to: "Thái Lan", setting: "modern" },
+        { from: "Việt Nam", to: "Xiêm La", setting: "ancient" },
+      ],
+    });
+    render(<VnReplaceDialog root={ROOT} setting="ancient" hits={[monkey]} allHits={[monkey]} open onOpenChange={vi.fn()} onDone={vi.fn()} />);
+    expect(await screen.findByDisplayValue("khỉ Xiêm La")).toBeInTheDocument();
+    expect(screen.getByLabelText("Cụm thay 1")).toHaveValue("khỉ Xiêm La");
+  });
 });

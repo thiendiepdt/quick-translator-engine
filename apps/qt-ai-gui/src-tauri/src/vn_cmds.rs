@@ -8,7 +8,10 @@ use crate::session_registry::root_key;
 use crate::AppState;
 use qt_ai_core::api::HttpModel;
 use qt_ai_core::base::BaseStore;
-use qt_ai_core::replace::{find_in_story, replace_batch_in_story, FindQuery, HitRef, ReplaceJob, ReplaceOutcome};
+use qt_ai_core::replace::{
+    find_in_story, replace_batch_in_story, undo_info, FindQuery, HitRef, ReplaceJob, ReplaceOutcome,
+};
+use qt_ai_core::CoreError;
 use qt_ai_core::session::run_once;
 use qt_ai_core::story_fs::{story_paths, StoryPaths};
 use qt_ai_core::vn_ai::{
@@ -49,7 +52,7 @@ pub struct VnReplaceRequest {
 
 /// Dựng job thay cho một cặp: nguyên từ, phân biệt hoa thường, giới hạn đúng chương/đoạn bằng danh sách loại trừ
 /// của engine Tìm & thay. Tìm trên bản dịch hiện tại — gọi ngay trước khi job chạy để số thứ tự chỗ khớp còn đúng.
-fn replace_job(paths: &StoryPaths, request: &VnReplaceRequest) -> qt_ai_core::error::Result<ReplaceJob> {
+fn replace_job(paths: &StoryPaths, request: &VnReplaceRequest) -> qt_ai_core::Result<ReplaceJob> {
     let query = FindQuery {
         find: request.from.clone(),
         replace: request.to.clone(),
@@ -77,14 +80,28 @@ fn replace_job(paths: &StoryPaths, request: &VnReplaceRequest) -> qt_ai_core::er
 /// qua). Cụm gốc dài chạy trước ("khỉ Việt Nam" trước "Việt Nam"); bỏ cặp có cụm thay trống hoặc trùng cụm gốc.
 pub fn replace_inner(root: &Path, requests: &[VnReplaceRequest], lex: &Lexicon) -> CmdResult<ReplaceOutcome> {
     let paths = story_paths(root);
-    let mut wanted: Vec<&VnReplaceRequest> =
-        requests.iter().filter(|r| !r.from.trim().is_empty() && !r.to.trim().is_empty() && r.from != r.to).collect();
+    let mut wanted: Vec<&VnReplaceRequest> = requests
+        .iter()
+        .filter(|r| !r.from.trim().is_empty() && !r.to.trim().is_empty() && r.from.trim() != r.to.trim())
+        .collect();
     wanted.sort_by_key(|r| std::cmp::Reverse(r.from.chars().count()));
+    let before = undo_info(&paths);
     // Iterator lười: mỗi job tìm lại chỗ khớp sau khi các job trước đã ghi.
-    let outcome = replace_batch_in_story(&paths, wanted.into_iter().map(|request| replace_job(&paths, request)))?;
-    // Bản dịch đã thay xong: quét lại lỗi không được biến thành "không thay được"; lần quét sau (mở tab, Quét lại) cập nhật.
+    let outcome = replace_batch_in_story(&paths, wanted.into_iter().map(|request| replace_job(&paths, request)));
+    // Quét lại cả khi lỗi giữa lượt (các job trước đã ghi). Bản dịch đã thay xong thì lỗi quét không được biến thành
+    // "không thay được"; lần quét sau (mở tab, Quét lại) cập nhật.
     let _ = refresh(&paths, lex);
-    Ok(outcome)
+    outcome.map_err(|error| interrupted(error, undo_info(&paths) != before))
+}
+
+/// Lỗi giữa lượt thay: có chương đã thay (lần hoàn tác đổi) thì nói rõ để người dùng hoàn tác ở Tìm & thay.
+fn interrupted(error: CoreError, changed: bool) -> CommandError {
+    let mut command = CommandError::from(error);
+    if changed {
+        command.message =
+            format!("Thay dở giữa chừng: {} — các chương đã thay có thể hoàn tác ở trang Tìm & thay.", command.message);
+    }
+    command
 }
 
 #[tauri::command]
@@ -337,6 +354,14 @@ mod tests {
         assert_eq!((outcome.chapters, outcome.occurrences), (1, 1));
         assert!(fs::read_to_string(dir.path().join("out/0003.txt")).unwrap().contains("Con khỉ Chiêm Thành leo cây."), "cụm dài chạy trước");
         assert_eq!(qt_ai_core::replace::undo_info(&story_paths(dir.path())).unwrap().find, "khỉ Việt Nam");
+    }
+
+    #[test]
+    fn loi_giua_luot_bao_thay_do_va_cach_hoan_tac() {
+        let error = interrupted(qt_ai_core::CoreError::Internal("đĩa đầy".into()), true);
+        assert_eq!(error.message, "Thay dở giữa chừng: Lỗi nội bộ: đĩa đầy — các chương đã thay có thể hoàn tác ở trang Tìm & thay.");
+        let error = interrupted(qt_ai_core::CoreError::Internal("đĩa đầy".into()), false);
+        assert_eq!(error.message, "Lỗi nội bộ: đĩa đầy", "chưa thay gì thì báo lỗi như cũ");
     }
 
     #[test]

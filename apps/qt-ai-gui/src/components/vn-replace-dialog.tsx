@@ -158,7 +158,8 @@ function VnReplaceForm({
     const to = row.typedTo ?? suggestion(table, row.from, setting);
     const termHits = (scope === "selected" ? translated : pending).filter((hit) => hit.matched === row.term);
     const target = scope === "chapters" ? termHits.filter((hit) => ticked.includes(hit.chapter)) : termHits;
-    const active = row.included && row.from.trim() !== "" && to.trim() !== "" && target.length > 0;
+    // Cụm thay trùng cụm gốc: backend bỏ qua, nên không tính.
+    const active = row.included && row.from.trim() !== "" && to.trim() !== "" && row.from.trim() !== to.trim() && target.length > 0;
     return { row, to, target, active };
   });
   const active = plans.filter((plan) => plan.active);

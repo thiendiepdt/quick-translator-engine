@@ -360,6 +360,7 @@ fn merge_undo<'a>(
     occurrences: usize,
     chapters: Vec<UndoChapter>,
 ) -> &'a UndoRecord {
+    let first = undo.is_none();
     let record = undo.get_or_insert_with(|| UndoRecord {
         find: String::new(),
         replace: String::new(),
@@ -367,11 +368,12 @@ fn merge_undo<'a>(
         created_at: 0,
         chapters: Vec::new(),
     });
-    for part in [(&mut record.find, &query.find), (&mut record.replace, &query.replace)] {
-        if !part.0.is_empty() {
-            part.0.push_str("; ");
+    // Phân cách theo job, không theo chuỗi rỗng: cụm thay "" vẫn giữ find/replace thẳng hàng.
+    for (joined, part) in [(&mut record.find, &query.find), (&mut record.replace, &query.replace)] {
+        if !first {
+            joined.push_str("; ");
         }
-        part.0.push_str(part.1);
+        joined.push_str(part);
     }
     record.occurrences += occurrences;
     record.created_at = now_ms();
