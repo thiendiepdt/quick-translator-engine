@@ -296,6 +296,7 @@ pub async fn rescan_story<R: Runtime>(app: AppHandle<R>, root: String) -> CmdRes
         let state = app.state::<AppState>();
         let path = Path::new(&root);
         run_init(path, &qt_ai_command())?;
+        let _ = qt_ai_core::vn_check::refresh(&story_paths(path), &qt_ai_core::vn_lexicon::Lexicon::load(&qt_ai_core::base::BaseStore::from_env()));
         snapshot(path, session_running(&state, &root))
     })
     .await
@@ -318,6 +319,13 @@ pub async fn library_rescan<R: Runtime>(app: AppHandle<R>) -> CmdResult<LibraryR
             return Err(CommandError::new("invalid_state", format!("Thư viện {} không tồn tại.", library.display())));
         }
         let report = rescan_library_inner(library, &|root| session_running(&state, root), &qt_ai_command());
+        let lexicon = qt_ai_core::vn_lexicon::Lexicon::load(&qt_ai_core::base::BaseStore::from_env());
+        for entry in std::fs::read_dir(library).into_iter().flatten().flatten() {
+            let path = entry.path();
+            if path.join("state.json").is_file() {
+                let _ = qt_ai_core::vn_check::refresh(&story_paths(&path), &lexicon);
+            }
+        }
         Ok(LibraryRescan { report, stories: list_library(Some(library), &state.summaries) })
     })
     .await
@@ -330,6 +338,7 @@ pub async fn import_chapters<R: Runtime>(app: AppHandle<R>, root: String, paths:
         let path = Path::new(&root);
         let sources: Vec<PathBuf> = paths.iter().map(PathBuf::from).collect();
         let counts = import_chapters_inner(path, &sources, &qt_ai_command())?;
+        let _ = qt_ai_core::vn_check::refresh(&story_paths(path), &qt_ai_core::vn_lexicon::Lexicon::load(&qt_ai_core::base::BaseStore::from_env()));
         Ok(ImportOutcome {
             added: counts.added,
             skipped_existing: counts.skipped_existing,

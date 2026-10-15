@@ -84,7 +84,7 @@ fn session_running(state: &State<'_, AppState>, root: &str) -> bool {
     state.sessions.lock().unwrap().is_running(root)
 }
 
-fn resolve_agy(state: &State<'_, AppState>) -> CmdResult<PathBuf> {
+pub(crate) fn resolve_agy(state: &State<'_, AppState>) -> CmdResult<PathBuf> {
     let configured = state.config.lock().unwrap().agy_path.clone();
     Ok(find_agy(configured.as_deref().map(Path::new))?)
 }

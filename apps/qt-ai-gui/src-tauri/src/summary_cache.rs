@@ -10,7 +10,7 @@ use std::path::Path;
 use std::sync::Mutex;
 use std::time::SystemTime;
 
-type Stamp = (Option<SystemTime>, Option<SystemTime>);
+type Stamp = (Option<SystemTime>, Option<SystemTime>, Option<SystemTime>);
 
 struct Cached {
     stamp: Stamp,
@@ -35,9 +35,10 @@ pub fn summarize_uncached(root: &Path) -> RecentSummary {
                 done: Some(counts.done),
                 total: Some(counts.total),
                 pending: Some(counts.queued + counts.translating),
+                vn_flags: qt_ai_core::vn_check::flag_count(&paths),
             }
         }
-        _ => RecentSummary { root: root.display().to_string(), name: None, done: None, total: None, pending: None },
+        _ => RecentSummary { root: root.display().to_string(), name: None, done: None, total: None, pending: None, vn_flags: None },
     }
 }
 
@@ -53,7 +54,7 @@ impl SummaryCache {
     /// Tóm tắt của `root`; `root` trong kết quả giữ nguyên chuỗi caller đưa (recent giữ nguyên dạng đã lưu).
     pub fn summarize(&self, root: &Path) -> RecentSummary {
         let paths = story_paths(root);
-        let stamp: Stamp = (mtime(&paths.state_json), mtime(&paths.story_json));
+        let stamp: Stamp = (mtime(&paths.state_json), mtime(&paths.story_json), mtime(&paths.root.join(qt_ai_core::vn_check::VN_FILE)));
         let key = root_key(&root.display().to_string());
         let root_text = root.display().to_string();
         if let Some(cached) = self.entries.lock().unwrap().get(&key) {

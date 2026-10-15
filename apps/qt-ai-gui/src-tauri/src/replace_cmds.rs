@@ -14,7 +14,7 @@ use tauri::{AppHandle, Manager, Runtime};
 /// Số chỗ khớp tối đa gửi qua IPC — tổng và số theo chương vẫn đủ; nút Thay xử lý mọi chỗ ở phía Rust.
 const SHOWN_HITS: usize = 500;
 
-fn refuse_if_running<R: Runtime>(app: &AppHandle<R>, root: &str) -> CmdResult<()> {
+pub(crate) fn refuse_if_running<R: Runtime>(app: &AppHandle<R>, root: &str) -> CmdResult<()> {
     if app.state::<AppState>().sessions.lock().unwrap().is_running(root) {
         return Err(CommandError::new(
             "session_locked",

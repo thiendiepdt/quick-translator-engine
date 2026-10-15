@@ -13,6 +13,7 @@ mod session_registry;
 mod story_cmds;
 mod summary_cache;
 mod title_cmds;
+mod vn_cmds;
 
 use app_config::AppConfig;
 use session_registry::SessionRegistry;
@@ -144,6 +145,14 @@ pub fn run() {
             replace_cmds::replace_apply,
             replace_cmds::replace_undo_info,
             replace_cmds::replace_undo,
+            vn_cmds::vn_refresh,
+            vn_cmds::vn_report,
+            vn_cmds::vn_set_status,
+            vn_cmds::vn_ai_verify,
+            vn_cmds::vn_builtin_entries,
+            vn_cmds::vn_settings_get,
+            vn_cmds::vn_settings_save,
+            vn_cmds::vn_replace,
             library_cmds::import_chapters,
         ])
         .run(tauri::generate_context!())
@@ -196,6 +205,7 @@ mod tests {
             include_str!("glossary_cmds.rs"),
             include_str!("replace_cmds.rs"),
             include_str!("epub_cmds.rs"),
+            include_str!("vn_cmds.rs"),
         ]
         .join("\n");
         let heavy = [
@@ -232,6 +242,14 @@ mod tests {
             "book_info_save",
             "export_epub",
             "reveal_folder",
+            "vn_refresh",
+            "vn_report",
+            "vn_set_status",
+            "vn_ai_verify",
+            "vn_builtin_entries",
+            "vn_settings_get",
+            "vn_settings_save",
+            "vn_replace",
         ];
         for name in heavy {
             // Có AppHandle thì generic theo Runtime (mock runtime trong test gọi được), không thì không.
