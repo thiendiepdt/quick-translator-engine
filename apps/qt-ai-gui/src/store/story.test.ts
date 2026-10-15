@@ -48,8 +48,12 @@ beforeEach(() => {
     roots: {},
     names: {},
     opened: [],
+    views: {},
     root: undefined,
     snapshot: undefined,
+    selectedId: undefined,
+    statusFilter: "all",
+    searchQuery: "",
   });
 });
 
@@ -154,6 +158,41 @@ describe("openStory/closeStory", () => {
     expect(state.opened).toEqual([A, B]); // thứ tự mở lần đầu
     useStoryStore.getState().switchStory(snapshotFor("d:/lib/a/"));
     expect(useStoryStore.getState().opened).toEqual([A, B]); // quay lại truyện cũ (khác chữ): không đổi chỗ, không nhân đôi
+  });
+
+  it("đổi truyện qua lại thì về đúng chương, bộ lọc, ô tìm đã xem của từng truyện", () => {
+    const withChapters = (root: string, ids: string[]) => ({
+      ...snapshotFor(root),
+      chapters: ids.map((id) => ({ id, status: "done" as const, reviewRound: 0, reason: null, warnings: [] })),
+    });
+    const store = useStoryStore.getState;
+    store().openStory(withChapters(A, ["a-1", "a-2", "a-579"]));
+    store().select("a-579");
+    store().setStatusFilter("done");
+    store().switchStory(withChapters(B, ["b-1", "b-2"]));
+    expect(store().selectedId).toBeUndefined(); // truyện mới mở lần đầu: chưa chọn gì
+    expect(store().statusFilter).toBe("all");
+    store().select("b-2");
+    store().setSearchQuery("b");
+
+    store().switchStory(withChapters(A, ["a-1", "a-2", "a-579"]));
+    expect(store().selectedId).toBe("a-579");
+    expect(store().statusFilter).toBe("done");
+    expect(store().searchQuery).toBe("");
+    store().switchStory(withChapters(B, ["b-1", "b-2"]));
+    expect(store().selectedId).toBe("b-2");
+    expect(store().searchQuery).toBe("b");
+
+    // Đóng rồi mở lại từ màn chọn truyện cũng về chỗ cũ; chương đã bị xoá thì bỏ chọn.
+    store().closeStory();
+    store().openStory(withChapters(B, ["b-1"]));
+    expect(store().selectedId).toBeUndefined();
+    expect(store().searchQuery).toBe("b");
+    // Bộ lọc không còn chương nào (hết chương lỗi) thì về Tất cả.
+    store().setStatusFilter("error");
+    store().switchStory(withChapters(A, ["a-1"]));
+    store().switchStory(withChapters(B, ["b-1"]));
+    expect(store().statusFilter).toBe("all");
   });
 
   it("page mặc định translate, openStory reset về translate, setPage đổi", () => {

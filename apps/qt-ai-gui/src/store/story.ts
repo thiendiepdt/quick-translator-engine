@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 import { progressDrift } from "@/lib/api";
-import type { ChapterFilter } from "@/lib/chapters";
+import { filterChapters, type ChapterFilter } from "@/lib/chapters";
 import { pathKey, samePath } from "@/lib/paths";
 import type { AgyStatus, AppConfig, Progress, SessionEvent, StopReason, StorySnapshot } from "@/lib/types";
 
@@ -45,6 +45,13 @@ function withIssues(issues: Record<string, StoryIssues>, key: string, skipped: n
   return { ...issues, [key]: { skipped, error } };
 }
 
+/** Chỗ đang xem ở trang Dịch của một truyện: đổi truyện qua lại thì về đúng chương, bộ lọc, ô tìm cũ. */
+interface StoryView {
+  selectedId?: string;
+  statusFilter: ChapterFilter;
+  searchQuery: string;
+}
+
 /** Phiên/tiến độ/log tách theo truyện, khoá bằng `pathKey(root)`; `roots` giữ root đúng chữ để hiện. */
 interface PerStory {
   sessions: Record<string, SessionState>;
@@ -68,6 +75,8 @@ interface StoryState extends PerStory {
   selectedId?: string;
   statusFilter: ChapterFilter;
   searchQuery: string;
+  /** Chỗ đang xem của từng truyện đã rời trong phiên app này, khoá `pathKey(root)`. Không lưu đĩa. */
+  views: Record<string, StoryView>;
   agy?: AgyStatus;
   config?: AppConfig;
   /** Tăng mỗi lần dialog Bản mặc định lưu/xoá — hook defaults nạp lại prompt/rule mặc định. */
@@ -153,9 +162,28 @@ function keepProgressDrift(previous: StorySnapshot | undefined, next: StorySnaps
   return { ...next, progressDrift: previous.progressDrift };
 }
 
-/** Vào một truyện: `page` là trang sẽ hiện (picker → translate; dock/dialog → giữ trang hiện tại). */
+/** Ghi chỗ đang xem của truyện đang mở trước khi rời nó. */
+function rememberView(state: StoryState): Record<string, StoryView> {
+  if (!state.root) return state.views;
+  const view = { selectedId: state.selectedId, statusFilter: state.statusFilter, searchQuery: state.searchQuery };
+  return { ...state.views, [pathKey(state.root)]: view };
+}
+
+/** Chỗ đã xem của truyện sắp vào; chương đã bị xoá hoặc bộ lọc giờ không còn chương nào thì về mặc định. */
+function restoreView(views: Record<string, StoryView>, snapshot: StorySnapshot): StoryView {
+  const saved = views[pathKey(snapshot.root)];
+  if (!saved || filterChapters(snapshot.chapters, saved.statusFilter, saved.searchQuery).length === 0) {
+    return { selectedId: undefined, statusFilter: "all", searchQuery: "" };
+  }
+  const exists = saved.selectedId !== undefined && snapshot.chapters.some((c) => c.id === saved.selectedId);
+  return { ...saved, selectedId: exists ? saved.selectedId : undefined };
+}
+
+/** Vào một truyện: `page` là trang sẽ hiện (picker → translate; dock/dialog → giữ trang hiện tại). Quay lại truyện
+ * đã xem trong phiên app thì về đúng chương, bộ lọc, ô tìm cũ. */
 function enterStory(state: StoryState, snapshot: StorySnapshot, page: Page): Partial<StoryState> {
   const key = pathKey(snapshot.root);
+  const views = rememberView(state);
   const current = state.sessions[key] ?? IDLE;
   let sessions = state.sessions;
   if (snapshot.sessionRunning && current.status !== "running") {
@@ -170,9 +198,8 @@ function enterStory(state: StoryState, snapshot: StorySnapshot, page: Page): Par
     page,
     root: snapshot.root,
     snapshot,
-    selectedId: undefined,
-    statusFilter: "all",
-    searchQuery: "",
+    ...restoreView(views, snapshot),
+    views,
     sessions,
     roots: state.roots[key] === snapshot.root ? state.roots : { ...state.roots, [key]: snapshot.root },
     names: state.names[key] === name ? state.names : { ...state.names, [key]: name },
@@ -187,6 +214,7 @@ export const useStoryStore = create<StoryState>()((set, get) => ({
   page: "translate",
   statusFilter: "all",
   searchQuery: "",
+  views: {},
   sessions: {},
   progress: {},
   logs: {},
@@ -201,7 +229,8 @@ export const useStoryStore = create<StoryState>()((set, get) => ({
   // Phiên/tiến độ/log của truyện khác giữ nguyên — nhiều truyện chạy song song.
   openStory: (snapshot) => set((state) => enterStory(state, snapshot, "translate")),
   switchStory: (snapshot) => set((state) => enterStory(state, snapshot, state.page)),
-  closeStory: () => set({ screen: "picker", root: undefined, snapshot: undefined, selectedId: undefined }),
+  closeStory: () =>
+    set((state) => ({ screen: "picker", root: undefined, snapshot: undefined, selectedId: undefined, views: rememberView(state) })),
   setPage: (page) => set({ page }),
   setSnapshot: (snapshot) =>
     set((state) => ({
