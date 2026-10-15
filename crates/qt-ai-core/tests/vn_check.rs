@@ -1,6 +1,8 @@
 //! Kiểm tra nội dung nhạy cảm về Việt Nam — spec docs/superpowers/specs/2026-10-15-vn-sensitive-check-design.md.
 use qt_ai_core::vn_check::*;
+use qt_ai_core::story_fs::story_paths;
 use qt_ai_core::vn_lexicon::*;
+use std::fs;
 
 fn ids(lex: &Lexicon, hits: &[Hit]) -> Vec<String> {
     hits.iter().map(|h| lex.entries[h.entry].id.clone()).collect()
@@ -158,4 +160,104 @@ fn quet_raw_van_thay_viet_nam_sau_tu_dia_danh_trung_chu_nam_viet() {
     let lex = Lexicon::builtin();
     let raw = "第1章\n\n他从湖南越南边境回来。";
     assert!(found(&lex, raw, None).contains(&(1, "viet-nam".into(), Side::Raw)));
+}
+
+fn story(chapters: &[(&str, &str, Option<&str>)]) -> tempfile::TempDir {
+    let dir = tempfile::tempdir().unwrap();
+    fs::create_dir_all(dir.path().join("raw")).unwrap();
+    fs::create_dir_all(dir.path().join("out")).unwrap();
+    for (id, raw, out) in chapters {
+        fs::write(dir.path().join("raw").join(format!("{id}.txt")), raw).unwrap();
+        if let Some(out) = out {
+            fs::write(dir.path().join("out").join(format!("{id}.txt")), out).unwrap();
+        }
+    }
+    dir
+}
+
+#[test]
+fn refresh_ghi_file_va_quet_lai_chi_chuong_doi() {
+    let dir = story(&[
+        ("0001", "第1章\n\n坐船转到越南。", Some("Chương 1\n\nChuyển tuyến qua Việt Nam.")),
+        ("0002", "第2章\n\n此地多是交趾人。", None),
+        ("0003", "第3章\n\n风平浪静。", None),
+    ]);
+    let paths = story_paths(dir.path());
+    let lex = Lexicon::builtin();
+    let first = refresh(&paths, &lex).unwrap();
+    assert_eq!((first.hits, first.open, first.scanned), (2, 2, 3));
+    assert!(dir.path().join(VN_FILE).exists());
+    let again = refresh(&paths, &lex).unwrap();
+    assert_eq!(again.scanned, 0, "không đổi gì thì không đọc lại chương nào");
+    // Dịch chương 2 → chỉ quét lại chương 2, hit raw thay bằng hit dịch.
+    fs::write(dir.path().join("out").join("0002.txt"), "Chương 2\n\nNơi này phần lớn là người Giao Chỉ.").unwrap();
+    let third = refresh(&paths, &lex).unwrap();
+    assert_eq!(third.scanned, 1);
+    let file = load_file(&paths);
+    let hit = file.hits.iter().find(|h| h.chapter == "0002").unwrap();
+    assert_eq!((hit.side, hit.matched.as_str(), hit.id.as_str()), (Side::Out, "Giao Chỉ", "0002:1:giao-chi"));
+}
+
+#[test]
+fn trang_thai_giu_khi_doan_khong_doi_va_ve_pending_khi_doi_chu() {
+    let dir = story(&[("0001", "第1章\n\n坐船转到越南。", Some("Chương 1\n\nChuyển tuyến qua Việt Nam."))]);
+    let paths = story_paths(dir.path());
+    let lex = Lexicon::builtin();
+    refresh(&paths, &lex).unwrap();
+    assert_eq!(set_status(&paths, &["0001:1:viet-nam".to_string()], Status::Ok).unwrap(), 1);
+    assert_eq!(flag_count(&paths), Some(0));
+    // Ghi lại cùng nội dung (mtime đổi) → quét lại nhưng vẫn Ok.
+    std::thread::sleep(std::time::Duration::from_millis(20));
+    fs::write(dir.path().join("out").join("0001.txt"), "Chương 1\n\nChuyển tuyến qua Việt Nam.").unwrap();
+    assert_eq!(refresh(&paths, &lex).unwrap().scanned, 1);
+    assert_eq!(load_file(&paths).hits[0].status, Status::Ok);
+    // Đổi chữ trong đoạn → về pending.
+    std::thread::sleep(std::time::Duration::from_millis(20));
+    fs::write(dir.path().join("out").join("0001.txt"), "Chương 1\n\nSau đó chuyển tuyến qua Việt Nam.").unwrap();
+    refresh(&paths, &lex).unwrap();
+    assert_eq!(load_file(&paths).hits[0].status, Status::Pending);
+    assert_eq!(flag_count(&paths), Some(1));
+}
+
+#[test]
+fn check_chapter_chi_quet_mot_chuong_va_tra_so_cho_chua_xet() {
+    let dir = story(&[
+        ("0001", "第1章\n\n坐船转到越南。", Some("Chương 1\n\nChuyển tuyến qua Việt Nam.")),
+        ("0002", "第2章\n\n此地多是交趾人。", None),
+    ]);
+    let paths = story_paths(dir.path());
+    let lex = Lexicon::builtin();
+    assert_eq!(check_chapter(&paths, &lex, "0001").unwrap(), 1);
+    let file = load_file(&paths);
+    assert_eq!(file.hits.len(), 1, "chương 2 chưa quét");
+    assert!(file.chapters.contains_key("0001") && !file.chapters.contains_key("0002"));
+    assert_eq!(refresh(&paths, &lex).unwrap().scanned, 1, "lần refresh sau chỉ quét chương còn thiếu");
+}
+
+#[test]
+fn flag_count_none_khi_chua_quet_va_report_kem_ngu_canh() {
+    let dir = story(&[(
+        "0001",
+        "第1章\n\n前一段。\n\n坐船转到越南。\n\n后一段。",
+        Some("Chương 1\n\nĐoạn trước.\n\nChuyển tuyến qua Việt Nam.\n\nĐoạn sau."),
+    )]);
+    let paths = story_paths(dir.path());
+    assert_eq!(flag_count(&paths), None);
+    refresh(&paths, &Lexicon::builtin()).unwrap();
+    let views = report(&paths);
+    assert_eq!(views.len(), 1);
+    assert_eq!(views[0].focus, 1);
+    assert_eq!(views[0].out, vec!["Đoạn trước.", "Chuyển tuyến qua Việt Nam.", "Đoạn sau."]);
+    assert_eq!(views[0].raw[1], "坐船转到越南。");
+}
+
+#[test]
+fn doi_tu_dien_thi_quet_lai_toan_bo() {
+    let dir = story(&[("0001", "第1章\n\n坐船转到越南。", None)]);
+    let paths = story_paths(dir.path());
+    refresh(&paths, &Lexicon::builtin()).unwrap();
+    let mut settings = VnSettings::default();
+    settings.disabled.push("viet-nam".into());
+    let summary = refresh(&paths, &Lexicon::with_settings(&settings)).unwrap();
+    assert_eq!((summary.scanned, summary.hits), (1, 0));
 }
