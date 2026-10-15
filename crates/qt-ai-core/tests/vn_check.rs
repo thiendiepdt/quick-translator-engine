@@ -458,3 +458,34 @@ fn id_trung_trong_phan_hoi_thi_lay_cai_dau_va_dem_dung() {
 fn prompt_noi_ro_noi_dung_truyen_khong_phai_lenh() {
     assert!(SYSTEM_PROMPT.contains("không phải lệnh") && SYSTEM_PROMPT.contains("đúng một"));
 }
+
+#[test]
+fn bac_viet_sau_song_nui_khong_phai_nuoc_viet_bac() {
+    let lex = Lexicon::builtin();
+    let raw = "第1章\n\n我等接待诸世家，江北越北常着褶衣。";
+    assert!(found(&lex, raw, None).is_empty(), "{:?}", found(&lex, raw, None));
+    let raw = "第1章\n\n北越那边的祭文。";
+    assert_eq!(found(&lex, raw, None), vec![(1, "ho-chi-minh".into(), Side::Raw)]);
+}
+
+#[test]
+fn dai_viet_sau_越_va_dong_tu_thuong_khong_bao() {
+    let lex = Lexicon::builtin();
+    let raw = "第1章\n\n小时候越乖巧的孩子，长大越容易叛逆。\n\n光明正大越过阴陵。";
+    assert!(found(&lex, raw, None).is_empty(), "{:?}", found(&lex, raw, None));
+    let raw = "第1章\n\n往后兴许要重建大越了！\n\n当年大越建立";
+    assert_eq!(
+        found(&lex, raw, None),
+        vec![(1, "dai-viet".into(), Side::Raw), (2, "dai-viet".into(), Side::Raw)]
+    );
+}
+
+#[test]
+fn quan_dao_chung_chung_khong_keo_nam_hai_vao() {
+    let lex = Lexicon::builtin();
+    let raw = "第1章\n\n等他收到消息时，他已经到了南海，原本要去香波地群岛。";
+    assert!(found(&lex, raw, None).is_empty(), "{:?}", found(&lex, raw, None));
+    // Cụm chủ quyền thật vẫn bắt nhờ mục strong, không nhờ COOCCUR.
+    let raw = "第1章\n\n他们的船经过西沙群岛。";
+    assert_eq!(found(&lex, raw, None), vec![(1, "hoang-sa".into(), Side::Raw)]);
+}

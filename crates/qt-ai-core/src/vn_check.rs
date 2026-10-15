@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 
 /// Từ đi kèm cho từ yếu (ngoài một mục strong bất kỳ cùng đoạn).
 const COOCCUR: &[&str] = &[
-    "主权", "领土", "领海", "岛礁", "群岛", "越南", "安南", "交趾", "chủ quyền", "lãnh thổ", "lãnh hải", "quần đảo",
+    "主权", "领土", "领海", "岛礁", "越南", "安南", "交趾", "chủ quyền", "lãnh thổ", "lãnh hải",
     "Việt Nam", "An Nam", "Giao Chỉ",
 ];
 
