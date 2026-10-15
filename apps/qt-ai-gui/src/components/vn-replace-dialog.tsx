@@ -104,7 +104,11 @@ function VnReplaceForm({
     };
   }, []);
 
-  const sameTerm = useMemo(() => allHits.filter((hit) => hit.side === "out" && hit.matched === from), [allHits, from]);
+  // Chỗ đã "Không sao" không tính: chương chỉ còn những chỗ đó không được đề xuất / tick.
+  const sameTerm = useMemo(
+    () => allHits.filter((hit) => hit.side === "out" && hit.status !== "ok" && hit.matched === from),
+    [allHits, from],
+  );
   const chaptersWithTerm = useMemo(() => [...new Set(sameTerm.map((hit) => hit.chapter))], [sameTerm]);
   const skipped = translated.filter((hit) => hit.matched !== from).length;
   const target =

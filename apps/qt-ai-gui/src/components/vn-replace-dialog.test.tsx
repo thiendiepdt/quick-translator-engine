@@ -53,6 +53,18 @@ describe("VnReplaceDialog", () => {
     expect(vnReplace).toHaveBeenCalledWith("D:\\t", { from: "Việt Nam", to: "Thái Lan", chapters: ["0001", "0002", "0009"] });
   });
 
+  it("phạm vi theo chương bỏ chương chỉ còn chỗ đã 'Không sao'", async () => {
+    const user = userEvent.setup();
+    render(<VnReplaceDialog root={ROOT} setting="modern" hits={[a]} allHits={[a, b, { ...c, status: "ok" }]} open onOpenChange={vi.fn()} onDone={vi.fn()} />);
+    await screen.findByDisplayValue("Thái Lan");
+    await user.click(screen.getByRole("radio", { name: /Chọn chương/ }));
+    expect(screen.queryByRole("checkbox", { name: "0009" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("radio", { name: /Mọi chương có chỗ khớp/ }));
+    expect(screen.getByText(/Sẽ thay mọi chỗ "Việt Nam" trong 2 chương \(đã phát hiện 2 chỗ\)/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Thay" }));
+    expect(vnReplace).toHaveBeenCalledWith("D:\\t", { from: "Việt Nam", to: "Thái Lan", chapters: ["0001", "0002"] });
+  });
+
   it("phạm vi 'chọn chương' dùng các chương được tick", async () => {
     const user = userEvent.setup();
     renderDialog([a]);
