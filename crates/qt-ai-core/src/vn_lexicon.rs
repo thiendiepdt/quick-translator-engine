@@ -105,7 +105,8 @@ fn e(id: &str, group: Group, level: Level, weak: bool, zh: &[&str], vi: &[&str],
     Entry { id: id.into(), group, level, weak, zh: own(zh), vi: own(vi), exclude: own(exclude) }
 }
 
-/// Mọi cụm chứa một dạng strong phải nằm ở mục strong (khớp theo cụm dài nhất — cụm dài ở mục weak sẽ nuốt chỗ khớp thật).
+/// Khi hai chỗ khớp chồng nhau, mục strong thắng mục weak, rồi cụm dài hơn (xem `Lexicon::resolve`) —
+/// nên một cụm weak (南越, 南沙…) không còn nuốt được chỗ khớp strong nằm lẫn trong nó (云南越南).
 pub fn builtin_entries() -> Vec<Entry> {
     use Group::*;
     use Level::*;
@@ -192,7 +193,7 @@ fn automaton(patterns: &[String], ascii_case_insensitive: bool) -> Option<AhoCor
         return None;
     }
     AhoCorasickBuilder::new()
-        .match_kind(MatchKind::LeftmostLongest)
+        .match_kind(MatchKind::Standard)
         .ascii_case_insensitive(ascii_case_insensitive)
         .build(patterns)
         .ok()
@@ -232,23 +233,44 @@ impl Lexicon {
         Lexicon::with_settings(&load_settings(base))
     }
 
+    /// Chỗ khớp chữ Hán, đã bỏ chỗ bị loại trừ; không chồng nhau, sắp theo vị trí.
     pub fn find_zh(&self, text: &str) -> Vec<Hit> {
         let Some(ac) = &self.zh else { return vec![] };
-        ac.find_iter(text)
+        let candidates = ac
+            .find_overlapping_iter(text)
             .map(|m| Hit { entry: self.zh_owner[m.pattern().as_usize()], start: m.start(), end: m.end() })
-            .collect()
+            .collect();
+        self.resolve(candidates, text)
     }
 
-    /// Tiếng Việt khớp nguyên từ: ký tự liền trước/sau không phải chữ/số.
+    /// Chỗ khớp tiếng Việt nguyên từ (ký tự liền trước/sau không phải chữ/số), đã bỏ chỗ bị loại trừ;
+    /// không chồng nhau, sắp theo vị trí.
     pub fn find_vi(&self, text: &str) -> Vec<Hit> {
         let Some(ac) = &self.vi else { return vec![] };
-        ac.find_iter(text)
+        let candidates = ac
+            .find_overlapping_iter(text)
             .filter(|m| {
                 !text[..m.start()].chars().next_back().is_some_and(char::is_alphanumeric)
                     && !text[m.end()..].chars().next().is_some_and(char::is_alphanumeric)
             })
             .map(|m| Hit { entry: self.vi_owner[m.pattern().as_usize()], start: m.start(), end: m.end() })
-            .collect()
+            .collect();
+        self.resolve(candidates, text)
+    }
+
+    /// Bỏ ứng viên bị loại trừ, rồi chọn tập không chồng nhau: strong trước weak, cụm dài hơn trước,
+    /// bắt đầu sớm hơn trước.
+    fn resolve(&self, mut candidates: Vec<Hit>, text: &str) -> Vec<Hit> {
+        candidates.retain(|hit| !self.excluded(*hit, text));
+        candidates.sort_by_key(|hit| (self.entries[hit.entry].weak, std::cmp::Reverse(hit.end - hit.start), hit.start));
+        let mut chosen: Vec<Hit> = Vec::new();
+        for hit in candidates {
+            if chosen.iter().all(|kept| hit.end <= kept.start || hit.start >= kept.end) {
+                chosen.push(hit);
+            }
+        }
+        chosen.sort_by_key(|hit| hit.start);
+        chosen
     }
 
     /// Có mẫu loại trừ của mục khớp một đoạn chồng lên chỗ khớp, trong cửa sổ ±12 ký tự.
