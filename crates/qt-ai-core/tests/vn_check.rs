@@ -74,6 +74,22 @@ fn luu_va_doc_cau_hinh_o_thu_muc_ban_mac_dinh() {
 }
 
 #[test]
+fn cau_hinh_hong_duoc_sao_luu_truoc_khi_luu_de() {
+    let dir = tempfile::tempdir().unwrap();
+    let base = qt_ai_core::base::BaseStore::at(dir.path());
+    fs::write(dir.path().join("vn-terms.json"), "{ hỏng").unwrap();
+    assert_eq!(load_settings(&base), VnSettings::default());
+    let mut settings = VnSettings::default();
+    settings.disabled.push("ha-noi".into());
+    save_settings(&base, &settings).unwrap();
+    assert_eq!(fs::read_to_string(dir.path().join("vn-terms.json.bad")).unwrap(), "{ hỏng");
+    assert_eq!(load_settings(&base), settings);
+    // File tốt thì không sao lưu đè bản hỏng đã giữ.
+    save_settings(&base, &VnSettings::default()).unwrap();
+    assert_eq!(fs::read_to_string(dir.path().join("vn-terms.json.bad")).unwrap(), "{ hỏng");
+}
+
+#[test]
 fn khop_chong_nhau_strong_thang_weak_phia_trung() {
     let lex = Lexicon::builtin();
     assert!(ids(&lex, &lex.find_zh("他去过云南越南边境")).contains(&"viet-nam".to_string()));

@@ -317,6 +317,15 @@ pub fn save_settings(base: &BaseStore, settings: &VnSettings) -> Result<()> {
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir).map_err(CoreError::io(dir))?;
     }
+    // File có mà không parse được (sửa tay hỏng) → chép sang `vn-terms.json.bad` trước khi ghi đè.
+    if let Ok(old) = std::fs::read(&path) {
+        if serde_json::from_slice::<VnSettings>(&old).is_err() {
+            let mut bad = path.as_os_str().to_owned();
+            bad.push(".bad");
+            let bad = PathBuf::from(bad);
+            std::fs::write(&bad, &old).map_err(CoreError::io(&bad))?;
+        }
+    }
     let text = serde_json::to_string_pretty(settings).expect("VnSettings luôn serialize được");
     crate::story_fs::write_atomic(&path, &format!("{text}\n"))
 }
