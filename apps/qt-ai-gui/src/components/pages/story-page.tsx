@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { TitlesPanel } from "@/components/titles-panel";
+import { VnCheckPanel } from "@/components/vn-check-panel";
 import { useStoryDefaults } from "@/hooks/use-story-defaults";
 import { castLoad, saveStory, storySnapshot } from "@/lib/api";
 import { latestAddressing } from "@/lib/cast-addressing";
@@ -40,6 +41,7 @@ const SECTIONS = [
   { id: "glossary", label: "Glossary" },
   { id: "cast", label: "Nhân vật" },
   { id: "titles", label: "Tiêu đề chương" },
+  { id: "vn", label: "Kiểm tra VN" },
   { id: "rules", label: "Rule kiểm tra" },
   { id: "prompt", label: "Prompt" },
 ] as const;
@@ -357,6 +359,9 @@ export function StoryPage() {
               <Section id="titles" active={active} title="Tiêu đề chương lặp">
                 {/* File riêng (titles.json) như bảng nhân vật; dựng lại sau reset để đọc sổ mới. */}
                 <TitlesPanel key={castEpoch} root={currentRoot} running={running} />
+              </Section>
+              <Section id="vn" active={active} title="Kiểm tra nội dung nhạy cảm về Việt Nam">
+                <VnCheckPanel root={currentRoot} running={running} setting={currentStory.genre.setting} />
               </Section>
               <Section id="rules" active={active} title="Rule kiểm tra">
                 <CheckRulesEditor defaults={defaults} />

@@ -19,6 +19,12 @@ vi.mock("@/lib/api", () => ({
   glossaryBackfill: vi.fn(),
   pickSaveFile: vi.fn(),
   writeTextFile: vi.fn(),
+  vnRefresh: vi.fn(() => Promise.resolve({ hits: 0, open: 0, scanned: 0 })),
+  vnReport: vi.fn(() => Promise.resolve([])),
+  vnSetStatus: vi.fn(),
+  vnAiVerify: vi.fn(),
+  vnReplace: vi.fn(),
+  vnSettingsGet: vi.fn(),
   storyDefaults: vi.fn((genre: { setting: string }) =>
     Promise.resolve({
       basePrompt: genre.setting === "modern" ? "Prompt hiện đại." : "Prompt gốc.",
