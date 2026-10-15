@@ -129,6 +129,28 @@ describe("StoryPage", () => {
     expect(screen.getByRole("button", { name: "Đồng bộ tiến độ…" })).toBeDisabled();
   });
 
+  it("form còn thay đổi chưa lưu thì khoá Đồng bộ tiến độ… (đồng bộ nạp lại snapshot, mất chỗ đang sửa)", async () => {
+    const user = userEvent.setup();
+    render(<StoryPage />);
+    const button = screen.getByRole("button", { name: "Đồng bộ tiến độ…" });
+    expect(button).toBeEnabled();
+    await user.type(screen.getByLabelText("Tên truyện"), " sửa");
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute("title", expect.stringContaining("Lưu thay đổi trước"));
+  });
+
+  it("reset xong thì hỏi lại độ lệch tiến độ đang nhắc", async () => {
+    const user = userEvent.setup();
+    const { storyReset, progressDrift } = await import("@/lib/api");
+    vi.mocked(storyReset).mockResolvedValue(snapshot);
+    useStoryStore.setState({ snapshot: { ...snapshot, progressDrift: { untracked: 2, missing: 0 } } });
+    render(<StoryPage />);
+    vi.mocked(progressDrift).mockClear();
+    await user.click(screen.getByRole("button", { name: "Reset truyện…" }));
+    await user.click(screen.getByRole("button", { name: "Reset truyện" }));
+    await waitFor(() => expect(progressDrift).toHaveBeenCalledWith(snapshot.root));
+  });
+
   it("reset khi đang mở tab Nhân vật thì nạp lại bảng nhân vật từ đĩa, không giữ bảng cũ trong bộ nhớ", async () => {
     const user = userEvent.setup();
     const { storyReset, castLoad } = await import("@/lib/api");

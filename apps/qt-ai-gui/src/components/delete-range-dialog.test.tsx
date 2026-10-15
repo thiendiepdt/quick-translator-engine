@@ -6,8 +6,13 @@ import { DeleteRangeDialog } from "@/components/delete-range-dialog";
 import { chaptersDelete, storySnapshot } from "@/lib/api";
 import { describeDelete } from "@/lib/chapters";
 import type { ChapterRow } from "@/lib/types";
+import { useStoryStore } from "@/store/story";
 
-vi.mock("@/lib/api", () => ({ chaptersDelete: vi.fn(), storySnapshot: vi.fn() }));
+vi.mock("@/lib/api", () => ({
+  chaptersDelete: vi.fn(),
+  storySnapshot: vi.fn(),
+  progressDrift: vi.fn(() => Promise.resolve({ untracked: [], missing: [] })),
+}));
 
 const row = (id: string, status: ChapterRow["status"]): ChapterRow => ({ id, status, reviewRound: 0, reason: null, warnings: [] });
 const chapters = [row("0001", "done"), row("0002", "error"), row("0003", "queued"), row("0004", "done")];
@@ -51,5 +56,16 @@ describe("DeleteRangeDialog", () => {
   it("describeDelete nêu số bản dịch giữ lại khi có", () => {
     expect(describeDelete(3, 0)).toBe("Đã xoá 3 chương");
     expect(describeDelete(3, 2)).toBe("Đã xoá 3 chương (2 bản dịch trong out/ giữ nguyên)");
+  });
+
+  it("xoá xong thì hỏi lại độ lệch tiến độ đang nhắc", async () => {
+    const user = userEvent.setup();
+    const { progressDrift } = await import("@/lib/api");
+    useStoryStore.setState({ root: "D:\\t", snapshot: { root: "D:\\t", progressDrift: { untracked: 2, missing: 0 } } as never });
+    render(<DeleteRangeDialog root={"D:\\t"} chapters={chapters} open onOpenChange={vi.fn()} />);
+    await user.type(screen.getByLabelText("Từ chương"), "1");
+    await user.type(screen.getByLabelText("Đến chương"), "2");
+    await user.click(screen.getByRole("button", { name: /Xoá 2 chương/ }));
+    await waitFor(() => expect(progressDrift).toHaveBeenCalledWith("D:\\t"));
   });
 });

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 
+import { progressDrift } from "@/lib/api";
 import type { ChapterFilter } from "@/lib/chapters";
 import { pathKey, samePath } from "@/lib/paths";
 import type { AgyStatus, AppConfig, Progress, SessionEvent, StopReason, StorySnapshot } from "@/lib/types";
@@ -78,6 +79,9 @@ interface StoryState extends PerStory {
   closeStory: () => void;
   setPage: (page: Page) => void;
   setSnapshot: (snapshot: StorySnapshot) => void;
+  /** Đang nhắc chương lệch tiến độ (banner) thì hỏi lại Rust cho con số mới — gọi sau phiên dừng, dịch lại, xoá, reset.
+   * Không nhắc gì thì bỏ qua: các việc đó không làm phát sinh chương lệch, khỏi đọc lại cả out/. */
+  refreshProgressDrift: (root: string) => Promise<void>;
   select: (id?: string) => void;
   setStatusFilter: (filter: ChapterFilter) => void;
   setSearchQuery: (query: string) => void;
@@ -178,7 +182,7 @@ function enterStory(state: StoryState, snapshot: StorySnapshot, page: Page): Par
   };
 }
 
-export const useStoryStore = create<StoryState>()((set) => ({
+export const useStoryStore = create<StoryState>()((set, get) => ({
   screen: "picker",
   page: "translate",
   statusFilter: "all",
@@ -204,6 +208,18 @@ export const useStoryStore = create<StoryState>()((set) => ({
       snapshot: keepProgressDrift(state.snapshot, snapshot),
       issues: withIssues(state.issues, pathKey(snapshot.root), snapshot.counts.skipped, snapshot.counts.error),
     })),
+  refreshProgressDrift: async (root) => {
+    const current = get().snapshot;
+    if (!current || !samePath(current.root, root) || !current.progressDrift?.untracked) return;
+    try {
+      const drift = await progressDrift(root);
+      const latest = get().snapshot;
+      if (!latest || !samePath(latest.root, root)) return;
+      set({ snapshot: { ...latest, progressDrift: { untracked: drift.untracked.length, missing: drift.missing.length } } });
+    } catch {
+      // Giữ con số cũ: dialog Đồng bộ luôn đối chiếu lại khi mở.
+    }
+  },
   select: (id) => set({ selectedId: id }),
   setStatusFilter: (statusFilter) => set({ statusFilter }),
   setSearchQuery: (searchQuery) => set({ searchQuery }),

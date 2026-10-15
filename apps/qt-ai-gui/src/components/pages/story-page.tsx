@@ -409,8 +409,12 @@ export function StoryPage() {
             type="button"
             variant="ghost"
             size="sm"
-            disabled={running}
-            title="Đánh dấu đã dịch các chương đã có bản dịch trong out/ (state.json lệch sau khi đồng bộ Google Drive)"
+            disabled={running || dirty}
+            title={
+              dirty
+                ? "Lưu thay đổi trước — đồng bộ nạp lại hồ sơ từ đĩa, chỗ đang sửa sẽ mất"
+                : "Đánh dấu đã dịch các chương đã có bản dịch trong out/ (state.json lệch sau khi đồng bộ Google Drive)"
+            }
             onClick={() => setSyncOpen(true)}
           >
             <RefreshCw /> Đồng bộ tiến độ…

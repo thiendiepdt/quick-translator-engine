@@ -53,6 +53,7 @@ export function RetryRangeDialog({ root, chapters, open, onOpenChange }: Props) 
     try {
       const outcome = await chaptersRetry(root, { from: fromId || undefined, to: toId || undefined });
       setSnapshot(await storySnapshot(root));
+      void useStoryStore.getState().refreshProgressDrift(root);
       toast.success(
         `Đã đưa ${outcome.retried.length} chương về hàng đợi` +
           (outcome.backedUp.length > 0 ? `, ${outcome.backedUp.length} bản dịch cũ giữ .bak` : ""),

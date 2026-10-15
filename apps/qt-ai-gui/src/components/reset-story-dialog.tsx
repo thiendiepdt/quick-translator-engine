@@ -37,6 +37,7 @@ export function ResetStoryDialog({ root, total, done, open, onOpenChange, onRese
     setBusy(true);
     try {
       setSnapshot(await storyReset(root));
+      void useStoryStore.getState().refreshProgressDrift(root);
       onReset?.();
       toast.success(`Đã reset truyện — ${total} chương về hàng đợi. Điền lại hồ sơ rồi bấm Bắt đầu để dịch.`);
       onOpenChange(false);

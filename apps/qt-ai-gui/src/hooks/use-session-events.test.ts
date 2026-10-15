@@ -17,6 +17,7 @@ vi.mock("@tauri-apps/api/event", () => ({
 
 vi.mock("@/lib/api", () => ({
   storySnapshot: vi.fn(),
+  progressDrift: vi.fn(),
 }));
 
 const A = "D:\\lib\\a";
@@ -51,5 +52,19 @@ describe("useSessionEvents", () => {
   it("storyLabel lấy tên folder cuối", () => {
     expect(storyLabel("D:\\lib\\ta-tuyet-the\\")).toBe("ta-tuyet-the");
     expect(storyLabel("/srv/books/x")).toBe("x");
+  });
+
+  it("phiên của truyện đang mở dừng/xong thì hỏi lại độ lệch tiến độ đang nhắc", async () => {
+    const { progressDrift } = await import("@/lib/api");
+    vi.mocked(progressDrift).mockReset().mockResolvedValue({ untracked: [], missing: [] });
+    vi.mocked(storySnapshot).mockResolvedValue({ root: A } as never);
+    useStoryStore.setState({ snapshot: { root: A, progressDrift: { untracked: 5, missing: 0 } } as never });
+    renderHook(() => useSessionEvents());
+    await waitFor(() => expect(handler).toBeDefined());
+    handler?.({ payload: { root: A, type: "progress", done: 1, total: 2 } });
+    expect(progressDrift).not.toHaveBeenCalled();
+    handler?.({ payload: { root: A, type: "stopped", kind: "finished" } });
+    await waitFor(() => expect(progressDrift).toHaveBeenCalledWith(A));
+    await waitFor(() => expect(useStoryStore.getState().snapshot?.progressDrift).toEqual({ untracked: 0, missing: 0 }));
   });
 });

@@ -524,7 +524,7 @@ pub fn write_text_file(path: String, content: String) -> CmdResult<()> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use qt_ai_core::commands::init::run_init;
     use qt_ai_core::commands::next::run_next;
@@ -648,12 +648,19 @@ mod tests {
         assert!(chapter_view(dir.path(), "0001").unwrap().warnings.is_empty());
     }
 
+    /// Bản dịch "máy kia" ghi sau state.json: mtime đặt hẳn 1 giờ sau, khỏi phụ thuộc độ mịn đồng hồ hệ tệp.
+    pub(crate) fn write_later(path: &Path, text: &str) {
+        fs::write(path, text).unwrap();
+        let later = std::time::SystemTime::now() + std::time::Duration::from_secs(3600);
+        fs::File::options().write(true).open(path).unwrap().set_modified(later).unwrap();
+    }
+
     #[test]
     fn snapshot_thuong_khong_tinh_lech_tien_do_chi_ban_mo_hoac_quet_lai_moi_tinh() {
         let dir = story();
         let paths = story_paths(dir.path());
         // Drive sync về out/ nhưng state.json là bản cũ: 0001 có bản dịch mà vẫn queued.
-        fs::write(paths.out_dir.join("0001.txt"), "Chương một.").unwrap();
+        write_later(&paths.out_dir.join("0001.txt"), "Chương một.");
         let snap = snapshot(dir.path(), false).unwrap();
         assert!(snap.progress_drift.is_none(), "snapshot hay gọi (polling phiên) không đọc out/");
         assert!(serde_json::to_value(&snap).unwrap()["progressDrift"].is_null());
@@ -666,7 +673,7 @@ mod tests {
     fn sync_progress_chan_khi_phien_chay_xong_thi_tra_snapshot_het_lech() {
         let dir = story();
         let paths = story_paths(dir.path());
-        fs::write(paths.out_dir.join("0002.txt"), "Chương hai.").unwrap();
+        write_later(&paths.out_dir.join("0002.txt"), "Chương hai.");
         let error = sync_progress_inner(dir.path(), true).unwrap_err();
         assert_eq!(error.kind, "session_locked");
         assert_eq!(load_state(&paths).unwrap().chapters["0002"].status.as_str(), "queued", "bị chặn thì không ghi");

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DEFAULT_STEP_EFFORTS, storySnapshotSchema } from "@/lib/schema";
 import type { StorySnapshot } from "@/lib/types";
@@ -11,6 +11,8 @@ import {
   sessionOf,
   useStoryStore,
 } from "@/store/story";
+
+vi.mock("@/lib/api", () => ({ progressDrift: vi.fn() }));
 
 const A = "D:\\lib\\a";
 const B = "D:\\lib\\b";
@@ -220,5 +222,29 @@ describe("setSnapshot · độ lệch tiến độ", () => {
     useStoryStore.getState().setSnapshot({ ...snapshotFor(A), progressDrift: { untracked: 5, missing: 0 } });
     useStoryStore.getState().setSnapshot(snapshotFor(B));
     expect(useStoryStore.getState().snapshot?.progressDrift ?? null).toBeNull();
+  });
+});
+
+describe("refreshProgressDrift", () => {
+  it("đang biết có chương lệch thì hỏi lại và cập nhật (untracked 0 → banner tắt); truyện khác hoặc không lệch thì không hỏi", async () => {
+    const { progressDrift } = await import("@/lib/api");
+    vi.mocked(progressDrift).mockReset().mockResolvedValue({ untracked: [], missing: ["0009"] });
+    useStoryStore.getState().openStory({ ...snapshotFor(A), progressDrift: { untracked: 549, missing: 0 } });
+    await useStoryStore.getState().refreshProgressDrift(B);
+    expect(progressDrift).not.toHaveBeenCalled();
+    await useStoryStore.getState().refreshProgressDrift(A);
+    expect(progressDrift).toHaveBeenCalledWith(A);
+    expect(useStoryStore.getState().snapshot?.progressDrift).toEqual({ untracked: 0, missing: 1 });
+    // Không còn gì để nhắc thì khỏi đọc lại out/.
+    await useStoryStore.getState().refreshProgressDrift(A);
+    expect(progressDrift).toHaveBeenCalledTimes(1);
+  });
+
+  it("lỗi thì giữ con số cũ", async () => {
+    const { progressDrift } = await import("@/lib/api");
+    vi.mocked(progressDrift).mockReset().mockRejectedValue(new Error("hỏng"));
+    useStoryStore.getState().openStory({ ...snapshotFor(A), progressDrift: { untracked: 3, missing: 0 } });
+    await useStoryStore.getState().refreshProgressDrift(A);
+    expect(useStoryStore.getState().snapshot?.progressDrift).toEqual({ untracked: 3, missing: 0 });
   });
 });

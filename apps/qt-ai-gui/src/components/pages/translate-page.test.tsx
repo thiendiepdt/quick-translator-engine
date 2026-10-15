@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -152,6 +152,15 @@ describe("TranslatePage · banner tiến độ lệch sau sync Drive", () => {
     expect(screen.getByText(/3 chương đã có bản dịch nhưng tiến độ chưa ghi/)).toBeInTheDocument();
     useStoryStore.setState({ snapshot: { ...oneChapter, progressDrift: { untracked: 0, missing: 2 } } });
     rerender(<TranslatePage />);
+    expect(screen.queryByText(/tiến độ chưa ghi/)).not.toBeInTheDocument();
+  });
+
+  it("hỏi lại độ lệch (sau phiên dừng, dịch lại, xoá, reset) ra 0 thì banner tắt", async () => {
+    const { progressDrift } = await import("@/lib/api");
+    vi.mocked(progressDrift).mockResolvedValue({ untracked: [], missing: [] });
+    render(<TranslatePage />);
+    expect(screen.getByText(/549 chương đã có bản dịch/)).toBeInTheDocument();
+    await act(() => useStoryStore.getState().refreshProgressDrift(oneChapter.root));
     expect(screen.queryByText(/tiến độ chưa ghi/)).not.toBeInTheDocument();
   });
 });

@@ -4,9 +4,10 @@ import { toast } from "sonner";
 
 import { DeleteRangeDialog } from "@/components/delete-range-dialog";
 import { RetryRangeDialog } from "@/components/retry-range-dialog";
+import { SyncProgressDialog } from "@/components/sync-progress-dialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { chaptersRetryIds, rescanStory, sessionStart, sessionStop, storySnapshot } from "@/lib/api";
+import { ApiError, chaptersRetryIds, rescanStory, sessionStart, sessionStop, storySnapshot } from "@/lib/api";
 import { filterChapters, gapsBeforeFrontier } from "@/lib/chapters";
 import { clockLabel, engineLabel, STATUS_LABELS } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -60,6 +61,7 @@ export function TranslateToolbar() {
   const [retryingGaps, setRetryingGaps] = useState(false);
   const [retryOpen, setRetryOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [syncOpen, setSyncOpen] = useState(false);
 
   /** Đưa mọi chương hổng (skip/lỗi) về hàng đợi; không tự chạy phiên. */
   async function retryGaps() {
@@ -68,6 +70,7 @@ export function TranslateToolbar() {
     try {
       const outcome = await chaptersRetryIds(root, gapRetryIds);
       setSnapshot(await storySnapshot(root));
+      void useStoryStore.getState().refreshProgressDrift(root);
       toast.success(`Đã đưa ${outcome.retried.length} chương về hàng đợi — bấm Bắt đầu để dịch`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Dịch lại thất bại");
@@ -118,6 +121,8 @@ export function TranslateToolbar() {
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Không đổi được trạng thái phiên");
+      // Rust chặn vì out/ có bản dịch mà tiến độ chưa ghi — mở luôn hộp đồng bộ.
+      if (error instanceof ApiError && error.kind === "progress_drift") setSyncOpen(true);
     } finally {
       setBusy(false);
     }
@@ -203,6 +208,7 @@ export function TranslateToolbar() {
           <>
             <RetryRangeDialog root={root} chapters={snapshot?.chapters ?? []} open={retryOpen} onOpenChange={setRetryOpen} />
             <DeleteRangeDialog root={root} chapters={snapshot?.chapters ?? []} open={deleteOpen} onOpenChange={setDeleteOpen} />
+            <SyncProgressDialog root={root} open={syncOpen} onOpenChange={setSyncOpen} />
           </>
         )}
         <Button

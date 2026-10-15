@@ -43,6 +43,8 @@ export function useSessionEvents() {
             if (!cancelled && latest.root && samePath(latest.root, root)) latest.setSnapshot(snapshot);
           })
           .catch(() => undefined);
+        // Phiên có thể đã dịch lại chính các chương lệch — banner nhắc đồng bộ cần con số mới.
+        if (event.type === "stopped") void store.refreshProgressDrift(current);
       }
     });
     return () => {

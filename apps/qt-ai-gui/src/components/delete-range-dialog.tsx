@@ -49,6 +49,7 @@ export function DeleteRangeDialog({ root, chapters, open, onOpenChange }: Props)
     try {
       const outcome = await chaptersDelete(root, ids);
       setSnapshot(await storySnapshot(root));
+      void useStoryStore.getState().refreshProgressDrift(root);
       toast.success(describeDelete(outcome.removed.length, outcome.keptOutputs.length));
       setFrom("");
       setTo("");

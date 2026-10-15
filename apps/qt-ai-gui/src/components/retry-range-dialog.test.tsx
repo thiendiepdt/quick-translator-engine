@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { RetryRangeDialog } from "@/components/retry-range-dialog";
 import { chaptersRetry, storySnapshot } from "@/lib/api";
 import type { ChapterRow } from "@/lib/types";
+import { useStoryStore } from "@/store/story";
 
 vi.mock("@/lib/api", () => ({
   chaptersRetry: vi.fn(),
@@ -61,5 +62,15 @@ describe("RetryRangeDialog", () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
     await waitFor(() => expect(progressDrift).toHaveBeenCalledWith("D:\\t"));
     expect(await screen.findByText(/1 chương đã có bản dịch trong out\//)).toBeInTheDocument();
+  });
+
+  it("dịch lại xong thì hỏi lại độ lệch tiến độ đang nhắc", async () => {
+    const user = userEvent.setup();
+    const { progressDrift } = await import("@/lib/api");
+    vi.mocked(progressDrift).mockClear();
+    useStoryStore.setState({ root: "D:\\t", snapshot: { root: "D:\\t", progressDrift: { untracked: 2, missing: 0 } } as never });
+    render(<RetryRangeDialog root={"D:\\t"} chapters={chapters} open onOpenChange={vi.fn()} />);
+    await user.click(screen.getByRole("button", { name: /Dịch lại 3 chương/ }));
+    await waitFor(() => expect(progressDrift).toHaveBeenCalledWith("D:\\t"));
   });
 });

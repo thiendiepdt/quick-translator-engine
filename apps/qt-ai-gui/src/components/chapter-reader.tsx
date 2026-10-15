@@ -229,6 +229,7 @@ export function ChapterReader({ root, row, ordinal, hasPrev, hasNext, onPrev, on
     try {
       const message = await action();
       setSnapshot(await storySnapshot(root));
+      void useStoryStore.getState().refreshProgressDrift(root);
       toast.success(typeof message === "string" ? message : label);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : `${label} thất bại`);
