@@ -1,12 +1,13 @@
 # Có gì mới
 
-## Chưa phát hành
+## 1.0.22 — 2026-10-15
 - Thêm kiểm tra nội dung nhạy cảm về Việt Nam: app tự quét chương gốc và bản dịch khi mở truyện, quét chương mới hay chốt chương, rồi đánh dấu những chỗ nhắc tới Việt Nam cần xem lại (chỉ cảnh báo, không chặn dịch hay export).
 - Thêm tab **Kiểm tra VN** trong trang Truyện để lọc và xem từng chỗ kèm ngữ cảnh, đánh dấu **Không sao** hoặc **Cần xử lý**, và bấm **AI xét** để AI sơ loại trước khi bạn tự xem.
 - Thêm **Thay thế…** cho chỗ nhạy cảm VN theo từng chỗ, theo chương hoặc cả truyện; thay nhiều cụm trong một lượt với cụm thay gợi ý sẵn, và hoàn tác cả lượt ở trang **Tìm & thay**.
 - Thêm huy hiệu **⚠ VN** ở màn chọn truyện cho truyện còn chỗ nhạy cảm về Việt Nam chưa xác minh.
 - Thêm thẻ **Kiểm tra nội dung nhạy cảm về Việt Nam** trong **Cài đặt** để bật/tắt từng mục từ điển có sẵn, thêm mục riêng và sửa bảng cụm thay gợi ý theo bối cảnh cổ đại hoặc hiện đại.
 - Thêm export EPUB ở trang **Export**: sách có bìa (tự tải từ link nguồn Fanqie, QQ đọc sách, Qidian, Qimao, SFACG, Tấn Giang hoặc bìa mặc định vẽ tên truyện), trang tiêu đề, trang mục lục bấm tới từng chương, tên tác giả chữ Hán được phiên sang Hán-Việt.
+- Thêm mục **Có gì mới** trong **Cài đặt**; sau mỗi lần cập nhật app tự hiện những thay đổi của các bản mới, và hộp hỏi cập nhật cũng kèm danh sách thay đổi.
 - Thêm **Đồng bộ tiến độ…** cho truyện đồng bộ qua Google Drive giữa nhiều máy: khi tiến độ lệch với bản dịch đã có, trang Dịch hiện thông báo và chặn bắt đầu dịch cho tới khi bạn đánh dấu các chương đó là đã dịch hoặc chọn **Dịch lại các chương này**.
 - Sửa lỗi truyện cổ đại còn lọt "chúng tôi", "nhà tôi" trong lời thoại; bộ kiểm tra bản dịch giờ bắt "tôi" trong thoại để đưa vào soát lại.
 
