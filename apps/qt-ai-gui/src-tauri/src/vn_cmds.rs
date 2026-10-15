@@ -43,7 +43,7 @@ pub struct VnReplaceRequest {
 }
 
 /// Thay nguyên từ, phân biệt hoa thường, giới hạn đúng chương/đoạn bằng danh sách loại trừ của engine Tìm & thay
-/// (nên có hoàn tác); xong quét lại.
+/// (nên có hoàn tác); xong quét lại (lỗi quét bỏ qua).
 pub fn replace_inner(root: &Path, request: &VnReplaceRequest, lex: &Lexicon) -> CmdResult<ReplaceOutcome> {
     let paths = story_paths(root);
     let query = FindQuery {
@@ -67,7 +67,8 @@ pub fn replace_inner(root: &Path, request: &VnReplaceRequest, lex: &Lexicon) -> 
             .collect(),
     };
     let outcome = replace_in_story(&paths, &query, &excluded_chapters, &excluded_hits)?;
-    refresh(&paths, lex)?;
+    // Bản dịch đã thay xong: quét lại lỗi không được biến thành "không thay được"; lần quét sau (mở tab, Quét lại) cập nhật.
+    let _ = refresh(&paths, lex);
     Ok(outcome)
 }
 
@@ -257,6 +258,16 @@ mod tests {
         let lex = Lexicon::builtin();
         let request = VnReplaceRequest { from: "Việt Nam".into(), to: "Thái Lan".into(), chapters: vec!["0001".into(), "0002".into()], paragraphs: None };
         assert_eq!(replace_inner(dir.path(), &request, &lex).unwrap().occurrences, 3);
+    }
+
+    #[test]
+    fn quet_lai_loi_sau_khi_thay_van_tra_ket_qua_thay() {
+        let dir = story();
+        // vn-check.json là thư mục → refresh sau khi thay lỗi; bản dịch đã thay xong nên không được báo lỗi.
+        fs::create_dir(dir.path().join(qt_ai_core::vn_check::VN_FILE)).unwrap();
+        let request = VnReplaceRequest { from: "Việt Nam".into(), to: "Thái Lan".into(), chapters: vec!["0002".into()], paragraphs: None };
+        assert_eq!(replace_inner(dir.path(), &request, &Lexicon::builtin()).unwrap().occurrences, 1);
+        assert!(fs::read_to_string(dir.path().join("out/0002.txt")).unwrap().contains("Thái Lan"));
     }
 
     #[test]
