@@ -361,7 +361,7 @@ export function StoryPage() {
                 <TitlesPanel key={castEpoch} root={currentRoot} running={running} />
               </Section>
               <Section id="vn" active={active} title="Kiểm tra nội dung nhạy cảm về Việt Nam">
-                <VnCheckPanel root={currentRoot} running={running} setting={currentStory.genre.setting} />
+                <VnCheckPanel key={currentRoot} root={currentRoot} running={running} setting={currentStory.genre.setting} />
               </Section>
               <Section id="rules" active={active} title="Rule kiểm tra">
                 <CheckRulesEditor defaults={defaults} />

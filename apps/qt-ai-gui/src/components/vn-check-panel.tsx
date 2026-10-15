@@ -1,5 +1,5 @@
 import { AlertTriangle, Check, RefreshCw, Sparkles, Wrench } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -45,24 +45,40 @@ export function VnCheckPanel({ root, running, setting }: Props) {
   const [selected, setSelected] = useState<string[]>([]);
   const [expanded, setExpanded] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [scanError, setScanError] = useState<string>();
   const [replaceOpen, setReplaceOpen] = useState(false);
-
-  const reload = useCallback(async () => setHits(await vnReport(root)), [root]);
+  const mounted = useRef(true);
+  const loadSeq = useRef(0);
 
   useEffect(() => {
-    let alive = true;
-    void (async () => {
-      try {
-        await vnRefresh(root);
-        if (alive) await reload();
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Không quét được");
-      }
-    })();
+    mounted.current = true;
     return () => {
-      alive = false;
+      mounted.current = false;
     };
+  }, []);
+
+  // Chỉ phản hồi của lần tải mới nhất được áp dụng; chọn/mở rộng cắt về những id còn tồn tại.
+  const reload = useCallback(async () => {
+    const seq = ++loadSeq.current;
+    const next = await vnReport(root);
+    if (!mounted.current || seq !== loadSeq.current) return;
+    const ids = new Set(next.map((hit) => hit.id));
+    setHits(next);
+    setSelected((list) => (list.every((id) => ids.has(id)) ? list : list.filter((id) => ids.has(id))));
+    setExpanded((list) => (list.every((id) => ids.has(id)) ? list : list.filter((id) => ids.has(id))));
+  }, [root]);
+
+  const scan = useCallback(async () => {
+    await vnRefresh(root);
+    await reload();
   }, [root, reload]);
+
+  useEffect(() => {
+    void scan().catch((error) => {
+      if (mounted.current) setScanError(error instanceof Error ? error.message : "Không quét được");
+    });
+  }, [scan]);
 
   const shown = useMemo(() => {
     const list = (hits ?? []).filter(
@@ -76,17 +92,48 @@ export function VnCheckPanel({ root, running, setting }: Props) {
     return order === "entry" ? [...list].sort((a, b) => a.entry.localeCompare(b.entry)) : list;
   }, [hits, status, group, level, aiLabel, order]);
 
-  const allShownSelected = shown.length > 0 && shown.every((hit) => selected.includes(hit.id));
+  const selectedSet = useMemo(() => new Set(selected), [selected]);
+  const expandedSet = useMemo(() => new Set(expanded), [expanded]);
+  // Chỉ những chỗ vừa được chọn vừa đang hiện mới được gửi đi (chỗ bị lọc ẩn thì không).
+  const chosen = useMemo(() => shown.filter((hit) => selectedSet.has(hit.id)), [shown, selectedSet]);
+  const allShownSelected = shown.length > 0 && chosen.length === shown.length;
 
   async function mark(ids: string[], next: VnStatus) {
-    await vnSetStatus(root, ids, next);
-    await reload();
+    try {
+      await vnSetStatus(root, ids, next);
+      await reload();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Không đặt được trạng thái");
+    }
+  }
+
+  async function retry() {
+    setScanError(undefined);
+    try {
+      await scan();
+    } catch (error) {
+      if (mounted.current) setScanError(error instanceof Error ? error.message : "Không quét được");
+    }
+  }
+
+  async function rescan() {
+    setScanning(true);
+    try {
+      await scan();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Không quét được");
+    } finally {
+      if (mounted.current) setScanning(false);
+    }
   }
 
   async function verify() {
     setBusy(true);
     try {
-      const outcome = await vnAiVerify(root, selected);
+      const outcome = await vnAiVerify(
+        root,
+        chosen.map((hit) => hit.id),
+      );
       if (outcome.error) toast.error(`AI xét: ${outcome.error}`);
       else toast.success(`AI đã xét ${outcome.verified} chỗ${outcome.failed ? `, ${outcome.failed} chỗ lỗi — thử lại` : ""}`);
       // Các lô trước có thể đã lưu kể cả khi có lỗi, nên luôn tải lại.
@@ -98,6 +145,16 @@ export function VnCheckPanel({ root, running, setting }: Props) {
     }
   }
 
+  if (scanError && !hits) {
+    return (
+      <div className="flex items-center gap-2 text-sm">
+        <p className="text-destructive">Không quét được: {scanError}</p>
+        <Button type="button" size="sm" variant="secondary" onClick={() => void retry()}>
+          Thử lại
+        </Button>
+      </div>
+    );
+  }
   if (!hits) return <p className="text-sm text-muted-foreground">Đang quét…</p>;
 
   return (
@@ -140,13 +197,13 @@ export function VnCheckPanel({ root, running, setting }: Props) {
           {shown.length} / {hits.length} chỗ
         </span>
         <div className="flex-1" />
-        <Button type="button" size="sm" variant="ghost" onClick={() => void vnRefresh(root).then(reload)}>
+        <Button type="button" size="sm" variant="ghost" disabled={scanning} onClick={() => void rescan()}>
           <RefreshCw /> Quét lại
         </Button>
-        <Button type="button" size="sm" variant="secondary" disabled={busy || selected.length === 0} onClick={() => void verify()}>
-          <Sparkles /> AI xét {selected.length} chỗ
+        <Button type="button" size="sm" variant="secondary" disabled={busy || chosen.length === 0} onClick={() => void verify()}>
+          <Sparkles /> AI xét {chosen.length} chỗ
         </Button>
-        <Button type="button" size="sm" disabled={running || selected.length === 0} onClick={() => setReplaceOpen(true)}>
+        <Button type="button" size="sm" disabled={running || chosen.length === 0} onClick={() => setReplaceOpen(true)}>
           <Wrench /> Thay thế…
         </Button>
       </div>
@@ -165,7 +222,7 @@ export function VnCheckPanel({ root, running, setting }: Props) {
       {shown.length === 0 && <p className="py-6 text-center text-sm text-muted-foreground">Không có chỗ nào.</p>}
       <ul className="flex flex-col gap-2">
         {shown.map((hit, index) => {
-          const open = expanded.includes(hit.id);
+          const open = expandedSet.has(hit.id);
           const range = (list: string[]) => (open ? list : list.slice(hit.focus, hit.focus + 1));
           const header = order === "entry" && (index === 0 || shown[index - 1].entry !== hit.entry);
           return (
@@ -179,7 +236,7 @@ export function VnCheckPanel({ root, running, setting }: Props) {
                 <input
                   type="checkbox"
                   aria-label={`Chọn ${hit.id}`}
-                  checked={selected.includes(hit.id)}
+                  checked={selectedSet.has(hit.id)}
                   onChange={(e) => setSelected((s) => (e.target.checked ? [...s, hit.id] : s.filter((id) => id !== hit.id)))}
                 />
                 <span data-testid="vn-hit-chapter" className="font-mono">
@@ -204,6 +261,7 @@ export function VnCheckPanel({ root, running, setting }: Props) {
                   type="button"
                   size="xs"
                   variant="link"
+                  aria-label={`Mở chương ${hit.chapter}`}
                   onClick={() => {
                     select(hit.chapter);
                     setPage("translate");
@@ -211,13 +269,22 @@ export function VnCheckPanel({ root, running, setting }: Props) {
                 >
                   Mở chương
                 </Button>
-                <Button type="button" size="xs" variant={hit.status === "ok" ? "secondary" : "ghost"} onClick={() => void mark([hit.id], "ok")}>
+                <Button
+                  type="button"
+                  size="xs"
+                  variant={hit.status === "ok" ? "secondary" : "ghost"}
+                  aria-label={`Không sao ${hit.id}`}
+                  aria-pressed={hit.status === "ok"}
+                  onClick={() => void mark([hit.id], "ok")}
+                >
                   <Check /> Không sao
                 </Button>
                 <Button
                   type="button"
                   size="xs"
                   variant={hit.status === "action" ? "destructive" : "ghost"}
+                  aria-label={`Cần xử lý ${hit.id}`}
+                  aria-pressed={hit.status === "action"}
                   onClick={() => void mark([hit.id], "action")}
                 >
                   Cần xử lý
@@ -244,6 +311,7 @@ export function VnCheckPanel({ root, running, setting }: Props) {
                 type="button"
                 size="xs"
                 variant="link"
+                aria-label={`${open ? "Thu gọn" : "Xem đoạn trước/sau"} ${hit.id}`}
                 onClick={() => setExpanded((list) => (open ? list.filter((id) => id !== hit.id) : [...list, hit.id]))}
               >
                 {open ? "Thu gọn" : "Xem đoạn trước/sau"}
@@ -255,7 +323,7 @@ export function VnCheckPanel({ root, running, setting }: Props) {
       <VnReplaceDialog
         root={root}
         setting={setting}
-        hits={hits.filter((hit) => selected.includes(hit.id))}
+        hits={chosen}
         allHits={hits}
         open={replaceOpen}
         onOpenChange={setReplaceOpen}

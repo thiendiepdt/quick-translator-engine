@@ -1,7 +1,7 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { VnCheckPanel } from "@/components/vn-check-panel";
 import { vnAiVerify, vnRefresh, vnReport, vnSetStatus } from "@/lib/api";
@@ -35,7 +35,7 @@ const giaoChi = (over: Partial<VnHitView> = {}) =>
 
 // JSX không xử lý escape trong thuộc tính chuỗi, nên truyền root qua biểu thức.
 const ROOT = "D:\\t";
-const renderPanel = () => render(<VnCheckPanel root={ROOT} running={false} setting="modern" />);
+const renderPanel = (running = false) => render(<VnCheckPanel root={ROOT} running={running} setting="modern" />);
 
 describe("VnCheckPanel", () => {
   beforeEach(() => {
@@ -62,9 +62,9 @@ describe("VnCheckPanel", () => {
     const user = userEvent.setup();
     renderPanel();
     const item = (await screen.findByText("0226")).closest("li")!;
-    await user.click(within(item).getByRole("button", { name: "Không sao" }));
+    await user.click(within(item).getByRole("button", { name: "Không sao 0226:4:khi-viet" }));
     expect(vnSetStatus).toHaveBeenCalledWith("D:\\t", ["0226:4:khi-viet"], "ok");
-    await user.click(within(item).getByRole("button", { name: "Cần xử lý" }));
+    await user.click(within(item).getByRole("button", { name: "Cần xử lý 0226:4:khi-viet" }));
     expect(vnSetStatus).toHaveBeenCalledWith("D:\\t", ["0226:4:khi-viet"], "action");
     expect(vnReport).toHaveBeenCalledTimes(3);
   });
@@ -127,11 +127,86 @@ describe("VnCheckPanel", () => {
     const user = userEvent.setup();
     const select = vi.fn();
     const setPage = vi.fn();
+    const original = { select: useStoryStore.getState().select, setPage: useStoryStore.getState().setPage };
     useStoryStore.setState({ select, setPage });
+    onTestFinished(() => useStoryStore.setState(original));
     renderPanel();
     const item = (await screen.findByText("0226")).closest("li")!;
-    await user.click(within(item).getByRole("button", { name: "Mở chương" }));
+    await user.click(within(item).getByRole("button", { name: "Mở chương 0226" }));
     expect(select).toHaveBeenCalledWith("0226");
     expect(setPage).toHaveBeenCalledWith("translate");
+  });
+
+  it("chỗ đã chọn rồi bị ẩn bởi bộ lọc thì không còn tính vào 'AI xét'", async () => {
+    const user = userEvent.setup();
+    vi.mocked(vnReport).mockReset().mockResolvedValueOnce([hit({})]).mockResolvedValue([hit({ status: "ok" })]);
+    renderPanel();
+    const item = (await screen.findByText("0226")).closest("li")!;
+    await user.click(within(item).getByRole("checkbox", { name: "Chọn 0226:4:khi-viet" }));
+    await user.click(within(item).getByRole("button", { name: "Không sao 0226:4:khi-viet" }));
+    await waitFor(() => expect(screen.queryByText("0226")).not.toBeInTheDocument());
+    expect(screen.getByRole("button", { name: /AI xét 0 chỗ/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Thay thế/ })).toBeDisabled();
+  });
+
+  it("chỗ đã chọn biến mất sau khi quét lại thì bị bỏ chọn, không quay lại khi nó xuất hiện lại", async () => {
+    const user = userEvent.setup();
+    vi.mocked(vnReport).mockReset().mockResolvedValueOnce([hit({})]).mockResolvedValueOnce([giaoChi()]).mockResolvedValue([hit({}), giaoChi()]);
+    renderPanel();
+    const item = (await screen.findByText("0226")).closest("li")!;
+    await user.click(within(item).getByRole("checkbox", { name: "Chọn 0226:4:khi-viet" }));
+    await user.click(screen.getByRole("button", { name: /Quét lại/ }));
+    await waitFor(() => expect(screen.queryByText("0226")).not.toBeInTheDocument());
+    expect(screen.getByRole("button", { name: /AI xét 0 chỗ/ })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: /Quét lại/ }));
+    expect(await screen.findByText("0226")).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Chọn 0226:4:khi-viet" })).not.toBeChecked();
+  });
+
+  it("đặt trạng thái lỗi thì báo toast, không văng lỗi chưa bắt", async () => {
+    const user = userEvent.setup();
+    vi.mocked(vnSetStatus).mockRejectedValue(new Error("Đĩa đầy"));
+    renderPanel();
+    const item = (await screen.findByText("0226")).closest("li")!;
+    await user.click(within(item).getByRole("button", { name: "Không sao 0226:4:khi-viet" }));
+    expect(toast.error).toHaveBeenCalledWith("Đĩa đầy");
+  });
+
+  it("Quét lại lỗi thì báo toast", async () => {
+    const user = userEvent.setup();
+    renderPanel();
+    await screen.findByText("0226");
+    vi.mocked(vnRefresh).mockRejectedValueOnce(new Error("Không đọc được"));
+    await user.click(screen.getByRole("button", { name: /Quét lại/ }));
+    expect(toast.error).toHaveBeenCalledWith("Không đọc được");
+    expect(screen.getByRole("button", { name: /Quét lại/ })).toBeEnabled();
+  });
+
+  it("quét lần đầu lỗi: hiện lỗi và nút Thử lại, bấm thì quét lại và hiện danh sách", async () => {
+    const user = userEvent.setup();
+    vi.mocked(vnRefresh).mockRejectedValueOnce(new Error("Không quét được kho"));
+    renderPanel();
+    expect(await screen.findByText(/Không quét được kho/)).toBeInTheDocument();
+    expect(screen.queryByText("Đang quét…")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Thử lại" }));
+    expect(await screen.findByText("0226")).toBeInTheDocument();
+    expect(vnRefresh).toHaveBeenCalledTimes(2);
+  });
+
+  it("đang dịch thì không cho Thay thế", async () => {
+    const user = userEvent.setup();
+    renderPanel(true);
+    const item = (await screen.findByText("0226")).closest("li")!;
+    await user.click(within(item).getByRole("checkbox", { name: "Chọn 0226:4:khi-viet" }));
+    expect(screen.getByRole("button", { name: /Thay thế/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /AI xét 1 chỗ/ })).toBeEnabled();
+  });
+
+  it("nút Không sao / Cần xử lý có aria-pressed theo trạng thái", async () => {
+    vi.mocked(vnReport).mockResolvedValue([hit({ status: "action" })]);
+    renderPanel();
+    await screen.findByText("0226");
+    expect(screen.getByRole("button", { name: "Cần xử lý 0226:4:khi-viet" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Không sao 0226:4:khi-viet" })).toHaveAttribute("aria-pressed", "false");
   });
 });
