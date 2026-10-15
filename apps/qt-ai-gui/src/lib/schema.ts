@@ -325,6 +325,8 @@ export const recentSummarySchema = z.object({
   total: z.number().nullable(),
   /** Chương còn phải dịch (queued + translating); > 0 là truyện chưa dịch xong. */
   pending: z.number().nullable().optional(),
+  /** Chỗ nhạy cảm VN chưa xét + cần xử lý; null = chưa quét. */
+  vnFlags: z.number().nullable().optional(),
 });
 
 /** Kết quả quét raw/ của cả thư viện (Rust `library_rescan`). */
@@ -418,3 +420,46 @@ export const retryRangeOutcomeSchema = z.object({
   alreadyQueued: z.array(z.string()),
 });
 export const deleteOutcomeSchema = z.object({ removed: z.array(z.string()), keptOutputs: z.array(z.string()) });
+
+export const VN_GROUPS = ["ten", "cq", "ls", "hd"] as const;
+export const VN_STATUSES = ["pending", "ok", "action"] as const;
+export const VN_LABELS = ["xucpham", "nhaycam", "trungtinh", "khonglienquan"] as const;
+export const vnStatusSchema = z.enum(VN_STATUSES);
+export const vnEntrySchema = z.object({
+  id: z.string(),
+  group: z.enum(VN_GROUPS),
+  level: z.enum(["mietthi", "canxem"]),
+  weak: z.boolean().default(false),
+  zh: z.array(z.string()).default([]),
+  vi: z.array(z.string()).default([]),
+  exclude: z.array(z.string()).default([]),
+});
+export const vnReplacementSchema = z.object({
+  from: z.string(),
+  to: z.string(),
+  setting: z.enum(["ancient", "modern", "any"]),
+});
+export const vnSettingsSchema = z.object({
+  extra: z.array(vnEntrySchema).default([]),
+  disabled: z.array(z.string()).default([]),
+  replacements: z.array(vnReplacementSchema).default([]),
+});
+export const vnHitViewSchema = z.object({
+  id: z.string(),
+  chapter: z.string(),
+  paragraph: z.number(),
+  entry: z.string(),
+  group: z.enum(VN_GROUPS),
+  level: z.enum(["mietthi", "canxem"]),
+  side: z.enum(["raw", "out"]),
+  matched: z.string(),
+  count: z.number(),
+  fingerprint: z.string(),
+  status: vnStatusSchema,
+  ai: z.object({ label: z.enum(VN_LABELS), reason: z.string(), model: z.string(), at: z.number() }).nullable().optional(),
+  raw: z.array(z.string()),
+  out: z.array(z.string()),
+  focus: z.number(),
+});
+export const vnSummarySchema = z.object({ hits: z.number(), open: z.number(), scanned: z.number() });
+export const vnVerifyOutcomeSchema = z.object({ verified: z.number(), failed: z.number(), error: z.string().nullable().optional() });

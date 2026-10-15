@@ -33,6 +33,11 @@ import {
   storySnapshotSchema,
   titleSurveySchema,
   titlesAppliedSchema,
+  vnEntrySchema,
+  vnHitViewSchema,
+  vnSettingsSchema,
+  vnSummarySchema,
+  vnVerifyOutcomeSchema,
 } from "@/lib/schema";
 import type {
   AppConfig,
@@ -44,6 +49,8 @@ import type {
   HarnessSettings,
   StoryConfig,
   StoryGenre,
+  VnSettings,
+  VnStatus,
 } from "@/lib/types";
 
 export class ApiError extends Error {
@@ -267,3 +274,20 @@ export async function pickSaveFile(
 /** Ghi nguyên chuỗi ra file (BOM nếu cần phải nằm sẵn trong `content`). */
 export const writeTextFile = (path: string, content: string) =>
   call("write_text_file", { path, content }, () => undefined);
+
+export const vnRefresh = (root: string) => call("vn_refresh", { root }, (v) => vnSummarySchema.parse(v));
+export const vnReport = (root: string) => call("vn_report", { root }, (v) => z.array(vnHitViewSchema).parse(v));
+export const vnSetStatus = (root: string, ids: string[], status: VnStatus) =>
+  call("vn_set_status", { root, ids, status }, (v) => z.number().parse(v));
+export const vnAiVerify = (root: string, ids: string[]) => call("vn_ai_verify", { root, ids }, (v) => vnVerifyOutcomeSchema.parse(v));
+export const vnBuiltinEntries = () => call("vn_builtin_entries", undefined, (v) => z.array(vnEntrySchema).parse(v));
+export const vnSettingsGet = () => call("vn_settings_get", undefined, (v) => vnSettingsSchema.parse(v));
+export const vnSettingsSave = (settings: VnSettings) => call("vn_settings_save", { settings }, (v) => vnSettingsSchema.parse(v));
+export interface VnReplaceRequest {
+  from: string;
+  to: string;
+  chapters: string[];
+  paragraphs?: [string, number][];
+}
+export const vnReplace = (root: string, request: VnReplaceRequest) =>
+  call("vn_replace", { root, request }, (v) => replaceOutcomeSchema.parse(v));

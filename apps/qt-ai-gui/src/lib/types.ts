@@ -22,6 +22,11 @@ import {
   type harnessSettingsSchema,
   type progressSchema,
   type recentSummarySchema,
+  type vnEntrySchema,
+  type vnHitViewSchema,
+  type vnReplacementSchema,
+  type vnSettingsSchema,
+  type vnStatusSchema,
   type agyDataStatsSchema,
   type titleGroupSchema,
   type titleSurveySchema,
@@ -165,3 +170,11 @@ export function stopReasonLabel(reason: StopReason): string {
       return `Lỗi nội bộ: ${reason.message}`;
   }
 }
+
+export type VnHitView = z.infer<typeof vnHitViewSchema>;
+export type VnSettings = z.infer<typeof vnSettingsSchema>;
+export type VnEntry = z.infer<typeof vnEntrySchema>;
+export type VnReplacement = z.infer<typeof vnReplacementSchema>;
+export type VnStatus = z.infer<typeof vnStatusSchema>;
+export const VN_GROUP_LABELS = { ten: "Tên gọi VN", cq: "Chủ quyền biển đảo", ls: "Chiến tranh, lịch sử", hd: "Địa danh hiện đại" } as const;
+export const VN_LABEL_TEXT = { xucpham: "Xúc phạm", nhaycam: "Nhạy cảm", trungtinh: "Trung tính", khonglienquan: "Không liên quan" } as const;

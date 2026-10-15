@@ -22,6 +22,9 @@ vi.mock("@/lib/api", () => ({
   pickFolder: vi.fn(),
   saveSettings: vi.fn(),
   storySnapshot: vi.fn(),
+  vnBuiltinEntries: vi.fn(() => Promise.resolve([])),
+  vnSettingsGet: vi.fn(() => Promise.resolve({ extra: [], disabled: [], replacements: [] })),
+  vnSettingsSave: vi.fn(),
 }));
 
 const snapshot = storySnapshotSchema.parse({

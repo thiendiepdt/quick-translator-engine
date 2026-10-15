@@ -14,6 +14,7 @@ import { PalettePicker } from "@/components/palette-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { VnSettingsEditor } from "@/components/vn-settings-editor";
 import { useReadingWidth } from "@/hooks/use-reading-width";
 import { useThemeActions } from "@/hooks/use-theme";
 import {
@@ -452,6 +453,12 @@ export function SettingsPage() {
             <p className="text-xs text-muted-foreground">
               File nằm trong thư mục cấu hình app, mục <code>base/</code>. Về mặc định = xoá file.
             </p>
+          </Card>
+          <Card
+            title="Kiểm tra nội dung nhạy cảm về Việt Nam"
+            description="Dùng chung mọi truyện, lưu ở vn-terms.json cạnh bản mặc định. Đổi từ điển thì mỗi truyện quét lại toàn bộ ở lần quét kế tiếp."
+          >
+            <VnSettingsEditor />
           </Card>
           <AgyDataCard />
           <form id={FORM_ID} onSubmit={(e) => void submit(e)} className="flex flex-col gap-6">
