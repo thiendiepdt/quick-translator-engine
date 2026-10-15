@@ -218,12 +218,27 @@ pub fn load_file(paths: &StoryPaths) -> VnFile {
     read_text(&file_path(paths)).ok().and_then(|text| serde_json::from_str(&text).ok()).unwrap_or_default()
 }
 
-/// Tuần tự hoá mọi chu trình đọc → sửa → ghi `vn-check.json` trong cùng tiến trình (GUI chạy AI,
-/// bấm nút và refresh trên nhiều luồng). Không chặn được tiến trình khác, vd. CLI `qt-ai accept`.
-static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+pub const LOCK_FILE: &str = "vn-check.lock";
 
-fn lock() -> std::sync::MutexGuard<'static, ()> {
-    LOCK.lock().unwrap_or_else(|e| e.into_inner())
+/// Mutex theo thư mục truyện: quét lại cả thư viện không chặn thao tác trên truyện khác.
+static LOCKS: std::sync::LazyLock<std::sync::Mutex<HashMap<PathBuf, std::sync::Arc<std::sync::Mutex<()>>>>> =
+    std::sync::LazyLock::new(Default::default);
+
+/// Tuần tự hoá mọi chu trình đọc → sửa → ghi `vn-check.json`: mutex theo truyện trong tiến trình (GUI chạy AI,
+/// bấm nút và refresh trên nhiều luồng) cộng khoá file `<truyện>/vn-check.lock` cho tiến trình khác, vd. CLI
+/// `qt-ai accept`. Khoá file là cố gắng tốt nhất: không tạo/khoá được (thư mục chỉ đọc, FS không hỗ trợ) thì
+/// vẫn chạy với mutex.
+fn locked<T>(paths: &StoryPaths, work: impl FnOnce() -> Result<T>) -> Result<T> {
+    let mutex = LOCKS.lock().unwrap_or_else(|e| e.into_inner()).entry(paths.root.clone()).or_default().clone();
+    let _guard = mutex.lock().unwrap_or_else(|e| e.into_inner());
+    let _file = std::fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(paths.root.join(LOCK_FILE))
+        .ok()
+        .filter(|file| file.lock().is_ok());
+    work()
 }
 
 /// Như `load_file` nhưng dành cho chu trình ghi: file có mà không đọc/parse được thì chép sang
@@ -324,86 +339,90 @@ fn carry(mut hit: VnHit, previous: &HashMap<String, VnHit>) -> VnHit {
 
 /// Quét tăng dần cả truyện: chỉ đọc chương mới/đổi (theo kích thước + mtime); từ điển đổi thì quét lại toàn bộ.
 pub fn refresh(paths: &StoryPaths, lex: &Lexicon) -> Result<VnSummary> {
-    let _guard = lock();
-    let old = load_for_update(paths)?;
-    let reset = old.lexicon_hash != lex.hash;
-    let ids = list_raw_chapter_ids(paths)?;
-    let marks: Vec<(String, ChapterMark)> = ids.iter().map(|id| (id.clone(), chapter_mark(paths, id))).collect();
-    let todo: Vec<&str> =
-        marks.iter().filter(|(id, m)| reset || old.chapters.get(id) != Some(m)).map(|(id, _)| id.as_str()).collect();
-    let fresh = scan_many(paths, lex, &todo)?;
-    let todo_set: HashSet<&str> = todo.iter().copied().collect();
-    let live: HashSet<&str> = ids.iter().map(String::as_str).collect();
-    let previous: HashMap<String, VnHit> = old.hits.iter().map(|hit| (hit.id.clone(), hit.clone())).collect();
-    let mut hits: Vec<VnHit> = old
-        .hits
-        .iter()
-        .filter(|hit| !reset && live.contains(hit.chapter.as_str()) && !todo_set.contains(hit.chapter.as_str()))
-        .cloned()
-        .collect();
-    hits.extend(fresh.into_iter().map(|hit| carry(hit, &previous)));
-    sort_hits(&mut hits);
-    let scanned = todo.len();
-    let file = VnFile { version: 1, lexicon_hash: lex.hash.clone(), chapters: marks.into_iter().collect(), hits };
-    let summary = VnSummary { hits: file.hits.len(), open: open_count(&file), scanned };
-    if file != old {
-        save_file(paths, &file)?;
-    }
-    Ok(summary)
+    locked(paths, || {
+        let old = load_for_update(paths)?;
+        let reset = old.lexicon_hash != lex.hash;
+        let ids = list_raw_chapter_ids(paths)?;
+        let marks: Vec<(String, ChapterMark)> = ids.iter().map(|id| (id.clone(), chapter_mark(paths, id))).collect();
+        let todo: Vec<&str> =
+            marks.iter().filter(|(id, m)| reset || old.chapters.get(id) != Some(m)).map(|(id, _)| id.as_str()).collect();
+        let fresh = scan_many(paths, lex, &todo)?;
+        let todo_set: HashSet<&str> = todo.iter().copied().collect();
+        let live: HashSet<&str> = ids.iter().map(String::as_str).collect();
+        let previous: HashMap<String, VnHit> = old.hits.iter().map(|hit| (hit.id.clone(), hit.clone())).collect();
+        let mut hits: Vec<VnHit> = old
+            .hits
+            .iter()
+            .filter(|hit| !reset && live.contains(hit.chapter.as_str()) && !todo_set.contains(hit.chapter.as_str()))
+            .cloned()
+            .collect();
+        hits.extend(fresh.into_iter().map(|hit| carry(hit, &previous)));
+        sort_hits(&mut hits);
+        let scanned = todo.len();
+        let file = VnFile { version: 1, lexicon_hash: lex.hash.clone(), chapters: marks.into_iter().collect(), hits };
+        let summary = VnSummary { hits: file.hits.len(), open: open_count(&file), scanned };
+        if file != old {
+            save_file(paths, &file)?;
+        }
+        Ok(summary)
+    })
 }
 
 /// Quét lại đúng một chương (khi chốt chương); trả số chỗ chưa xét + cần xử lý của chương đó.
 /// Từ điển đổi → bỏ dấu các chương khác để lần `refresh` sau quét lại chúng.
 pub fn check_chapter(paths: &StoryPaths, lex: &Lexicon, id: &str) -> Result<usize> {
-    let _guard = lock();
-    let mut file = load_for_update(paths)?;
-    if file.lexicon_hash != lex.hash {
-        file.chapters.clear();
-        file.lexicon_hash = lex.hash.clone();
-    }
-    let previous: HashMap<String, VnHit> =
-        file.hits.iter().filter(|hit| hit.chapter == id).map(|hit| (hit.id.clone(), hit.clone())).collect();
-    file.hits.retain(|hit| hit.chapter != id);
-    let fresh: Vec<VnHit> = scan_one(paths, lex, id).into_iter().map(|hit| carry(hit, &previous)).collect();
-    let open = fresh.iter().filter(|hit| hit.status != Status::Ok).count();
-    file.hits.extend(fresh);
-    sort_hits(&mut file.hits);
-    file.chapters.insert(id.to_string(), chapter_mark(paths, id));
-    file.version = 1;
-    save_file(paths, &file)?;
-    Ok(open)
+    locked(paths, || {
+        let mut file = load_for_update(paths)?;
+        if file.lexicon_hash != lex.hash {
+            file.chapters.clear();
+            file.lexicon_hash = lex.hash.clone();
+        }
+        let previous: HashMap<String, VnHit> =
+            file.hits.iter().filter(|hit| hit.chapter == id).map(|hit| (hit.id.clone(), hit.clone())).collect();
+        file.hits.retain(|hit| hit.chapter != id);
+        let fresh: Vec<VnHit> = scan_one(paths, lex, id).into_iter().map(|hit| carry(hit, &previous)).collect();
+        let open = fresh.iter().filter(|hit| hit.status != Status::Ok).count();
+        file.hits.extend(fresh);
+        sort_hits(&mut file.hits);
+        file.chapters.insert(id.to_string(), chapter_mark(paths, id));
+        file.version = 1;
+        save_file(paths, &file)?;
+        Ok(open)
+    })
 }
 
 pub fn set_status(paths: &StoryPaths, ids: &[String], status: Status) -> Result<usize> {
-    let _guard = lock();
-    let mut file = load_for_update(paths)?;
-    let mut changed = 0;
-    for hit in file.hits.iter_mut().filter(|hit| ids.contains(&hit.id)) {
-        if hit.status != status {
-            hit.status = status;
-            changed += 1;
+    locked(paths, || {
+        let mut file = load_for_update(paths)?;
+        let mut changed = 0;
+        for hit in file.hits.iter_mut().filter(|hit| ids.contains(&hit.id)) {
+            if hit.status != status {
+                hit.status = status;
+                changed += 1;
+            }
         }
-    }
-    if changed > 0 {
-        save_file(paths, &file)?;
-    }
-    Ok(changed)
+        if changed > 0 {
+            save_file(paths, &file)?;
+        }
+        Ok(changed)
+    })
 }
 
 pub fn set_ai(paths: &StoryPaths, verdicts: &[(String, AiVerdict)]) -> Result<usize> {
-    let _guard = lock();
-    let mut file = load_for_update(paths)?;
-    let mut changed = 0;
-    for (id, verdict) in verdicts {
-        if let Some(hit) = file.hits.iter_mut().find(|hit| &hit.id == id) {
-            hit.ai = Some(verdict.clone());
-            changed += 1;
+    locked(paths, || {
+        let mut file = load_for_update(paths)?;
+        let mut changed = 0;
+        for (id, verdict) in verdicts {
+            if let Some(hit) = file.hits.iter_mut().find(|hit| &hit.id == id) {
+                hit.ai = Some(verdict.clone());
+                changed += 1;
+            }
         }
-    }
-    if changed > 0 {
-        save_file(paths, &file)?;
-    }
-    Ok(changed)
+        if changed > 0 {
+            save_file(paths, &file)?;
+        }
+        Ok(changed)
+    })
 }
 
 /// Số chỗ chưa xét + cần xử lý; None khi truyện chưa từng quét (không có file).

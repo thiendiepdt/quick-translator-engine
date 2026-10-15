@@ -316,6 +316,28 @@ fn canh_bao_chuong_tinh_song_tu_vn_check() {
 }
 
 #[test]
+fn ghi_vn_check_cho_khoa_file_cua_tien_trinh_khac() {
+    // Khoá file giả lập `qt-ai accept` ở tiến trình khác đang giữ vn-check.lock.
+    let dir = story(&[("0001", "第1章\n\n坐船转到越南。", None)]);
+    let paths = story_paths(dir.path());
+    refresh(&paths, &Lexicon::builtin()).unwrap();
+    let other = fs::File::create(dir.path().join("vn-check.lock")).unwrap();
+    other.lock().unwrap();
+    let done = std::sync::atomic::AtomicBool::new(false);
+    std::thread::scope(|scope| {
+        let worker = scope.spawn(|| {
+            set_status(&paths, &["0001:1:viet-nam".to_string()], Status::Ok).unwrap();
+            done.store(true, std::sync::atomic::Ordering::SeqCst);
+        });
+        std::thread::sleep(std::time::Duration::from_millis(300));
+        assert!(!done.load(std::sync::atomic::Ordering::SeqCst), "phải chờ khoá file");
+        other.unlock().unwrap();
+        worker.join().unwrap();
+    });
+    assert_eq!(load_file(&paths).hits[0].status, Status::Ok);
+}
+
+#[test]
 fn file_hong_duoc_sao_luu_truoc_khi_ghi_de() {
     let dir = story(&[("0001", "第1章\n\n坐船转到越南。", None)]);
     let paths = story_paths(dir.path());
