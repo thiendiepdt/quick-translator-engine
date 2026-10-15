@@ -7,6 +7,7 @@ import {
   aiFillResultSchema,
   appConfigSchema,
   baseViewSchema,
+  bookInfoViewSchema,
   castSchema,
   chapterViewSchema,
   exportOutcomeSchema,
@@ -26,6 +27,7 @@ import {
   glossaryBackfillSchema,
   deleteOutcomeSchema,
   sessionStatusSchema,
+  sourceImageSchema,
   storyConfigSchema,
   storyDefaultsSchema,
   storySnapshotSchema,
@@ -149,6 +151,51 @@ export const exportChapters = (root: string, range: { from?: string; to?: string
     exportOutcomeSchema.parse(v),
   );
 export const revealFolder = (path: string) => call("reveal_folder", { path }, noop);
+
+export interface BookMeta {
+  /** Tác giả hiển thị (Hán-Việt hoặc người dùng sửa). */
+  author: string;
+  /** Bút danh gốc chữ Hán — trang tiêu đề EPUB ghi kèm trong ngoặc. */
+  authorOriginal: string;
+  source: string;
+  coverUrl: string;
+  fetchedAt: number;
+}
+/** Trang / API thông tin sách qua Rust (chỉ host trong danh sách của core). */
+export const sourceFetchText = (url: string) => call("source_fetch_text", { url }, (v) => String(v));
+/** Ảnh bìa qua Rust (thử lại lỗi tạm thời); byte gốc, chưa đổi định dạng. */
+export const sourceFetchImage = (url: string) =>
+  call("source_fetch_image", { url }, (v) => {
+    const image = sourceImageSchema.parse(v);
+    return { bytes: Uint8Array.from(image.bytes), mime: image.mime };
+  });
+/** Bút danh chữ Hán → Hán-Việt viết hoa từng âm (bảng phiên âm QuickTranslator, ở Rust). */
+export const hanVietName = (text: string) => call("han_viet_name", { text }, (v) => String(v));
+export const bookInfoGet = (root: string) =>
+  call("book_info_get", { root }, (v) => {
+    const view = bookInfoViewSchema.parse(v);
+    return { meta: view.meta, cover: view.cover ? Uint8Array.from(view.cover) : undefined };
+  });
+/** `cover` = JPEG mới cho `cover.jpg`; `clearCover` = xoá bìa đã lưu. */
+export const bookInfoSave = (root: string, meta: BookMeta, cover?: Uint8Array, clearCover = false) =>
+  call("book_info_save", { root, meta, cover: cover ? Array.from(cover) : null, clearCover }, noop);
+export const exportEpub = (
+  root: string,
+  range: { from?: string; to?: string; out?: string },
+  book: { author: string; cover?: Uint8Array },
+) =>
+  call(
+    "export_epub",
+    {
+      root,
+      from: range.from ?? null,
+      to: range.to ?? null,
+      out: range.out ?? null,
+      author: book.author,
+      cover: book.cover ? Array.from(book.cover) : null,
+    },
+    (v) => exportOutcomeSchema.parse(v),
+  );
 export const storyDefaults = (genre: StoryGenre) =>
   call("story_defaults", { genre }, (v) => storyDefaultsSchema.parse(v));
 
@@ -208,12 +255,12 @@ export async function pickAgyFile(): Promise<string | undefined> {
   return typeof selected === "string" ? selected : undefined;
 }
 
-export async function pickSaveFile(defaultName: string, title = "Lưu file gộp"): Promise<string | undefined> {
-  const selected = await save({
-    title,
-    defaultPath: defaultName,
-    filters: [{ name: "Văn bản UTF-8", extensions: ["txt"] }],
-  });
+export async function pickSaveFile(
+  defaultName: string,
+  title = "Lưu file gộp",
+  filter: { name: string; extensions: string[] } = { name: "Văn bản UTF-8", extensions: ["txt"] },
+): Promise<string | undefined> {
+  const selected = await save({ title, defaultPath: defaultName, filters: [filter] });
   return selected ?? undefined;
 }
 

@@ -20,5 +20,9 @@ pub mod session;
 pub mod api;
 pub mod api_session;
 pub mod api_fill;
+pub mod source_http;
+pub mod book_meta;
+pub mod epub;
+pub mod han_viet;
 
 pub use error::{CoreError, Result};

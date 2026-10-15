@@ -289,7 +289,7 @@ pub trait TextModel: Send + Sync {
     fn complete_json(&self, step: ApiStep, system: &str, user: &str, cancel: &AtomicBool) -> Result<Generated, ApiError>;
 }
 
-fn install_crypto_provider() {
+pub(crate) fn install_crypto_provider() {
     // Workspace có crate khác bật aws-lc-rs cho rustls; cài tường minh ring để không mơ hồ provider.
     let _ = rustls::crypto::ring::default_provider().install_default();
 }

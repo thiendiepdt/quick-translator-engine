@@ -3,12 +3,16 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { ChapterRefHint } from "@/components/chapter-ref-hint";
+import { EpubBookPanel } from "@/components/epub-book-panel";
 import { ExportChapterList } from "@/components/export-chapter-list";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { exportChapters, pickSaveFile, revealFolder } from "@/lib/api";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useBookInfo } from "@/hooks/use-book-info";
+import { exportChapters, exportEpub, pickSaveFile, revealFolder } from "@/lib/api";
 import { resolveChapterRef } from "@/lib/chapters";
+import { splitStoryName } from "@/lib/epub-cover";
 import { previewRange } from "@/lib/export-range";
 import type { ChapterRow, ExportOutcome } from "@/lib/types";
 import { useStoryStore } from "@/store/story";
@@ -25,9 +29,17 @@ function doneBounds(chapters: ChapterRow[]): { from: string; to: string } {
   return first < 0 ? { from: "", to: "" } : { from: String(first + 1), to: String(last + 1) };
 }
 
+type Format = "txt" | "epub";
+
+/** Tên file gợi ý khi chọn nơi lưu: bỏ ký tự Windows cấm trong tên file. */
+const safeFileName = (name: string) => name.replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim();
+
 export function ExportPage() {
   const root = useStoryStore((s) => s.root);
   const chapters = useStoryStore((s) => s.snapshot?.chapters ?? []);
+  const story = useStoryStore((s) => s.snapshot?.story);
+  const [format, setFormat] = useState<Format>("txt");
+  const book = useBookInfo(root, story, format === "epub");
   const [from, setFrom] = useState(() => doneBounds(chapters).from);
   const [to, setTo] = useState(() => doneBounds(chapters).to);
   const [result, setResult] = useState<ExportOutcome | undefined>();
@@ -45,7 +57,25 @@ export function ExportPage() {
     if (!root) return;
     setBusy(true);
     try {
-      const out = pickPath ? await pickSaveFile(`${fromId || "dau"}-${toId || "cuoi"}.txt`) : undefined;
+      const range = `${fromId || "dau"}-${toId || "cuoi"}`;
+      if (format === "epub") {
+        const title = safeFileName(splitStoryName(story?.name ?? "").title) || "truyen";
+        const out = pickPath
+          ? await pickSaveFile(`${title}_${range}.epub`, "Lưu file EPUB", { name: "Sách EPUB", extensions: ["epub"] })
+          : undefined;
+        if (pickPath && !out) return;
+        await book.commitAuthor();
+        const cover = await book.coverForExport();
+        const outcome = await exportEpub(
+          root,
+          { from: fromId || undefined, to: toId || undefined, out },
+          { author: book.author.trim(), cover },
+        );
+        setResult(outcome);
+        toast.success(`Đã tạo EPUB ${outcome.ids.length} chương`);
+        return;
+      }
+      const out = pickPath ? await pickSaveFile(`${range}.txt`) : undefined;
       if (pickPath && !out) return;
       const outcome = await exportChapters(root, { from: fromId || undefined, to: toId || undefined, out });
       setResult(outcome);
@@ -73,11 +103,30 @@ export function ExportPage() {
           <header>
             <h1 className="text-2xl font-semibold tracking-tight">Export chương đã dịch</h1>
             <p className="text-sm text-muted-foreground">
-              Gộp các chương <em>done</em> trong khoảng thành một file .txt, mỗi chương cách một dòng trống. Gõ số thứ
-              tự như cột # bên trái (1–{chapters.length}) hoặc bấm <strong>Từ</strong>/<strong>Đến</strong> trên dòng
-              chương; để trống là từ đầu / tới cuối. Chương chưa xong trong khoảng được báo hổng.
+              Gộp các chương <em>done</em> trong khoảng thành file .txt (mỗi chương cách một dòng trống) hoặc sách
+              .epub có bìa và mục lục bấm tới từng chương. Gõ số thứ tự như cột # bên trái (1–{chapters.length}) hoặc
+              bấm <strong>Từ</strong>/<strong>Đến</strong> trên dòng chương; để trống là từ đầu / tới cuối. Chương
+              chưa xong trong khoảng được báo hổng.
             </p>
           </header>
+          <Tabs value={format} onValueChange={(value) => setFormat(value as Format)}>
+            <TabsList aria-label="Định dạng">
+              <TabsTrigger value="txt">TXT</TabsTrigger>
+              <TabsTrigger value="epub">EPUB</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          {format === "epub" && (
+            <EpubBookPanel
+              author={book.author}
+              onAuthorChange={book.setAuthor}
+              onAuthorCommit={() => void book.commitAuthor().catch((error: unknown) => toast.error(String(error)))}
+              status={book.status}
+              busy={book.busy}
+              previewUrl={book.previewUrl}
+              isDefaultCover={book.isDefaultCover}
+              onRefetch={() => void book.refetch()}
+            />
+          )}
           <section className="rounded-lg border bg-card p-5">
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-1.5">
@@ -113,7 +162,8 @@ export function ExportPage() {
               ) : (
                 <>
                   <p>
-                    Sẽ gộp <strong className="tabular-nums">{preview.included.length}</strong> chương done.
+                    Sẽ {format === "epub" ? "đưa vào sách" : "gộp"}{" "}
+                    <strong className="tabular-nums">{preview.included.length}</strong> chương done.
                   </p>
                   {preview.gaps.length > 0 && (
                     <p className="mt-1 text-status-warning">
@@ -132,7 +182,7 @@ export function ExportPage() {
                 Chọn nơi lưu…
               </Button>
               <Button disabled={!canRun} onClick={() => void run(false)}>
-                <Download /> Export vào export/
+                <Download /> {format === "epub" ? "Tạo EPUB vào export/" : "Export vào export/"}
               </Button>
             </div>
           </section>

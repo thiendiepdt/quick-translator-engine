@@ -2,7 +2,7 @@
 use qt_ai_core::commands::accept::run_accept;
 use qt_ai_core::commands::check::run_check;
 use qt_ai_core::commands::delete::run_delete;
-use qt_ai_core::commands::export::{run_export, ExportOptions};
+use qt_ai_core::commands::export::{run_export, run_export_epub, ExportOptions};
 use qt_ai_core::commands::init::{raw_drift, run_init};
 use qt_ai_core::commands::next::run_next;
 use qt_ai_core::commands::reset::run_reset;
@@ -1249,4 +1249,60 @@ fn export_gop_chuong_done_cach_1_dong_trong_bao_hong() {
         run_export(empty.path(), &ExportOptions::default()),
         Err(CoreError::InvalidState(ref m)) if m.contains("done")
     ));
+}
+
+#[test]
+fn export_epub_cung_khoang_voi_txt_muc_luc_moi_chuong_mot_file() {
+    use std::io::Read;
+    let dir = story_with_outputs();
+    let paths = story_paths(dir.path());
+    let mut story = load_story_config(&paths).unwrap();
+    story.name = "Phương Thốn Đạo Chủ (方寸道主)".into();
+    save_story_config(&paths, &story).unwrap();
+    let meta = qt_ai_core::book_meta::BookMeta { author_original: "愤怒的乌贼".into(), ..Default::default() };
+    qt_ai_core::book_meta::save_book_meta(&paths, &meta).unwrap();
+    let cover = vec![0xFF, 0xD8, 0xFF, 0xE0, 9, 9];
+    // Tác giả người dùng đổi sang tên khác bản phiên âm → không ghi kèm tên gốc.
+    let result = run_export_epub(dir.path(), &ExportOptions::default(), " Tác Giả ", Some(cover.clone())).unwrap();
+    assert_eq!(result.ids, vec!["0001", "0002", "0004"]);
+    assert_eq!(result.gaps, vec!["0003"]);
+    let slug = dir.path().file_name().unwrap().to_string_lossy().into_owned();
+    assert_eq!(result.out_path, dir.path().join("export").join(format!("{slug}_0001-0004.epub")));
+
+    let file = fs::File::open(&result.out_path).unwrap();
+    let mut archive = zip::ZipArchive::new(file).unwrap();
+    let mut read = |name: &str| {
+        let mut text = String::new();
+        archive.by_name(name).unwrap().read_to_string(&mut text).unwrap();
+        text
+    };
+    let nav = read("OEBPS/nav.xhtml");
+    assert_eq!(nav.matches("<li><a href=\"text/c").count(), 3);
+    assert!(nav.contains("<a href=\"text/c00003.xhtml\">Chương bốn.</a>"));
+    let opf = read("OEBPS/content.opf");
+    assert!(opf.contains("<dc:title>Phương Thốn Đạo Chủ</dc:title>") && opf.contains("<dc:creator>Tác Giả</dc:creator>"));
+    assert!(read("OEBPS/title.xhtml").contains("Tác giả: Tác Giả</p>"));
+    let mut image = Vec::new();
+    archive.by_name("OEBPS/images/cover.jpg").unwrap().read_to_end(&mut image).unwrap();
+    assert_eq!(image, cover);
+
+    // Đúng bản phiên âm → trang tiêu đề ghi kèm tên gốc, metadata chỉ Hán-Việt.
+    let result = run_export_epub(dir.path(), &ExportOptions::default(), "Phẫn Nộ Đích Ô Tặc", None).unwrap();
+    let mut archive = zip::ZipArchive::new(fs::File::open(&result.out_path).unwrap()).unwrap();
+    let mut title = String::new();
+    archive.by_name("OEBPS/title.xhtml").unwrap().read_to_string(&mut title).unwrap();
+    assert!(title.contains("Tác giả: Phẫn Nộ Đích Ô Tặc (愤怒的乌贼)</p>"));
+
+    let out = dir.path().join("custom").join("tap.epub");
+    let result = run_export_epub(
+        dir.path(),
+        &ExportOptions { from: Some("0002".into()), to: Some("0002".into()), out: Some(out.clone()) },
+        "",
+        None,
+    )
+    .unwrap();
+    assert_eq!(result.out_path, out);
+    let mut archive = zip::ZipArchive::new(fs::File::open(&out).unwrap()).unwrap();
+    assert!(archive.by_name("OEBPS/images/cover.jpg").is_err());
+    assert!(archive.by_name("OEBPS/text/c00001.xhtml").is_ok());
 }

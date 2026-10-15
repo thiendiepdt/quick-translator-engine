@@ -16,6 +16,10 @@ thiserror = "2"
 reqwest = { version = "0.13", default-features = false, features = ["blocking", "json", "rustls-no-provider"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
 rusqlite = { version = "0.40.2", features = ["bundled"] }
+# Export EPUB: zip có nén deflate (flate2/miniz_oxide đã có trong lock qua updater).
+zip = { version = "4.6.1", default-features = false, features = ["deflate-flate2"] }
+# zip bật flate2 không kèm backend: chọn miniz_oxide (Rust thuần, đã có trong lock).
+flate2 = { version = "1.1.9", default-features = false, features = ["rust_backend"] }
 
 [dev-dependencies]
 tempfile = "3"

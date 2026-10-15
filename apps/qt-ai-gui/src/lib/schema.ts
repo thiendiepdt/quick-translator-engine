@@ -399,6 +399,19 @@ export const aiFillResultSchema = z.object({
   log: z.array(z.string()),
 });
 export const exportOutcomeSchema = z.object({ outPath: z.string(), ids: z.array(z.string()), gaps: z.array(z.string()) });
+/** `book.json` của truyện: tác giả + nguồn ảnh bìa cho export EPUB. */
+export const bookMetaSchema = z.object({
+  author: z.string(),
+  authorOriginal: z.string(),
+  source: z.string(),
+  coverUrl: z.string(),
+  fetchedAt: z.number(),
+});
+export const bookInfoViewSchema = z.object({
+  meta: bookMetaSchema,
+  cover: z.array(z.number()).nullable(),
+});
+export const sourceImageSchema = z.object({ bytes: z.array(z.number()), mime: z.string() });
 export const retryRangeOutcomeSchema = z.object({
   retried: z.array(z.string()),
   backedUp: z.array(z.string()),

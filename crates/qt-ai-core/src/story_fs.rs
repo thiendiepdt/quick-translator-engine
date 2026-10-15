@@ -135,11 +135,16 @@ pub fn write_text(path: &Path, content: &str) -> Result<()> {
 /// Ghi atomic: file tạm cùng thư mục, ép dữ liệu xuống đĩa rồi mới rename đè. Thiếu bước ép, máy mất điện
 /// ngay sau rename để lại file đủ kích thước nhưng toàn byte 0 (tên file đã đổi, dữ liệu còn trong RAM).
 pub fn write_atomic(path: &Path, content: &str) -> Result<()> {
+    write_atomic_bytes(path, content.as_bytes())
+}
+
+/// Như `write_atomic`, cho dữ liệu nhị phân (ảnh bìa, file EPUB).
+pub fn write_atomic_bytes(path: &Path, content: &[u8]) -> Result<()> {
     let mut tmp = path.as_os_str().to_owned();
     tmp.push(".tmp");
     let tmp = PathBuf::from(tmp);
     let mut file = fs::File::create(&tmp).map_err(CoreError::io(&tmp))?;
-    file.write_all(content.as_bytes()).and_then(|_| file.sync_all()).map_err(CoreError::io(&tmp))?;
+    file.write_all(content).and_then(|_| file.sync_all()).map_err(CoreError::io(&tmp))?;
     drop(file);
     fs::rename(&tmp, path).map_err(CoreError::io(path))
 }

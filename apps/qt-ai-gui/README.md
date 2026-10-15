@@ -164,6 +164,24 @@ dịch sai một từ trong truyện nghìn chương thì sửa một lần ở 
 - Tìm chạy ở Rust, song song, lọc cả chương bằng tìm chuỗi trước; gõ xong 0,3 giây mới tìm. Truyện
   1.500 chương: khoảng 120 ms với từ gặp ở mọi chương, 45 ms với từ hiếm.
 
+## Export EPUB
+
+Trang **Export** có hai tab **TXT** / **EPUB**, cùng khoảng chương. EPUB gồm: bìa, trang tiêu đề (tên, tên gốc,
+tác giả, nhân vật chính, tóm tắt), trang **Mục lục** (mỗi dòng là link tới chương — cũng là menu mục lục của app
+đọc, kèm `toc.ncx` cho máy đọc cũ), rồi mỗi chương một file. Ghi `export/<thư mục truyện>_<từ>-<đến>.epub`
+hoặc nơi chọn. Qua epubcheck 5.1 (EPUB 3.3) không lỗi; truyện 2.500 chương ra khoảng 13 MB.
+
+- **Tác giả và ảnh bìa** tự lấy từ link nguồn lần đầu mở tab EPUB, cách gọi như novelkit: Fanqie, QQ đọc sách
+  (API `detailadr.reader.qq.com`, không cần đăng nhập), Qidian, Qimao, SFACG, Tấn Giang. Rust tải (chỉ host trong
+  danh sách; ảnh thử lại khi lỗi mạng / 5xx / 429, nhiều link thì thử lần lượt), frontend bóc dữ liệu và vẽ lại
+  ảnh thành JPEG qua canvas (Kindle, app đọc cũ không đọc WebP). Lưu ở `book.json` + `cover.jpg` trong thư mục
+  truyện, lần sau không tải lại; **Tải lại ảnh bìa** để lấy lại tay. Ô **Tác giả** sửa được, chỉ tự điền khi trống.
+- Bút danh chữ Hán phiên âm Hán-Việt từng chữ, viết hoa từng âm (bảng `QT2025/Resources/ChinesePhienAmWords.txt`
+  nhúng vào core): `愤怒的乌贼` → `Phẫn Nộ Đích Ô Tặc`. Trang tiêu đề ghi `Tác giả: Phẫn Nộ Đích Ô Tặc (愤怒的乌贼)`;
+  metadata tác giả (app đọc xếp sách theo đó) chỉ Hán-Việt. Đổi tác giả sang tên khác bản phiên âm thì bỏ tên gốc.
+- Link không hỗ trợ, không có link, nguồn không có ảnh hoặc tải lỗi → **bìa mặc định** vẽ bằng canvas: tên truyện,
+  tên gốc, tác giả trên nền mực, JPEG thật nên ảnh thu nhỏ trong thư viện app đọc cũng có chữ.
+
 ## Thể loại
 
 `story.json` có `genre: { setting: "ancient" | "modern" | "mixed", names: "han" | "foreign" | "mixed" }`; chọn ở trang Hồ sơ truyện, nhóm Thể loại trong tab Thông tin. Bối cảnh quyết xưng hô, thán từ, từ gia đình, bảng thuật ngữ và bộ rule kiểm tra mặc định; `mixed` (xuyên qua lại, đô thị tu tiên) đưa cả hai bộ xưng hô vào prompt để chọn theo cảnh và chỉ chạy rule trung lập. Tên riêng quyết phiên Hán-Việt hay trả về dạng gốc. Truyện cũ thiếu `genre` chạy như cổ đại/Hán-Việt. Prompt riêng hoặc rule riêng vẫn thắng. Chữ prompt nằm ở qt-web (`src/lib/ai-translation-prompt.ts`), Rust đọc 6 bản ghép sẵn trong `crates/qt-ai-core/prompts/prompts.json` qua golden.

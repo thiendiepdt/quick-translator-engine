@@ -2,6 +2,7 @@ mod agy_cmds;
 mod app_config;
 mod base_cmds;
 mod cast_cmds;
+mod epub_cmds;
 mod error;
 mod glossary_cmds;
 mod replace_cmds;
@@ -116,6 +117,12 @@ pub fn run() {
             story_cmds::chapter_skip,
             story_cmds::chapter_force_accept,
             story_cmds::export_chapters,
+            epub_cmds::source_fetch_text,
+            epub_cmds::source_fetch_image,
+            epub_cmds::han_viet_name,
+            epub_cmds::book_info_get,
+            epub_cmds::book_info_save,
+            epub_cmds::export_epub,
             story_cmds::reveal_folder,
             story_cmds::write_text_file,
             story_cmds::recent_summaries,
@@ -188,6 +195,7 @@ mod tests {
             include_str!("title_cmds.rs"),
             include_str!("glossary_cmds.rs"),
             include_str!("replace_cmds.rs"),
+            include_str!("epub_cmds.rs"),
         ]
         .join("\n");
         let heavy = [
@@ -218,6 +226,11 @@ mod tests {
             "init_story",
             "chapter_force_accept",
             "export_chapters",
+            "source_fetch_text",
+            "source_fetch_image",
+            "book_info_get",
+            "book_info_save",
+            "export_epub",
             "reveal_folder",
         ];
         for name in heavy {
