@@ -8,7 +8,7 @@ use crate::session_registry::root_key;
 use crate::AppState;
 use qt_ai_core::api::HttpModel;
 use qt_ai_core::base::BaseStore;
-use qt_ai_core::replace::{find_in_story, replace_in_story, FindQuery, HitRef, ReplaceOutcome};
+use qt_ai_core::replace::{find_in_story, replace_batch_in_story, FindQuery, HitRef, ReplaceJob, ReplaceOutcome};
 use qt_ai_core::session::run_once;
 use qt_ai_core::story_fs::{story_paths, StoryPaths};
 use qt_ai_core::vn_ai::{
@@ -47,10 +47,9 @@ pub struct VnReplaceRequest {
     pub paragraphs: Option<Vec<(String, usize)>>,
 }
 
-/// Thay nguyên từ, phân biệt hoa thường, giới hạn đúng chương/đoạn bằng danh sách loại trừ của engine Tìm & thay
-/// (nên có hoàn tác); xong quét lại (lỗi quét bỏ qua).
-pub fn replace_inner(root: &Path, request: &VnReplaceRequest, lex: &Lexicon) -> CmdResult<ReplaceOutcome> {
-    let paths = story_paths(root);
+/// Dựng job thay cho một cặp: nguyên từ, phân biệt hoa thường, giới hạn đúng chương/đoạn bằng danh sách loại trừ
+/// của engine Tìm & thay. Tìm trên bản dịch hiện tại — gọi ngay trước khi job chạy để số thứ tự chỗ khớp còn đúng.
+fn replace_job(paths: &StoryPaths, request: &VnReplaceRequest) -> qt_ai_core::error::Result<ReplaceJob> {
     let query = FindQuery {
         find: request.from.clone(),
         replace: request.to.clone(),
@@ -58,7 +57,7 @@ pub fn replace_inner(root: &Path, request: &VnReplaceRequest, lex: &Lexicon) -> 
         whole_word: true,
         ..Default::default()
     };
-    let found = find_in_story(&paths, &query, usize::MAX)?;
+    let found = find_in_story(paths, &query, usize::MAX)?;
     let wanted: HashSet<&str> = request.chapters.iter().map(String::as_str).collect();
     let excluded_chapters: Vec<String> =
         found.chapters.iter().map(|c| c.chapter.clone()).filter(|id| !wanted.contains(id.as_str())).collect();
@@ -71,7 +70,18 @@ pub fn replace_inner(root: &Path, request: &VnReplaceRequest, lex: &Lexicon) -> 
             .map(|hit| HitRef { chapter: hit.chapter.clone(), paragraph: hit.paragraph, occurrence: hit.occurrence })
             .collect(),
     };
-    let outcome = replace_in_story(&paths, &query, &excluded_chapters, &excluded_hits)?;
+    Ok(ReplaceJob { query, excluded_chapters, excluded_hits })
+}
+
+/// Thay nhiều cặp trong một lượt, chung MỘT lần hoàn tác (trang Tìm & thay); xong quét lại một lần (lỗi quét bỏ
+/// qua). Cụm gốc dài chạy trước ("khỉ Việt Nam" trước "Việt Nam"); bỏ cặp có cụm thay trống hoặc trùng cụm gốc.
+pub fn replace_inner(root: &Path, requests: &[VnReplaceRequest], lex: &Lexicon) -> CmdResult<ReplaceOutcome> {
+    let paths = story_paths(root);
+    let mut wanted: Vec<&VnReplaceRequest> =
+        requests.iter().filter(|r| !r.from.trim().is_empty() && !r.to.trim().is_empty() && r.from != r.to).collect();
+    wanted.sort_by_key(|r| std::cmp::Reverse(r.from.chars().count()));
+    // Iterator lười: mỗi job tìm lại chỗ khớp sau khi các job trước đã ghi.
+    let outcome = replace_batch_in_story(&paths, wanted.into_iter().map(|request| replace_job(&paths, request)))?;
     // Bản dịch đã thay xong: quét lại lỗi không được biến thành "không thay được"; lần quét sau (mở tab, Quét lại) cập nhật.
     let _ = refresh(&paths, lex);
     Ok(outcome)
@@ -114,10 +124,14 @@ pub async fn vn_settings_save(settings: VnSettings) -> CmdResult<VnSettings> {
 }
 
 #[tauri::command]
-pub async fn vn_replace<R: Runtime>(app: AppHandle<R>, root: String, request: VnReplaceRequest) -> CmdResult<ReplaceOutcome> {
+pub async fn vn_replace<R: Runtime>(
+    app: AppHandle<R>,
+    root: String,
+    requests: Vec<VnReplaceRequest>,
+) -> CmdResult<ReplaceOutcome> {
     blocking(move || {
         refuse_if_running(&app, &root)?;
-        replace_inner(Path::new(&root), &request, &lexicon())
+        replace_inner(Path::new(&root), &requests, &lexicon())
     })
     .await
 }
@@ -261,7 +275,7 @@ mod tests {
             chapters: vec!["0001".into()],
             paragraphs: Some(vec![("0001".into(), 1)]),
         };
-        let outcome = replace_inner(dir.path(), &request, &lex).unwrap();
+        let outcome = replace_inner(dir.path(), &[request], &lex).unwrap();
         assert_eq!((outcome.chapters, outcome.occurrences), (1, 1));
         let one = fs::read_to_string(dir.path().join("out/0001.txt")).unwrap();
         assert!(one.contains("Ngồi thuyền qua Thái Lan.") && one.contains("Lại đi Việt Nam."), "{one}");
@@ -278,7 +292,51 @@ mod tests {
         let dir = story();
         let lex = Lexicon::builtin();
         let request = VnReplaceRequest { from: "Việt Nam".into(), to: "Thái Lan".into(), chapters: vec!["0001".into(), "0002".into()], paragraphs: None };
-        assert_eq!(replace_inner(dir.path(), &request, &lex).unwrap().occurrences, 3);
+        assert_eq!(replace_inner(dir.path(), &[request], &lex).unwrap().occurrences, 3);
+    }
+
+    fn request(from: &str, to: &str, chapter: &str, paragraphs: Option<Vec<(String, usize)>>) -> VnReplaceRequest {
+        VnReplaceRequest { from: from.into(), to: to.into(), chapters: vec![chapter.into()], paragraphs }
+    }
+
+    #[test]
+    fn thay_nhieu_cap_khac_chuong_mot_lan_hoan_tac() {
+        let dir = story();
+        fs::write(dir.path().join("raw/0003.txt"), "第3章\n\n越南猴子。").unwrap();
+        fs::write(dir.path().join("out/0003.txt"), "Chương 3\n\nCon khỉ Việt Nam leo cây.").unwrap();
+        fs::write(dir.path().join("raw/0004.txt"), "第4章\n\n交趾很远。").unwrap();
+        fs::write(dir.path().join("out/0004.txt"), "Chương 4\n\nGiao Chỉ xa lắm.").unwrap();
+        let requests = [
+            request("khỉ Việt Nam", "khỉ Thái Lan", "0003", Some(vec![("0003".into(), 1)])),
+            request("Giao Chỉ", "Chiêm Thành", "0004", Some(vec![("0004".into(), 1)])),
+        ];
+        let outcome = replace_inner(dir.path(), &requests, &Lexicon::builtin()).unwrap();
+        assert_eq!((outcome.chapters, outcome.occurrences), (2, 2));
+        assert!(fs::read_to_string(dir.path().join("out/0003.txt")).unwrap().contains("Con khỉ Thái Lan leo cây."));
+        assert!(fs::read_to_string(dir.path().join("out/0004.txt")).unwrap().contains("Chiêm Thành xa lắm."));
+        let paths = story_paths(dir.path());
+        assert_eq!(qt_ai_core::replace::undo_info(&paths).unwrap().find, "khỉ Việt Nam; Giao Chỉ");
+        let undone = qt_ai_core::replace::undo_last_replace(&paths).unwrap();
+        assert_eq!(undone.restored, 2, "một lần hoàn tác trả cả hai chương");
+        assert!(fs::read_to_string(dir.path().join("out/0003.txt")).unwrap().contains("Con khỉ Việt Nam leo cây."));
+        assert!(fs::read_to_string(dir.path().join("out/0004.txt")).unwrap().contains("Giao Chỉ xa lắm."));
+    }
+
+    #[test]
+    fn thay_nhieu_cap_cum_dai_truoc_bo_cap_rong_hoac_trung() {
+        let dir = story();
+        fs::write(dir.path().join("raw/0003.txt"), "第3章\n\n越南猴子。").unwrap();
+        fs::write(dir.path().join("out/0003.txt"), "Chương 3\n\nCon khỉ Việt Nam leo cây.").unwrap();
+        let requests = [
+            request("Việt Nam", "Thái Lan", "0003", None),
+            request("Con", "  ", "0003", None),
+            request("leo", "leo", "0003", None),
+            request("khỉ Việt Nam", "khỉ Chiêm Thành", "0003", None),
+        ];
+        let outcome = replace_inner(dir.path(), &requests, &Lexicon::builtin()).unwrap();
+        assert_eq!((outcome.chapters, outcome.occurrences), (1, 1));
+        assert!(fs::read_to_string(dir.path().join("out/0003.txt")).unwrap().contains("Con khỉ Chiêm Thành leo cây."), "cụm dài chạy trước");
+        assert_eq!(qt_ai_core::replace::undo_info(&story_paths(dir.path())).unwrap().find, "khỉ Việt Nam");
     }
 
     #[test]
@@ -287,7 +345,7 @@ mod tests {
         // vn-check.json là thư mục → refresh sau khi thay lỗi; bản dịch đã thay xong nên không được báo lỗi.
         fs::create_dir(dir.path().join(qt_ai_core::vn_check::VN_FILE)).unwrap();
         let request = VnReplaceRequest { from: "Việt Nam".into(), to: "Thái Lan".into(), chapters: vec!["0002".into()], paragraphs: None };
-        assert_eq!(replace_inner(dir.path(), &request, &Lexicon::builtin()).unwrap().occurrences, 1);
+        assert_eq!(replace_inner(dir.path(), &[request], &Lexicon::builtin()).unwrap().occurrences, 1);
         assert!(fs::read_to_string(dir.path().join("out/0002.txt")).unwrap().contains("Thái Lan"));
     }
 

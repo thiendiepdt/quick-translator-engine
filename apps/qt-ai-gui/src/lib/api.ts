@@ -289,5 +289,6 @@ export interface VnReplaceRequest {
   chapters: string[];
   paragraphs?: [string, number][];
 }
-export const vnReplace = (root: string, request: VnReplaceRequest) =>
-  call("vn_replace", { root, request }, (v) => replaceOutcomeSchema.parse(v));
+/** Thay nhiều cặp một lượt, chung một lần hoàn tác (cụm gốc dài chạy trước; cặp có cụm thay trống bị bỏ). */
+export const vnReplace = (root: string, requests: VnReplaceRequest[]) =>
+  call("vn_replace", { root, requests }, (v) => replaceOutcomeSchema.parse(v));
