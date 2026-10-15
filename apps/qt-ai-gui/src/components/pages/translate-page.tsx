@@ -49,7 +49,7 @@ export function TranslatePage() {
         <div role="status" className="flex items-center gap-2 border-b border-status-warning/30 bg-status-warning/10 px-4 py-2 text-sm">
           <TriangleAlert className="size-4 shrink-0 text-status-warning" aria-hidden />
           <span className="flex-1">
-            {`${untracked} chương đã có bản dịch nhưng tiến độ chưa ghi — có thể do Google Drive đồng bộ lệch.`}
+            {`${untracked} chương đã có bản dịch nhưng tiến độ chưa ghi — có thể do Google Drive đồng bộ lệch. Bấm Dịch khi chưa đồng bộ thì các chương này được dịch lại, ghi đè bản dịch đang có.`}
           </span>
           <Button type="button" variant="outline" size="sm" onClick={() => setSyncOpen(true)}>
             Đồng bộ…

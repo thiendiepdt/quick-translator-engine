@@ -1,5 +1,10 @@
 # Có gì mới
 
+## Chưa phát hành
+- Bỏ chặn bắt đầu dịch khi tiến độ lệch với bản dịch đã có: trang Dịch chỉ hiện thông báo kèm nút **Đồng bộ…**; bấm Dịch khi chưa đồng bộ thì các chương lệch được dịch lại, ghi đè bản dịch đang có.
+- Cải thiện chuyển truyện ở cột **Phiên này**: quay lại truyện đã xem thì trang Dịch mở lại đúng chương, bộ lọc và ô tìm trước đó.
+- Sửa lỗi truyện cổ đại xưng "anh–em", "tôi–cậu", "tao–mày" trong lời thoại: anh chị em ruột gọi nhau "ca", "tỷ", tự xưng "muội", "đệ"; AI điền hồ sơ không còn ghi luật xưng hô kiểu hiện đại cho truyện cổ đại, và app không học cặp xưng hô kiểu hiện đại ở truyện cổ đại.
+
 ## 1.0.22 — 2026-10-15
 - Thêm kiểm tra nội dung nhạy cảm về Việt Nam: app tự quét chương gốc và bản dịch khi mở truyện, quét chương mới hay chốt chương, rồi đánh dấu những chỗ nhắc tới Việt Nam cần xem lại (chỉ cảnh báo, không chặn dịch hay export).
 - Thêm tab **Kiểm tra VN** trong trang Truyện để lọc và xem từng chỗ kèm ngữ cảnh, đánh dấu **Không sao** hoặc **Cần xử lý**, và bấm **AI xét** để AI sơ loại trước khi bạn tự xem.

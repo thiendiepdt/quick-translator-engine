@@ -136,7 +136,9 @@ describe("TranslatePage · banner tiến độ lệch sau sync Drive", () => {
     vi.mocked(progressDrift).mockResolvedValue({ untracked: ["0001"], missing: [] });
     render(<TranslatePage />);
     expect(
-      screen.getByText("549 chương đã có bản dịch nhưng tiến độ chưa ghi — có thể do Google Drive đồng bộ lệch."),
+      screen.getByText(
+        "549 chương đã có bản dịch nhưng tiến độ chưa ghi — có thể do Google Drive đồng bộ lệch. Bấm Dịch khi chưa đồng bộ thì các chương này được dịch lại, ghi đè bản dịch đang có.",
+      ),
     ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Đồng bộ…" }));
     await waitFor(() => expect(progressDrift).toHaveBeenCalledWith(oneChapter.root));

@@ -68,13 +68,6 @@ fn drift_of(paths: &StoryPaths, state: &StoryState) -> ProgressDrift {
     ProgressDrift { untracked: untracked_of(paths, state), missing }
 }
 
-/// Chỉ đọc, chỉ phần `untracked` của `progress_drift` — chốt chặn lúc bắt đầu phiên dùng, khỏi đọc out/ chương done.
-pub fn progress_untracked(root: &Path) -> Result<Vec<String>> {
-    let paths = story_paths(&resolve_root(root));
-    let state = load_state(&paths)?;
-    Ok(untracked_of(&paths, &state))
-}
-
 /// Lối thoát khi báo lệch nhầm: đưa các chương `untracked` về hàng đợi dịch lại như `retry` — out/<id>.txt cất
 /// sang `.txt.bak` (đè bak cũ), state mới (queued, reviewRound 0, updatedAt bây giờ), dọn work/. Trả id đã đưa về.
 pub fn requeue_untracked(root: &Path) -> Result<Vec<String>> {

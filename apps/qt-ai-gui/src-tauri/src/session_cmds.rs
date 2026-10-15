@@ -107,7 +107,6 @@ pub async fn session_start<R: Runtime>(app: AppHandle<R>, root: String, model: O
         };
         state.sessions.lock().unwrap().check_can_start(&root, max_parallel)?;
         crate::vn_cmds::refuse_start_if_verifying(&root)?;
-        refuse_start_if_drifted(Path::new(&root))?;
         let event_root = root.clone();
         let emitter = app.clone();
         let sink: Sink = Arc::new(move |event: SessionEvent| {
@@ -127,23 +126,6 @@ pub async fn session_start<R: Runtime>(app: AppHandle<R>, root: String, model: O
         Ok(status(&state))
     })
     .await
-}
-
-/// Chặn bắt đầu phiên khi out/ có bản dịch mà state.json (bản cũ sau sync Drive) ghi chưa dịch: phiên sẽ dịch lại
-/// đúng các chương đó. Đọc state lỗi (chưa init…) thì để phần bắt đầu phiên tự báo lỗi của nó.
-pub(crate) fn refuse_start_if_drifted(root: &Path) -> CmdResult<()> {
-    // Chỉ đọc out/ của chương chưa done — bắt đầu phiên không cần biết chương done nào thiếu bản dịch.
-    let Ok(untracked) = qt_ai_core::commands::sync_progress::progress_untracked(root) else { return Ok(()) };
-    if untracked.is_empty() {
-        return Ok(());
-    }
-    Err(CommandError::new(
-        "progress_drift",
-        format!(
-            "{} chương đã có bản dịch trong out/ nhưng tiến độ chưa ghi — bấm Đồng bộ tiến độ trước khi dịch để khỏi dịch lại.",
-            untracked.len()
-        ),
-    ))
 }
 
 /// Dừng phiên của một truyện: cancel (core giết process tree agy) rồi đợi thread runner kết thúc,
@@ -252,28 +234,6 @@ fn fill_story_via_agy(state: &State<'_, AppState>, root_path: &Path, name: &str,
 mod tests {
     use super::*;
     use std::sync::atomic::AtomicBool;
-
-    #[test]
-    fn bat_dau_phien_bi_chan_khi_out_co_ban_dich_ma_tien_do_chua_ghi() {
-        let dir = tempfile::tempdir().unwrap();
-        std::fs::create_dir_all(dir.path().join("raw")).unwrap();
-        for id in ["0001", "0002", "0003"] {
-            std::fs::write(dir.path().join("raw").join(format!("{id}.txt")), "章").unwrap();
-        }
-        qt_ai_core::commands::init::run_init(dir.path(), "qt-ai").unwrap();
-        refuse_start_if_drifted(dir.path()).unwrap();
-        let out = dir.path().join("out");
-        crate::story_cmds::tests::write_later(&out.join("0001.txt"), "Chương một.");
-        crate::story_cmds::tests::write_later(&out.join("0002.txt"), "Chương hai.");
-        let error = refuse_start_if_drifted(dir.path()).unwrap_err();
-        assert_eq!(error.kind, "progress_drift");
-        assert!(error.message.starts_with("2 chương đã có bản dịch trong out/"), "{}", error.message);
-        assert!(error.message.contains("Đồng bộ tiến độ"), "{}", error.message);
-        qt_ai_core::commands::sync_progress::run_sync_progress(dir.path()).unwrap();
-        refuse_start_if_drifted(dir.path()).unwrap();
-        // Folder chưa init: để lệnh bắt đầu phiên tự báo lỗi của nó.
-        refuse_start_if_drifted(tempfile::tempdir().unwrap().path()).unwrap();
-    }
 
     #[test]
     fn setup_prompt_dua_ten_link_va_duong_dan_tuyet_doi() {

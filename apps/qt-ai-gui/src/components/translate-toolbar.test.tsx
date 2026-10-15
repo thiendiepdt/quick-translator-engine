@@ -234,28 +234,3 @@ describe("TranslateToolbar · chọn model agy", () => {
   });
 });
 
-describe("TranslateToolbar · bắt đầu bị chặn vì tiến độ lệch", () => {
-  it("lỗi progress_drift thì báo và mở luôn hộp Đồng bộ tiến độ", async () => {
-    const user = userEvent.setup();
-    const { ApiError, progressDrift } = await import("@/lib/api");
-    useStoryStore.setState({
-      config,
-      root: ROOT,
-      roots: { [pathKey(ROOT)]: ROOT },
-      sessions: {},
-      snapshot: {
-        root: ROOT,
-        story: { title: "T" },
-        counts: { total: 1, queued: 1, translating: 0, done: 0, error: 0, skipped: 0, withWarnings: 0 },
-        chapters: [{ id: "c1", status: "queued", reviewRound: 0, reason: null, warnings: [] }],
-      } as never,
-    });
-    vi.mocked(sessionStart)
-      .mockReset()
-      .mockRejectedValue(new ApiError("progress_drift", "1 chương đã có bản dịch trong out/ nhưng tiến độ chưa ghi — bấm Đồng bộ tiến độ trước khi dịch để khỏi dịch lại."));
-    render(<TranslateToolbar />);
-    await user.click(screen.getByRole("button", { name: /Bắt đầu/ }));
-    expect(await screen.findByRole("dialog", { name: "Đồng bộ tiến độ" })).toBeInTheDocument();
-    expect(progressDrift).toHaveBeenCalledWith(ROOT);
-  });
-});

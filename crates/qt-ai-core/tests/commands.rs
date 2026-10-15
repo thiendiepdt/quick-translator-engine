@@ -9,7 +9,7 @@ use qt_ai_core::commands::reset::run_reset;
 use qt_ai_core::commands::retry::{retry_backup_path, run_retry, run_retry_ids, run_retry_range};
 use qt_ai_core::commands::skip::run_skip;
 use qt_ai_core::commands::status::run_status;
-use qt_ai_core::commands::sync_progress::{progress_drift, progress_untracked, requeue_untracked, run_sync_progress};
+use qt_ai_core::commands::sync_progress::{progress_drift, requeue_untracked, run_sync_progress};
 use qt_ai_core::story::StoryConfig;
 use qt_ai_core::story_fs::*;
 use qt_ai_core::CoreError;
@@ -1460,13 +1460,6 @@ fn sync_progress_danh_dau_done_theo_out_giu_nguyen_chuong_thieu_va_idempotent() 
     assert!(again.marked_done.is_empty());
     assert_eq!(again.missing, vec!["6"]);
     assert!(progress_drift(dir.path()).unwrap().untracked.is_empty());
-}
-
-#[test]
-fn progress_untracked_chi_xet_chuong_chua_done_khop_progress_drift() {
-    let dir = story_with_drift();
-    assert_eq!(progress_untracked(dir.path()).unwrap(), progress_drift(dir.path()).unwrap().untracked);
-    assert_eq!(progress_untracked(dir.path()).unwrap(), vec!["1", "2", "3", "4"]);
 }
 
 #[test]
