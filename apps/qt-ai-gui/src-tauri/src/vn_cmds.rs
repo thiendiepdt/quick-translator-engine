@@ -22,8 +22,13 @@ use std::path::Path;
 use std::sync::atomic::AtomicBool;
 use tauri::{AppHandle, Manager, Runtime};
 
-fn lexicon() -> Lexicon {
+pub(crate) fn lexicon() -> Lexicon {
     Lexicon::load(&BaseStore::from_env())
+}
+
+/// Quét kiểm tra VN sau khi init / mở / quét lại raw; lỗi bỏ qua (tab Kiểm tra VN quét lại khi mở).
+pub(crate) fn refresh_quietly(root: &Path, lex: &Lexicon) {
+    let _ = refresh(&story_paths(root), lex);
 }
 
 pub fn refresh_inner(root: &Path, lex: &Lexicon) -> CmdResult<VnSummary> {

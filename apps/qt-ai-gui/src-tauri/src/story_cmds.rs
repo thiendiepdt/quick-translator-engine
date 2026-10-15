@@ -250,18 +250,26 @@ fn session_running(state: &State<'_, AppState>, root: &str) -> bool {
     state.sessions.lock().unwrap().is_running(root)
 }
 
-/// Mở truyện đã init: quét raw/ lấy chương mới vào hàng đợi trước (run_init idempotent), rồi snapshot.
+/// Mở truyện đã init: quét raw/ lấy chương mới vào hàng đợi trước (run_init idempotent) và quét kiểm tra VN,
+/// rồi snapshot.
 /// Folder chưa có state.json vẫn trả story_not_found để UI hỏi "Khởi tạo?".
 #[tauri::command]
 pub async fn open_story<R: Runtime>(app: AppHandle<R>, root: String) -> CmdResult<StorySnapshot> {
     blocking(move || open_story_sync(&app.state::<AppState>(), &root)).await
 }
 
-fn open_story_sync(state: &State<'_, AppState>, root: &str) -> CmdResult<StorySnapshot> {
-    let path = Path::new(root);
+/// Truyện đã init: quét raw/ lấy chương mới (run_init idempotent) rồi quét kiểm tra VN. Folder lạ thì bỏ qua.
+pub fn rescan_if_initialized(path: &Path) -> CmdResult<()> {
     if story_paths(path).state_json.is_file() {
         run_init(path, &qt_ai_command())?;
+        crate::vn_cmds::refresh_quietly(path, &crate::vn_cmds::lexicon());
     }
+    Ok(())
+}
+
+fn open_story_sync(state: &State<'_, AppState>, root: &str) -> CmdResult<StorySnapshot> {
+    let path = Path::new(root);
+    rescan_if_initialized(path)?;
     let snap = snapshot(path, session_running(state, root))?;
     let mut config = state.config.lock().unwrap();
     config.touch_recent(root);
@@ -521,15 +529,16 @@ mod tests {
 
     #[test]
     fn open_story_quet_chuong_moi_khi_da_init_nhung_khong_init_folder_la() {
-        // Không có State<AppState> trong unit test — kiểm phần logic quét bằng cùng điều kiện open_story dùng.
+        // Không có State<AppState> trong unit test — kiểm phần quét open_story dùng.
         let dir = story();
         fs::write(dir.path().join("raw").join("0003.txt"), "第三章").unwrap();
-        let paths = story_paths(dir.path());
-        assert!(paths.state_json.is_file());
-        run_init(dir.path(), "qt-ai").unwrap();
+        rescan_if_initialized(dir.path()).unwrap();
         assert_eq!(snapshot(dir.path(), false).unwrap().counts.total, 3);
+        assert!(dir.path().join(qt_ai_core::vn_check::VN_FILE).is_file(), "mở truyện thì quét kiểm tra VN");
         let fresh = tempfile::tempdir().unwrap();
+        rescan_if_initialized(fresh.path()).unwrap();
         assert!(!story_paths(fresh.path()).state_json.is_file());
+        assert!(!fresh.path().join(qt_ai_core::vn_check::VN_FILE).exists());
         assert_eq!(snapshot(fresh.path(), false).unwrap_err().kind, "story_not_found");
     }
 

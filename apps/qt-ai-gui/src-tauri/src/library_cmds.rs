@@ -5,6 +5,7 @@ use crate::error::{blocking, CmdResult, CommandError};
 use crate::sidecar::qt_ai_command;
 use crate::story_cmds::{snapshot, RecentSummary, StorySnapshot};
 use crate::summary_cache::SummaryCache;
+use crate::vn_cmds::{lexicon, refresh_quietly};
 use crate::AppState;
 use qt_ai_core::commands::init::{raw_drift, run_init};
 use qt_ai_core::story_fs::{load_story_config, save_story_config, story_paths};
@@ -114,6 +115,7 @@ pub fn create_story_inner(library_root: &Path, name: &str, slug: &str, source_ur
     story.name = name.to_string();
     story.source_url = source_url.trim().to_string();
     save_story_config(&paths, &story)?;
+    refresh_quietly(&root, &lexicon());
     Ok(root)
 }
 
@@ -296,7 +298,7 @@ pub async fn rescan_story<R: Runtime>(app: AppHandle<R>, root: String) -> CmdRes
         let state = app.state::<AppState>();
         let path = Path::new(&root);
         run_init(path, &qt_ai_command())?;
-        let _ = qt_ai_core::vn_check::refresh(&story_paths(path), &qt_ai_core::vn_lexicon::Lexicon::load(&qt_ai_core::base::BaseStore::from_env()));
+        refresh_quietly(path, &lexicon());
         snapshot(path, session_running(&state, &root))
     })
     .await
@@ -319,11 +321,11 @@ pub async fn library_rescan<R: Runtime>(app: AppHandle<R>) -> CmdResult<LibraryR
             return Err(CommandError::new("invalid_state", format!("Thư viện {} không tồn tại.", library.display())));
         }
         let report = rescan_library_inner(library, &|root| session_running(&state, root), &qt_ai_command());
-        let lexicon = qt_ai_core::vn_lexicon::Lexicon::load(&qt_ai_core::base::BaseStore::from_env());
+        let lexicon = lexicon();
         for entry in std::fs::read_dir(library).into_iter().flatten().flatten() {
             let path = entry.path();
             if path.join("state.json").is_file() {
-                let _ = qt_ai_core::vn_check::refresh(&story_paths(&path), &lexicon);
+                refresh_quietly(&path, &lexicon);
             }
         }
         Ok(LibraryRescan { report, stories: list_library(Some(library), &state.summaries) })
@@ -338,7 +340,7 @@ pub async fn import_chapters<R: Runtime>(app: AppHandle<R>, root: String, paths:
         let path = Path::new(&root);
         let sources: Vec<PathBuf> = paths.iter().map(PathBuf::from).collect();
         let counts = import_chapters_inner(path, &sources, &qt_ai_command())?;
-        let _ = qt_ai_core::vn_check::refresh(&story_paths(path), &qt_ai_core::vn_lexicon::Lexicon::load(&qt_ai_core::base::BaseStore::from_env()));
+        refresh_quietly(path, &lexicon());
         Ok(ImportOutcome {
             added: counts.added,
             skipped_existing: counts.skipped_existing,
@@ -378,6 +380,7 @@ mod tests {
         assert_eq!(story.name, "Kỳ Chiêu Nguyệt");
         assert_eq!(story.source_url, "https://x/y");
         assert_eq!(snapshot(&root, false).unwrap().counts.total, 0);
+        assert!(root.join(qt_ai_core::vn_check::VN_FILE).is_file(), "tạo truyện xong thì quét kiểm tra VN");
 
         let dup = create_story_inner(lib.path(), "Khác", "ky-chieu-nguyet", "", "qt-ai").unwrap_err();
         assert_eq!(dup.kind, "invalid_state");
