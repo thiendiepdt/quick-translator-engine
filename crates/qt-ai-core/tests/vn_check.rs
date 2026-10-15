@@ -261,3 +261,48 @@ fn doi_tu_dien_thi_quet_lai_toan_bo() {
     let summary = refresh(&paths, &Lexicon::with_settings(&settings)).unwrap();
     assert_eq!((summary.scanned, summary.hits), (1, 0));
 }
+
+#[test]
+fn ghi_dong_thoi_khong_mat_cap_nhat() {
+    let raw: String = std::iter::once("第1章".to_string())
+        .chain((0..24).map(|_| "坐船转到越南。".to_string()))
+        .collect::<Vec<_>>()
+        .join("\n\n");
+    let dir = story(&[("0001", &raw, None)]);
+    let paths = story_paths(dir.path());
+    refresh(&paths, &Lexicon::builtin()).unwrap();
+    let ids: Vec<String> = load_file(&paths).hits.iter().map(|h| h.id.clone()).collect();
+    assert_eq!(ids.len(), 24);
+    std::thread::scope(|scope| {
+        for (i, id) in ids.iter().enumerate() {
+            let paths = &paths;
+            scope.spawn(move || {
+                if i % 2 == 0 {
+                    set_status(paths, std::slice::from_ref(id), Status::Action).unwrap();
+                } else {
+                    let verdict = AiVerdict { label: "ok".into(), reason: "r".into(), model: "m".into(), at: 1 };
+                    set_ai(paths, &[(id.clone(), verdict)]).unwrap();
+                }
+            });
+        }
+    });
+    let file = load_file(&paths);
+    for (i, hit) in file.hits.iter().enumerate() {
+        if i % 2 == 0 {
+            assert_eq!(hit.status, Status::Action, "{}", hit.id);
+        } else {
+            assert!(hit.ai.is_some(), "{}", hit.id);
+        }
+    }
+}
+
+#[test]
+fn file_hong_duoc_sao_luu_truoc_khi_ghi_de() {
+    let dir = story(&[("0001", "第1章\n\n坐船转到越南。", None)]);
+    let paths = story_paths(dir.path());
+    fs::write(dir.path().join(VN_FILE), "{ không phải json").unwrap();
+    refresh(&paths, &Lexicon::builtin()).unwrap();
+    let bad = dir.path().join(format!("{VN_FILE}.bad"));
+    assert_eq!(fs::read_to_string(bad).unwrap(), "{ không phải json");
+    assert_eq!(load_file(&paths).hits.len(), 1);
+}

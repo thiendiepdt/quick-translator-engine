@@ -192,6 +192,31 @@ pub fn load_file(paths: &StoryPaths) -> VnFile {
     read_text(&file_path(paths)).ok().and_then(|text| serde_json::from_str(&text).ok()).unwrap_or_default()
 }
 
+/// Tuần tự hoá mọi chu trình đọc → sửa → ghi `vn-check.json` trong cùng tiến trình (GUI chạy AI,
+/// bấm nút và refresh trên nhiều luồng). Không chặn được tiến trình khác, vd. CLI `qt-ai accept`.
+static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+fn lock() -> std::sync::MutexGuard<'static, ()> {
+    LOCK.lock().unwrap_or_else(|e| e.into_inner())
+}
+
+/// Như `load_file` nhưng dành cho chu trình ghi: file có mà không đọc/parse được thì chép sang
+/// `vn-check.json.bad` trước, để lần ghi sau không xoá mất các quyết định cũ.
+fn load_for_update(paths: &StoryPaths) -> Result<VnFile> {
+    let path = file_path(paths);
+    if !path.exists() {
+        return Ok(VnFile::default());
+    }
+    if let Some(file) = read_text(&path).ok().and_then(|text| serde_json::from_str(&text).ok()) {
+        return Ok(file);
+    }
+    let mut bad = path.as_os_str().to_owned();
+    bad.push(".bad");
+    let bad = PathBuf::from(bad);
+    std::fs::copy(&path, &bad).map_err(CoreError::io(&bad))?;
+    Ok(VnFile::default())
+}
+
 fn save_file(paths: &StoryPaths, file: &VnFile) -> Result<()> {
     let text = serde_json::to_string_pretty(file).expect("VnFile luôn serialize được");
     write_atomic(&file_path(paths), &format!("{text}\n"))
@@ -273,7 +298,8 @@ fn carry(mut hit: VnHit, previous: &HashMap<String, VnHit>) -> VnHit {
 
 /// Quét tăng dần cả truyện: chỉ đọc chương mới/đổi (theo kích thước + mtime); từ điển đổi thì quét lại toàn bộ.
 pub fn refresh(paths: &StoryPaths, lex: &Lexicon) -> Result<VnSummary> {
-    let old = load_file(paths);
+    let _guard = lock();
+    let old = load_for_update(paths)?;
     let reset = old.lexicon_hash != lex.hash;
     let ids = list_raw_chapter_ids(paths)?;
     let marks: Vec<(String, ChapterMark)> = ids.iter().map(|id| (id.clone(), chapter_mark(paths, id))).collect();
@@ -303,7 +329,8 @@ pub fn refresh(paths: &StoryPaths, lex: &Lexicon) -> Result<VnSummary> {
 /// Quét lại đúng một chương (khi chốt chương); trả số chỗ chưa xét + cần xử lý của chương đó.
 /// Từ điển đổi → bỏ dấu các chương khác để lần `refresh` sau quét lại chúng.
 pub fn check_chapter(paths: &StoryPaths, lex: &Lexicon, id: &str) -> Result<usize> {
-    let mut file = load_file(paths);
+    let _guard = lock();
+    let mut file = load_for_update(paths)?;
     if file.lexicon_hash != lex.hash {
         file.chapters.clear();
         file.lexicon_hash = lex.hash.clone();
@@ -322,7 +349,8 @@ pub fn check_chapter(paths: &StoryPaths, lex: &Lexicon, id: &str) -> Result<usiz
 }
 
 pub fn set_status(paths: &StoryPaths, ids: &[String], status: Status) -> Result<usize> {
-    let mut file = load_file(paths);
+    let _guard = lock();
+    let mut file = load_for_update(paths)?;
     let mut changed = 0;
     for hit in file.hits.iter_mut().filter(|hit| ids.contains(&hit.id)) {
         if hit.status != status {
@@ -337,7 +365,8 @@ pub fn set_status(paths: &StoryPaths, ids: &[String], status: Status) -> Result<
 }
 
 pub fn set_ai(paths: &StoryPaths, verdicts: &[(String, AiVerdict)]) -> Result<usize> {
-    let mut file = load_file(paths);
+    let _guard = lock();
+    let mut file = load_for_update(paths)?;
     let mut changed = 0;
     for (id, verdict) in verdicts {
         if let Some(hit) = file.hits.iter_mut().find(|hit| &hit.id == id) {
