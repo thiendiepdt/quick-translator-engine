@@ -300,29 +300,43 @@ fn chapter_hits(lex: &Lexicon, id: &str, raw: &str, out: Option<&str>) -> Vec<Vn
         .collect()
 }
 
-fn scan_one(paths: &StoryPaths, lex: &Lexicon, id: &str) -> Vec<VnHit> {
-    let Ok(raw) = read_text(&raw_path(paths, id)) else { return vec![] };
-    let out = read_text(&out_path(paths, id)).ok();
-    chapter_hits(lex, id, &raw, out.as_deref())
+/// Lỗi đọc raw, hoặc bản dịch có mà không đọc được → `Err`: người gọi giữ hit cũ và không ghi dấu chương
+/// (lần quét sau thử lại). Bản dịch chưa có → quét raw.
+fn scan_one(paths: &StoryPaths, lex: &Lexicon, id: &str) -> Result<Vec<VnHit>> {
+    let raw = read_text(&raw_path(paths, id))?;
+    let out_file = out_path(paths, id);
+    let out = match std::fs::read_to_string(&out_file) {
+        Ok(text) => Some(text),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+        Err(error) => return Err(CoreError::io(&out_file)(error)),
+    };
+    Ok(chapter_hits(lex, id, &raw, out.as_deref()))
 }
 
-/// Quét song song (≤ 8 luồng) như `replace.rs`.
-fn scan_many(paths: &StoryPaths, lex: &Lexicon, ids: &[&str]) -> Result<Vec<VnHit>> {
+/// Quét song song (≤ 8 luồng) như `replace.rs`. Trả hit mới cùng các chương đọc lỗi.
+fn scan_many(paths: &StoryPaths, lex: &Lexicon, ids: &[&str]) -> Result<(Vec<VnHit>, HashSet<String>)> {
     if ids.is_empty() {
-        return Ok(vec![]);
+        return Ok((vec![], HashSet::new()));
     }
     let threads = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4).clamp(1, 8);
     let size = ids.len().div_ceil(threads).max(1);
     std::thread::scope(|scope| {
         let workers: Vec<_> = ids
             .chunks(size)
-            .map(|part| scope.spawn(move || part.iter().flat_map(|id| scan_one(paths, lex, id)).collect::<Vec<_>>()))
+            .map(|part| scope.spawn(move || part.iter().map(|id| (*id, scan_one(paths, lex, id))).collect::<Vec<_>>()))
             .collect();
-        let mut all = Vec::new();
+        let (mut all, mut failed) = (Vec::new(), HashSet::new());
         for worker in workers {
-            all.extend(worker.join().map_err(|_| CoreError::Internal("luồng quét VN bị lỗi".into()))?);
+            for (id, scanned) in worker.join().map_err(|_| CoreError::Internal("luồng quét VN bị lỗi".into()))? {
+                match scanned {
+                    Ok(hits) => all.extend(hits),
+                    Err(_) => {
+                        failed.insert(id.to_string());
+                    }
+                }
+            }
         }
-        Ok(all)
+        Ok((all, failed))
     })
 }
 
@@ -346,20 +360,25 @@ pub fn refresh(paths: &StoryPaths, lex: &Lexicon) -> Result<VnSummary> {
         let marks: Vec<(String, ChapterMark)> = ids.iter().map(|id| (id.clone(), chapter_mark(paths, id))).collect();
         let todo: Vec<&str> =
             marks.iter().filter(|(id, m)| reset || old.chapters.get(id) != Some(m)).map(|(id, _)| id.as_str()).collect();
-        let fresh = scan_many(paths, lex, &todo)?;
+        let (fresh, failed) = scan_many(paths, lex, &todo)?;
         let todo_set: HashSet<&str> = todo.iter().copied().collect();
         let live: HashSet<&str> = ids.iter().map(String::as_str).collect();
         let previous: HashMap<String, VnHit> = old.hits.iter().map(|hit| (hit.id.clone(), hit.clone())).collect();
+        // Chương không đổi giữ hit cũ; chương đọc lỗi cũng giữ hit cũ (kể cả khi đổi từ điển) chờ lần sau.
         let mut hits: Vec<VnHit> = old
             .hits
             .iter()
-            .filter(|hit| !reset && live.contains(hit.chapter.as_str()) && !todo_set.contains(hit.chapter.as_str()))
+            .filter(|hit| {
+                let chapter = hit.chapter.as_str();
+                failed.contains(chapter) || (!reset && live.contains(chapter) && !todo_set.contains(chapter))
+            })
             .cloned()
             .collect();
         hits.extend(fresh.into_iter().map(|hit| carry(hit, &previous)));
         sort_hits(&mut hits);
         let scanned = todo.len();
-        let file = VnFile { version: 1, lexicon_hash: lex.hash.clone(), chapters: marks.into_iter().collect(), hits };
+        let chapters = marks.into_iter().filter(|(id, _)| !failed.contains(id)).collect();
+        let file = VnFile { version: 1, lexicon_hash: lex.hash.clone(), chapters, hits };
         let summary = VnSummary { hits: file.hits.len(), open: open_count(&file), scanned };
         if file != old {
             save_file(paths, &file)?;
@@ -372,6 +391,8 @@ pub fn refresh(paths: &StoryPaths, lex: &Lexicon) -> Result<VnSummary> {
 /// Từ điển đổi → bỏ dấu các chương khác để lần `refresh` sau quét lại chúng.
 pub fn check_chapter(paths: &StoryPaths, lex: &Lexicon, id: &str) -> Result<usize> {
     locked(paths, || {
+        // Đọc chương lỗi → báo lỗi, không đụng vn-check.json (giữ hit cũ, không ghi dấu).
+        let scanned = scan_one(paths, lex, id)?;
         let mut file = load_for_update(paths)?;
         if file.lexicon_hash != lex.hash {
             file.chapters.clear();
@@ -380,7 +401,7 @@ pub fn check_chapter(paths: &StoryPaths, lex: &Lexicon, id: &str) -> Result<usiz
         let previous: HashMap<String, VnHit> =
             file.hits.iter().filter(|hit| hit.chapter == id).map(|hit| (hit.id.clone(), hit.clone())).collect();
         file.hits.retain(|hit| hit.chapter != id);
-        let fresh: Vec<VnHit> = scan_one(paths, lex, id).into_iter().map(|hit| carry(hit, &previous)).collect();
+        let fresh: Vec<VnHit> = scanned.into_iter().map(|hit| carry(hit, &previous)).collect();
         let open = fresh.iter().filter(|hit| hit.status != Status::Ok).count();
         file.hits.extend(fresh);
         sort_hits(&mut file.hits);

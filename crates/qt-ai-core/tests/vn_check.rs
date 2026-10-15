@@ -236,6 +236,33 @@ fn trang_thai_giu_khi_doan_khong_doi_va_ve_pending_khi_doi_chu() {
 }
 
 #[test]
+fn chuong_doc_loi_giu_hit_cu_va_quet_lai_lan_sau() {
+    let dir = story(&[
+        ("0001", "第1章\n\n坐船转到越南。", Some("Chương 1\n\nNgồi thuyền qua Việt Nam.")),
+        ("0002", "第2章\n\n此地多是交趾人。", None),
+    ]);
+    let paths = story_paths(dir.path());
+    let lex = Lexicon::builtin();
+    refresh(&paths, &lex).unwrap();
+    set_status(&paths, &["0001:1:viet-nam".to_string()], Status::Action).unwrap();
+    let before = load_file(&paths);
+    // Bản dịch chương 1 và raw chương 2 thành byte không phải UTF-8 → đọc lỗi.
+    fs::write(dir.path().join("out").join("0001.txt"), [0xff, 0xfe, 0xfd]).unwrap();
+    fs::write(dir.path().join("raw").join("0002.txt"), [0xff, 0xfe]).unwrap();
+    assert_eq!(refresh(&paths, &lex).unwrap().scanned, 2);
+    let file = load_file(&paths);
+    assert_eq!(file.hits, before.hits, "giữ nguyên hit cũ (kể cả trạng thái) của chương đọc lỗi");
+    assert!(!file.chapters.contains_key("0001") && !file.chapters.contains_key("0002"), "không ghi dấu → lần sau thử lại");
+    assert!(check_chapter(&paths, &lex, "0001").is_err());
+    assert_eq!(load_file(&paths).hits, before.hits);
+    // Đọc được lại → quét lại thật.
+    fs::write(dir.path().join("out").join("0001.txt"), "Chương 1\n\nNgồi thuyền qua Thái Lan.").unwrap();
+    fs::write(dir.path().join("raw").join("0002.txt"), "第2章\n\n风平浪静。").unwrap();
+    assert_eq!(refresh(&paths, &lex).unwrap().scanned, 2);
+    assert!(load_file(&paths).hits.is_empty());
+}
+
+#[test]
 fn check_chapter_chi_quet_mot_chuong_va_tra_so_cho_chua_xet() {
     let dir = story(&[
         ("0001", "第1章\n\n坐船转到越南。", Some("Chương 1\n\nChuyển tuyến qua Việt Nam.")),
