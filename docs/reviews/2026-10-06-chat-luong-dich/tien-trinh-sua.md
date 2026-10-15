@@ -585,6 +585,21 @@ Tổng 3.455 dòng / 2.638 file. Bỏ qua 6 file số đoạn raw ≠ bản dị
 
 **Kiểm.** Test qt-web: bắt "chỗ chúng tôi", "cháu nhà tôi", "Tôi lắc đầu.", ", tôi cũng…"; bề tôi/vua tôi/tôi tớ/tôi luyện qua; dòng 我们 có ở cổ đại và hỗn hợp, không ở hiện đại. Golden thêm 2 dòng mẫu, core khớp. qt-web 203, core xanh.
 
+## 34. Truyện cổ đại xưng `anh–em`, `tôi–cậu`, `tao–mày` (ngoài lộ trình, người dùng báo)
+
+**Hiện tượng.** Cẩu Thánh (cổ đại, người dùng Gemini flash effort thấp/vừa): Hứa Tình gọi anh ruột `“Anh, anh về rồi!”` từ ch.2 tới ch.548; thoại 590 chương có 670 "anh", 387 "em", 128 "cậu", 105 "tôi", 96 "mày", 39 "tao"; đại từ hiện đại chiếm 23% thoại ch.1–49.
+
+**Nguyên nhân.** AI điền hồ sơ ghi luật giọng văn kiểu hiện đại cho truyện cổ đại: "huynh muội ruột thịt thân mật (anh - em)… Hổ gia - xưng tôi/tiểu nhân"; điều 10 của prompt cổ đại cho style ghi đè `ta`. Ch.2 học cặp `许阳↔许晴: anh–em`, sau đó cặp ép cả truyện. Prompt cổ đại có luật gọi cha mẹ nhưng chưa có luật gọi anh chị em ruột. 52/1.410 cặp xưng hô của truyện là kiểu hiện đại, 30 cặp học trong 50 chương đầu.
+
+**Sửa.**
+
+- Prompt AI điền (API và workflow setup-story.md): setting ancient chỉ ghi xưng hô cổ trang trong tone_rules, không anh/em/chị/tôi/cậu/mày/tao, kể cả anh chị em ruột, dân thường.
+- Prompt cổ đại (và cảnh cổ của hỗn hợp) thêm "Gọi anh chị em ruột": 哥 → `ca`/`ca ca`, 姐 → `tỷ`; em nói với anh chị gọi `ca`/`tỷ`, `你` → `huynh`/`tỷ`, tự xưng `muội`/`đệ`; không anh/em/chị. Ví dụ `哥，你回来了！` → `Ca, huynh về rồi!`. Người dùng chọn phương án này. Hash prompt cổ đại cập nhật.
+- Accept không học cặp kiểu hiện đại ở truyện cổ đại (cả cặp mới lẫn đổi cặp): một chiều là tôi/mình/tớ/tao/mày/anh/em/chị/chúng tôi, `anh`/`em`/`chị` viết thường kèm tên, hoặc `cậu` không đi với `cháu`. Giữ tên riêng viết hoa (`Anh Lạc`), `anh hùng`, cậu ruột (`cậu–cháu`, `cháu–cậu cả`). Áp lên 13.482 cặp của các truyện cổ đại trong common + Cẩu Thánh: chặn 50, đều kiểu hiện đại.
+- Cặp đã học và bản dịch cũ không tự đổi: người dùng sửa luật giọng văn, xoá cặp kiểu hiện đại trong glossary rồi dịch lại.
+
+**Kiểm.** Test cast: chặn `em–anh`, `tôi–cậu`, `tao–mày`, `ta–anh Đại Ngưu`, `ta–cậu`; giữ `cháu–cậu cả`, `cậu–cháu`, `cha–con`, `muội–Hổ gia`, `ta–anh hùng`, `ta–Anh ca`; đổi cặp sang `em–anh` không nhận, sang `ta–muội` thì nhận. Test prompt: luật anh chị em ruột có ở cổ đại và hỗn hợp, không ở hiện đại. Fixture accept cảnh đô thị khai rõ bối cảnh hiện đại. qt-web 204, core 294 xanh.
+
 ---
 
 ## Ghi chú kiểm thử

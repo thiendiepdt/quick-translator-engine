@@ -59,7 +59,7 @@ tên, nhân vật hay tóm tắt. Trả về đúng một JSON theo mẫu:\n\
   }},\n\
   \"style\": {{\n\
     \"voice\": \"1 câu tả giọng kể (ngôi kể, nhịp, sắc thái)\",\n\
-    \"tone_rules\": [\"3-5 luật xưng hô/giọng điệu rút từ chính truyện\"],\n\
+    \"tone_rules\": [\"3-5 luật xưng hô/giọng điệu rút từ chính truyện; setting ancient chỉ dùng xưng hô cổ trang (ta/ngươi, huynh/muội/đệ/tỷ, ca, tiểu nhân, cha/nương…), KHÔNG ghi anh/em/chị/tôi/cậu/mày/tao, kể cả cho anh chị em ruột hay dân thường\"],\n\
     \"signature_phrases\": {{}},\n\
     \"avoid\": [\"những kiểu diễn đạt cần tránh với truyện này\"]\n\
   }},\n\

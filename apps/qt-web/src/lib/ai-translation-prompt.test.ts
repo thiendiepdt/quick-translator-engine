@@ -139,6 +139,16 @@ describe("composeBasePrompt", () => {
     expect(composeBasePrompt({ setting: "modern", names: "han", tone: "neutral" })).not.toContain(note);
   });
 
+  it("cổ đại: anh chị em ruột gọi ca/tỷ, tự xưng muội/đệ, không anh/em/chị; hỗn hợp có ở cảnh cổ đại", () => {
+    const note = "> **Gọi anh chị em ruột:** `哥` / `哥哥` → `ca` / `ca ca`";
+    for (const setting of ["ancient", "mixed"] as const) {
+      const prompt = composeBasePrompt({ setting, names: "han", tone: "neutral" });
+      expect(prompt).toContain(note);
+      expect(prompt).toContain("`哥，你回来了！` → `Ca, huynh về rồi!`, không phải `Anh, anh về rồi!`");
+    }
+    expect(composeBasePrompt({ setting: "modern", names: "han", tone: "neutral" })).not.toContain(note);
+  });
+
   it("cổ đại: 我们 → chúng ta/bọn ta kể cả khi không gộp người nghe, cấm chúng tôi; hỗn hợp có ở cảnh cổ đại", () => {
     const row = "| 我们        | **chúng ta** / **bọn ta** — kể cả khi người nói không gộp người nghe (tiểu nhị nói với khách `我们这` → `chỗ chúng ta`) | chúng tôi, bọn tôi |";
     for (const setting of ["ancient", "mixed"] as const) {

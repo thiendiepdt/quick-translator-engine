@@ -522,6 +522,37 @@ fn self_is_toi(target: &str) -> bool {
     normalize_pair(target).is_some_and(|(own, _)| own.to_lowercase() == "tôi")
 }
 
+/// Đại từ hiện đại — truyện cổ đại không học cặp có các từ này ở chiều nào.
+const MODERN_PRONOUNS: &[&str] = &["tôi", "mình", "tớ", "tao", "mày", "anh", "em", "chị", "chúng tôi", "bọn tôi"];
+
+/// Cặp kiểu hiện đại trong truyện cổ đại (`tôi–cậu`, `em–anh`, `tao–mày`, `em–chị Venus`). `anh`/`em`/`chị` kèm
+/// tên chỉ tính khi viết thường (đại từ) — `Anh Lạc`, `Anh ca` là tên riêng; `anh hùng` là cách gọi cổ trang.
+/// `cậu` chỉ tính khi không đi với `cháu` — `cậu–cháu`, `cháu–cậu cả` là cậu ruột, từ gia đình vẫn học.
+fn is_modern_pair(target: &str) -> bool {
+    let Some((own, other)) = normalize_pair(target) else { return false };
+    let modern = |side: &str| {
+        if MODERN_PRONOUNS.contains(&side.to_lowercase().as_str()) {
+            return true;
+        }
+        let mut words = side.split_whitespace();
+        matches!(words.next(), Some("anh" | "em" | "chị")) && words.next() != Some("hùng")
+    };
+    let (own_lower, other_lower) = (own.to_lowercase(), other.to_lowercase());
+    modern(&own)
+        || modern(&other)
+        || (own_lower == "cậu" && other_lower != "cháu")
+        || (other_lower == "cậu" && own_lower != "cháu")
+}
+
+/// Cặp không được học theo bối cảnh: hỗn hợp tự xưng `ta` mọi cảnh (bỏ `tôi–…`), cổ đại bỏ mọi cặp kiểu hiện đại.
+fn pair_blocked(setting: GenreSetting, target: &str) -> bool {
+    match setting {
+        GenreSetting::Mixed => self_is_toi(target),
+        GenreSetting::Ancient => is_modern_pair(target),
+        GenreSetting::Modern => false,
+    }
+}
+
 /// Truyện hỗn hợp tự xưng `ta` mọi cảnh: cặp có mặt trong chương mà còn tự xưng `tôi` (học trước khi đổi luật)
 /// được đưa ra xét lại thay vì nằm trong danh sách phải giữ. Bỏ qua đôi đã có trong `reviews` và đôi có chiều
 /// bị người dùng ghim.
@@ -890,7 +921,7 @@ pub fn filter_new_pairs(
                 return None;
             }
             pair.target = pair_text(&pair.target);
-            if setting == GenreSetting::Mixed && self_is_toi(&pair.target) {
+            if pair_blocked(setting, &pair.target) {
                 return None;
             }
             (!pair_gender_conflict(&pair.source, &pair.target, cast)).then_some(pair)
@@ -920,7 +951,7 @@ pub fn apply_address_changes(
             continue;
         };
         let target = pair_text(&target);
-        if setting == GenreSetting::Mixed && self_is_toi(&target) {
+        if pair_blocked(setting, &target) {
             continue;
         }
         if !base.contains_key(&key) && !cast.addressing.contains_key(&key) {

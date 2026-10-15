@@ -659,6 +659,50 @@ fn hon_hop_khong_hoc_cap_tu_xung_toi_moi() {
 }
 
 #[test]
+fn co_dai_khong_hoc_cap_xung_ho_kieu_hien_dai_giu_cap_gia_dinh() {
+    use qt_ai_core::glossary::ExtractedPair;
+    use qt_ai_core::story::GenreSetting;
+    let names: std::collections::HashSet<String> =
+        ["许阳", "许晴", "李虎", "周顺昌", "张大牛", "许老二"].iter().map(|s| s.to_string()).collect();
+    let pair = |source: &str, target: &str| ExtractedPair { source: source.into(), target: target.into(), category: "addressing".into() };
+    let pairs = vec![
+        // Kiểu hiện đại (Cẩu Thánh): bị bỏ.
+        pair("许晴→许阳", "em–anh"),
+        pair("许阳→许晴", "anh–em"),
+        pair("张大牛→许阳", "tôi–cậu"),
+        pair("李虎→许阳", "tao–mày"),
+        pair("许阳→张大牛", "ta–anh Đại Ngưu"),
+        pair("许阳→李虎", "ta–cậu"),
+        // Cổ trang và từ gia đình: vẫn học.
+        pair("许阳→周顺昌", "cháu–cậu cả"),
+        pair("周顺昌→许阳", "cậu–cháu"),
+        pair("许老二→许晴", "cha–con"),
+        pair("李虎→张大牛", "ta–ngươi"),
+        pair("许晴→李虎", "muội–Hổ gia"),
+        // Tên riêng viết hoa (`Anh Lạc`, `Anh ca`) và `anh hùng` không phải đại từ hiện đại.
+        pair("张大牛→李虎", "ta–anh hùng"),
+        pair("许老二→许阳", "ta–Anh ca"),
+    ];
+    let kept: Vec<String> = filter_new_pairs(pairs.clone(), &names, &Cast::default(), GenreSetting::Ancient)
+        .into_iter()
+        .map(|p| p.source)
+        .collect();
+    assert_eq!(kept, vec!["许阳→周顺昌", "周顺昌→许阳", "许老二→许晴", "李虎→张大牛", "许晴→李虎", "张大牛→李虎", "许老二→许阳"]);
+    assert_eq!(filter_new_pairs(pairs, &names, &Cast::default(), GenreSetting::Modern).len(), 13);
+
+    // Đổi cặp cũ sang kiểu hiện đại cũng không nhận; đổi từ `anh–em` sang cổ trang thì nhận.
+    let base = map(&[("许阳→许晴", "anh–em"), ("许晴→许阳", "muội–ca")]);
+    let entries = json!([
+        { "category": "addressing", "source": "许阳→许晴", "target": "ta–muội", "note": "cổ trang" },
+        { "category": "addressing", "source": "许晴→许阳", "target": "em–anh", "note": "thân mật" },
+    ]);
+    let mut cast = Cast::default();
+    apply_address_changes(&entries, "许阳对许晴说。", &base, &mut cast, "0010", GenreSetting::Ancient);
+    assert_eq!(cast.addressing["许阳→许晴"].changes[0].target, "ta–muội");
+    assert!(!cast.addressing.contains_key("许晴→许阳"));
+}
+
+#[test]
 fn hon_hop_cap_toi_uu_tien_khoi_tu_xung_moi_hon_khoi_than_mat() {
     // Chương có 老婆 (nói về vợ người khác) — đôi 苏昊↔刘源 vẫn phải nằm ở khối tự xưng mới, không ở khối thân mật
     // (khối đó dặn "dấu hiệu nói về người khác thì giữ cặp cũ", tức giữ `tôi`).

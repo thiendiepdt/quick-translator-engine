@@ -12,7 +12,7 @@ import type { GenreNames, GenreSetting, GenreTone, StoryGenre } from "@/lib/ai-s
 // 老X viết thường, bỏ dòng ép "kiểm trắc", mục Số và đơn vị
 // — docs/reviews/2026-10-06-chat-luong-dich/tien-trinh-sua.md; 2026-10-12 thêm ghi chú Gọi cha mẹ: 爹 → cha,
 // 娘 → nương, 爹娘 → cha nương; 他 không dùng cậu, cậu ta).
-export const LEGACY_BASE_PROMPT_FNV1A64 = "5f0818379f8a470b";
+export const LEGACY_BASE_PROMPT_FNV1A64 = "c35e1f460ecd027f";
 
 const CORE_HEAD: string[] = [
   "Bạn là dịch giả tiểu thuyết Trung Quốc sang tiếng Việt. Nhiệm vụ của bạn là chuyển ngữ trung thành, không phải sáng tác lại hay biên tập nâng giọng.",
@@ -439,6 +439,8 @@ const ancient: SettingModule = {
     "> **Nhân vật lớn tuổi, bề trên:** Hoàng đế, Thái hậu, lão phu nhân, ngự y, phụ thân… vẫn theo bảng: `他` → `hắn` (hoặc `lão` khi giọng kể mỉa, khinh), `她` → `nàng`, hoặc `bà` với bậc trưởng bối. KHÔNG dùng `ông ta` / `bà ta` / `ông ấy` / `bà ấy` — âm sắc hiện đại, đọc như truyện đô thị. Trong thoại, dùng `ngươi` hay `ngài` với người già theo mục `Vai vế trong thoại` (`您` → `ngài`); muốn tỏ kính thì gọi bằng danh xưng (`Thái y`, `lão phu nhân`, `Phụ hoàng`) chứ không đổi sang `ông` / `bà`.",
     "",
     "> **Gọi cha mẹ:** `爹` / `爹爹` → `cha`; `娘` / `娘亲` (con gọi mẹ) → `nương` — gọi thẳng `Cha!`, `Nương!`, cha mẹ tự xưng với con `cha` / `nương`; `爹娘` → `cha nương`; `父亲` / `母亲` (trang trọng, lời kể) → `phụ thân` / `mẫu thân`. KHÔNG `bố`, `ba`, `mẹ`, `má` trong cổ đại. Từ ghép giữ Hán-Việt: `姑娘` → `cô nương`, `娘娘` → `nương nương`, `娘子` → `nương tử`, `新娘` → `tân nương`. Glossary của truyện đã chốt cặp với `mẹ` thì giữ `mẹ` cho cả truyện để thống nhất.",
+    "",
+    "> **Gọi anh chị em ruột:** `哥` / `哥哥` → `ca` / `ca ca`, `大哥` / `二哥` → `đại ca` / `nhị ca`; `姐` / `姐姐` → `tỷ` / `tỷ tỷ`; `妹妹` → `muội muội` / `tiểu muội`, `弟弟` → `đệ đệ`. Em nói với anh chị: gọi `ca` / `tỷ`, `你` → `huynh` / `tỷ`, tự xưng `muội` (em gái) / `đệ` (em trai); anh chị nói với em: tự xưng `ta` hoặc `ca` / `tỷ`, gọi `muội` / `đệ` hoặc tên. KHÔNG `anh`, `em`, `chị` dù là nhà dân thường. Ví dụ: `哥，你回来了！` → `Ca, huynh về rồi!`, không phải `Anh, anh về rồi!`.",
     "",
     "> **Lời kể gián tiếp:** Ngoài ngoặc kép, `自己` chỉ nhân vật đang được kể dịch bằng đại từ ngôi ba của nhân vật đó (`hắn`/`nàng`) hoặc lược đi khi chủ thể đã rõ, kể cả khi cả câu là ý nghĩ của nhân vật đó. `自己` là đại từ hồi chỉ, không phải danh từ \"bản thân\": KHÔNG dùng `bản thân` làm chủ ngữ, sau giới từ (`của bản thân`, `với bản thân hắn`) hay ghép với đại từ (`bản thân hắn`, `bản thân nàng`). Chỉ dùng `chính hắn` / `tự mình` khi raw nhấn đối lập (`他自己也…`, `自己动手`). Ví dụ: `奈何自己这情况特殊` → `Khổ nỗi tình cảnh của hắn đặc thù`, không phải `tình hình của bản thân hắn`. Chỉ dùng `ta` bên trong ngoặc kép hoặc khi truyện kể ở ngôi thứ nhất suốt. Tuyệt đối không đổi ngôi giữa chừng một mạch kể liền nhau — `自己` dịch thành `ta` ở câu này rồi `hắn` ở câu sau là lỗi.",
     "",

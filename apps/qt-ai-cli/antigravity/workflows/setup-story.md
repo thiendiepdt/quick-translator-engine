@@ -33,7 +33,9 @@ Các bước:
      giải trí văn, học đường, nhật thường người trẻ). Chỉ chỉnh nhịp và từ vựng, không đổi xưng hô.
    - `protagonist`: tên nhân vật chính (Hán-Việt với `names: han`, dạng gốc với `foreign`).
    - `summary`: 3–5 câu, ưu tiên thông tin tra được, không spoil quá phần đã đọc/tra.
-   - `style.voice` (1 câu tả giọng kể), `style.toneRules` (3–5 luật xưng hô/giọng điệu rút từ chính truyện),
+   - `style.voice` (1 câu tả giọng kể), `style.toneRules` (3–5 luật xưng hô/giọng điệu rút từ chính truyện;
+     truyện `ancient` chỉ dùng xưng hô cổ trang — `ta`/`ngươi`, `huynh`/`muội`/`đệ`/`tỷ`, `ca`, `tiểu nhân`,
+     `cha`/`nương`… — KHÔNG ghi `anh`/`em`/`chị`/`tôi`/`cậu`/`mày`/`tao`, kể cả cho anh chị em ruột hay dân thường),
      `style.avoid` (những kiểu diễn đạt cần tránh với truyện này).
    - `glossary`: seed tên riêng từ chương đã đọc + tên tra được trên web vào đúng nhóm
      (`names`, `places`, `items`, `creatures`, `skills`, `common`, `signature_phrases`) — source chữ Hán, target Hán-Việt.

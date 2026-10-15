@@ -782,6 +782,8 @@ fn story_for_accept(names: &[(&str, &str)], addressing: &[(&str, &str)], entries
     let dir = story_with_glossary(RAW_CAST, names, DRAFT_CAST);
     let paths = story_paths(dir.path());
     let mut story = load_story_config(&paths).unwrap();
+    // Cảnh đô thị (bảo vệ, `tôi–cô`): truyện cổ đại không học cặp kiểu hiện đại.
+    story.genre.setting = qt_ai_core::story::GenreSetting::Modern;
     let group = story.glossary.entry("addressing".to_string()).or_default();
     for (source, target) in addressing {
         group.insert(source.to_string(), target.to_string());

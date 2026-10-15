@@ -347,10 +347,10 @@ fn khoi_glossary_khai_gioi_va_doi_cap_thi_ghi_cast_json_va_log() {
     fs::write(dir.path().join("raw").join("0001.txt"), "赵静文抬头看向李明。\n\n她沉默了很久没有说话。").unwrap();
     let mut story = load_story_config(&paths).unwrap();
     story.glossary.entry("names".to_string()).or_default().insert("李明".into(), "Lý Minh".into());
-    story.glossary.entry("addressing".to_string()).or_default().insert("赵静文→李明".into(), "tôi–anh".into());
+    story.glossary.entry("addressing".to_string()).or_default().insert("赵静文→李明".into(), "ta–ngươi".into());
     save_story_config(&paths, &story).unwrap();
     let with_block = format!(
-        "{}\n\n[[glossary]]\n{{\"entries\":[{{\"source\":\"赵静文\",\"target\":\"Triệu Tĩnh Văn\",\"category\":\"names\",\"gender\":\"nữ\"}},{{\"source\":\"赵静文→李明\",\"target\":\"em–anh\",\"category\":\"addressing\",\"note\":\"thành người yêu\"}}]}}",
+        "{}\n\n[[glossary]]\n{{\"entries\":[{{\"source\":\"赵静文\",\"target\":\"Triệu Tĩnh Văn\",\"category\":\"names\",\"gender\":\"nữ\"}},{{\"source\":\"赵静文→李明\",\"target\":\"muội–huynh\",\"category\":\"addressing\",\"note\":\"thành người yêu\"}}]}}",
         good()
     );
     let model = FakeModel::new(vec![Ok(with_block)]);
@@ -362,9 +362,9 @@ fn khoi_glossary_khai_gioi_va_doi_cap_thi_ghi_cast_json_va_log() {
     assert!(calls[0].1.contains("quan hệ hai người đã khác lúc chốt cặp") && calls[0].1.contains("\"note\""), "chỉ dẫn khai đổi cặp");
     let cast = qt_ai_core::cast::load_cast(&paths);
     assert_eq!(cast.gender_of("赵静文"), Some(qt_ai_core::cast::Gender::Female));
-    assert_eq!(cast.addressing["赵静文→李明"].changes[0].target, "em–anh");
+    assert_eq!(cast.addressing["赵静文→李明"].changes[0].target, "muội–huynh");
     let lines = logs(&events.lock().unwrap());
-    assert!(lines.iter().any(|l| l.contains("0001: đổi xưng hô 赵静文→李明: tôi–anh → em–anh (thành người yêu)")), "{lines:?}");
+    assert!(lines.iter().any(|l| l.contains("0001: đổi xưng hô 赵静文→李明: ta–ngươi → muội–huynh (thành người yêu)")), "{lines:?}");
 }
 
 #[test]
