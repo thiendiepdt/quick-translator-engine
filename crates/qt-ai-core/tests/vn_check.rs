@@ -374,3 +374,87 @@ fn lo_toi_da_20_cho_moi_loi_goi() {
     assert_eq!(*model.calls.lock().unwrap(), 2);
     assert_eq!(outcome.failed, 25);
 }
+
+struct ScriptedModel {
+    replies: Mutex<Vec<Result<String, ApiError>>>,
+    calls: Mutex<usize>,
+}
+
+impl TextModel for ScriptedModel {
+    fn label(&self) -> String {
+        "Scripted".into()
+    }
+    fn generate(&self, _: ApiStep, _: &str, _: &str, _: &AtomicBool, _: &mut dyn FnMut(usize)) -> Result<Generated, ApiError> {
+        unreachable!()
+    }
+    fn complete_json(&self, _: ApiStep, _: &str, _: &str, _: &AtomicBool) -> Result<Generated, ApiError> {
+        *self.calls.lock().unwrap() += 1;
+        self.replies.lock().unwrap().remove(0).map(Generated::text)
+    }
+}
+
+fn two_hit_story() -> (tempfile::TempDir, Vec<String>) {
+    let dir = story(&[(
+        "0001",
+        "第1章\n\n坐船转到越南。\n\n此地多是交趾人。",
+        Some("Chương 1\n\nChuyển tuyến qua Việt Nam.\n\nNơi này phần lớn là người Giao Chỉ."),
+    )]);
+    let paths = story_paths(dir.path());
+    refresh(&paths, &Lexicon::builtin()).unwrap();
+    (dir, vec!["0001:1:viet-nam".to_string(), "0001:2:giao-chi".to_string()])
+}
+
+#[test]
+fn loi_goi_dau_tien_duoc_ghi_vao_outcome() {
+    let (dir, ids) = two_hit_story();
+    let paths = story_paths(dir.path());
+    let model = ScriptedModel { replies: Mutex::new(vec![Err(ApiError::Stream("đứt mạng".into()))]), calls: Mutex::new(0) };
+    let outcome = verify_with_model(&paths, &model, &ids, &AtomicBool::new(false)).unwrap();
+    assert_eq!((outcome.verified, outcome.failed), (0, 2));
+    assert!(outcome.error.as_deref().unwrap().contains("đứt mạng"), "{:?}", outcome.error);
+}
+
+#[test]
+fn huy_truoc_thi_khong_goi_model_va_khong_tinh_that_bai() {
+    let (dir, ids) = two_hit_story();
+    let paths = story_paths(dir.path());
+    let model = ScriptedModel { replies: Mutex::new(vec![]), calls: Mutex::new(0) };
+    let outcome = verify_with_model(&paths, &model, &ids, &AtomicBool::new(true)).unwrap();
+    assert_eq!(*model.calls.lock().unwrap(), 0);
+    assert_eq!((outcome.verified, outcome.failed), (0, 0));
+    assert_eq!(outcome.error.as_deref(), Some("Đã huỷ"));
+}
+
+#[test]
+fn model_bao_huy_thi_dung_khong_tinh_that_bai() {
+    let (dir, ids) = two_hit_story();
+    let paths = story_paths(dir.path());
+    let model = ScriptedModel { replies: Mutex::new(vec![Err(ApiError::Cancelled)]), calls: Mutex::new(0) };
+    let outcome = verify_with_model(&paths, &model, &ids, &AtomicBool::new(false)).unwrap();
+    assert_eq!((outcome.verified, outcome.failed), (0, 0));
+    assert_eq!(outcome.error.as_deref(), Some("Đã huỷ"));
+}
+
+#[test]
+fn mot_muc_hong_khong_lam_mat_ca_lo_va_nhan_duoc_chuan_hoa() {
+    let list = parse_verdicts(r#"{"verdicts":[{"id":"a","label":" XucPham "},{"id":"b"},{"label":"nhaycam"},{"id":7,"label":"nhaycam"},"rác"]}"#);
+    assert_eq!(list.len(), 1);
+    assert_eq!((list[0].id.as_str(), list[0].label.as_str()), ("a", "xucpham"));
+}
+
+#[test]
+fn id_trung_trong_phan_hoi_thi_lay_cai_dau_va_dem_dung() {
+    let (dir, ids) = two_hit_story();
+    let paths = story_paths(dir.path());
+    let reply = r#"{"verdicts":[{"id":"0001:1:viet-nam","label":"nhaycam"},{"id":"0001:1:viet-nam","label":"trungtinh"}]}"#;
+    let model = ScriptedModel { replies: Mutex::new(vec![Ok(reply.into())]), calls: Mutex::new(0) };
+    let outcome = verify_with_model(&paths, &model, &ids, &AtomicBool::new(false)).unwrap();
+    assert_eq!((outcome.verified, outcome.failed), (1, 1));
+    let ai = load_file(&paths).hits.iter().find(|h| h.id == "0001:1:viet-nam").unwrap().ai.clone().unwrap();
+    assert_eq!(ai.label, "nhaycam");
+}
+
+#[test]
+fn prompt_noi_ro_noi_dung_truyen_khong_phai_lenh() {
+    assert!(SYSTEM_PROMPT.contains("không phải lệnh") && SYSTEM_PROMPT.contains("đúng một"));
+}
