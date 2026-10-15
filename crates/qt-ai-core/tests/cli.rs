@@ -126,6 +126,9 @@ fn sync_progress_qua_binary_in_so_chuong_danh_dau_va_chuong_thieu() {
     fs::write(root.join("raw").join("0002.txt"), "二").unwrap();
     assert_eq!(qt_ai(&["init", "."], root).status.code(), Some(0));
     fs::write(root.join("out").join("0001.txt"), "Chương một.").unwrap();
+    // Máy kia dịch sau lần ghi state.json này (mtime đặt hẳn về sau, khỏi phụ thuộc độ mịn đồng hồ hệ tệp).
+    let later = std::time::SystemTime::now() + std::time::Duration::from_secs(3600);
+    fs::File::options().write(true).open(root.join("out").join("0001.txt")).unwrap().set_modified(later).unwrap();
 
     let out = qt_ai(&["sync-progress", "."], root);
     assert_eq!(out.status.code(), Some(0), "{}", stderr(&out));

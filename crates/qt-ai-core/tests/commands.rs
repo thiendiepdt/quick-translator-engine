@@ -1336,6 +1336,35 @@ fn accept_canh_bao_cho_nhay_cam_vn_chua_xac_minh() {
     assert_eq!(qt_ai_core::vn_check::chapter_warning(open), None);
 }
 
+/// Đặt mtime file lệch `offset_secs` giây so với bây giờ (âm = quá khứ) — không phụ thuộc độ mịn đồng hồ hệ tệp.
+fn set_mtime(path: &Path, offset_secs: i64) {
+    let now = std::time::SystemTime::now();
+    let delta = std::time::Duration::from_secs(offset_secs.unsigned_abs());
+    let time = if offset_secs >= 0 { now + delta } else { now - delta };
+    fs::File::options().write(true).open(path).unwrap().set_modified(time).unwrap();
+}
+
+#[test]
+fn progress_drift_bo_qua_ban_dich_cu_hon_lan_xep_hang_nhu_sau_reset() {
+    let dir = make_story_dir(&[("1", "一"), ("2", "二")]);
+    let root = dir.path();
+    run_init(root, "qt-ai").unwrap();
+    let paths = story_paths(root);
+    for id in ["1", "2"] {
+        let out = paths.out_dir.join(format!("{id}.txt"));
+        fs::write(&out, "Bản dịch cũ.").unwrap();
+        set_mtime(&out, -3600);
+    }
+    // Reset cố ý đưa mọi chương về hàng đợi mà giữ out/: bản dịch cũ hơn lần xếp hàng không phải lệch tiến độ.
+    run_reset(root, "qt-ai").unwrap();
+    assert!(progress_drift(root).unwrap().untracked.is_empty());
+    assert!(run_sync_progress(root).unwrap().marked_done.is_empty());
+    assert_eq!(load_state(&paths).unwrap().chapters["1"].status, ChapterStatus::Queued);
+    // Bản dịch mới hơn lần xếp hàng (máy kia dịch rồi Drive mang về) vẫn tính.
+    set_mtime(&paths.out_dir.join("2.txt"), 3600);
+    assert_eq!(progress_drift(root).unwrap().untracked, vec!["2"]);
+}
+
 /// Truyện đồng bộ qua Google Drive: out/ về đủ nhưng state.json là bản cũ hơn.
 fn story_with_drift() -> TempDir {
     let ids = ["1", "2", "3", "4", "5", "6", "7", "8", "10"];
@@ -1352,6 +1381,7 @@ fn story_with_drift() -> TempDir {
         chapter.review_round = round;
         chapter.updated_at = 5;
     };
+    set("1", ChapterStatus::Queued, None, 0);
     set("2", ChapterStatus::Translating, None, 2);
     set("3", ChapterStatus::Error, Some("quá vòng review"), 3);
     set("4", ChapterStatus::Skipped, Some("model từ chối"), 0);
