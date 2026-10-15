@@ -33,6 +33,17 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      # Ghi chú phát hành lấy từ mục "## x.y.z — ngày" trong CHANGELOG.md; thiếu mục thì job dừng (không phát hành
+      # bản không có ghi chú). Nội dung này thành thân release và `notes` trong latest.json (hộp thoại cập nhật trong app).
+      - name: Release notes from CHANGELOG.md
+        id: notes
+        shell: pwsh
+        working-directory: apps/qt-ai-gui
+        run: |
+          $version = (Get-Content src-tauri/tauri.conf.json | ConvertFrom-Json).version
+          node scripts/changelog.mjs github-output $version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       # beforeBuildCommand của app đã build sidecar qt-ai.exe + vite; tauri-action tạo release + latest.json + .sig.
       - name: Build and release Tauri app
         uses: tauri-apps/tauri-action@v0
@@ -44,7 +55,7 @@ jobs:
           projectPath: apps/qt-ai-gui
           tagName: qt-ai-gui-v__VERSION__
           releaseName: 'VNCVT AI Translator v__VERSION__'
-          releaseBody: 'Xem changelog bên dưới.'
+          releaseBody: ${{ steps.notes.outputs.body }}
           releaseDraft: false
           prerelease: false
           updaterJsonPreferNsis: true
