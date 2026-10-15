@@ -213,9 +213,19 @@ fn chapter_state_from(value: &Value) -> Option<ChapterState> {
     Some(ChapterState { status, review_round, reason, warnings, updated_at })
 }
 
-/// File bản dịch còn chữ thật — file rỗng hay toàn byte 0 (mất điện lúc đang ghi) không tính.
+/// File bản dịch còn chữ thật — file rỗng hay toàn byte 0 (mất điện lúc đang ghi) không tính. Đọc từng khúc,
+/// gặp byte chữ đầu tiên là dừng: mở truyện gọi hàm này cho mọi chương (độ lệch tiến độ).
 pub(crate) fn has_translation(out: &Path) -> bool {
-    fs::read(out).map(|bytes| bytes.iter().any(|byte| *byte != 0 && !byte.is_ascii_whitespace())).unwrap_or(false)
+    use std::io::Read;
+    let Ok(mut file) = fs::File::open(out) else { return false };
+    let mut buf = [0u8; 4096];
+    loop {
+        match file.read(&mut buf) {
+            Ok(0) | Err(_) => return false,
+            Ok(n) if buf[..n].iter().any(|byte| *byte != 0 && !byte.is_ascii_whitespace()) => return true,
+            Ok(_) => {}
+        }
+    }
 }
 
 /// Chương done dựng lại từ out/<id>.txt đã có chữ: reviewRound 0, không lý do/cảnh báo, updatedAt = mtime file

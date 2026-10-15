@@ -1362,6 +1362,11 @@ fn story_with_drift() -> TempDir {
     for id in ["1", "2", "3", "4", "10"] {
         fs::write(paths.out_dir.join(format!("{id}.txt")), format!("Chương {id}.\n")).unwrap();
     }
+    // Chữ thật nằm sau một khúc dài toàn khoảng trắng/byte 0 vẫn tính là có bản dịch.
+    let mut padded = vec![b' '; 5000];
+    padded.extend(vec![0u8; 5000]);
+    padded.extend("Chương 1.".as_bytes());
+    fs::write(paths.out_dir.join("1.txt"), padded).unwrap();
     // 5: chỉ khoảng trắng; 7: toàn byte 0 (mất điện lúc ghi); 8: chỉ có .bak — đều không tính là đã dịch.
     fs::write(paths.out_dir.join("5.txt"), " \n\t\n").unwrap();
     fs::write(paths.out_dir.join("7.txt"), vec![0u8; 16]).unwrap();
