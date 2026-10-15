@@ -106,6 +106,7 @@ pub async fn session_start<R: Runtime>(app: AppHandle<R>, root: String, model: O
             (config.engine, config.api.clone(), config.max_sessions, config.max_parallel as usize, config.resume_on_quota)
         };
         state.sessions.lock().unwrap().check_can_start(&root, max_parallel)?;
+        crate::vn_cmds::refuse_start_if_verifying(&root)?;
         let event_root = root.clone();
         let emitter = app.clone();
         let sink: Sink = Arc::new(move |event: SessionEvent| {

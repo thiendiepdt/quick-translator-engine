@@ -144,6 +144,22 @@ pub fn begin_verify(root: &str) -> CmdResult<VerifyGuard> {
     Ok(VerifyGuard(key))
 }
 
+pub(crate) fn is_verifying(root: &str) -> bool {
+    VERIFYING.lock().unwrap_or_else(|e| e.into_inner()).contains(&root_key(root))
+}
+
+/// Chặn bắt đầu phiên dịch khi truyện đang được AI xét: xét bằng agy xong sẽ dọn hội thoại agy của truyện,
+/// xoá mất hội thoại của phiên mới. Chặn cả động cơ API cho đơn giản.
+pub(crate) fn refuse_start_if_verifying(root: &str) -> CmdResult<()> {
+    if is_verifying(root) {
+        return Err(CommandError::new(
+            "vn_verify_running",
+            "Đang chạy AI xét kiểm tra VN cho truyện này — đợi xong rồi bấm Dịch.",
+        ));
+    }
+    Ok(())
+}
+
 /// Đường agy: ghi các chỗ cần xét ra work/, `run` chạy agent (ghi kết quả ra file đầu ra), đọc + lưu nhãn rồi
 /// dọn file. `run` trả lỗi dạng chuỗi để giữ làm lý do cho GUI.
 pub fn verify_via_agy(
@@ -282,6 +298,19 @@ mod tests {
         let _other = begin_verify("D:/t/b").unwrap();
         drop(first);
         begin_verify("D:/t/a").unwrap();
+    }
+
+    #[test]
+    fn dang_ai_xet_thi_khong_cho_bat_dau_dich() {
+        let root = "D:/t/dang-xet";
+        assert!(!is_verifying(root));
+        refuse_start_if_verifying(root).unwrap();
+        let guard = begin_verify(root).unwrap();
+        assert!(is_verifying("d:\\t\\dang-xet\\"), "cùng chuẩn hoá root_key");
+        assert_eq!(refuse_start_if_verifying(root).unwrap_err().kind, "vn_verify_running");
+        drop(guard);
+        assert!(!is_verifying(root));
+        refuse_start_if_verifying(root).unwrap();
     }
 
     #[test]
