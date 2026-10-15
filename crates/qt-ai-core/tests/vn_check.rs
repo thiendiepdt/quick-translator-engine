@@ -306,3 +306,71 @@ fn file_hong_duoc_sao_luu_truoc_khi_ghi_de() {
     assert_eq!(fs::read_to_string(bad).unwrap(), "{ không phải json");
     assert_eq!(load_file(&paths).hits.len(), 1);
 }
+
+use qt_ai_core::api::{ApiError, ApiStep, Generated, TextModel};
+use qt_ai_core::vn_ai::*;
+use std::sync::atomic::AtomicBool;
+use std::sync::Mutex;
+
+struct FakeModel {
+    replies: Mutex<Vec<String>>,
+    calls: Mutex<usize>,
+}
+
+impl TextModel for FakeModel {
+    fn label(&self) -> String {
+        "Fake".into()
+    }
+    fn generate(&self, _: ApiStep, _: &str, _: &str, _: &AtomicBool, _: &mut dyn FnMut(usize)) -> Result<Generated, ApiError> {
+        unreachable!()
+    }
+    fn complete_json(&self, _: ApiStep, system: &str, user: &str, _: &AtomicBool) -> Result<Generated, ApiError> {
+        assert!(system.contains("xucpham") && user.contains("\"items\""));
+        *self.calls.lock().unwrap() += 1;
+        Ok(Generated::text(self.replies.lock().unwrap().remove(0)))
+    }
+}
+
+#[test]
+fn parse_verdicts_chiu_rao_va_bo_nhan_la() {
+    let text = "```json\n{\"verdicts\":[{\"id\":\"a\",\"label\":\"xucpham\",\"reason\":\"chửi\"},{\"id\":\"b\",\"label\":\"bậy\"}]}\n```";
+    let list = parse_verdicts(text);
+    assert_eq!(list.len(), 1);
+    assert_eq!((list[0].id.as_str(), list[0].label.as_str()), ("a", "xucpham"));
+    assert!(parse_verdicts("không phải json").is_empty());
+}
+
+#[test]
+fn verify_with_model_luu_nhan_va_dem_cho_hong() {
+    let dir = story(&[(
+        "0001",
+        "第1章\n\n坐船转到越南。\n\n此地多是交趾人。",
+        Some("Chương 1\n\nChuyển tuyến qua Việt Nam.\n\nNơi này phần lớn là người Giao Chỉ."),
+    )]);
+    let paths = story_paths(dir.path());
+    refresh(&paths, &Lexicon::builtin()).unwrap();
+    let model = FakeModel {
+        replies: Mutex::new(vec![r#"{"verdicts":[{"id":"0001:1:viet-nam","label":"trungtinh","reason":"chỉ nhắc tuyến đường"}]}"#.into()]),
+        calls: Mutex::new(0),
+    };
+    let ids = vec!["0001:1:viet-nam".to_string(), "0001:2:giao-chi".to_string()];
+    let outcome = verify_with_model(&paths, &model, &ids, &AtomicBool::new(false)).unwrap();
+    assert_eq!((outcome.verified, outcome.failed), (1, 1));
+    let file = load_file(&paths);
+    let ai = file.hits.iter().find(|h| h.id == "0001:1:viet-nam").unwrap().ai.clone().unwrap();
+    assert_eq!((ai.label.as_str(), ai.model.as_str()), ("trungtinh", "Fake"));
+}
+
+#[test]
+fn lo_toi_da_20_cho_moi_loi_goi() {
+    let raw: String = std::iter::once("第1章".to_string()).chain((0..25).map(|i| format!("第{i}次去越南。"))).collect::<Vec<_>>().join("\n\n");
+    let dir = story(&[("0001", &raw, None)]);
+    let paths = story_paths(dir.path());
+    refresh(&paths, &Lexicon::builtin()).unwrap();
+    let ids: Vec<String> = load_file(&paths).hits.iter().map(|h| h.id.clone()).collect();
+    assert_eq!(ids.len(), 25);
+    let model = FakeModel { replies: Mutex::new(vec!["{}".into(), "{}".into()]), calls: Mutex::new(0) };
+    let outcome = verify_with_model(&paths, &model, &ids, &AtomicBool::new(false)).unwrap();
+    assert_eq!(*model.calls.lock().unwrap(), 2);
+    assert_eq!(outcome.failed, 25);
+}
