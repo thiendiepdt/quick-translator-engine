@@ -9,7 +9,14 @@ import type { VnHitView } from "@/lib/types";
 import { useStoryStore } from "@/store/story";
 
 vi.mock("sonner", () => ({ toast: { message: vi.fn(), success: vi.fn(), error: vi.fn() } }));
-vi.mock("@/lib/api", () => ({ vnRefresh: vi.fn(), vnReport: vi.fn(), vnSetStatus: vi.fn(), vnAiVerify: vi.fn(), vnReplace: vi.fn(), vnSettingsGet: vi.fn() }));
+vi.mock("@/lib/api", () => ({
+  vnRefresh: vi.fn(),
+  vnReport: vi.fn(),
+  vnSetStatus: vi.fn(),
+  vnAiVerify: vi.fn(),
+  vnReplace: vi.fn(),
+  vnSettingsGet: vi.fn(),
+}));
 
 const hit = (over: Partial<VnHitView>): VnHitView => ({
   id: "0226:4:khi-viet",
@@ -31,7 +38,15 @@ const hit = (over: Partial<VnHitView>): VnHitView => ({
 });
 
 const giaoChi = (over: Partial<VnHitView> = {}) =>
-  hit({ id: "0354:3:giao-chi", chapter: "0354", entry: "giao-chi", level: "canxem", matched: "Giao Chỉ", out: ["", "phía nam đánh chiếm Lữ Tống và Giao Chỉ", ""], ...over });
+  hit({
+    id: "0354:3:giao-chi",
+    chapter: "0354",
+    entry: "giao-chi",
+    level: "canxem",
+    matched: "Giao Chỉ",
+    out: ["", "phía nam đánh chiếm Lữ Tống và Giao Chỉ", ""],
+    ...over,
+  });
 
 // JSX không xử lý escape trong thuộc tính chuỗi, nên truyền root qua biểu thức.
 const ROOT = "D:\\t";
@@ -42,7 +57,9 @@ describe("VnCheckPanel", () => {
     vi.mocked(toast.error).mockReset();
     vi.mocked(toast.success).mockReset();
     vi.mocked(vnRefresh).mockReset().mockResolvedValue({ hits: 2, open: 2, scanned: 0 });
-    vi.mocked(vnReport).mockReset().mockResolvedValue([hit({}), giaoChi({ status: "ok" })]);
+    vi.mocked(vnReport)
+      .mockReset()
+      .mockResolvedValue([hit({}), giaoChi({ status: "ok" })]);
     vi.mocked(vnSetStatus).mockReset().mockResolvedValue(1);
     vi.mocked(vnAiVerify).mockReset().mockResolvedValue({ verified: 1, failed: 0 });
   });
@@ -71,9 +88,9 @@ describe("VnCheckPanel", () => {
 
   it("chọn chỗ rồi AI xét; hiện nhãn và lý do AI", async () => {
     const user = userEvent.setup();
-    vi.mocked(vnReport).mockResolvedValueOnce([hit({})]).mockResolvedValueOnce([
-      hit({ ai: { label: "xucpham", reason: "Gọi người Việt là khỉ.", model: "Fake", at: 1 } }),
-    ]);
+    vi.mocked(vnReport)
+      .mockResolvedValueOnce([hit({})])
+      .mockResolvedValueOnce([hit({ ai: { label: "xucpham", reason: "Gọi người Việt là khỉ.", model: "Fake", at: 1 } })]);
     renderPanel();
     const item = (await screen.findByText("0226")).closest("li")!;
     await user.click(within(item).getByRole("checkbox", { name: "Chọn 0226:4:khi-viet" }));
@@ -139,7 +156,10 @@ describe("VnCheckPanel", () => {
 
   it("chỗ đã chọn rồi bị ẩn bởi bộ lọc thì không còn tính vào 'AI xét'", async () => {
     const user = userEvent.setup();
-    vi.mocked(vnReport).mockReset().mockResolvedValueOnce([hit({})]).mockResolvedValue([hit({ status: "ok" })]);
+    vi.mocked(vnReport)
+      .mockReset()
+      .mockResolvedValueOnce([hit({})])
+      .mockResolvedValue([hit({ status: "ok" })]);
     renderPanel();
     const item = (await screen.findByText("0226")).closest("li")!;
     await user.click(within(item).getByRole("checkbox", { name: "Chọn 0226:4:khi-viet" }));
@@ -151,7 +171,11 @@ describe("VnCheckPanel", () => {
 
   it("chỗ đã chọn biến mất sau khi quét lại thì bị bỏ chọn, không quay lại khi nó xuất hiện lại", async () => {
     const user = userEvent.setup();
-    vi.mocked(vnReport).mockReset().mockResolvedValueOnce([hit({})]).mockResolvedValueOnce([giaoChi()]).mockResolvedValue([hit({}), giaoChi()]);
+    vi.mocked(vnReport)
+      .mockReset()
+      .mockResolvedValueOnce([hit({})])
+      .mockResolvedValueOnce([giaoChi()])
+      .mockResolvedValue([hit({}), giaoChi()]);
     renderPanel();
     const item = (await screen.findByText("0226")).closest("li")!;
     await user.click(within(item).getByRole("checkbox", { name: "Chọn 0226:4:khi-viet" }));

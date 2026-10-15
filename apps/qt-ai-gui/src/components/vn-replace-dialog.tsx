@@ -105,10 +105,7 @@ function VnReplaceForm({
   }, []);
 
   // Chỗ đã "Không sao" không tính: chương chỉ còn những chỗ đó không được đề xuất / tick.
-  const sameTerm = useMemo(
-    () => allHits.filter((hit) => hit.side === "out" && hit.status !== "ok" && hit.matched === from),
-    [allHits, from],
-  );
+  const sameTerm = useMemo(() => allHits.filter((hit) => hit.side === "out" && hit.status !== "ok" && hit.matched === from), [allHits, from]);
   const chaptersWithTerm = useMemo(() => [...new Set(sameTerm.map((hit) => hit.chapter))], [sameTerm]);
   const skipped = translated.filter((hit) => hit.matched !== from).length;
   const target =
@@ -131,10 +128,12 @@ function VnReplaceForm({
       toast.error("Khoảng chương không hợp lệ");
       return;
     }
-    setTicked(chaptersWithTerm.filter((id) => {
-      const at = position.get(id);
-      return at !== undefined && at >= lo && at <= hi;
-    }));
+    setTicked(
+      chaptersWithTerm.filter((id) => {
+        const at = position.get(id);
+        return at !== undefined && at >= lo && at <= hi;
+      }),
+    );
   }
 
   async function run() {
@@ -143,9 +142,7 @@ function VnReplaceForm({
       const pairs = new Map<string, [string, number]>();
       for (const hit of target) pairs.set(`${hit.chapter}\u0000${hit.paragraph}`, [hit.chapter, hit.paragraph]);
       const request =
-        scope === "selected"
-          ? { from, to, chapters: targetChapters, paragraphs: [...pairs.values()] }
-          : { from, to, chapters: targetChapters };
+        scope === "selected" ? { from, to, chapters: targetChapters, paragraphs: [...pairs.values()] } : { from, to, chapters: targetChapters };
       const outcome = await vnReplace(root, request);
       toast.success(`Đã thay ${outcome.occurrences} chỗ ở ${outcome.chapters} chương — hoàn tác ở trang Tìm & thay`);
       onOpenChange(false);
@@ -186,7 +183,13 @@ function VnReplaceForm({
         </label>
         {scope === "chapters" && (
           <div className="ml-6 flex items-center gap-2">
-            <Input aria-label="Từ chương" placeholder="Từ (#1 hoặc mã)" className="h-8 w-32" value={rangeFrom} onChange={(e) => setRangeFrom(e.target.value)} />
+            <Input
+              aria-label="Từ chương"
+              placeholder="Từ (#1 hoặc mã)"
+              className="h-8 w-32"
+              value={rangeFrom}
+              onChange={(e) => setRangeFrom(e.target.value)}
+            />
             <Input aria-label="Tới chương" placeholder="Tới" className="h-8 w-32" value={rangeTo} onChange={(e) => setRangeTo(e.target.value)} />
             <Button type="button" size="sm" variant="outline" onClick={tickRange}>
               Tick khoảng
@@ -213,14 +216,8 @@ function VnReplaceForm({
           Mọi chương có chỗ khớp
         </label>
       </fieldset>
-      {rawOnly && (
-        <p className="text-sm text-status-warning">
-          Các chỗ đang chọn chỉ có ở raw (chương chưa dịch) — dịch xong mới thay được.
-        </p>
-      )}
-      {scope === "selected" && skipped > 0 && !rawOnly && (
-        <p className="text-sm text-muted-foreground">Bỏ qua {skipped} chỗ khác cụm gốc.</p>
-      )}
+      {rawOnly && <p className="text-sm text-status-warning">Các chỗ đang chọn chỉ có ở raw (chương chưa dịch) — dịch xong mới thay được.</p>}
+      {scope === "selected" && skipped > 0 && !rawOnly && <p className="text-sm text-muted-foreground">Bỏ qua {skipped} chỗ khác cụm gốc.</p>}
       <p className="rounded-md bg-muted p-3 text-sm">
         {scope === "selected"
           ? `Sẽ thay ${found} chỗ ở ${targetChapters.length} chương.`

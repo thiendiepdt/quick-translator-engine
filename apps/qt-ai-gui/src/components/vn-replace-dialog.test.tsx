@@ -10,7 +10,20 @@ import { useStoryStore } from "@/store/story";
 vi.mock("@/lib/api", () => ({ vnReplace: vi.fn(), vnSettingsGet: vi.fn() }));
 
 const ROOT = "D:\\t";
-const base: Omit<VnHitView, "id" | "chapter" | "paragraph"> = { group: "ten", level: "canxem", side: "out", count: 1, fingerprint: "x", status: "pending", ai: null, raw: [], out: [], focus: 0, entry: "viet-nam", matched: "Việt Nam" };
+const base: Omit<VnHitView, "id" | "chapter" | "paragraph"> = {
+  group: "ten",
+  level: "canxem",
+  side: "out",
+  count: 1,
+  fingerprint: "x",
+  status: "pending",
+  ai: null,
+  raw: [],
+  out: [],
+  focus: 0,
+  entry: "viet-nam",
+  matched: "Việt Nam",
+};
 const a: VnHitView = { ...base, id: "0001:1:viet-nam", chapter: "0001", paragraph: 1 };
 const b: VnHitView = { ...base, id: "0002:3:viet-nam", chapter: "0002", paragraph: 3 };
 const c: VnHitView = { ...base, id: "0009:2:viet-nam", chapter: "0009", paragraph: 2 };
@@ -23,7 +36,9 @@ function renderDialog(hits: VnHitView[]) {
 
 describe("VnReplaceDialog", () => {
   beforeEach(() => {
-    vi.mocked(vnSettingsGet).mockReset().mockResolvedValue({ extra: [], disabled: [], replacements: [{ from: "Việt Nam", to: "Thái Lan", setting: "modern" }] });
+    vi.mocked(vnSettingsGet)
+      .mockReset()
+      .mockResolvedValue({ extra: [], disabled: [], replacements: [{ from: "Việt Nam", to: "Thái Lan", setting: "modern" }] });
     vi.mocked(vnReplace).mockReset().mockResolvedValue({ chapters: 2, occurrences: 2 });
   });
 
@@ -38,7 +53,10 @@ describe("VnReplaceDialog", () => {
       from: "Việt Nam",
       to: "Thái Lan",
       chapters: ["0001", "0002"],
-      paragraphs: [["0001", 1], ["0002", 3]],
+      paragraphs: [
+        ["0001", 1],
+        ["0002", 3],
+      ],
     });
     expect(onDone).toHaveBeenCalled();
   });
@@ -55,7 +73,17 @@ describe("VnReplaceDialog", () => {
 
   it("phạm vi theo chương bỏ chương chỉ còn chỗ đã 'Không sao'", async () => {
     const user = userEvent.setup();
-    render(<VnReplaceDialog root={ROOT} setting="modern" hits={[a]} allHits={[a, b, { ...c, status: "ok" }]} open onOpenChange={vi.fn()} onDone={vi.fn()} />);
+    render(
+      <VnReplaceDialog
+        root={ROOT}
+        setting="modern"
+        hits={[a]}
+        allHits={[a, b, { ...c, status: "ok" }]}
+        open
+        onOpenChange={vi.fn()}
+        onDone={vi.fn()}
+      />,
+    );
     await screen.findByDisplayValue("Thái Lan");
     await user.click(screen.getByRole("radio", { name: /Chọn chương/ }));
     expect(screen.queryByRole("checkbox", { name: "0009" })).not.toBeInTheDocument();
@@ -102,7 +130,10 @@ describe("VnReplaceDialog", () => {
       from: "Việt Nam",
       to: "Thái Lan",
       chapters: ["0001", "0002"],
-      paragraphs: [["0001", 1], ["0002", 3]],
+      paragraphs: [
+        ["0001", 1],
+        ["0002", 3],
+      ],
     });
   });
 

@@ -114,9 +114,7 @@ export function VnSettingsEditor() {
                 type="checkbox"
                 className="mt-1"
                 checked={!disabled.includes(entry.id)}
-                onChange={(e) =>
-                  setDisabled((list = []) => (e.target.checked ? list.filter((id) => id !== entry.id) : [...list, entry.id]))
-                }
+                onChange={(e) => setDisabled((list = []) => (e.target.checked ? list.filter((id) => id !== entry.id) : [...list, entry.id]))}
               />
               <span>
                 <span className="font-mono text-xs">{entry.id}</span>{" "}
@@ -188,8 +186,7 @@ export function VnSettingsEditor() {
       <div className="flex flex-col gap-2">
         <h3 className="text-sm font-medium">Bảng thay</h3>
         <p className="text-xs text-muted-foreground">
-          Gợi ý điền sẵn khi bấm "Thay thế…" ở tab Kiểm tra VN. Dòng "Cổ đại" gợi ý cho truyện cổ đại, "Hiện đại" cho truyện hiện
-          đại / hỗn hợp.
+          Gợi ý điền sẵn khi bấm "Thay thế…" ở tab Kiểm tra VN. Dòng "Cổ đại" gợi ý cho truyện cổ đại, "Hiện đại" cho truyện hiện đại / hỗn hợp.
         </p>
         <ul aria-label="Bảng thay" className="flex flex-col gap-2">
           {replacements.map((row, index) => (

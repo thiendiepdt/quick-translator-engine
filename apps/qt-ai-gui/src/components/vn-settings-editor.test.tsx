@@ -22,7 +22,9 @@ describe("VnSettingsEditor", () => {
   beforeEach(() => {
     vi.mocked(vnBuiltinEntries).mockReset().mockResolvedValue(builtin);
     vi.mocked(vnSettingsGet).mockReset().mockResolvedValue(settings);
-    vi.mocked(vnSettingsSave).mockReset().mockImplementation((next) => Promise.resolve(next));
+    vi.mocked(vnSettingsSave)
+      .mockReset()
+      .mockImplementation((next) => Promise.resolve(next));
   });
 
   it("sửa, thêm dòng bảng thay rồi Lưu", async () => {
