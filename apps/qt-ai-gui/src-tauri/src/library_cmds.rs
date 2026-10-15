@@ -3,7 +3,7 @@
 
 use crate::error::{blocking, CmdResult, CommandError};
 use crate::sidecar::qt_ai_command;
-use crate::story_cmds::{snapshot, RecentSummary, StorySnapshot};
+use crate::story_cmds::{snapshot, snapshot_with_drift, RecentSummary, StorySnapshot};
 use crate::summary_cache::SummaryCache;
 use crate::vn_cmds::{lexicon, refresh_quietly};
 use crate::AppState;
@@ -299,7 +299,7 @@ pub async fn rescan_story<R: Runtime>(app: AppHandle<R>, root: String) -> CmdRes
         let path = Path::new(&root);
         run_init(path, &qt_ai_command())?;
         refresh_quietly(path, &lexicon());
-        snapshot(path, session_running(&state, &root))
+        snapshot_with_drift(path, session_running(&state, &root))
     })
     .await
 }

@@ -8,6 +8,7 @@ use qt_ai_core::commands::export::{run_export, ExportOptions};
 use qt_ai_core::commands::init::run_init;
 use qt_ai_core::commands::retry::{run_retry, run_retry_ids, run_retry_range};
 use qt_ai_core::commands::skip::run_skip;
+use qt_ai_core::commands::sync_progress::{run_sync_progress, ProgressDrift};
 use qt_ai_core::base::{BaseSource, BaseStore};
 use qt_ai_core::commands::status::count_chapters_live;
 use qt_ai_core::vn_check::{live_warnings, open_by_chapter};
@@ -53,6 +54,16 @@ pub struct StorySnapshot {
     pub settings: HarnessSettings,
     pub story: StoryConfig,
     pub session_running: bool,
+    /// Độ lệch state.json ↔ out/ (Drive sync lệch). Chỉ tính lúc mở / quét lại truyện (`snapshot_with_drift`) vì
+    /// phải đọc mọi out/; snapshot thường (polling trong phiên) để None.
+    pub progress_drift: Option<DriftCounts>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DriftCounts {
+    pub untracked: usize,
+    pub missing: usize,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -178,7 +189,16 @@ pub fn snapshot(root: &Path, session_running: bool) -> CmdResult<StorySnapshot> 
         settings: state.settings,
         story,
         session_running,
+        progress_drift: None,
     })
+}
+
+/// Snapshot kèm độ lệch tiến độ — cho mở truyện / quét lại / sau đồng bộ, không cho polling.
+pub fn snapshot_with_drift(root: &Path, session_running: bool) -> CmdResult<StorySnapshot> {
+    let mut snap = snapshot(root, session_running)?;
+    let drift = qt_ai_core::commands::sync_progress::progress_drift(root)?;
+    snap.progress_drift = Some(DriftCounts { untracked: drift.untracked.len(), missing: drift.missing.len() });
+    Ok(snap)
 }
 
 fn optional_text(path: &Path) -> Option<String> {
@@ -270,7 +290,7 @@ pub fn rescan_if_initialized(path: &Path) -> CmdResult<()> {
 fn open_story_sync(state: &State<'_, AppState>, root: &str) -> CmdResult<StorySnapshot> {
     let path = Path::new(root);
     rescan_if_initialized(path)?;
-    let snap = snapshot(path, session_running(state, root))?;
+    let snap = snapshot_with_drift(path, session_running(state, root))?;
     let mut config = state.config.lock().unwrap();
     config.touch_recent(root);
     config.save(&state.config_path)?;
@@ -402,6 +422,47 @@ pub fn story_reset(state: State<'_, AppState>, root: String) -> CmdResult<StoryS
     }
     qt_ai_core::commands::reset::run_reset(Path::new(&root), &qt_ai_command())?;
     snapshot(Path::new(&root), false)
+}
+
+/// Chương nào lệch giữa state.json và out/ — dialog Đồng bộ tiến độ xem trước. Đọc mọi out/ nên chạy ngoài luồng IPC.
+#[tauri::command]
+pub async fn progress_drift(root: String) -> CmdResult<ProgressDrift> {
+    blocking(move || Ok(qt_ai_core::commands::sync_progress::progress_drift(Path::new(&root))?)).await
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SyncProgressView {
+    pub marked_done: Vec<String>,
+    pub missing: Vec<String>,
+    /// Snapshot sau đồng bộ, kèm độ lệch mới (banner ở trang Dịch tự ẩn).
+    pub snapshot: StorySnapshot,
+}
+
+pub fn sync_progress_inner(root: &Path, session_running: bool) -> CmdResult<SyncProgressView> {
+    if session_running {
+        return Err(CommandError::new(
+            "session_locked",
+            "Truyện này đang có phiên dịch chạy — bấm Dừng trước khi đồng bộ tiến độ.",
+        ));
+    }
+    let outcome = run_sync_progress(root)?;
+    Ok(SyncProgressView {
+        marked_done: outcome.marked_done,
+        missing: outcome.missing,
+        snapshot: snapshot_with_drift(root, false)?,
+    })
+}
+
+/// Đánh dấu đã dịch các chương có bản dịch trong out/ mà state.json (bản cũ sau sync Drive) ghi chưa dịch.
+/// Chặn khi phiên đang chạy: runner đang ghi state.json của truyện.
+#[tauri::command]
+pub async fn sync_progress<R: Runtime>(app: AppHandle<R>, root: String) -> CmdResult<SyncProgressView> {
+    blocking(move || {
+        let running = session_running(&app.state::<AppState>(), &root);
+        sync_progress_inner(Path::new(&root), running)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -585,6 +646,39 @@ mod tests {
         assert!(snap.chapters[0].warnings.is_empty(), "{:?}", snap.chapters[0].warnings);
         assert_eq!(snap.counts.with_warnings, 0);
         assert!(chapter_view(dir.path(), "0001").unwrap().warnings.is_empty());
+    }
+
+    #[test]
+    fn snapshot_thuong_khong_tinh_lech_tien_do_chi_ban_mo_hoac_quet_lai_moi_tinh() {
+        let dir = story();
+        let paths = story_paths(dir.path());
+        // Drive sync về out/ nhưng state.json là bản cũ: 0001 có bản dịch mà vẫn queued.
+        fs::write(paths.out_dir.join("0001.txt"), "Chương một.").unwrap();
+        let snap = snapshot(dir.path(), false).unwrap();
+        assert!(snap.progress_drift.is_none(), "snapshot hay gọi (polling phiên) không đọc out/");
+        assert!(serde_json::to_value(&snap).unwrap()["progressDrift"].is_null());
+        let snap = snapshot_with_drift(dir.path(), false).unwrap();
+        assert_eq!(snap.progress_drift, Some(DriftCounts { untracked: 1, missing: 0 }));
+        assert_eq!(serde_json::to_value(&snap).unwrap()["progressDrift"]["untracked"], 1);
+    }
+
+    #[test]
+    fn sync_progress_chan_khi_phien_chay_xong_thi_tra_snapshot_het_lech() {
+        let dir = story();
+        let paths = story_paths(dir.path());
+        fs::write(paths.out_dir.join("0002.txt"), "Chương hai.").unwrap();
+        let error = sync_progress_inner(dir.path(), true).unwrap_err();
+        assert_eq!(error.kind, "session_locked");
+        assert_eq!(load_state(&paths).unwrap().chapters["0002"].status.as_str(), "queued", "bị chặn thì không ghi");
+
+        let result = sync_progress_inner(dir.path(), false).unwrap();
+        assert_eq!(result.marked_done, vec!["0002"]);
+        assert!(result.missing.is_empty());
+        assert_eq!(result.snapshot.counts.done, 1);
+        assert_eq!(result.snapshot.progress_drift, Some(DriftCounts { untracked: 0, missing: 0 }));
+        let json = serde_json::to_value(&result).unwrap();
+        assert_eq!(json["markedDone"][0], "0002");
+        assert_eq!(json["snapshot"]["progressDrift"]["untracked"], 0);
     }
 
     #[test]

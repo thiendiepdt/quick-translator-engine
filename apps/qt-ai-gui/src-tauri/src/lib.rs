@@ -115,6 +115,8 @@ pub fn run() {
             story_cmds::chapters_retry_ids,
             story_cmds::chapters_delete,
             story_cmds::story_reset,
+            story_cmds::progress_drift,
+            story_cmds::sync_progress,
             story_cmds::chapter_skip,
             story_cmds::chapter_force_accept,
             story_cmds::export_chapters,
@@ -250,6 +252,8 @@ mod tests {
             "vn_settings_get",
             "vn_settings_save",
             "vn_replace",
+            "progress_drift",
+            "sync_progress",
         ];
         for name in heavy {
             // Có AppHandle thì generic theo Runtime (mock runtime trong test gọi được), không thì không.
