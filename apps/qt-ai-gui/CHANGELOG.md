@@ -1,6 +1,6 @@
 # Có gì mới
 
-## Chưa phát hành
+## 1.0.23 — 2026-10-15
 - Bỏ chặn bắt đầu dịch khi tiến độ lệch với bản dịch đã có: trang Dịch chỉ hiện thông báo kèm nút **Đồng bộ…**; bấm Dịch khi chưa đồng bộ thì các chương lệch được dịch lại, ghi đè bản dịch đang có.
 - Cải thiện chuyển truyện ở cột **Phiên này**: quay lại truyện đã xem thì trang Dịch mở lại đúng chương, bộ lọc và ô tìm trước đó.
 - Sửa lỗi truyện cổ đại xưng "anh–em", "tôi–cậu", "tao–mày" trong lời thoại: anh chị em ruột gọi nhau "ca", "tỷ", tự xưng "muội", "đệ"; AI điền hồ sơ không còn ghi luật xưng hô kiểu hiện đại cho truyện cổ đại, và app không học cặp xưng hô kiểu hiện đại ở truyện cổ đại.
