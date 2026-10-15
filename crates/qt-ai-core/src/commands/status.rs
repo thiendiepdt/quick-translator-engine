@@ -1,6 +1,8 @@
 use crate::error::Result;
 use crate::story::natural_chapter_compare;
 use crate::story_fs::{load_state, resolve_root, story_paths, ChapterStatus, StoryState};
+use crate::vn_check::live_warnings;
+use std::collections::HashMap;
 use std::path::Path;
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
@@ -14,9 +16,17 @@ pub struct Counts {
     pub with_warnings: usize,
 }
 
+/// "Kèm cảnh báo" theo cảnh báo đã lưu trong state (bỏ dòng `[VN]` cũ); muốn tính cả kiểm tra VN sống thì
+/// dùng `count_chapters_live`.
 pub fn count_chapters(state: &StoryState) -> Counts {
+    count_chapters_live(state, &HashMap::new())
+}
+
+/// Như `count_chapters` nhưng "kèm cảnh báo" tính theo `vn_check::live_warnings` — `vn_open` từ
+/// `vn_check::open_by_chapter`.
+pub fn count_chapters_live(state: &StoryState, vn_open: &HashMap<String, usize>) -> Counts {
     let mut counts = Counts { total: state.chapters.len(), ..Counts::default() };
-    for chapter in state.chapters.values() {
+    for (id, chapter) in &state.chapters {
         match chapter.status {
             ChapterStatus::Queued => counts.queued += 1,
             ChapterStatus::Translating => counts.translating += 1,
@@ -24,7 +34,8 @@ pub fn count_chapters(state: &StoryState) -> Counts {
             ChapterStatus::Error => counts.error += 1,
             ChapterStatus::Skipped => counts.skipped += 1,
         }
-        if chapter.status == ChapterStatus::Done && chapter.warnings.as_ref().is_some_and(|w| !w.is_empty()) {
+        let stored = chapter.warnings.as_deref().unwrap_or_default();
+        if chapter.status == ChapterStatus::Done && !live_warnings(stored, vn_open.get(id).copied().unwrap_or(0)).is_empty() {
             counts.with_warnings += 1;
         }
     }
@@ -49,7 +60,8 @@ pub fn run_status(root: &Path) -> Result<String> {
                 flagged.push(format!("  {id} [translating] — đang dở, check/accept/skip trước"))
             }
             ChapterStatus::Done => {
-                if let Some(warnings) = chapter.warnings.as_ref().filter(|w| !w.is_empty()) {
+                let warnings = live_warnings(chapter.warnings.as_deref().unwrap_or_default(), 0);
+                if !warnings.is_empty() {
                     flagged.push(format!("  {id} [done, {} cảnh báo] {}", warnings.len(), warnings[0]));
                 }
             }

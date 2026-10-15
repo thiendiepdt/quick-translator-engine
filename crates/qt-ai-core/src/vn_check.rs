@@ -88,11 +88,30 @@ pub fn scan_chapter(lex: &Lexicon, raw: &str, out: Option<&str>) -> Vec<Finding>
 
 pub const VN_FILE: &str = "vn-check.json";
 
-/// Đầu chuỗi cảnh báo chương do kiểm tra VN ghi — GUI nhận ra để dẫn sang tab Kiểm tra VN.
+/// Đầu chuỗi cảnh báo chương do kiểm tra VN — GUI nhận ra để dẫn sang tab Kiểm tra VN. Không lưu vào
+/// state.json (đổi ngay khi người dùng xét/thay); bản cũ từng lưu thì `live_warnings` bỏ đi.
 pub const VN_WARNING_PREFIX: &str = "[VN]";
 
 pub fn chapter_warning(open: usize) -> Option<String> {
-    (open > 0).then(|| format!("{VN_WARNING_PREFIX} {open} chỗ nhạy cảm về Việt Nam chưa xác minh — xem tab Kiểm tra VN"))
+    (open > 0).then(|| {
+        format!(
+            "{VN_WARNING_PREFIX} {open} chỗ nhạy cảm về Việt Nam chưa xác minh — người dùng xem ở tab Kiểm tra VN, không cần sửa bản dịch"
+        )
+    })
+}
+
+/// Số chỗ chưa xét + cần xử lý theo chương (chương không còn chỗ mở thì không có mặt).
+pub fn open_by_chapter(file: &VnFile) -> HashMap<String, usize> {
+    let mut open: HashMap<String, usize> = HashMap::new();
+    for hit in file.hits.iter().filter(|hit| hit.status != Status::Ok) {
+        *open.entry(hit.chapter.clone()).or_default() += 1;
+    }
+    open
+}
+
+/// Cảnh báo chương để hiển thị: cảnh báo đã lưu trừ dòng `[VN]` cũ, cộng dòng kiểm tra VN tính sống.
+pub fn live_warnings(stored: &[String], open: usize) -> Vec<String> {
+    stored.iter().filter(|line| !line.starts_with(VN_WARNING_PREFIX)).cloned().chain(chapter_warning(open)).collect()
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]

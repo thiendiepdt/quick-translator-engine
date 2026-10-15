@@ -126,22 +126,24 @@ pub fn run_accept_with(root: &Path, id: &str, force: bool, lexicon: &crate::vn_l
         .ok_or_else(|| CoreError::StoryNotFound(format!("Không có chương {id} trong state.json.")))?;
     // Vấn đề còn sót (hết vòng review chỉ còn vi phạm, hoặc --force) cùng rule chỉ cảnh báo ghi vào state
     // để status/GUI liệt kê.
-    let mut warnings: Vec<String> = check.issues.iter().chain(&check.advisories).cloned().collect();
-    // Kiểm tra VN chỉ cảnh báo; lỗi đọc/ghi vn-check.json không được chặn chốt chương.
-    if let Some(warning) = crate::vn_check::check_chapter(&paths, lexicon, id).ok().and_then(crate::vn_check::chapter_warning) {
-        warnings.push(warning);
-    }
+    let stored: Vec<String> = check.issues.iter().chain(&check.advisories).cloned().collect();
     state.chapters.insert(
         id.to_string(),
         ChapterState {
             status: ChapterStatus::Done,
             review_round: chapter.review_round,
             reason: None,
-            warnings: (!warnings.is_empty()).then(|| warnings.clone()),
+            warnings: (!stored.is_empty()).then(|| stored.clone()),
             updated_at: now_ms(),
         },
     );
     save_state(&paths, &state)?;
+    // Kiểm tra VN chỉ cảnh báo, trả cho CLI in ra nhưng không ghi state.json (GUI tính sống từ vn-check.json,
+    // xét xong là hết); lỗi đọc/ghi vn-check.json không được chặn chốt chương.
+    let mut warnings = stored;
+    if let Some(warning) = crate::vn_check::check_chapter(&paths, lexicon, id).ok().and_then(crate::vn_check::chapter_warning) {
+        warnings.push(warning);
+    }
 
     for kind in WORK_KINDS {
         let _ = fs::remove_file(work_file(&paths, id, kind)); // force: true

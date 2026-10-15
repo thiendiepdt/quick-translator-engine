@@ -1319,10 +1319,16 @@ fn accept_canh_bao_cho_nhay_cam_vn_chua_xac_minh() {
     let accepted = run_accept_with(root, "0001", true, &qt_ai_core::vn_lexicon::Lexicon::builtin()).unwrap();
     let warning = accepted.warnings.iter().find(|w| w.starts_with(qt_ai_core::vn_check::VN_WARNING_PREFIX)).expect("có cảnh báo VN");
     assert!(warning.contains("1 chỗ nhạy cảm về Việt Nam"), "{warning}");
+    assert!(warning.contains("không cần sửa bản dịch"), "agent đọc output accept không được đi sửa bản dịch: {warning}");
     assert!(root.join(qt_ai_core::vn_check::VN_FILE).exists());
-    // Người dùng chốt "Không sao" → quét lại chương không còn cảnh báo.
+    // Cảnh báo VN chỉ trả cho CLI, không ghi vào state.json — GUI tính sống từ vn-check.json.
+    let stored = load_state(&paths).unwrap().chapters["0001"].warnings.clone().unwrap_or_default();
+    assert!(!stored.iter().any(|w| w.starts_with(qt_ai_core::vn_check::VN_WARNING_PREFIX)), "{stored:?}");
+    assert_eq!(qt_ai_core::session::read_progress(root).unwrap().warnings_count, 1, "tiến độ đếm cảnh báo VN sống");
+    // Người dùng chốt "Không sao" → hết cảnh báo ngay, không cần chốt lại chương.
     let ids: Vec<String> = qt_ai_core::vn_check::load_file(&paths).hits.iter().map(|h| h.id.clone()).collect();
     qt_ai_core::vn_check::set_status(&paths, &ids, qt_ai_core::vn_check::Status::Ok).unwrap();
+    assert_eq!(qt_ai_core::session::read_progress(root).unwrap().warnings_count, 0);
     let lexicon = qt_ai_core::vn_lexicon::Lexicon::builtin();
     let open = qt_ai_core::vn_check::check_chapter(&paths, &lexicon, "0001").unwrap();
     assert_eq!(open, 0);

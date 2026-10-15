@@ -9,7 +9,8 @@ use qt_ai_core::commands::init::run_init;
 use qt_ai_core::commands::retry::{run_retry, run_retry_ids, run_retry_range};
 use qt_ai_core::commands::skip::run_skip;
 use qt_ai_core::base::{BaseSource, BaseStore};
-use qt_ai_core::commands::status::count_chapters;
+use qt_ai_core::commands::status::count_chapters_live;
+use qt_ai_core::vn_check::{live_warnings, open_by_chapter};
 use qt_ai_core::prompt::prompt_suffix;
 use qt_ai_core::story::{natural_chapter_compare, CheckRule, StoryConfig, StoryGenre};
 use qt_ai_core::story_fs::{
@@ -141,7 +142,9 @@ pub fn snapshot(root: &Path, session_running: bool) -> CmdResult<StorySnapshot> 
     let paths = story_paths(root);
     let state = load_state(&paths)?;
     let story = load_story_config(&paths)?;
-    let counts = count_chapters(&state);
+    // Cảnh báo kiểm tra VN tính sống từ vn-check.json (xét / thay xong là hết), không lấy từ state.json.
+    let vn_open = open_by_chapter(&qt_ai_core::vn_check::load_file(&paths));
+    let counts = count_chapters_live(&state, &vn_open);
     let mut ids: Vec<&String> = state.chapters.keys().collect();
     ids.sort_by(|a, b| natural_chapter_compare(a, b));
     let chapters = ids
@@ -153,7 +156,10 @@ pub fn snapshot(root: &Path, session_running: bool) -> CmdResult<StorySnapshot> 
                 status: chapter.status.as_str().to_string(),
                 review_round: chapter.review_round,
                 reason: chapter.reason.clone(),
-                warnings: chapter.warnings.clone().unwrap_or_default(),
+                warnings: live_warnings(
+                    chapter.warnings.as_deref().unwrap_or_default(),
+                    vn_open.get(id.as_str()).copied().unwrap_or(0),
+                ),
             }
         })
         .collect();
@@ -196,7 +202,10 @@ pub fn chapter_view(root: &Path, id: &str) -> CmdResult<ChapterView> {
         output: optional_text(&paths.out_dir.join(format!("{id}.txt"))),
         draft: optional_text(&work_file(&paths, id, WorkKind::Draft)),
         review: optional_text(&work_file(&paths, id, WorkKind::Review)),
-        warnings: chapter.warnings.clone().unwrap_or_default(),
+        warnings: live_warnings(
+            chapter.warnings.as_deref().unwrap_or_default(),
+            open_by_chapter(&qt_ai_core::vn_check::load_file(&paths)).get(id).copied().unwrap_or(0),
+        ),
         reason: chapter.reason.clone(),
     })
 }
@@ -392,7 +401,7 @@ pub fn chapter_skip(root: String, id: String, reason: String) -> CmdResult<()> {
     Ok(run_skip(Path::new(&root), &id, &reason)?)
 }
 
-/// Chốt bằng --force; trả danh sách cảnh báo đã ghi vào state.
+/// Chốt bằng --force; trả danh sách cảnh báo (state.json + dòng kiểm tra VN không lưu vào state).
 #[tauri::command]
 pub async fn chapter_force_accept(root: String, id: String) -> CmdResult<Vec<String>> {
     blocking(move || Ok(run_accept(Path::new(&root), &id, true)?.warnings)).await
@@ -535,6 +544,38 @@ mod tests {
         assert_eq!(snap.settings.max_review_rounds, 3);
         assert!(!snap.session_running);
         assert!(snapshot(&dir.path().join("khong-co"), false).is_err());
+    }
+
+    #[test]
+    fn snapshot_canh_bao_vn_tinh_song_va_bo_dong_vn_cu() {
+        use qt_ai_core::story_fs::ChapterStatus;
+        use qt_ai_core::vn_check::{load_file, refresh, set_status, Status, VN_WARNING_PREFIX};
+        let dir = story();
+        let paths = story_paths(dir.path());
+        fs::write(dir.path().join("raw").join("0001.txt"), "第1章\n\n坐船转到越南。").unwrap();
+        fs::create_dir_all(&paths.out_dir).unwrap();
+        fs::write(paths.out_dir.join("0001.txt"), "Chương 1\n\nNgồi thuyền qua Việt Nam.").unwrap();
+        let mut state = load_state(&paths).unwrap();
+        let chapter = state.chapters.get_mut("0001").unwrap();
+        chapter.status = ChapterStatus::Done;
+        // Dữ liệu cũ: accept trước đây ghi dòng [VN] vào state.json.
+        chapter.warnings = Some(vec!["[VN] 7 chỗ cũ".into()]);
+        save_state(&paths, &state).unwrap();
+        refresh(&paths, &qt_ai_core::vn_lexicon::Lexicon::builtin()).unwrap();
+
+        let snap = snapshot(dir.path(), false).unwrap();
+        let row = &snap.chapters[0];
+        assert_eq!(row.warnings.len(), 1, "{:?}", row.warnings);
+        assert!(row.warnings[0].starts_with(VN_WARNING_PREFIX) && row.warnings[0].contains("1 chỗ"), "{:?}", row.warnings);
+        assert_eq!(snap.counts.with_warnings, 1);
+        assert_eq!(chapter_view(dir.path(), "0001").unwrap().warnings, row.warnings);
+
+        let ids: Vec<String> = load_file(&paths).hits.iter().map(|h| h.id.clone()).collect();
+        set_status(&paths, &ids, Status::Ok).unwrap();
+        let snap = snapshot(dir.path(), false).unwrap();
+        assert!(snap.chapters[0].warnings.is_empty(), "{:?}", snap.chapters[0].warnings);
+        assert_eq!(snap.counts.with_warnings, 0);
+        assert!(chapter_view(dir.path(), "0001").unwrap().warnings.is_empty());
     }
 
     #[test]

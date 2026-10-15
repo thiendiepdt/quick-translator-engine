@@ -297,6 +297,25 @@ fn ghi_dong_thoi_khong_mat_cap_nhat() {
 }
 
 #[test]
+fn canh_bao_chuong_tinh_song_tu_vn_check() {
+    let dir = story(&[
+        ("0001", "第1章\n\n坐船转到越南。\n\n又去越南。", None),
+        ("0002", "第2章\n\n越南很热。", None),
+    ]);
+    let paths = story_paths(dir.path());
+    refresh(&paths, &Lexicon::builtin()).unwrap();
+    set_status(&paths, &["0002:1:viet-nam".to_string()], Status::Ok).unwrap();
+    let open = open_by_chapter(&load_file(&paths));
+    assert_eq!(open.get("0001"), Some(&2));
+    assert_eq!(open.get("0002"), None, "chương đã xét hết không có mặt");
+    // Dòng [VN] cũ lưu trong state (dữ liệu trước đây) bị bỏ, dòng sống thêm vào cuối.
+    let stored = vec!["[VN] 9 chỗ cũ".to_string(), "Đoạn [[3]] thiếu".to_string()];
+    assert_eq!(live_warnings(&stored, 2), vec!["Đoạn [[3]] thiếu".to_string(), chapter_warning(2).unwrap()]);
+    assert_eq!(live_warnings(&stored, 0), vec!["Đoạn [[3]] thiếu".to_string()]);
+    assert!(chapter_warning(2).unwrap().contains("không cần sửa bản dịch"));
+}
+
+#[test]
 fn file_hong_duoc_sao_luu_truoc_khi_ghi_de() {
     let dir = story(&[("0001", "第1章\n\n坐船转到越南。", None)]);
     let paths = story_paths(dir.path());

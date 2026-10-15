@@ -2,7 +2,7 @@
 //! để báo tiến độ; cầu dao hết queue / không tiến độ / agy lỗi 2 lần / max phiên; cancel giết process tree.
 
 use crate::agy_data::{clean, quota_reset_since, Scope, APP_PROMPT_MARK};
-use crate::commands::status::count_chapters;
+use crate::commands::status::count_chapters_live;
 use crate::error::{CoreError, Result};
 use crate::story_fs::{load_state, now_ms, story_paths, ChapterStatus};
 use serde::{Deserialize, Serialize};
@@ -34,8 +34,9 @@ impl Progress {
 }
 
 pub fn read_progress(root: &Path) -> Result<Progress> {
-    let state = load_state(&story_paths(root))?;
-    let counts = count_chapters(&state);
+    let paths = story_paths(root);
+    let state = load_state(&paths)?;
+    let counts = count_chapters_live(&state, &crate::vn_check::open_by_chapter(&crate::vn_check::load_file(&paths)));
     let current = state
         .chapters
         .iter()
