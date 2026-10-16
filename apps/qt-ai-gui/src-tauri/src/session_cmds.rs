@@ -73,7 +73,8 @@ pub fn resolve_api(api: &ApiSettings) -> CmdResult<ApiConfig> {
 }
 
 pub fn api_session_config(root: &Path) -> ApiSessionConfig {
-    ApiSessionConfig { root: root.to_path_buf(), retry_delay: Duration::from_secs(5) }
+    // Provider chết vài phút là thường: chờ 5 → 10 → 20 → 40 → 60 giây rồi cứ 60 giây gọi lại một lần.
+    ApiSessionConfig { root: root.to_path_buf(), retry_delay: Duration::from_secs(5), retry_max: Duration::from_secs(60) }
 }
 
 fn status(state: &State<'_, AppState>) -> SessionStatus {
@@ -301,7 +302,8 @@ mod tests {
         api.gemini.api_key = "AIza".into();
         let config = resolve_api(&api).unwrap();
         assert_eq!(config.model, "gemini-3.7-flash");
-        assert_eq!(api_session_config(Path::new("D:\\truyen")).retry_delay, Duration::from_secs(5));
+        let config = api_session_config(Path::new("D:\\truyen"));
+        assert_eq!((config.retry_delay, config.retry_max), (Duration::from_secs(5), Duration::from_secs(60)));
     }
 
     #[test]

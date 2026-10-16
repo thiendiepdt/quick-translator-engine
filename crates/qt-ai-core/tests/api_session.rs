@@ -85,7 +85,7 @@ fn collect() -> (qt_ai_core::session::Sink, Events) {
 }
 
 fn config(root: &Path) -> ApiSessionConfig {
-    ApiSessionConfig { root: root.to_path_buf(), retry_delay: Duration::from_millis(20) }
+    ApiSessionConfig { root: root.to_path_buf(), retry_delay: Duration::from_millis(5), retry_max: Duration::from_millis(20) }
 }
 
 fn logs(events: &[SessionEvent]) -> Vec<String> {
@@ -516,23 +516,68 @@ fn model_tra_khong_nhan_thi_ly_do_skip_va_log_co_dau_output() {
 }
 
 #[test]
-fn loi_mang_thu_lai_mot_lan_roi_skip_hai_chuong_lien_tiep_thi_dung() {
-    let dir = story(3);
-    let net = || Err(ApiError::Network { provider: "Gemini", message: "timeout".into() });
-    let model = FakeModel::new(vec![net(), net(), net(), net()]);
+fn thoi_gian_cho_goi_lai_tang_gap_doi_toi_tran_roi_giu_tran() {
+    let wait = |attempt| qt_ai_core::api_session::retry_wait(Duration::from_secs(5), Duration::from_secs(60), attempt);
+    let got: Vec<u64> = (1..=7).map(|attempt| wait(attempt).as_secs()).collect();
+    assert_eq!(got, vec![5, 10, 20, 40, 60, 60, 60]);
+    assert_eq!(wait(1000).as_secs(), 60, "không tràn số khi provider chết lâu");
+}
+
+#[test]
+fn provider_chet_lau_thi_goi_lai_toi_khi_song_khong_bo_qua_chuong() {
+    let dir = story(2);
+    let errors: Vec<Result<String, ApiError>> = vec![
+        Err(ApiError::Network { provider: "Gemini", message: "timeout".into() }),
+        Err(ApiError::Http { provider: "Gemini", status: 503, message: "model quá tải".into() }),
+        Err(ApiError::Http { provider: "Gemini", status: 429, message: "hết hạn mức phút".into() }),
+        Err(ApiError::Stream("đứt giữa chừng".into())),
+        Err(ApiError::Http { provider: "Gemini", status: 503, message: "model quá tải".into() }),
+        Err(ApiError::Http { provider: "Gemini", status: 503, message: "model quá tải".into() }),
+        Err(ApiError::Http { provider: "Gemini", status: 503, message: "model quá tải".into() }),
+    ];
+    let model = FakeModel::new(errors);
     let (sink, events) = collect();
     let handle = start_api_session(config(dir.path()), model.clone(), sink).unwrap();
-    assert_eq!(handle.join(), StopReason::ApiFailed { message: "Gemini không kết nối được: timeout".into() });
-    let state = load_state(&story_paths(dir.path())).unwrap();
-    assert_eq!(state.chapters["0001"].status, ChapterStatus::Skipped);
-    assert!(state.chapters["0001"].reason.as_deref().unwrap().starts_with("lỗi API: "));
-    // Chương thứ hai lỗi liên tiếp → dừng ngay, trả về hàng đợi chứ không kẹt translating.
-    assert_eq!(state.chapters["0002"].status, ChapterStatus::Queued);
-    assert_eq!(state.chapters["0003"].status, ChapterStatus::Queued, "dừng trước khi đốt chương 3");
-    assert_eq!(model.calls().len(), 4);
+    assert_eq!(handle.join(), StopReason::Finished);
+    assert_eq!(status(dir.path(), "0001"), ChapterStatus::Done, "không bỏ qua chương vì provider chết");
+    assert_eq!(status(dir.path(), "0002"), ChapterStatus::Done);
+    assert_eq!(model.calls().len(), 9, "7 lượt lỗi + 2 chương dịch được");
     let lines = logs(&events.lock().unwrap());
-    assert!(lines.iter().any(|l| l.contains("thử lại sau")));
-    assert!(lines.iter().any(|l| l.contains("0002: trả về hàng đợi")));
+    assert!(lines.iter().any(|l| l == "0001: dịch: Gemini trả 503: model quá tải — thử lại lần 7 sau 20 ms"), "{lines:?}");
+    assert!(lines.iter().any(|l| l.contains("thử lại lần 1 sau 5 ms")), "{lines:?}");
+    assert!(!lines.iter().any(|l| l.contains("bỏ qua")), "{lines:?}");
+}
+
+#[test]
+fn loi_tam_thoi_o_buoc_soat_chi_goi_lai_buoc_soat_khong_dich_lai_ca_chuong() {
+    let dir = story(1);
+    let bad = format!("[[1]] Anh ấy ngẩng đầu nhìn về phía tòa tháp cao ở nơi xa.\n\n[[2]] {GOOD_2}");
+    let overloaded = || Err(ApiError::Http { provider: "Gemini", status: 503, message: "model quá tải".into() });
+    let model = FakeModel::new(vec![Ok(bad), overloaded(), overloaded(), Ok(good())]);
+    let (sink, _) = collect();
+    let handle = start_api_session(config(dir.path()), model.clone(), sink).unwrap();
+    assert_eq!(handle.join(), StopReason::Finished);
+    assert_eq!(status(dir.path(), "0001"), ChapterStatus::Done);
+    let calls = model.calls();
+    assert_eq!(calls.len(), 4, "1 lượt dịch + 3 lượt soát (2 lỗi), không dịch lại cả chương");
+    assert!(calls[1..].iter().all(|(system, user)| system.contains("soát tối thiểu") && !user.contains("[[1]] 赵静文")), "các lượt sau đều là soát");
+}
+
+#[test]
+fn bam_dung_khi_dang_cho_goi_lai_thi_dung_ngay_chuong_giu_translating() {
+    let dir = story(1);
+    let errors = (0..100).map(|_| Err(ApiError::Network { provider: "Gemini", message: "timeout".into() })).collect();
+    let model = FakeModel::new(errors);
+    let (sink, _) = collect();
+    let slow = ApiSessionConfig { root: dir.path().to_path_buf(), retry_delay: Duration::from_secs(60), retry_max: Duration::from_secs(60) };
+    let handle = start_api_session(slow, model.clone(), sink).unwrap();
+    std::thread::sleep(Duration::from_millis(150));
+    let started = std::time::Instant::now();
+    handle.cancel();
+    assert_eq!(handle.join(), StopReason::UserCancelled);
+    assert!(started.elapsed() < Duration::from_secs(5), "không đợi hết 60 giây");
+    assert_eq!(status(dir.path(), "0001"), ChapterStatus::Translating, "phiên sau dịch tiếp chương này");
+    assert_eq!(model.calls().len(), 1);
 }
 
 #[test]

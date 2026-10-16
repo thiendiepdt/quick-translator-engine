@@ -88,8 +88,24 @@ const STREAM_LOG_INTERVAL: Duration = Duration::from_secs(5);
 #[derive(Debug, Clone)]
 pub struct ApiSessionConfig {
     pub root: PathBuf,
-    /// Đợi trước khi thử lại một chương sau lỗi API tạm thời.
+    /// Lần chờ đầu trước khi gọi lại sau lỗi API tạm thời (mạng, 408/429/5xx, stream đứt); mỗi lần sau gấp đôi.
+    /// Cũng là khoảng chờ trước khi dịch lại chương khi model trả hỏng (không nhãn, rỗng).
     pub retry_delay: Duration,
+    /// Trần thời gian chờ: chạm trần thì cứ mỗi `retry_max` gọi lại một lần, tới khi được hoặc người dùng dừng.
+    pub retry_max: Duration,
+}
+
+/// Chờ trước lần gọi lại thứ `attempt` (từ 1): `base`, 2·`base`, 4·`base`… tối đa `max`.
+pub fn retry_wait(base: Duration, max: Duration, attempt: u32) -> Duration {
+    base.saturating_mul(1u32 << attempt.saturating_sub(1).min(16)).min(max)
+}
+
+fn format_wait(wait: Duration) -> String {
+    if wait >= Duration::from_secs(1) {
+        format!("{} giây", wait.as_secs())
+    } else {
+        format!("{} ms", wait.as_millis())
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -125,6 +141,8 @@ struct Chapter<'a> {
     log: Log<'a>,
     /// Token cộng dồn mọi lượt gọi của chương (provider không báo thì giữ 0).
     usage: Mutex<Usage>,
+    retry_delay: Duration,
+    retry_max: Duration,
 }
 
 impl Chapter<'_> {
@@ -148,6 +166,31 @@ fn format_chars(count: usize) -> String {
     }
 }
 
+/// Gọi lại đúng lượt API này khi lỗi tạm thời (provider quá tải, hết hạn mức theo phút, mạng, stream đứt): chờ tăng
+/// dần tới trần rồi cứ trần một lần, không giới hạn số lần — provider chết vài phút là chuyện thường, bỏ chương thì
+/// người dùng mất chương, dịch lại cả chương thì mất lượt đã trả. Bấm Dừng thì trả `Cancelled`; lỗi khác trả ngay.
+fn with_retry<T>(
+    chapter: &Chapter,
+    label: &str,
+    mut call: impl FnMut() -> std::result::Result<T, ApiError>,
+) -> std::result::Result<T, ApiError> {
+    let mut attempt = 0;
+    loop {
+        match call() {
+            Err(error) if error.is_transient() => {
+                attempt += 1;
+                let wait = retry_wait(chapter.retry_delay, chapter.retry_max, attempt);
+                (chapter.log)(format!("{}: {label}: {error} — thử lại lần {attempt} sau {}", chapter.id, format_wait(wait)));
+                sleep_unless_cancelled(wait, chapter.cancel);
+                if chapter.cancel.load(Ordering::SeqCst) {
+                    return Err(ApiError::Cancelled);
+                }
+            }
+            other => return other,
+        }
+    }
+}
+
 /// Gọi model (mức nghĩ theo `step`) và log tiến độ nhận stream thưa thớt; `label` là tên bước trong log.
 /// Xong thì log token của lượt (nếu provider báo).
 fn generate(chapter: &Chapter, step: ApiStep, label: &str, system: &str, user: &str) -> std::result::Result<String, ApiError> {
@@ -160,7 +203,7 @@ fn generate(chapter: &Chapter, step: ApiStep, label: &str, system: &str, user: &
             log(format!("{id}: đã nhận {} ký tự", format_chars(received)));
         }
     };
-    let generated = chapter.model.generate(step, system, user, chapter.cancel, &mut on_progress)?;
+    let generated = with_retry(chapter, label, || chapter.model.generate(step, system, user, chapter.cancel, &mut on_progress))?;
     chapter.record(label, generated.usage);
     Ok(generated.text)
 }
@@ -292,7 +335,8 @@ fn harvest_glossary(
         .collect();
     exclude.sort();
     let user = json!({ "exclude": exclude, "raw": raw, "translation": final_text(draft) }).to_string();
-    let entries = match chapter.model.complete_json(ApiStep::Glossary, GLOSSARY_EXTRACT_SYSTEM_PROMPT, &user, chapter.cancel) {
+    let extract = || chapter.model.complete_json(ApiStep::Glossary, GLOSSARY_EXTRACT_SYSTEM_PROMPT, &user, chapter.cancel);
+    let entries = match with_retry(chapter, "trích glossary", extract) {
         Ok(generated) => {
             chapter.record("trích glossary", generated.usage);
             serde_json::from_str::<Value>(&generated.text)
@@ -397,15 +441,17 @@ fn log_cast_notes(chapter: &Chapter, accepted: &crate::commands::accept::AcceptR
     }
 }
 
-/// Dịch một chương đang ở trạng thái translating tới khi accept/error. Lỗi API trả về nguyên để
-/// vòng ngoài quyết định thử lại/skip; lỗi core (IO, state) là lỗi nội bộ.
+/// Dịch một chương đang ở trạng thái translating tới khi accept/error. Lỗi API tạm thời được gọi lại ngay tại
+/// lượt đó (`with_retry`, theo `retry_delay`/`retry_max` của `config`); lỗi API khác trả về nguyên để vòng ngoài
+/// quyết định thử lại/skip; lỗi core (IO, state) là lỗi nội bộ.
 pub fn translate_chapter(
-    root: &Path,
+    config: &ApiSessionConfig,
     id: &str,
     model: &dyn TextModel,
     cancel: &AtomicBool,
     log: Log,
 ) -> std::result::Result<ChapterOutcome, ChapterFailure> {
+    let root = config.root.as_path();
     let paths = story_paths(&resolve_root(root));
     let raw = read_raw_chapter(&paths, id)?;
     let paragraphs = paragraphs_of(&raw);
@@ -429,6 +475,8 @@ pub fn translate_chapter(
         cancel,
         log,
         usage: Mutex::new(Usage::default()),
+        retry_delay: config.retry_delay,
+        retry_max: config.retry_max,
     };
 
     let (mut draft, inline_glossary) = translate_full(&chapter)?;
@@ -516,7 +564,8 @@ fn emit_progress(root: &Path, sink: &Sink) {
 }
 
 /// Lỗi cấu hình (400 model không có, 401/403 key sai, 404 URL sai…): áp dụng cho mọi chương nên thử lại
-/// hay skip đều vô nghĩa — dừng ngay. Lỗi mạng/429/5xx/stream đứt/model trả xấu thì thử lại rồi skip.
+/// hay skip đều vô nghĩa — dừng ngay. Lỗi mạng/429/5xx/stream đứt đã được gọi lại tại lượt đó (`with_retry`) tới
+/// khi được; tới đây chỉ còn model trả hỏng (rỗng, không nhãn) — dịch lại chương một lần rồi skip.
 fn is_config_error(error: &ApiError) -> bool {
     matches!(error, ApiError::Http { .. }) && !error.is_transient()
 }
@@ -549,7 +598,7 @@ pub fn api_loop(config: &ApiSessionConfig, model: &dyn TextModel, sink: &Sink, c
         let mut attempt = 0;
         let outcome = loop {
             attempt += 1;
-            match translate_chapter(root, &id, model, cancel, &log) {
+            match translate_chapter(config, &id, model, cancel, &log) {
                 Ok(outcome) => break Ok(outcome),
                 Err(ChapterFailure::Api(ApiError::Cancelled)) => return StopReason::UserCancelled,
                 Err(ChapterFailure::Api(ApiError::Blocked(reason))) => break Err(format!("model từ chối: {reason}")),
