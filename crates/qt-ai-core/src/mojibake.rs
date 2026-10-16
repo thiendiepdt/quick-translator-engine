@@ -260,6 +260,9 @@ mod tests {
         // Dòng đúng toàn ký tự Windows-1252 nằm cạnh dòng hỏng có dấu hiệu: không bị giải mã sai thành chữ lạ.
         let text = format!("“Con bé…”\n{}", to_mojibake("Chương một: Đạo hữu"));
         assert_eq!(repair_mojibake(&text).as_deref(), Some("“Con bé…”\nChương một: Đạo hữu"));
+        // Dòng hỏng chỉ có cụm "mềm" (`Ã”i` = Ôi, không dấu hiệu nào) trong văn bản hỏng vẫn được sửa.
+        let text = to_mojibake("Chương một: Đạo hữu\nÔi!");
+        assert_eq!(repair_mojibake(&text).as_deref(), Some("Chương một: Đạo hữu\nÔi!"));
     }
 
     #[test]
