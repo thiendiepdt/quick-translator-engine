@@ -121,6 +121,55 @@ fn complete_json_openai_va_gemini() {
     assert_eq!(body["generationConfig"]["responseMimeType"], "application/json");
 }
 
+#[test]
+fn hub_tra_mojibake_thi_sua_nguoc_va_bat_co_ca_stream_lan_json() {
+    let (base, _) = serve_once(
+        "200 OK",
+        "text/event-stream",
+        "data: {\"choices\":[{\"delta\":{\"content\":\"[[1]] ChÆ°Æ¡ng 1: KÃ½ \"}}]}\n\ndata: {\"choices\":[{\"delta\":{\"content\":\"á»©c cá»§a Ä‘áº¡o há»¯u\"}}]}\n\ndata: [DONE]\n\n",
+    );
+    let model = HttpModel::new(ApiConfig::resolve(ApiProvider::OpenAi, "sk", "gemini-3.7-flash", &format!("{base}/v1"), true, ""));
+    let out = model.generate(ApiStep::Translate, "S", "U", &AtomicBool::new(false), &mut |_| {}).unwrap();
+    assert_eq!(out.text, "[[1]] Chương 1: Ký ức của đạo hữu");
+    assert!(out.repaired_encoding);
+
+    let (base, _) = serve_once(
+        "200 OK",
+        "text/event-stream",
+        "data: {\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"[[1]] â€œXin chÃ\u{a0}o, Ä‘áº¡o há»¯u.â€\u{9d}\"}]}}]}\n\n",
+    );
+    let model = HttpModel::new(ApiConfig::resolve(ApiProvider::Gemini, "AIza", "gemini-3.7-flash", &base, true, ""));
+    let out = model.generate(ApiStep::Translate, "S", "U", &AtomicBool::new(false), &mut |_| {}).unwrap();
+    assert_eq!(out.text, "[[1]] “Xin chào, đạo hữu.”");
+    assert!(out.repaired_encoding);
+
+    let (base, _) = serve_once(
+        "200 OK",
+        "application/json",
+        "{\"choices\":[{\"message\":{\"content\":\"{\\\"entries\\\":[{\\\"source\\\":\\\"李凡\\\",\\\"target\\\":\\\"LÃ½ PhÃ\u{a0}m\\\",\\\"category\\\":\\\"names\\\"}]}\"}}]}",
+    );
+    let model = HttpModel::new(ApiConfig::resolve(ApiProvider::OpenAi, "sk", "m", &base, true, ""));
+    let out = model.complete_json(ApiStep::Glossary, "S", "U", &AtomicBool::new(false)).unwrap();
+    assert_eq!(out.text, "{\"entries\":[{\"source\":\"李凡\",\"target\":\"Lý Phàm\",\"category\":\"names\"}]}");
+    assert!(out.repaired_encoding);
+}
+
+#[test]
+fn hub_tra_mojibake_khong_sua_duoc_thi_loi_tam_thoi_khong_fallback_json() {
+    let (base, _) = serve_once("200 OK", "text/event-stream", "data: {\"choices\":[{\"delta\":{\"content\":\"â€ x â€ y â€ z\"}}]}\n\ndata: [DONE]\n\n");
+    let model = HttpModel::new(ApiConfig::resolve(ApiProvider::OpenAi, "sk", "m", &base, true, ""));
+    let error = model.generate(ApiStep::Translate, "S", "U", &AtomicBool::new(false), &mut |_| {}).unwrap_err();
+    assert!(error.is_transient() && error.to_string().contains("mojibake"), "{error:?}");
+
+    let (base, bodies) =
+        serve_sequence(vec![("200 OK", "application/json", "{\"choices\":[{\"message\":{\"content\":\"{\\\"a\\\":\\\"â€ x â€ y â€ z\\\"}\"}}]}")]);
+    let model = HttpModel::new(ApiConfig::resolve(ApiProvider::OpenAi, "sk", "m", &base, true, ""));
+    let error = model.complete_json(ApiStep::Glossary, "S", "U", &AtomicBool::new(false)).unwrap_err();
+    assert!(error.is_transient() && error.to_string().contains("mojibake"), "{error:?}");
+    std::thread::sleep(std::time::Duration::from_millis(50));
+    assert_eq!(bodies.lock().unwrap().len(), 1, "lỗi tạm thời: không gọi lượt text thường");
+}
+
 /// Nhận lần lượt N request (mỗi request một kết nối), trả theo thứ tự; ghi lại body từng request.
 fn serve_sequence(responses: Vec<(&'static str, &'static str, &'static str)>) -> (String, Arc<Mutex<Vec<serde_json::Value>>>) {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();

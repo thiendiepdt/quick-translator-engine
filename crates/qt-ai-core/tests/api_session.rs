@@ -1,5 +1,5 @@
 //! Vòng dịch API trên tempdir với model giả (không HTTP).
-use qt_ai_core::api::{ApiError, ApiStep, Generated, TextModel, Usage};
+use qt_ai_core::api::{fix_encoding, ApiError, ApiStep, Generated, TextModel, Usage};
 use qt_ai_core::api_session::*;
 use qt_ai_core::commands::init::run_init;
 use qt_ai_core::session::{SessionEvent, StopReason};
@@ -68,10 +68,11 @@ impl TextModel for FakeModel {
         }
         on_progress(10);
         let text = self.script.lock().unwrap().pop_front().unwrap_or_else(|| Ok(good()))?;
-        Ok(Generated { text, usage: self.usage })
+        // Như HttpModel: mọi kết quả qua hậu kiểm mã hoá.
+        fix_encoding(Generated { text, usage: self.usage, repaired_encoding: false })
     }
     fn complete_json(&self, _: ApiStep, _system: &str, _user: &str, _cancel: &AtomicBool) -> Result<Generated, ApiError> {
-        Ok(Generated { text: self.glossary_json.clone(), usage: self.usage })
+        fix_encoding(Generated { text: self.glossary_json.clone(), usage: self.usage, repaired_encoding: false })
     }
 }
 
@@ -192,6 +193,47 @@ fn ban_soat_y_het_ban_cu_thi_chot_kem_canh_bao_ngay_khong_dot_them_vong() {
     let lines = logs(&events.lock().unwrap());
     assert!(lines.iter().any(|l| l.contains("model giữ nguyên")), "{lines:?}");
     assert!(lines.iter().any(|l| l.contains("soát 1 lần, 1 cảnh báo")), "{lines:?}");
+}
+
+/// Dựng mojibake như hub hỏng: mỗi byte UTF-8 đọc thành một ký tự Windows-1252 (byte chưa định nghĩa → U+0081…).
+fn to_mojibake(text: &str) -> String {
+    const HIGH: [char; 32] = [
+        '\u{20AC}', '\u{81}', '\u{201A}', '\u{192}', '\u{201E}', '\u{2026}', '\u{2020}', '\u{2021}', '\u{2C6}', '\u{2030}',
+        '\u{160}', '\u{2039}', '\u{152}', '\u{8D}', '\u{17D}', '\u{8F}', '\u{90}', '\u{2018}', '\u{2019}', '\u{201C}',
+        '\u{201D}', '\u{2022}', '\u{2013}', '\u{2014}', '\u{2DC}', '\u{2122}', '\u{161}', '\u{203A}', '\u{153}', '\u{9D}',
+        '\u{17E}', '\u{178}',
+    ];
+    text.bytes().map(|b| if (0x80..0xA0).contains(&b) { HIGH[(b - 0x80) as usize] } else { b as char }).collect()
+}
+
+#[test]
+fn hub_tra_mojibake_sua_duoc_thi_log_va_chot_ban_dung() {
+    let dir = story(1);
+    let model = FakeModel::new(vec![Ok(to_mojibake(&good()))]);
+    let (sink, events) = collect();
+    let handle = start_api_session(config(dir.path()), model.clone(), sink).unwrap();
+    assert_eq!(handle.join(), StopReason::Finished);
+    assert_eq!(model.calls().len(), 1, "sửa tại chỗ, không tốn lượt gọi lại");
+    let out = fs::read_to_string(dir.path().join("out").join("0001.txt")).unwrap();
+    assert_eq!(out, format!("{GOOD_1}\n\n{GOOD_2}\n"));
+    let lines = logs(&events.lock().unwrap());
+    assert!(lines.iter().any(|l| l == "0001: phản hồi API bị lỗi mã hoá — đã tự sửa"), "{lines:?}");
+}
+
+#[test]
+fn hub_tra_mojibake_khong_sua_duoc_thi_goi_lai_dung_luot_do_khong_bo_chuong() {
+    let dir = story(1);
+    let broken = format!("[[1]] {} â€ x â€ y â€ z\n\n[[2]] {}", to_mojibake(GOOD_1), to_mojibake(GOOD_2));
+    let model = FakeModel::new(vec![Ok(broken.clone()), Ok(broken), Ok(good())]);
+    let (sink, events) = collect();
+    let handle = start_api_session(config(dir.path()), model.clone(), sink).unwrap();
+    assert_eq!(handle.join(), StopReason::Finished);
+    assert_eq!(model.calls().len(), 3, "gọi lại lượt dịch tới khi hub trả chữ đúng");
+    assert_eq!(status(dir.path(), "0001"), ChapterStatus::Done);
+    let out = fs::read_to_string(dir.path().join("out").join("0001.txt")).unwrap();
+    assert_eq!(out, format!("{GOOD_1}\n\n{GOOD_2}\n"));
+    let lines = logs(&events.lock().unwrap());
+    assert!(lines.iter().any(|l| l.contains("mojibake") && l.contains("thử lại lần 2")), "{lines:?}");
 }
 
 #[test]

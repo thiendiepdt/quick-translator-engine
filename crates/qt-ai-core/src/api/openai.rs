@@ -102,7 +102,7 @@ pub fn parse_stream<R: BufRead>(
     // content_filter ở chunk cuối dù đã stream về gần đủ; coi là từ chối sẽ vứt cả chương đã dịch xong.
     // Chỉ khi không có chữ nào mới là model từ chối thật (không thử lại). Cùng cách với đường Gemini.
     if !output.is_empty() {
-        return Ok(Generated { text: output, usage });
+        return Ok(Generated { text: output, usage, repaired_encoding: false });
     }
     if filtered {
         return Err(ApiError::Blocked("content_filter".to_string()));

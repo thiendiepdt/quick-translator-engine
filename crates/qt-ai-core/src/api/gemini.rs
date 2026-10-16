@@ -148,7 +148,7 @@ pub fn parse_stream<R: BufRead>(
         Ok(())
     })?;
     if !output.is_empty() {
-        return Ok(Generated { text: output, usage });
+        return Ok(Generated { text: output, usage, repaired_encoding: false });
     }
     match blocked {
         Some(reason) => Err(ApiError::Blocked(reason)),

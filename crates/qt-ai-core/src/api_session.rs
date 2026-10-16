@@ -3,7 +3,7 @@
 //! (ai-translation-workspace.tsx) lên trên cùng state machine `commands::*` mà agy dùng, nên hai
 //! động cơ dùng chung folder truyện và đổi qua lại giữa chừng được.
 
-use crate::api::{format_tokens, ApiError, ApiStep, TextModel, Usage};
+use crate::api::{format_tokens, ApiError, ApiStep, Generated, TextModel, Usage};
 use crate::check::{check_violations, contains_han, glossary_near_misses, GLOSSARY_NAME_ISSUE};
 use crate::commands::accept::run_accept;
 use crate::commands::check::run_check;
@@ -146,8 +146,12 @@ struct Chapter<'a> {
 }
 
 impl Chapter<'_> {
-    fn record(&self, label: &str, usage: Option<Usage>) {
-        if let Some(usage) = usage {
+    /// Ghi nhận một lượt gọi xong: cộng token, log token; hub trả chữ lỗi mã hoá đã được sửa thì log để người dùng biết.
+    fn record(&self, label: &str, generated: &Generated) {
+        if generated.repaired_encoding {
+            (self.log)(format!("{}: phản hồi API bị lỗi mã hoá — đã tự sửa", self.id));
+        }
+        if let Some(usage) = generated.usage {
             *self.usage.lock().unwrap() += usage;
             (self.log)(format!("{}: {label} — {}", self.id, usage.summary()));
         }
@@ -204,7 +208,7 @@ fn generate(chapter: &Chapter, step: ApiStep, label: &str, system: &str, user: &
         }
     };
     let generated = with_retry(chapter, label, || chapter.model.generate(step, system, user, chapter.cancel, &mut on_progress))?;
-    chapter.record(label, generated.usage);
+    chapter.record(label, &generated);
     Ok(generated.text)
 }
 
@@ -338,7 +342,7 @@ fn harvest_glossary(
     let extract = || chapter.model.complete_json(ApiStep::Glossary, GLOSSARY_EXTRACT_SYSTEM_PROMPT, &user, chapter.cancel);
     let entries = match with_retry(chapter, "trích glossary", extract) {
         Ok(generated) => {
-            chapter.record("trích glossary", generated.usage);
+            chapter.record("trích glossary", &generated);
             serde_json::from_str::<Value>(&generated.text)
                 .ok()
                 .and_then(|value| value.get("entries").cloned().or(Some(value)))

@@ -64,12 +64,12 @@ pub fn mojibake_score(text: &str) -> usize {
     score
 }
 
-/// Văn bản có vẻ đã bị mojibake: ≥ 3 dấu hiệu, hoặc ít hơn mà dày (≥ 1 dấu hiệu / 40 ký tự không trắng —
-/// cho text ngắn như tiêu đề "ChÆ°Æ¡ng 5" hay JSON glossary vài tên). Văn bản thật bị hỏng có ~1 dấu hiệu / 4 ký tự;
+/// Văn bản có vẻ đã bị mojibake: ≥ 3 dấu hiệu, hoặc ít hơn mà dày (≥ 1 dấu hiệu / 80 ký tự không trắng —
+/// cho text ngắn như tiêu đề "ChÆ°Æ¡ng 5" hay JSON glossary một tên). Văn bản thật bị hỏng có ~1 dấu hiệu / 4 ký tự;
 /// dấu hiệu được chọn để văn bản đúng không bao giờ có, ngưỡng 3 chỉ là biên an toàn.
 pub fn looks_mojibake(text: &str) -> bool {
     let score = mojibake_score(text);
-    score >= 3 || (score > 0 && score * 40 >= text.chars().filter(|c| !c.is_whitespace()).count())
+    score >= 3 || (score > 0 && score * 80 >= text.chars().filter(|c| !c.is_whitespace()).count())
 }
 
 /// Sửa ngược mojibake. Dòng có dấu hiệu (hoặc mọi dòng chỉ gồm ký tự Windows-1252 khi cả văn bản `looks_mojibake`)

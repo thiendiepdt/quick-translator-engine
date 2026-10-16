@@ -261,16 +261,32 @@ pub fn format_tokens(count: u64) -> String {
 }
 
 /// Kết quả một lượt gọi: text và usage nếu provider báo (hub lạ có thể không báo).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Generated {
     pub text: String,
     pub usage: Option<Usage>,
+    /// Hub trả chữ lỗi mã hoá (mojibake) và đã được sửa ngược tại chỗ — vòng dịch ghi log.
+    pub repaired_encoding: bool,
 }
 
 impl Generated {
     pub fn text(text: impl Into<String>) -> Self {
-        Generated { text: text.into(), usage: None }
+        Generated { text: text.into(), ..Default::default() }
     }
+}
+
+/// Hậu kiểm mọi kết quả `HttpModel`: hub OpenAI-compatible thỉnh thoảng trả text UTF-8 đã bị đọc nhầm thành
+/// Windows-1252 ("ChÆ°Æ¡ng"). Sửa ngược được (lúc này còn nguyên byte, chưa qua chuẩn hoá nào) thì thay text và bật
+/// `repaired_encoding`; không sửa được thì trả lỗi stream — lỗi tạm thời, vòng dịch gọi lại đúng lượt đó.
+pub fn fix_encoding(mut generated: Generated) -> Result<Generated, ApiError> {
+    if !crate::mojibake::looks_mojibake(&generated.text) {
+        return Ok(generated);
+    }
+    let text = crate::mojibake::repair_mojibake(&generated.text)
+        .ok_or_else(|| ApiError::Stream("phản hồi API bị lỗi mã hoá ký tự (mojibake)".to_string()))?;
+    generated.text = text;
+    generated.repaired_encoding = true;
+    Ok(generated)
 }
 
 /// Model text: vòng dịch chỉ cần hai thao tác này nên test được bằng model giả không HTTP.
@@ -475,6 +491,36 @@ impl TextModel for HttpModel {
         cancel: &AtomicBool,
         on_progress: &mut dyn FnMut(usize),
     ) -> Result<Generated, ApiError> {
+        self.generate_raw(step, system, user, cancel, on_progress).and_then(fix_encoding)
+    }
+
+    /// JSON mode trước; hub/model không nhận JSON mode (400/404/422, trả rỗng, không phải JSON…) thì
+    /// gọi lại bằng lượt text thường rồi bóc object JSON ra — glossary/AI điền không vì hub lạ mà câm.
+    /// Lỗi mã hoá không sửa được là lỗi tạm thời: trả ngay cho phía gọi gọi lại, không fallback.
+    fn complete_json(&self, step: ApiStep, system: &str, user: &str, cancel: &AtomicBool) -> Result<Generated, ApiError> {
+        match self.complete_json_strict(step, system, user, cancel).and_then(fix_encoding) {
+            Ok(generated) => Ok(generated),
+            Err(error) if error.is_transient() || matches!(error, ApiError::Blocked(_) | ApiError::Cancelled) => Err(error),
+            Err(error) => {
+                let system = format!("{system}\n\nChỉ trả về đúng một JSON object hợp lệ, không giải thích, không markdown.");
+                let generated = self.generate(step, &system, user, cancel, &mut |_| {})?;
+                let text = extract_json_object(&generated.text)
+                    .ok_or_else(|| ApiError::BadOutput(format!("model không trả JSON (JSON mode lỗi: {error})")))?;
+                Ok(Generated { text, ..generated })
+            }
+        }
+    }
+}
+
+impl HttpModel {
+    fn generate_raw(
+        &self,
+        step: ApiStep,
+        system: &str,
+        user: &str,
+        cancel: &AtomicBool,
+        on_progress: &mut dyn FnMut(usize),
+    ) -> Result<Generated, ApiError> {
         let config = &self.config;
         match config.provider {
             ApiProvider::Gemini => {
@@ -498,24 +544,6 @@ impl TextModel for HttpModel {
         }
     }
 
-    /// JSON mode trước; hub/model không nhận JSON mode (400/404/422, trả rỗng, không phải JSON…) thì
-    /// gọi lại bằng lượt text thường rồi bóc object JSON ra — glossary/AI điền không vì hub lạ mà câm.
-    fn complete_json(&self, step: ApiStep, system: &str, user: &str, cancel: &AtomicBool) -> Result<Generated, ApiError> {
-        match self.complete_json_strict(step, system, user, cancel) {
-            Ok(generated) => Ok(generated),
-            Err(error) if error.is_transient() || matches!(error, ApiError::Blocked(_) | ApiError::Cancelled) => Err(error),
-            Err(error) => {
-                let system = format!("{system}\n\nChỉ trả về đúng một JSON object hợp lệ, không giải thích, không markdown.");
-                let generated = self.generate(step, &system, user, cancel, &mut |_| {})?;
-                let text = extract_json_object(&generated.text)
-                    .ok_or_else(|| ApiError::BadOutput(format!("model không trả JSON (JSON mode lỗi: {error})")))?;
-                Ok(Generated { text, usage: generated.usage })
-            }
-        }
-    }
-}
-
-impl HttpModel {
     fn complete_json_strict(&self, step: ApiStep, system: &str, user: &str, cancel: &AtomicBool) -> Result<Generated, ApiError> {
         let config = &self.config;
         let provider = config.provider.label();
@@ -536,7 +564,7 @@ impl HttpModel {
         };
         let text = content.filter(|text| !text.trim().is_empty()).ok_or(ApiError::Empty(provider))?;
         // Một số hub bật JSON mode nhưng vẫn bọc ```json hoặc nói thêm một câu — bóc luôn cho chắc.
-        Ok(Generated { text: extract_json_object(&text).unwrap_or(text), usage })
+        Ok(Generated { text: extract_json_object(&text).unwrap_or(text), usage, repaired_encoding: false })
     }
 }
 
@@ -589,6 +617,18 @@ mod tests {
         assert_eq!(Usage { input: 812, output: 40, ..Usage::default() }.summary(), "vào 812 · ra 40");
         assert_eq!(format_tokens(1_250_000), "1.2M");
         assert!(Usage::default().is_empty());
+    }
+
+    #[test]
+    fn fix_encoding_sua_mojibake_bat_co_khong_sua_duoc_thi_loi_tam_thoi() {
+        let usage = Some(Usage { input: 10, output: 5, ..Usage::default() });
+        let clean = Generated { text: "[[1]] Chương 1: Ký ức “Xin chào”".into(), usage, repaired_encoding: false };
+        assert_eq!(fix_encoding(clean.clone()), Ok(clean));
+        let fixed = fix_encoding(Generated { text: "[[1]] ChÆ°Æ¡ng 1: KÃ½ á»©c â€œXin chÃ\u{a0}oâ€\u{9d}".into(), usage, repaired_encoding: false }).unwrap();
+        assert_eq!(fixed, Generated { text: "[[1]] Chương 1: Ký ức “Xin chào”".into(), usage, repaired_encoding: true });
+        let error = fix_encoding(Generated::text("â€ x â€ y â€ z")).unwrap_err();
+        assert!(matches!(&error, ApiError::Stream(message) if message.contains("mojibake")), "{error:?}");
+        assert!(error.is_transient(), "không sửa được thì vòng dịch gọi lại đúng lượt đó");
     }
 
     #[test]

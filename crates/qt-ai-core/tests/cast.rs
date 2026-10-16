@@ -404,7 +404,7 @@ impl TextModel for ScanModel {
         assert_eq!(step, ApiStep::Fill);
         self.prompts.lock().unwrap().push(user.to_string());
         let text = self.replies.lock().unwrap().pop().unwrap_or_else(|| Ok("{\"genders\":{}}".into()))?;
-        Ok(Generated { text, usage: None })
+        Ok(Generated::text(text))
     }
 }
 
