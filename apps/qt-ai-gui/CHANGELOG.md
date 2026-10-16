@@ -1,6 +1,6 @@
 # Có gì mới
 
-## Chưa phát hành
+## 1.0.24 — 2026-10-16
 - Sửa lỗi dịch bằng API key bỏ qua chương hoặc dừng phiên khi nhà cung cấp quá tải, hết hạn mức theo phút hay rớt mạng: app tự gọi lại đúng bước đang lỗi, chờ 5 → 10 → 20 → 40 → 60 giây rồi cứ 1 phút thử một lần tới khi API hoạt động lại; bấm **Dừng** để ngừng chờ. Lỗi ở bước soát không còn làm dịch lại cả chương.
 - Sửa lỗi chương bị bỏ qua hoặc lỗi nằm sau chương dịch xong cuối cùng (thường gặp khi phiên dừng vì lỗi API) không hiện trong cảnh báo chương hổng ở trang Dịch; giờ có trong danh sách và trong nút **Dịch lại cả N**.
 
