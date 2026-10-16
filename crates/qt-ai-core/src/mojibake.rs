@@ -2,6 +2,9 @@
 //! "Chương" → "ChÆ°Æ¡ng", "ễ" → "á»…", "“" → "â€œ". Hub OpenAI-compatible thỉnh thoảng trả về nội dung đã
 //! hỏng như vậy (phía mình đọc HTTP đúng UTF-8): không còn chữ Hán, độ dài vẫn đủ nên check cũ không bắt.
 
+/// Thông điệp vi phạm khi check thấy đoạn còn chữ lỗi mã hoá — vào issues, review.md, warnings.
+pub const MOJIBAKE_ISSUE: &str = "Chữ lỗi mã hoá (mojibake, vd \"ChÆ°Æ¡ng\") — phải dịch/ghi lại bằng UTF-8";
+
 /// Byte 0x80–0x9F của Windows-1252. Byte chưa định nghĩa (0x81, 0x8D, 0x8F, 0x90, 0x9D) đọc như Latin-1
 /// (U+0081…) — đúng như bộ giải mã WHATWG mà hub dùng (thấy thật trong out/ của sự cố).
 const CP1252_HIGH: [char; 32] = [

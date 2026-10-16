@@ -593,6 +593,50 @@ fn accept_khong_force_tu_choi_khi_con_han_tu() {
     assert!(!story_paths(dir.path()).out_dir.join("0001.txt").exists());
 }
 
+/// Đoạn [[2]] của GOOD_DRAFT bị hub đọc nhầm Windows-1252 (mojibake).
+const GARBLED_DRAFT: &str = "[[1]] Triệu Tĩnh Văn ngẩng đầu nhìn về phía tòa tháp cao nơi xa.\n\n[[2]] NÃ\u{a0}ng im láº·ng há»“i lÃ¢u khÃ´ng nÃ³i lá»\u{9d}i nÃ\u{a0}o.";
+
+#[test]
+fn check_bao_doan_loi_ma_hoa_theo_nhan_va_ghi_review() {
+    let dir = story_with_draft(GARBLED_DRAFT, None);
+    let result = run_check(dir.path(), "0001").unwrap();
+    assert!(!result.pass && !result.accepted_with_warnings);
+    assert_eq!(result.garbled, vec![2]);
+    assert!(result.untranslated.is_empty());
+    assert!(
+        result.issues.iter().any(|i| i.starts_with("[[2]] Chữ lỗi mã hoá (mojibake, vd \"ChÆ°Æ¡ng\") — phải dịch/ghi lại bằng UTF-8")),
+        "{:?}",
+        result.issues
+    );
+    let review = fs::read_to_string(result.review_path.unwrap()).unwrap();
+    assert!(review.contains("- [[2]] (dòng 3 trong bản lắp): Chữ lỗi mã hoá (mojibake"), "{review}");
+    let report = fs::read_to_string(work_file(&story_paths(dir.path()), "0001", WorkKind::Check)).unwrap();
+    assert!(report.contains("\"garbled\": [\n    2\n  ]"), "{report}");
+    // Bản dịch đúng thì không dính.
+    assert!(run_check(story_with_draft(GOOD_DRAFT, None).path(), "0001").unwrap().garbled.is_empty());
+}
+
+#[test]
+fn check_het_vong_con_loi_ma_hoa_thi_error_khong_chot_kem_canh_bao() {
+    let dir = story_with_draft(GARBLED_DRAFT, None);
+    for _ in 0..3 {
+        assert!(!run_check(dir.path(), "0001").unwrap().pass);
+    }
+    let result = run_check(dir.path(), "0001").unwrap();
+    assert!(result.escalated_to_error && !result.pass && !result.accepted_with_warnings);
+    let chapter = &load_state(&story_paths(dir.path())).unwrap().chapters["0001"];
+    assert_eq!(chapter.status, ChapterStatus::Error);
+    assert!(chapter.reason.as_deref().unwrap().contains("chữ lỗi mã hoá ở [[2]]"), "{:?}", chapter.reason);
+}
+
+#[test]
+fn accept_khong_force_tu_choi_khi_con_loi_ma_hoa() {
+    let dir = story_with_draft(GARBLED_DRAFT, None);
+    let err = run_accept(dir.path(), "0001", false).unwrap_err();
+    assert!(matches!(err, CoreError::InvalidState(ref m) if m.contains("chưa qua check")), "{err:?}");
+    assert!(!story_paths(dir.path()).out_dir.join("0001.txt").exists());
+}
+
 const RAW_DOAN: &str = "段锋带着人进了城。\n\n李贤和李显并肩走来。\n\n段锋点了点头。";
 
 /// Chương 0001 với raw cho trước, glossary truyện nhóm names, draft đã ghi.

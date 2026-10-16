@@ -35,6 +35,8 @@ struct FakeModel {
     calls: Mutex<Vec<(String, String)>>,
     glossary_json: String,
     wait_cancel: bool,
+    /// Bỏ hậu kiểm mã hoá — như agent/động cơ không qua HttpModel: chữ lỗi mã hoá lọt tới check.
+    raw_encoding: bool,
     /// Usage giả mỗi lượt (None = hub không báo).
     usage: Option<Usage>,
 }
@@ -46,6 +48,7 @@ impl FakeModel {
             calls: Mutex::new(vec![]),
             glossary_json: r#"{"entries":[]}"#.to_string(),
             wait_cancel: false,
+            raw_encoding: false,
             usage: None,
         })
     }
@@ -68,8 +71,12 @@ impl TextModel for FakeModel {
         }
         on_progress(10);
         let text = self.script.lock().unwrap().pop_front().unwrap_or_else(|| Ok(good()))?;
+        let generated = Generated { text, usage: self.usage, repaired_encoding: false };
+        if self.raw_encoding {
+            return Ok(generated);
+        }
         // Như HttpModel: mọi kết quả qua hậu kiểm mã hoá.
-        fix_encoding(Generated { text, usage: self.usage, repaired_encoding: false })
+        fix_encoding(generated)
     }
     fn complete_json(&self, _: ApiStep, _system: &str, _user: &str, _cancel: &AtomicBool) -> Result<Generated, ApiError> {
         fix_encoding(Generated { text: self.glossary_json.clone(), usage: self.usage, repaired_encoding: false })
@@ -234,6 +241,24 @@ fn hub_tra_mojibake_khong_sua_duoc_thi_goi_lai_dung_luot_do_khong_bo_chuong() {
     assert_eq!(out, format!("{GOOD_1}\n\n{GOOD_2}\n"));
     let lines = logs(&events.lock().unwrap());
     assert!(lines.iter().any(|l| l.contains("mojibake") && l.contains("thử lại lần 2")), "{lines:?}");
+}
+
+#[test]
+fn draft_con_loi_ma_hoa_thi_dich_lai_tu_raw_dung_doan_do_khong_dua_vao_soat() {
+    let dir = story(1);
+    let mut model = FakeModel::new(vec![Ok(format!("[[1]] {GOOD_1}\n\n[[2]] {}", to_mojibake(GOOD_2))), Ok(format!("[[2]] {GOOD_2}"))]);
+    Arc::get_mut(&mut model).unwrap().raw_encoding = true;
+    let (sink, events) = collect();
+    let handle = start_api_session(config(dir.path()), model.clone(), sink).unwrap();
+    assert_eq!(handle.join(), StopReason::Finished);
+    let calls = model.calls();
+    assert_eq!(calls.len(), 2, "{calls:?}");
+    assert!(calls[1].0.contains("Dịch raw text tiếng Trung"), "dịch lại bằng prompt dịch, không phải soát");
+    assert!(calls[1].1.contains("[[2]] 她沉默") && !calls[1].1.contains("[[1]]"), "{}", calls[1].1);
+    let out = fs::read_to_string(dir.path().join("out").join("0001.txt")).unwrap();
+    assert_eq!(out, format!("{GOOD_1}\n\n{GOOD_2}\n"));
+    let lines = logs(&events.lock().unwrap());
+    assert!(lines.iter().any(|l| l == "0001: chữ lỗi mã hoá ở 1 đoạn — dịch lại"), "{lines:?}");
 }
 
 #[test]

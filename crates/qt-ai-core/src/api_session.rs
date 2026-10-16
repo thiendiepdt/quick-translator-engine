@@ -416,7 +416,7 @@ Giữ nguyên toàn bộ chữ, thứ tự câu, dấu câu và ngắt đoạn k
         return Ok(ReviewOutcome::Kept);
     }
     let score = |text: &[String]| {
-        let han = text.iter().filter(|p| contains_han(p)).count();
+        let han = text.iter().filter(|p| contains_han(p) || crate::mojibake::mojibake_score(p) > 0).count();
         let parsed: Vec<Option<String>> = text.iter().cloned().map(Some).collect();
         let no_names = crate::story::StringMap::new();
         let names = chapter.glossary.get("names").unwrap_or(&no_names);
@@ -517,6 +517,11 @@ pub fn translate_chapter(
             if chars_no_ws(&again) > chars_no_ws(&draft) {
                 draft = again;
             }
+        } else if !check.garbled.is_empty() {
+            // Chữ lỗi mã hoá (agent/hub ghi sai bảng mã): model soát không đọc nổi chữ hỏng — dịch lại từ raw đúng đoạn đó.
+            let indices: Vec<usize> = check.garbled.iter().map(|label| label - 1).collect();
+            log(format!("{id}: chữ lỗi mã hoá ở {} đoạn — dịch lại", indices.len()));
+            retranslate(&chapter, &mut draft, &indices, "dịch lại", "giữ bản cũ")?;
         } else if !check.untranslated.is_empty() {
             // Còn chữ Hán: dịch lại từ raw đúng đoạn đó. Không đưa vào soát — model soát hay giữ nguyên
             // ("đúng ngữ cảnh") và chương bị chốt kèm cảnh báo với Hán tự lọt ra out.

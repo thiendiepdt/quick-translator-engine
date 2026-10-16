@@ -2,6 +2,7 @@ use crate::check::{
     advisory_violations, check_violations, contains_han, glossary_near_misses, raw_pair_issues, Violation, GLOSSARY_NAME_ISSUE,
 };
 use crate::error::{CoreError, Result};
+use crate::mojibake::{looks_mojibake, mojibake_score, MOJIBAKE_ISSUE};
 use crate::paragraphs::{labeled_repair_payload, paragraphs_of, parse_labeled_translation};
 use crate::story_fs::{
     load_state, load_story_config, now_ms, read_raw_chapter, read_text, resolve_root, save_state, story_paths,
@@ -16,6 +17,8 @@ pub struct CheckResult {
     pub missing: Vec<usize>,
     /// Nhãn 1-based của đoạn còn chữ Hán — lỗi cứng như thiếu đoạn, không chốt kèm cảnh báo.
     pub untranslated: Vec<usize>,
+    /// Nhãn 1-based của đoạn chữ lỗi mã hoá (mojibake) — lỗi cứng như còn chữ Hán.
+    pub garbled: Vec<usize>,
     pub violations: Vec<Violation>,
     pub ratio: f64,
     /// Hết vòng review mà chỉ còn vi phạm rule (đủ đoạn, đủ dài): giống web, chương pass kèm cảnh báo.
@@ -101,6 +104,15 @@ pub fn assemble_draft(root: &Path, id: &str) -> Result<Draft> {
     Ok(Draft { paragraphs, parsed, final_text })
 }
 
+/// "; còn chữ Hán ở [[2]], [[5]]" — rỗng nếu không có nhãn nào.
+fn labels_note(prefix: &str, labels: &[usize]) -> String {
+    if labels.is_empty() {
+        return String::new();
+    }
+    let labels: Vec<String> = labels.iter().map(|l| format!("[[{l}]]")).collect();
+    format!("{prefix} {}", labels.join(", "))
+}
+
 fn char_count_no_ws(text: &str) -> usize {
     text.chars().filter(|c| !c.is_whitespace()).count()
 }
@@ -134,7 +146,20 @@ fn check_chapter(root: &Path, id: &str, record: bool) -> Result<CheckResult> {
         .filter(|(_, p)| p.as_deref().is_some_and(contains_han))
         .map(|(i, _)| i + 1)
         .collect();
+    // Chữ lỗi mã hoá (hub trả mojibake, agent/người ghi sai bảng mã): lỗi cứng như còn chữ Hán. Chấm cả chương rồi
+    // chỉ ra đoạn có dấu hiệu. Kiểm riêng phía Rust, không thêm vào bộ rule regex chung với qt-web (golden so khớp).
+    let garbled: Vec<usize> = if looks_mojibake(&final_text) {
+        parsed
+            .iter()
+            .enumerate()
+            .filter(|(_, p)| p.as_deref().is_some_and(|p| mojibake_score(p) > 0))
+            .map(|(i, _)| i + 1)
+            .collect()
+    } else {
+        Vec::new()
+    };
     let mut violations = check_violations(&final_text, &story.check_rules, story.genre.setting);
+    violations.extend(garbled.iter().map(|label| paragraph_violation(&parsed, label - 1, MOJIBAKE_ISSUE.to_string())));
     let mut advisories: Vec<String> = advisory_violations(&final_text, story.genre.setting)
         .iter()
         .map(|v| format!("[[{}]] {} — \"{}\"", violation_label(&parsed, v), v.message, v.text))
@@ -167,8 +192,8 @@ fn check_chapter(root: &Path, id: &str, record: bool) -> Result<CheckResult> {
     let ratio = if raw_length > 0 { translated_length as f64 / raw_length as f64 } else { 1.0 };
     let too_short = ratio < state.settings.min_length_ratio;
     let clean = missing.is_empty() && violations.is_empty() && !too_short;
-    // Chỉ còn vi phạm rule mềm mới được chốt kèm cảnh báo; thiếu đoạn, quá ngắn, còn chữ Hán thì không.
-    let only_soft = missing.is_empty() && !too_short && untranslated.is_empty();
+    // Chỉ còn vi phạm rule mềm mới được chốt kèm cảnh báo; thiếu đoạn, quá ngắn, còn chữ Hán, chữ lỗi mã hoá thì không.
+    let only_soft = missing.is_empty() && !too_short && untranslated.is_empty() && garbled.is_empty();
 
     let mut issues: Vec<String> = missing.iter().map(|label| format!("[[{label}]] thiếu đoạn")).collect();
     issues.extend(
@@ -207,16 +232,12 @@ fn check_chapter(root: &Path, id: &str, record: bool) -> Result<CheckResult> {
                     ChapterState {
                         status: ChapterStatus::Error,
                         reason: Some(format!(
-                            "Quá {} vòng review vẫn chưa đạt (thiếu {} đoạn, {} vi phạm, ratio {ratio:.2}{}).",
+                            "Quá {} vòng review vẫn chưa đạt (thiếu {} đoạn, {} vi phạm, ratio {ratio:.2}{}{}).",
                             state.settings.max_review_rounds,
                             missing.len(),
                             violations.len(),
-                            if untranslated.is_empty() {
-                                String::new()
-                            } else {
-                                let labels = untranslated.iter().map(|l| format!("[[{l}]]")).collect::<Vec<_>>();
-                                format!("; còn chữ Hán ở {}", labels.join(", "))
-                            }
+                            labels_note("; còn chữ Hán ở", &untranslated),
+                            labels_note("; chữ lỗi mã hoá ở", &garbled),
                         )),
                         updated_at: now_ms(),
                         ..chapter.clone()
@@ -256,7 +277,7 @@ fn check_chapter(root: &Path, id: &str, record: bool) -> Result<CheckResult> {
     if record {
         let review_round = state.chapters.get(id).map(|c| c.review_round).unwrap_or(chapter.review_round);
         let report = serde_json::json!({
-            "pass": pass, "acceptedWithWarnings": accepted_with_warnings, "missing": missing, "untranslated": untranslated,
+            "pass": pass, "acceptedWithWarnings": accepted_with_warnings, "missing": missing, "untranslated": untranslated, "garbled": garbled,
             "violationCount": violations.len(), "advisoryCount": advisories.len(), "ratio": ratio, "reviewRound": review_round, "checkedAt": now_ms(),
         });
         write_text(
@@ -269,6 +290,7 @@ fn check_chapter(root: &Path, id: &str, record: bool) -> Result<CheckResult> {
         pass,
         missing,
         untranslated,
+        garbled,
         violations,
         ratio,
         accepted_with_warnings,
