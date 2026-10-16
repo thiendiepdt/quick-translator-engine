@@ -27,5 +27,6 @@ pub mod han_viet;
 pub mod vn_lexicon;
 pub mod vn_check;
 pub mod vn_ai;
+pub mod mojibake;
 
 pub use error::{CoreError, Result};
