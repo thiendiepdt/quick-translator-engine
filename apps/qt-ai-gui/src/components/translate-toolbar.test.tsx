@@ -173,6 +173,27 @@ describe("TranslateToolbar · cảnh báo hổng chương", () => {
     expect(screen.getByRole("button", { name: "Dịch lại cả 1" })).toBeDisabled();
   });
 
+  it("chương bỏ qua vì lỗi API nằm sau chương done cuối vẫn được báo và Dịch lại cả", async () => {
+    vi.mocked(chaptersRetryIds).mockResolvedValue({ retried: ["c2"], backedUp: [], alreadyQueued: [] });
+    vi.mocked(storySnapshot).mockResolvedValue(useStoryStore.getState().snapshot!);
+    useStoryStore.setState((s) => ({
+      snapshot: {
+        ...s.snapshot!,
+        chapters: [
+          { id: "c1", status: "done", reviewRound: 0, reason: null, warnings: [] },
+          { id: "c2", status: "skipped", reviewRound: 0, reason: "lỗi API: OpenAI trả 503", warnings: [] },
+          { id: "c3", status: "queued", reviewRound: 0, reason: null, warnings: [] },
+        ],
+      } as never,
+    }));
+    const user = userEvent.setup();
+    render(<TranslateToolbar />);
+    expect(screen.getByRole("status", { name: /hổng/i })).toHaveTextContent("1 chương hổng, bị bỏ qua hoặc lỗi chưa dịch lại:");
+    expect(screen.getByRole("button", { name: "#2 c2" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Dịch lại cả 1" }));
+    expect(chaptersRetryIds).toHaveBeenCalledWith(ROOT, ["c2"]);
+  });
+
   it("hổng toàn chương queued thì không có nút dịch lại", () => {
     useStoryStore.setState((s) => ({
       snapshot: {

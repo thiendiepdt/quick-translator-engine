@@ -7,7 +7,7 @@ import { RetryRangeDialog } from "@/components/retry-range-dialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { chaptersRetryIds, rescanStory, sessionStart, sessionStop, storySnapshot } from "@/lib/api";
-import { filterChapters, gapsBeforeFrontier } from "@/lib/chapters";
+import { chapterGaps, filterChapters } from "@/lib/chapters";
 import { clockLabel, engineLabel, STATUS_LABELS } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { selectCurrentProgress, selectCurrentSession, useStoryStore } from "@/store/story";
@@ -39,7 +39,7 @@ export function TranslateToolbar() {
   const setStatusFilter = useStoryStore((s) => s.setStatusFilter);
   const setSearchQuery = useStoryStore((s) => s.setSearchQuery);
   // Chương chưa dịch đứng trước chương done cuối (skip vì model từ chối, lỗi…) — dễ bị bỏ quên khi phiên chạy tiếp.
-  const gapInfo = useMemo(() => (snapshot ? gapsBeforeFrontier(snapshot.chapters) : null), [snapshot]);
+  const gapInfo = useMemo(() => (snapshot ? chapterGaps(snapshot.chapters) : null), [snapshot]);
   // Chương hổng còn phải đưa về hàng đợi (queued sẵn thì thôi).
   const gapRetryIds = useMemo(
     () => (gapInfo?.gaps ?? []).filter(({ row }) => row.status !== "queued").map(({ row }) => row.id),
@@ -281,7 +281,9 @@ export function TranslateToolbar() {
         >
           <TriangleAlert className="size-3.5" aria-hidden />
           <span>
-            {gapInfo.gaps.length} chương trước #{gapInfo.frontier.ordinal} chưa dịch:
+            {gapInfo.frontier && gapInfo.gaps.every(({ ordinal }) => ordinal < (gapInfo.frontier?.ordinal ?? 0))
+              ? `${gapInfo.gaps.length} chương trước #${gapInfo.frontier.ordinal} chưa dịch:`
+              : `${gapInfo.gaps.length} chương hổng, bị bỏ qua hoặc lỗi chưa dịch lại:`}
           </span>
           {gapInfo.gaps.slice(0, GAP_CHIPS).map(({ ordinal, row }) => (
             <button

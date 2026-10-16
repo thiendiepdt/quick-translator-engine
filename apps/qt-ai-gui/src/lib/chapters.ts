@@ -50,28 +50,33 @@ export function countByFilter(rows: ChapterRow[]): Record<ChapterFilter, number>
   return counts;
 }
 
-export interface FrontierGaps {
-  /** Chương done cuối cùng theo thứ tự danh sách (số thứ tự 1-based). */
-  frontier: { ordinal: number; id: string };
-  /** Chương đứng trước frontier mà chưa done và không đang dịch: queued, error, skipped. */
+export interface ChapterGaps {
+  /** Chương done cuối cùng theo thứ tự danh sách (số thứ tự 1-based); null khi chưa có chương done. */
+  frontier: { ordinal: number; id: string } | null;
+  /** Chương phiên sẽ không tự quay lại: trước frontier mà chưa done, không đang dịch (queued, error, skipped);
+   * sau frontier thì chỉ error, skipped (queued phía sau phiên tự dịch tới). */
   gaps: { ordinal: number; row: ChapterRow }[];
 }
 
 /**
- * Chương "hổng": chưa dịch nhưng đứng trước chương done cuối — thường do skip (model từ chối) hay lỗi
- * rồi phiên dịch tiếp chương sau. Trả null khi chưa có chương done nào hoặc không hổng.
+ * Chương "hổng": chưa dịch nhưng đứng trước chương done cuối — thường do skip (model từ chối) hay lỗi rồi phiên dịch
+ * tiếp chương sau — cộng chương bỏ qua / lỗi nằm sau chương done cuối (vd. bỏ qua vì lỗi API rồi phiên dừng ngay):
+ * phiên không tự quay lại các chương này. Trả null khi không có chương nào như vậy.
  */
-export function gapsBeforeFrontier(rows: ChapterRow[]): FrontierGaps | null {
+export function chapterGaps(rows: ChapterRow[]): ChapterGaps | null {
   let last = -1;
   rows.forEach((row, index) => {
     if (row.status === "done") last = index;
   });
-  if (last < 0) return null;
   const gaps = rows
-    .slice(0, last)
     .map((row, index) => ({ ordinal: index + 1, row }))
-    .filter(({ row }) => row.status !== "done" && row.status !== "translating");
-  return gaps.length > 0 ? { frontier: { ordinal: last + 1, id: rows[last].id }, gaps } : null;
+    .filter(({ row, ordinal }) =>
+      ordinal - 1 < last
+        ? row.status !== "done" && row.status !== "translating"
+        : row.status === "error" || row.status === "skipped",
+    );
+  if (gaps.length === 0) return null;
+  return { frontier: last < 0 ? null : { ordinal: last + 1, id: rows[last].id }, gaps };
 }
 
 /** Thông điệp sau khi xoá chương, dùng chung cho xoá lẻ và xoá khoảng. */

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { countByFilter, filterChapters, gapsBeforeFrontier, resolveChapterRef } from "@/lib/chapters";
+import { chapterGaps, countByFilter, filterChapters, resolveChapterRef } from "@/lib/chapters";
 import type { ChapterRow } from "@/lib/types";
 
 const rows: ChapterRow[] = [
@@ -47,27 +47,52 @@ describe("chapters", () => {
   });
 });
 
-describe("gapsBeforeFrontier", () => {
-  it("liệt kê chương chưa done đứng trước chương done cuối, kèm số thứ tự", () => {
+describe("chapterGaps", () => {
+  const row = (id: string, status: ChapterRow["status"], reason: string | null = null): ChapterRow => ({
+    id,
+    status,
+    reviewRound: 0,
+    reason,
+    warnings: [],
+  });
+
+  it("chương chưa done trước chương done cuối, cộng chương bỏ qua/lỗi nằm sau; queued phía sau không tính", () => {
     const list: ChapterRow[] = [
-      { id: "c1", status: "done", reviewRound: 0, reason: null, warnings: [] },
-      { id: "c2", status: "skipped", reviewRound: 0, reason: "model từ chối", warnings: [] },
-      { id: "c3", status: "error", reviewRound: 3, reason: null, warnings: [] },
-      { id: "c4", status: "done", reviewRound: 0, reason: null, warnings: [] },
-      { id: "c5", status: "translating", reviewRound: 0, reason: null, warnings: [] },
-      { id: "c6", status: "queued", reviewRound: 0, reason: null, warnings: [] },
+      row("c1", "done"),
+      row("c2", "skipped", "model từ chối"),
+      row("c3", "error"),
+      row("c4", "queued"),
+      row("c5", "done"),
+      row("c6", "skipped", "lỗi API: 503"),
+      row("c7", "translating"),
+      row("c8", "queued"),
+      row("c9", "error"),
     ];
-    expect(gapsBeforeFrontier(list)).toEqual({
-      frontier: { ordinal: 4, id: "c4" },
+    expect(chapterGaps(list)).toEqual({
+      frontier: { ordinal: 5, id: "c5" },
       gaps: [
         { ordinal: 2, row: list[1] },
         { ordinal: 3, row: list[2] },
+        { ordinal: 4, row: list[3] },
+        { ordinal: 6, row: list[5] },
+        { ordinal: 9, row: list[8] },
       ],
     });
   });
 
-  it("không có chương done hoặc không hổng thì trả null", () => {
-    expect(gapsBeforeFrontier([{ id: "c1", status: "queued", reviewRound: 0, reason: null, warnings: [] }])).toBeNull();
-    expect(gapsBeforeFrontier(rows.slice(0, 2))).toBeNull();
+  it("chương bỏ qua vì lỗi API nằm sau chương done cuối vẫn được gom (ta-mo-phong-truong-sinh-lo #1672)", () => {
+    const list = [row("chuong-1671", "done"), row("chuong-1672", "skipped", "lỗi API: OpenAI trả 503"), row("chuong-1673", "queued")];
+    expect(chapterGaps(list)).toEqual({ frontier: { ordinal: 1, id: "chuong-1671" }, gaps: [{ ordinal: 2, row: list[1] }] });
+  });
+
+  it("chưa có chương done: chỉ gom chương bỏ qua/lỗi, frontier null", () => {
+    const list = [row("c1", "skipped", "lỗi API"), row("c2", "queued")];
+    expect(chapterGaps(list)).toEqual({ frontier: null, gaps: [{ ordinal: 1, row: list[0] }] });
+  });
+
+  it("không hổng, không bỏ qua/lỗi thì trả null", () => {
+    expect(chapterGaps([row("c1", "queued")])).toBeNull();
+    expect(chapterGaps(rows.slice(0, 2))).toBeNull();
+    expect(chapterGaps([row("c1", "done"), row("c2", "translating"), row("c3", "queued")])).toBeNull();
   });
 });
