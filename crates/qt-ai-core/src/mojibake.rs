@@ -39,8 +39,11 @@ fn is_marker_tail(c: char) -> bool {
 
 /// Số dấu hiệu mojibake trong `text`. Mỗi dấu hiệu là một cụm không bao giờ có trong tiếng Việt/Trung/Anh viết
 /// đúng nhưng là dạng đọc nhầm của chữ tiếng Việt:
-/// - `Â Ã Ä Å Æ Ì` + ký tự byte nối không phải dấu câu mềm: `Ã©` (é), `Ã´` (ô), `Ä‘` (đ), `Ä\u{90}` (Đ), `Æ°` (ư),
-///   `Æ¡` (ơ), `Å©` (ũ), `Ì€` (dấu huyền tổ hợp). `NGÃ BA`, `Ägypten`, `Ålesund` không dính: theo sau là chữ/khoảng.
+/// - `Ä Å Æ` (không phải chữ tiếng Việt) + bất kỳ ký tự byte nối nào: `Ä‘` (đ), `Ä\u{90}` (Đ), `Äƒ` (ă), `Æ°` (ư),
+///   `Æ¡` (ơ), `Æ\u{a0}` (Ơ), `Å©` (ũ). `Ägypten`, `Ålesund`, `Æsir` không dính: theo sau là chữ thường ASCII.
+/// - `Â Ã Ì` (chữ hoa tiếng Việt thật) + ký tự byte nối không phải dấu câu mềm: `Ã©` (é), `Ã´` (ô), `Ì€` (dấu huyền
+///   tổ hợp); `NGÃ BA`, `“NGÃ”`, `NGÃ…` không dính. Riêng `Ã`+NBSP (à) chỉ tính khi đứng sau chữ thường ASCII hay
+///   ký tự byte nối không mềm (`lÃ\u{a0}m`, `Ä‘Ã\u{a0}`) — `NGÃ`+NBSP trong chữ hoa thì không.
 /// - `áº`/`á»` + ký tự byte nối không phải dấu câu mềm: `á»©` (ứ), `áº¿` (ế). `á»` đứng riêng (vd «Hoa Lá» …) không dính.
 /// - `â€` (dấu câu “ ” … – —) và `ã€` (《》【】、。), `ï¼`/`ï½` (dấu câu toàn khổ ，！？).
 ///
@@ -51,8 +54,11 @@ pub fn mojibake_score(text: &str) -> usize {
     let mut score = 0;
     let mut at = 0;
     while at + 1 < chars.len() {
+        let after_lower = at > 0 && (chars[at - 1].is_ascii_lowercase() || is_marker_tail(chars[at - 1]));
         let width = match (chars[at], chars[at + 1]) {
-            ('Â' | 'Ã' | 'Ä' | 'Å' | 'Æ' | 'Ì', _) if tail(at + 1) => 2,
+            ('Ä' | 'Å' | 'Æ', next) if is_continuation(next) => 2,
+            ('Ã', '\u{A0}') if after_lower => 2,
+            ('Â' | 'Ã' | 'Ì', _) if tail(at + 1) => 2,
             ('á', 'º' | '»') if tail(at + 2) => 3,
             ('â' | 'ã', '€') | ('ï', '¼' | '½') => 2,
             _ => 0,
@@ -85,12 +91,9 @@ pub fn repair_mojibake(text: &str) -> Option<String> {
     let whole = looks_mojibake(text);
     let mut repaired = String::with_capacity(text.len());
     for line in text.split_inclusive('\n') {
-        if mojibake_score(line) > 0 {
-            repaired.push_str(&decode_line(line, false).unwrap_or_else(|| line.to_string()));
-        } else if whole && line.chars().all(|c| cp1252_byte(c).is_some()) {
-            // Dòng hỏng chỉ gồm cụm "mềm" (vd `Ã”i` = Ôi) nằm trong văn bản hỏng: sửa nếu mọi chữ ghép ra đều là chữ
-            // tiếng Việt/dấu câu — dòng đúng như “Con bé…” ghép ra chữ Hán/Yi lạ thì giữ nguyên.
-            repaired.push_str(&decode_line(line, true).unwrap_or_else(|| line.to_string()));
+        // Dòng hỏng chỉ gồm cụm "mềm" (vd `Ã”i` = Ôi) cũng sửa khi cả văn bản hỏng và dòng chỉ gồm ký tự Windows-1252.
+        if mojibake_score(line) > 0 || (whole && line.chars().all(|c| cp1252_byte(c).is_some())) {
+            repaired.push_str(&decode_line(line));
         } else {
             repaired.push_str(line);
         }
@@ -98,30 +101,35 @@ pub fn repair_mojibake(text: &str) -> Option<String> {
     (repaired != text && mojibake_score(&repaired) == 0).then_some(repaired)
 }
 
-/// Chữ hợp lý trong bản dịch tiếng Việt: Latin (kể cả dấu tổ hợp, Latin mở rộng thêm), dấu câu chung,
-/// dấu câu CJK và toàn khổ.
-fn plausible(c: char) -> bool {
-    matches!(c as u32, 0xA0..=0x24F | 0x300..=0x36F | 0x1E00..=0x1EFF | 0x2000..=0x206F | 0x3000..=0x303F | 0xFF00..=0xFFEF)
+/// Chữ ghép ra có hợp lý trong bản dịch tiếng Việt không: Latin (kể cả dấu tổ hợp, Latin mở rộng thêm), dấu câu
+/// chung, dấu câu CJK, toàn khổ; chữ Hán chỉ khi byte thứ hai không phải dấu câu mềm — chữ đúng “Con bé…” (é + … + ”)
+/// ghép ra đúng một chữ Hán, “Ô…”/“Quê…” ra Cyrillic/Yi: giữ nguyên chữ gốc.
+fn plausible(c: char, second: char) -> bool {
+    match c as u32 {
+        0xA0..=0x24F | 0x300..=0x36F | 0x1E00..=0x1EFF | 0x2000..=0x206F | 0x3000..=0x303F | 0xFF00..=0xFFEF => true,
+        0x3400..=0x4DBF | 0x4E00..=0x9FFF | 0xF900..=0xFAFF => !SOFT_FOLLOWERS.contains(&second),
+        _ => false,
+    }
 }
 
-/// Giải mã lại một dòng. `strict`: chữ ghép ra phải `plausible`, không thì bỏ cả dòng (`None`).
-fn decode_line(line: &str, strict: bool) -> Option<String> {
+/// Giải mã lại một dòng: cụm ghép ra chữ không `plausible` thì giữ nguyên ký tự gốc.
+fn decode_line(line: &str) -> String {
     let chars: Vec<char> = line.chars().collect();
     let mut out = String::with_capacity(line.len());
     let mut at = 0;
     while at < chars.len() {
-        if let Some((decoded, used)) = decode_at(&chars, at) {
-            if strict && !plausible(decoded) {
-                return None;
+        match decode_at(&chars, at) {
+            Some((decoded, used)) if plausible(decoded, chars[at + 1]) => {
+                out.push(decoded);
+                at += used;
             }
-            out.push(decoded);
-            at += used;
-        } else {
-            out.push(chars[at]);
-            at += 1;
+            _ => {
+                out.push(chars[at]);
+                at += 1;
+            }
         }
     }
-    Some(out)
+    out
 }
 
 /// Ghép một chữ UTF-8 bắt đầu tại `at`: (chữ, số ký tự đã ăn). Byte nối 0x85 có thể đã bị đổi thành `...`.
@@ -186,6 +194,7 @@ mod tests {
         "NGÃ BA ĐƯỜNG, ÂM THANH, CHƯƠNG MỘT, HÌNH ẢNH — “NGÃ” rồi “NGÃ…”, à… và…”",
         "«Hoa Lá» … «Cây Lá»… Lý·Phàm, “Con bé…” “Quê…” “Ê!” “Ô…”",
         "Thời Đại Của Ã, chữ Ì đứng riêng, ÁO DÀI.",
+        "NGÃ\u{a0}BA, ĐÔNG Ã\u{a0}Ã\u{a0}, “NGÃ\u{a0}”",
     ];
 
     #[test]
@@ -208,6 +217,26 @@ mod tests {
             assert!(mojibake_score(text) * 10 >= text.chars().count(), "dày: {} / {}", mojibake_score(text), text.chars().count());
             assert!(looks_mojibake(text), "{text}");
         }
+    }
+
+    #[test]
+    fn dem_ca_u_mo_va_a_huyen() {
+        // `Æ°` (ư) và `Ã`+NBSP (à) sau chữ thường là dạng hỏng của hai chữ rất hay gặp.
+        assert_eq!(mojibake_score("nhÆ° váº\u{ad}y"), 2);
+        assert_eq!(mojibake_score("nhÆ°"), 1);
+        assert_eq!(mojibake_score("lÃ\u{a0}m vÃ\u{a0} "), 2);
+        assert_eq!(mojibake_score("Æ\u{a0}i"), 1, "Ơ");
+        assert!(looks_mojibake("nhÆ° váº\u{ad}y"));
+        assert_eq!(repair_mojibake("nhÆ° váº\u{ad}y lÃ\u{a0}m").as_deref(), Some("như vậy làm"));
+    }
+
+    #[test]
+    fn dong_co_dau_hieu_khong_bien_chu_dung_thanh_chu_la() {
+        // Cùng một dòng: chữ đúng “Ô…”, “Quê…”, “bé…” (ghép ra Cyrillic/Yi/Hán nếu giải mã) cạnh câu hỏng.
+        let text = "“Ô…” “Quê…” “Con bé…” ChÆ°Æ¡ng má»™t â€œXinâ€\u{9d}";
+        assert_eq!(repair_mojibake(text).as_deref(), Some("“Ô…” “Quê…” “Con bé…” Chương một “Xin”"));
+        // Chữ Hán bị hỏng trong dòng hỏng vẫn ghép lại được (để check bắt chữ Hán sót).
+        assert_eq!(repair_mojibake("ä½\u{a0}å¥½ ChÆ°Æ¡ng").as_deref(), Some("你好 Chương"));
     }
 
     #[test]

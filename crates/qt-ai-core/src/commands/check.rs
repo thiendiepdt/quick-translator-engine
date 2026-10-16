@@ -2,7 +2,7 @@ use crate::check::{
     advisory_violations, check_violations, contains_han, glossary_near_misses, raw_pair_issues, Violation, GLOSSARY_NAME_ISSUE,
 };
 use crate::error::{CoreError, Result};
-use crate::mojibake::{looks_mojibake, mojibake_score, MOJIBAKE_ISSUE};
+use crate::mojibake::{mojibake_score, MOJIBAKE_ISSUE};
 use crate::paragraphs::{labeled_repair_payload, paragraphs_of, parse_labeled_translation};
 use crate::story_fs::{
     load_state, load_story_config, now_ms, read_raw_chapter, read_text, resolve_root, save_state, story_paths,
@@ -146,18 +146,15 @@ fn check_chapter(root: &Path, id: &str, record: bool) -> Result<CheckResult> {
         .filter(|(_, p)| p.as_deref().is_some_and(contains_han))
         .map(|(i, _)| i + 1)
         .collect();
-    // Chữ lỗi mã hoá (hub trả mojibake, agent/người ghi sai bảng mã): lỗi cứng như còn chữ Hán. Chấm cả chương rồi
-    // chỉ ra đoạn có dấu hiệu. Kiểm riêng phía Rust, không thêm vào bộ rule regex chung với qt-web (golden so khớp).
-    let garbled: Vec<usize> = if looks_mojibake(&final_text) {
-        parsed
-            .iter()
-            .enumerate()
-            .filter(|(_, p)| p.as_deref().is_some_and(|p| mojibake_score(p) > 0))
-            .map(|(i, _)| i + 1)
-            .collect()
-    } else {
-        Vec::new()
-    };
+    // Chữ lỗi mã hoá (hub trả mojibake, agent/người ghi sai bảng mã): lỗi cứng như còn chữ Hán. Từng đoạn, một dấu
+    // hiệu là đủ — bộ dấu hiệu không bao giờ có trong văn bản đúng (quét toàn bộ out/ thật chỉ dính chương hỏng).
+    // Kiểm riêng phía Rust, không thêm vào bộ rule regex chung với qt-web (golden so khớp).
+    let garbled: Vec<usize> = parsed
+        .iter()
+        .enumerate()
+        .filter(|(_, p)| p.as_deref().is_some_and(|p| mojibake_score(p) > 0))
+        .map(|(i, _)| i + 1)
+        .collect();
     let mut violations = check_violations(&final_text, &story.check_rules, story.genre.setting);
     violations.extend(garbled.iter().map(|label| paragraph_violation(&parsed, label - 1, MOJIBAKE_ISSUE.to_string())));
     let mut advisories: Vec<String> = advisory_violations(&final_text, story.genre.setting)

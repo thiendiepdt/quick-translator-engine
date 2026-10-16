@@ -617,6 +617,17 @@ fn check_bao_doan_loi_ma_hoa_theo_nhan_va_ghi_review() {
 }
 
 #[test]
+fn check_bat_doan_hong_le_trong_chuong_dai_khong_can_ca_chuong_vuot_nguong() {
+    let long = "Triệu Tĩnh Văn ngẩng đầu nhìn về phía tòa tháp cao nơi xa, gió thổi lạnh buốt qua vạt áo. ".repeat(6);
+    let dir = story_with_draft(&format!("[[1]] {long}\n\n[[2]] Nàng Ä‘ứng im lặng hồi lâu không nói lời nào."), None);
+    let result = run_check(dir.path(), "0001").unwrap();
+    assert_eq!(result.garbled, vec![2]);
+    assert!(!result.pass);
+    let dir = story_with_draft(&format!("[[1]] {long}\n\n[[2]] Nàng im lặng nhÆ° váº\u{ad}y hồi lâu không nói lời nào."), None);
+    assert_eq!(run_check(dir.path(), "0001").unwrap().garbled, vec![2], "ư hỏng (Æ°) cũng tính");
+}
+
+#[test]
 fn check_het_vong_con_loi_ma_hoa_thi_error_khong_chot_kem_canh_bao() {
     let dir = story_with_draft(GARBLED_DRAFT, None);
     for _ in 0..3 {

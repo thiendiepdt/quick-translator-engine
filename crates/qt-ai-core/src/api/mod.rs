@@ -192,6 +192,12 @@ pub enum ApiError {
     /// Model trả text nhưng không theo định dạng nhãn [[n]] yêu cầu.
     #[error("Model không trả đúng định dạng: {0}")]
     BadOutput(String),
+    /// Hub trả chữ lỗi mã hoá (mojibake) không sửa ngược được — tạm thời, gọi lại lượt đó (có giới hạn).
+    #[error("phản hồi API bị lỗi mã hoá ký tự (mojibake)")]
+    Mojibake,
+    /// Gọi lại hết lượt mà vẫn mojibake — chương chuyển lỗi, phiên đi tiếp.
+    #[error("phản hồi API lỗi mã hoá liên tục")]
+    MojibakeExhausted,
     #[error("Đã huỷ")]
     Cancelled,
 }
@@ -200,7 +206,7 @@ pub enum ApiError {
 impl ApiError {
     pub fn is_transient(&self) -> bool {
         match self {
-            ApiError::Network { .. } | ApiError::Stream(_) => true,
+            ApiError::Network { .. } | ApiError::Stream(_) | ApiError::Mojibake => true,
             ApiError::Http { status, .. } => *status == 408 || *status == 429 || *status >= 500,
             _ => false,
         }
@@ -277,13 +283,14 @@ impl Generated {
 
 /// Hậu kiểm mọi kết quả `HttpModel`: hub OpenAI-compatible thỉnh thoảng trả text UTF-8 đã bị đọc nhầm thành
 /// Windows-1252 ("ChÆ°Æ¡ng"). Sửa ngược được (lúc này còn nguyên byte, chưa qua chuẩn hoá nào) thì thay text và bật
-/// `repaired_encoding`; không sửa được thì trả lỗi stream — lỗi tạm thời, vòng dịch gọi lại đúng lượt đó.
+/// `repaired_encoding`; không sửa được thì trả `ApiError::Mojibake` — lỗi tạm thời, vòng dịch gọi lại đúng lượt đó
+/// (tối đa vài lượt, xem `api_session::with_retry`).
 pub fn fix_encoding(mut generated: Generated) -> Result<Generated, ApiError> {
-    if !crate::mojibake::looks_mojibake(&generated.text) {
+    // Một dấu hiệu là đủ: bộ dấu hiệu không bao giờ có trong văn bản đúng, và hub có thể chỉ làm hỏng một đoạn.
+    if crate::mojibake::mojibake_score(&generated.text) == 0 {
         return Ok(generated);
     }
-    let text = crate::mojibake::repair_mojibake(&generated.text)
-        .ok_or_else(|| ApiError::Stream("phản hồi API bị lỗi mã hoá ký tự (mojibake)".to_string()))?;
+    let text = crate::mojibake::repair_mojibake(&generated.text).ok_or(ApiError::Mojibake)?;
     generated.text = text;
     generated.repaired_encoding = true;
     Ok(generated)
@@ -627,8 +634,20 @@ mod tests {
         let fixed = fix_encoding(Generated { text: "[[1]] ChÆ°Æ¡ng 1: KÃ½ á»©c â€œXin chÃ\u{a0}oâ€\u{9d}".into(), usage, repaired_encoding: false }).unwrap();
         assert_eq!(fixed, Generated { text: "[[1]] Chương 1: Ký ức “Xin chào”".into(), usage, repaired_encoding: true });
         let error = fix_encoding(Generated::text("â€ x â€ y â€ z")).unwrap_err();
-        assert!(matches!(&error, ApiError::Stream(message) if message.contains("mojibake")), "{error:?}");
+        assert_eq!(error, ApiError::Mojibake);
+        assert!(error.to_string().contains("mojibake"));
         assert!(error.is_transient(), "không sửa được thì vòng dịch gọi lại đúng lượt đó");
+        assert!(!ApiError::MojibakeExhausted.is_transient(), "hết lượt gọi lại thì chương lỗi, phiên đi tiếp");
+        assert_eq!(ApiError::MojibakeExhausted.to_string(), "phản hồi API lỗi mã hoá liên tục");
+    }
+
+    #[test]
+    fn fix_encoding_sua_ca_mot_doan_hong_le_trong_van_dai() {
+        let clean = "[[1]] Triệu Tĩnh Văn ngẩng đầu nhìn về phía tòa tháp cao ở nơi xa, gió thổi lạnh buốt.\n\n".repeat(8);
+        let text = format!("{clean}[[9]] Nàng Ä‘ứng im lặng hồi lâu.");
+        let fixed = fix_encoding(Generated::text(text)).unwrap();
+        assert_eq!(fixed.text, format!("{clean}[[9]] Nàng đứng im lặng hồi lâu."));
+        assert!(fixed.repaired_encoding);
     }
 
     #[test]

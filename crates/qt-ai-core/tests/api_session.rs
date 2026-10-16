@@ -244,6 +244,24 @@ fn hub_tra_mojibake_khong_sua_duoc_thi_goi_lai_dung_luot_do_khong_bo_chuong() {
 }
 
 #[test]
+fn hub_tra_mojibake_lien_tuc_thi_dung_sau_3_luot_chuong_loi_phien_di_tiep() {
+    let dir = story(2);
+    let broken = format!("[[1]] {} â€ x â€ y â€ z\n\n[[2]] {}", to_mojibake(GOOD_1), to_mojibake(GOOD_2));
+    let model = FakeModel::new(vec![Ok(broken.clone()), Ok(broken.clone()), Ok(broken)]);
+    let (sink, events) = collect();
+    let handle = start_api_session(config(dir.path()), model.clone(), sink).unwrap();
+    assert_eq!(handle.join(), StopReason::Finished, "phiên không dừng vì một chương");
+    assert_eq!(model.calls().len(), 4, "3 lượt cho 0001 rồi 1 lượt cho 0002");
+    let state = load_state(&story_paths(dir.path())).unwrap();
+    assert_eq!(state.chapters["0001"].status, ChapterStatus::Error);
+    assert!(state.chapters["0001"].reason.as_deref().unwrap().contains("phản hồi API lỗi mã hoá liên tục"), "{:?}", state.chapters["0001"].reason);
+    assert_eq!(state.chapters["0002"].status, ChapterStatus::Done);
+    assert!(!dir.path().join("out").join("0001.txt").exists());
+    let lines = logs(&events.lock().unwrap());
+    assert!(lines.iter().any(|l| l.contains("0001: lỗi — ") && l.contains("lỗi mã hoá liên tục")), "{lines:?}");
+}
+
+#[test]
 fn draft_con_loi_ma_hoa_thi_dich_lai_tu_raw_dung_doan_do_khong_dua_vao_soat() {
     let dir = story(1);
     let mut model = FakeModel::new(vec![Ok(format!("[[1]] {GOOD_1}\n\n[[2]] {}", to_mojibake(GOOD_2))), Ok(format!("[[2]] {GOOD_2}"))]);

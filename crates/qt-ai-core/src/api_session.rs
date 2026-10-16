@@ -17,7 +17,7 @@ use crate::prompt::{build_chapter_prompt, merge_story_glossary};
 use crate::session::{read_progress, spawn_runner, LogStream, SessionEvent, SessionHandle, Sink, StopReason};
 use crate::story::{natural_chapter_compare, Glossary, StoryConfig};
 use crate::story_fs::{
-    load_state, load_story_config, read_raw_chapter, resolve_root, story_paths, work_file, write_text,
+    load_state, load_story_config, now_ms, read_raw_chapter, resolve_root, save_state, story_paths, work_file, write_text,
     ChapterStatus, StoryPaths, WorkKind,
 };
 use serde_json::{json, Value};
@@ -170,18 +170,31 @@ fn format_chars(count: usize) -> String {
     }
 }
 
+/// Số lượt gọi tối đa cho một bước khi hub cứ trả chữ lỗi mã hoá không sửa được.
+const MOJIBAKE_MAX_ATTEMPTS: u32 = 3;
+
 /// Gọi lại đúng lượt API này khi lỗi tạm thời (provider quá tải, hết hạn mức theo phút, mạng, stream đứt): chờ tăng
 /// dần tới trần rồi cứ trần một lần, không giới hạn số lần — provider chết vài phút là chuyện thường, bỏ chương thì
 /// người dùng mất chương, dịch lại cả chương thì mất lượt đã trả. Bấm Dừng thì trả `Cancelled`; lỗi khác trả ngay.
+/// Riêng chữ lỗi mã hoá không sửa được (`Mojibake`) có ngân sách riêng `MOJIBAKE_MAX_ATTEMPTS` lượt: hub vẫn trả lời
+/// (không phải đang chết) mà hỏng mãi thì chờ thêm không ích gì — trả `MojibakeExhausted` để chương chuyển lỗi.
 fn with_retry<T>(
     chapter: &Chapter,
     label: &str,
     mut call: impl FnMut() -> std::result::Result<T, ApiError>,
 ) -> std::result::Result<T, ApiError> {
     let mut attempt = 0;
+    let mut mojibake = 0;
     loop {
         match call() {
+            Err(ApiError::Mojibake) if mojibake + 1 >= MOJIBAKE_MAX_ATTEMPTS => {
+                (chapter.log)(format!("{}: {label}: {} — {MOJIBAKE_MAX_ATTEMPTS} lượt liền, thôi", chapter.id, ApiError::Mojibake));
+                return Err(ApiError::MojibakeExhausted);
+            }
             Err(error) if error.is_transient() => {
+                if error == ApiError::Mojibake {
+                    mojibake += 1;
+                }
                 attempt += 1;
                 let wait = retry_wait(chapter.retry_delay, chapter.retry_max, attempt);
                 (chapter.log)(format!("{}: {label}: {error} — thử lại lần {attempt} sau {}", chapter.id, format_wait(wait)));
@@ -447,8 +460,37 @@ fn log_cast_notes(chapter: &Chapter, accepted: &crate::commands::accept::AcceptR
 
 /// Dịch một chương đang ở trạng thái translating tới khi accept/error. Lỗi API tạm thời được gọi lại ngay tại
 /// lượt đó (`with_retry`, theo `retry_delay`/`retry_max` của `config`); lỗi API khác trả về nguyên để vòng ngoài
-/// quyết định thử lại/skip; lỗi core (IO, state) là lỗi nội bộ.
+/// quyết định thử lại/skip; lỗi core (IO, state) là lỗi nội bộ. Hub trả chữ lỗi mã hoá liên tục thì chương chuyển
+/// error (như check hết vòng) — phiên đi tiếp chương sau.
 pub fn translate_chapter(
+    config: &ApiSessionConfig,
+    id: &str,
+    model: &dyn TextModel,
+    cancel: &AtomicBool,
+    log: Log,
+) -> std::result::Result<ChapterOutcome, ChapterFailure> {
+    match run_chapter(config, id, model, cancel, log) {
+        Err(ChapterFailure::Api(error @ ApiError::MojibakeExhausted)) => {
+            let reason = error.to_string();
+            mark_error(&config.root, id, &reason)?;
+            Ok(ChapterOutcome::Errored { reason })
+        }
+        other => other,
+    }
+}
+
+fn mark_error(root: &Path, id: &str, reason: &str) -> Result<()> {
+    let paths = story_paths(&resolve_root(root));
+    let mut state = load_state(&paths)?;
+    if let Some(chapter) = state.chapters.get_mut(id) {
+        chapter.status = ChapterStatus::Error;
+        chapter.reason = Some(reason.to_string());
+        chapter.updated_at = now_ms();
+    }
+    save_state(&paths, &state)
+}
+
+fn run_chapter(
     config: &ApiSessionConfig,
     id: &str,
     model: &dyn TextModel,
