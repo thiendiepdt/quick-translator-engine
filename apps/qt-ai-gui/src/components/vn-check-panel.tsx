@@ -1,4 +1,4 @@
-import { AlertTriangle, Check, RefreshCw, Sparkles, Wrench } from "lucide-react";
+import { AlertTriangle, Check, LoaderCircle, RefreshCw, Sparkles, Wrench } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -32,7 +32,34 @@ function Highlight({ text, matched }: { text: string; matched: string }) {
   );
 }
 
-/** Tab "Kiểm tra VN": chỗ nhạy cảm về Việt Nam trong raw/bản dịch, xác minh, AI sơ loại, thay thế. */
+/** Kết quả "AI giải thích" của một chỗ: dịch nhanh (khi chưa có bản dịch), diễn giải, gợi ý xử lý. */
+function AiExplanation({ ai }: { ai: NonNullable<VnHitView["ai"]> }) {
+  return (
+    <div className="mt-2 flex flex-col gap-1.5 rounded-md border bg-muted/40 p-2.5 text-sm" aria-label="Giải thích của AI">
+      {ai.translation && (
+        <div>
+          <p className="text-xs font-medium text-muted-foreground">Dịch nhanh</p>
+          {ai.translation.split("\n").map((line, i) => (
+            <p key={i}>{line}</p>
+          ))}
+        </div>
+      )}
+      <div>
+        <p className="text-xs font-medium text-muted-foreground">Diễn giải</p>
+        <p>{ai.reason}</p>
+      </div>
+      {ai.suggestion && (
+        <div>
+          <p className="text-xs font-medium text-muted-foreground">Gợi ý</p>
+          <p>{ai.suggestion}</p>
+        </div>
+      )}
+      <p className="text-xs text-muted-foreground">{ai.model}</p>
+    </div>
+  );
+}
+
+/** Tab "Kiểm tra VN": chỗ nhạy cảm về Việt Nam trong raw/bản dịch, xác minh, AI giải thích từng chỗ, thay thế. */
 export function VnCheckPanel({ root, running, setting }: Props) {
   const select = useStoryStore((s) => s.select);
   const setPage = useStoryStore((s) => s.setPage);
@@ -44,7 +71,8 @@ export function VnCheckPanel({ root, running, setting }: Props) {
   const [order, setOrder] = useState<"chapter" | "entry">("chapter");
   const [selected, setSelected] = useState<string[]>([]);
   const [expanded, setExpanded] = useState<string[]>([]);
-  const [busy, setBusy] = useState(false);
+  // Chỗ đang chờ AI giải thích (mỗi block một nút, bấm được nhiều chỗ cùng lúc).
+  const [explaining, setExplaining] = useState<string[]>([]);
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState<string>();
   const [replaceOpen, setReplaceOpen] = useState(false);
@@ -127,21 +155,18 @@ export function VnCheckPanel({ root, running, setting }: Props) {
     }
   }
 
-  async function verify() {
-    setBusy(true);
+  /** AI dịch nhanh + diễn giải + gợi ý cho một chỗ; kết quả lưu ở vn-check.json nên mở lại vẫn thấy. */
+  async function explain(id: string) {
+    setExplaining((list) => [...list, id]);
     try {
-      const outcome = await vnAiVerify(
-        root,
-        chosen.map((hit) => hit.id),
-      );
-      if (outcome.error) toast.error(`AI xét: ${outcome.error}`);
-      else toast.success(`AI đã xét ${outcome.verified} chỗ${outcome.failed ? `, ${outcome.failed} chỗ lỗi — thử lại` : ""}`);
-      // Các lô trước có thể đã lưu kể cả khi có lỗi, nên luôn tải lại.
+      const outcome = await vnAiVerify(root, [id]);
+      if (outcome.error) toast.error(`AI giải thích: ${outcome.error}`);
+      else if (outcome.verified === 0) toast.error("AI không trả kết quả hợp lệ — thử lại");
       await reload();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "AI xét thất bại");
+      toast.error(error instanceof Error ? error.message : "AI giải thích thất bại");
     } finally {
-      setBusy(false);
+      if (mounted.current) setExplaining((list) => list.filter((item) => item !== id));
     }
   }
 
@@ -200,9 +225,6 @@ export function VnCheckPanel({ root, running, setting }: Props) {
         <Button type="button" size="sm" variant="ghost" disabled={scanning} onClick={() => void rescan()}>
           <RefreshCw /> Quét lại
         </Button>
-        <Button type="button" size="sm" variant="secondary" disabled={busy || running || chosen.length === 0} onClick={() => void verify()}>
-          <Sparkles /> AI xét {chosen.length} chỗ
-        </Button>
         <Button type="button" size="sm" disabled={running || chosen.length === 0} onClick={() => setReplaceOpen(true)}>
           <Wrench /> Thay thế…
         </Button>
@@ -260,6 +282,18 @@ export function VnCheckPanel({ root, running, setting }: Props) {
                 <Button
                   type="button"
                   size="xs"
+                  variant="ghost"
+                  disabled={running || explaining.includes(hit.id)}
+                  title={running ? "Đang có phiên dịch chạy — dừng phiên trước" : "AI dịch nhanh đoạn này, giải thích có nhạy cảm không và gợi ý cách xử lý"}
+                  aria-label={`AI giải thích ${hit.id}`}
+                  onClick={() => void explain(hit.id)}
+                >
+                  {explaining.includes(hit.id) ? <LoaderCircle className="animate-spin" /> : <Sparkles />}
+                  {explaining.includes(hit.id) ? "AI đang xem…" : hit.ai ? "Giải thích lại" : "AI giải thích"}
+                </Button>
+                <Button
+                  type="button"
+                  size="xs"
                   variant="link"
                   aria-label={`Mở chương ${hit.chapter}`}
                   onClick={() => {
@@ -290,7 +324,7 @@ export function VnCheckPanel({ root, running, setting }: Props) {
                   Cần xử lý
                 </Button>
               </div>
-              {hit.ai && <p className="mt-1 text-xs text-muted-foreground">{hit.ai.reason}</p>}
+              {hit.ai && <AiExplanation ai={hit.ai} />}
               <div className="mt-2 grid gap-2 text-sm md:grid-cols-2">
                 <div className="flex flex-col gap-1 font-serif">
                   {range(hit.raw).map((text, i) => (

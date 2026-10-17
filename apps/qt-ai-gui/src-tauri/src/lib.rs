@@ -14,6 +14,7 @@ mod story_cmds;
 mod summary_cache;
 mod title_cmds;
 mod vn_cmds;
+mod vn_library_cmds;
 
 use app_config::AppConfig;
 use session_registry::SessionRegistry;
@@ -149,6 +150,8 @@ pub fn run() {
             replace_cmds::replace_undo_info,
             replace_cmds::replace_undo,
             vn_cmds::vn_refresh,
+            vn_library_cmds::vn_scan_library,
+            vn_library_cmds::vn_scan_library_cancel,
             vn_cmds::vn_report,
             vn_cmds::vn_set_status,
             vn_cmds::vn_ai_verify,
@@ -208,6 +211,7 @@ mod tests {
             include_str!("glossary_cmds.rs"),
             include_str!("replace_cmds.rs"),
             include_str!("epub_cmds.rs"),
+            include_str!("vn_library_cmds.rs"),
             include_str!("vn_cmds.rs"),
         ]
         .join("\n");
@@ -246,6 +250,7 @@ mod tests {
             "export_epub",
             "reveal_folder",
             "vn_refresh",
+            "vn_scan_library",
             "vn_report",
             "vn_set_status",
             "vn_ai_verify",

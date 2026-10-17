@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { CreateStoryDialog } from "@/components/create-story-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { VnLibraryScanButton } from "@/components/vn-library-scan-button";
 import {
   Dialog,
   DialogContent,
@@ -449,13 +450,11 @@ export function StoryPicker() {
         </div>
 
         <section className="mt-8">
-          <div className="mb-2 flex items-center gap-2">
-            <h2 className="text-xs font-medium tracking-widest text-muted-foreground uppercase">Thư viện</h2>
+          {/* Nút một hàng, đường dẫn + Đổi một hàng: chung một hàng thì đường dẫn bị nút ép còn vài chữ. */}
+          <div className={cn("flex items-center gap-2", !libraryRoot && "mb-2")}>
+            <h2 className="flex-1 text-xs font-medium tracking-widest text-muted-foreground uppercase">Thư viện</h2>
             {libraryRoot && (
               <>
-                <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground" title={libraryRoot}>
-                  {libraryRoot}
-                </span>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -476,12 +475,20 @@ export function StoryPicker() {
                 >
                   <FolderSync className={cn(scanning && "animate-pulse")} /> Quét chương mới
                 </Button>
-                <Button variant="ghost" size="sm" disabled={busy} onClick={() => void chooseLibrary()}>
-                  Đổi
-                </Button>
+                <VnLibraryScanButton disabled={busy} onDone={setLibrary} />
               </>
             )}
           </div>
+          {libraryRoot && (
+            <div className="mb-2 flex items-center gap-2">
+              <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground" title={libraryRoot}>
+                {libraryRoot}
+              </span>
+              <Button variant="ghost" size="sm" disabled={busy} onClick={() => void chooseLibrary()}>
+                Đổi
+              </Button>
+            </div>
+          )}
           {libraryRoot ? (
             libraryRows.length === 0 ? (
               <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">

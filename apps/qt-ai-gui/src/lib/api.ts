@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { z } from "zod";
 
@@ -16,6 +17,8 @@ import {
   agyDataStatsSchema,
   importOutcomeSchema,
   libraryRescanSchema,
+  vnLibraryProgressSchema,
+  vnLibraryScanSchema,
   recentSummarySchema,
   retryRangeOutcomeSchema,
   scanCastViewSchema,
@@ -254,6 +257,16 @@ export const createStory = (name: string, slug: string, sourceUrl: string) =>
 export const rescanStory = (root: string) => call("rescan_story", { root }, (v) => storySnapshotSchema.parse(v));
 /** Quét raw/ của mọi truyện trong thư viện: chương mới vào hàng đợi; truyện đang dịch bỏ qua. */
 export const libraryRescan = () => call("library_rescan", undefined, (v) => libraryRescanSchema.parse(v));
+/** Quét nhạy cảm VN mọi truyện trong thư viện, chạy nền ít luồng; tiến độ qua `onVnLibraryProgress`. */
+export const vnScanLibrary = () => call("vn_scan_library", undefined, (v) => vnLibraryScanSchema.parse(v));
+/** Dừng lượt quét thư viện sau truyện đang quét. */
+export const vnScanLibraryCancel = () => call("vn_scan_library_cancel", undefined, noop);
+/** Nghe tiến độ quét thư viện (mỗi truyện xong một lần); trả hàm huỷ nghe. */
+export const onVnLibraryProgress = (handler: (progress: { done: number; total: number; root: string }) => void) =>
+  listen("vn-library-progress", (event) => {
+    const parsed = vnLibraryProgressSchema.safeParse(event.payload);
+    if (parsed.success) handler(parsed.data);
+  });
 export const importChapters = (root: string, paths: string[]) =>
   call("import_chapters", { root, paths }, (v) => importOutcomeSchema.parse(v));
 

@@ -127,7 +127,14 @@ pub enum Status {
 #[serde(rename_all = "camelCase")]
 pub struct AiVerdict {
     pub label: String,
+    /// Diễn giải 2–4 câu: đoạn nói gì, vì sao (không) nhạy cảm.
     pub reason: String,
+    /// Dịch nhanh các đoạn raw sang tiếng Việt cho người không đọc được tiếng Trung; rỗng khi đã có bản dịch.
+    #[serde(default)]
+    pub translation: String,
+    /// Gợi ý xử lý: giữ nguyên, đổi cách dịch (kèm cụm thay) hay lược.
+    #[serde(default)]
+    pub suggestion: String,
     pub model: String,
     pub at: u64,
 }
@@ -313,12 +320,12 @@ fn scan_one(paths: &StoryPaths, lex: &Lexicon, id: &str) -> Result<Vec<VnHit>> {
     Ok(chapter_hits(lex, id, &raw, out.as_deref()))
 }
 
-/// Quét song song (≤ 8 luồng) như `replace.rs`. Trả hit mới cùng các chương đọc lỗi.
-fn scan_many(paths: &StoryPaths, lex: &Lexicon, ids: &[&str]) -> Result<(Vec<VnHit>, HashSet<String>)> {
+/// Quét song song (≤ `max_threads` luồng, tối đa 8) như `replace.rs`. Trả hit mới cùng các chương đọc lỗi.
+fn scan_many(paths: &StoryPaths, lex: &Lexicon, ids: &[&str], max_threads: usize) -> Result<(Vec<VnHit>, HashSet<String>)> {
     if ids.is_empty() {
         return Ok((vec![], HashSet::new()));
     }
-    let threads = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4).clamp(1, 8);
+    let threads = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4).clamp(1, max_threads.clamp(1, 8));
     let size = ids.len().div_ceil(threads).max(1);
     std::thread::scope(|scope| {
         let workers: Vec<_> = ids
@@ -353,6 +360,11 @@ fn carry(mut hit: VnHit, previous: &HashMap<String, VnHit>) -> VnHit {
 
 /// Quét tăng dần cả truyện: chỉ đọc chương mới/đổi (theo kích thước + mtime); từ điển đổi thì quét lại toàn bộ.
 pub fn refresh(paths: &StoryPaths, lex: &Lexicon) -> Result<VnSummary> {
+    refresh_with_threads(paths, lex, 8)
+}
+
+/// Như `refresh`, giới hạn số luồng đọc — quét cả thư viện chạy nền dùng ít luồng để máy không giật.
+pub fn refresh_with_threads(paths: &StoryPaths, lex: &Lexicon, max_threads: usize) -> Result<VnSummary> {
     locked(paths, || {
         let old = load_for_update(paths)?;
         let reset = old.lexicon_hash != lex.hash;
@@ -360,7 +372,7 @@ pub fn refresh(paths: &StoryPaths, lex: &Lexicon) -> Result<VnSummary> {
         let marks: Vec<(String, ChapterMark)> = ids.iter().map(|id| (id.clone(), chapter_mark(paths, id))).collect();
         let todo: Vec<&str> =
             marks.iter().filter(|(id, m)| reset || old.chapters.get(id) != Some(m)).map(|(id, _)| id.as_str()).collect();
-        let (fresh, failed) = scan_many(paths, lex, &todo)?;
+        let (fresh, failed) = scan_many(paths, lex, &todo, max_threads)?;
         let todo_set: HashSet<&str> = todo.iter().copied().collect();
         let live: HashSet<&str> = ids.iter().map(String::as_str).collect();
         let previous: HashMap<String, VnHit> = old.hits.iter().map(|hit| (hit.id.clone(), hit.clone())).collect();
@@ -471,4 +483,53 @@ pub fn report(paths: &StoryPaths) -> Vec<HitView> {
             HitView { focus: hit.paragraph - lo, raw, out, hit }
         })
         .collect()
+}
+
+/// Nửa số nhân, 1–4 luồng cho quét cả thư viện chạy nền: đủ nhanh mà vẫn chừa CPU cho phiên dịch và giao diện.
+pub fn library_threads() -> usize {
+    std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4).div_ceil(2).clamp(1, 4)
+}
+
+/// Folder truyện (có state.json) trong thư viện, sắp theo tên để tiến độ ổn định.
+pub fn library_story_roots(library: &Path) -> Vec<PathBuf> {
+    let mut roots: Vec<PathBuf> = std::fs::read_dir(library)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .map(|entry| entry.path())
+        .filter(|path| path.join("state.json").is_file())
+        .collect();
+    roots.sort();
+    roots
+}
+
+/// Kết quả quét cả thư viện.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct LibraryScan {
+    pub scanned: usize,
+    /// Truyện quét lỗi (vn-check.json đang khoá, raw đọc lỗi…) — giữ kết quả cũ.
+    pub failed: Vec<String>,
+    pub cancelled: bool,
+}
+
+/// Quét tăng dần lần lượt từng truyện với `threads` luồng; `cancel` bật thì dừng trước truyện kế tiếp (không cắt
+/// giữa một truyện). `on_story(số truyện đã xong, truyện vừa xong)` sau mỗi truyện, kể cả truyện lỗi.
+pub fn scan_library(
+    roots: &[PathBuf],
+    lex: &Lexicon,
+    threads: usize,
+    cancel: &std::sync::atomic::AtomicBool,
+    on_story: &mut dyn FnMut(usize, &Path),
+) -> LibraryScan {
+    let mut failed = Vec::new();
+    for (index, root) in roots.iter().enumerate() {
+        if cancel.load(std::sync::atomic::Ordering::SeqCst) {
+            return LibraryScan { scanned: index, failed, cancelled: true };
+        }
+        if refresh_with_threads(&crate::story_fs::story_paths(root), lex, threads).is_err() {
+            failed.push(root.display().to_string());
+        }
+        on_story(index + 1, root);
+    }
+    LibraryScan { scanned: roots.len(), failed, cancelled: false }
 }

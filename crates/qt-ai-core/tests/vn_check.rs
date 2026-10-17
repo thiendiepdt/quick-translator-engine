@@ -323,7 +323,7 @@ fn ghi_dong_thoi_khong_mat_cap_nhat() {
                 if i % 2 == 0 {
                     set_status(paths, std::slice::from_ref(id), Status::Action).unwrap();
                 } else {
-                    let verdict = AiVerdict { label: "ok".into(), reason: "r".into(), model: "m".into(), at: 1 };
+                    let verdict = AiVerdict { label: "ok".into(), reason: "r".into(), translation: String::new(), suggestion: String::new(), model: "m".into(), at: 1 };
                     set_ai(paths, &[(id.clone(), verdict)]).unwrap();
                 }
             });
@@ -443,6 +443,32 @@ fn verify_with_model_luu_nhan_va_dem_cho_hong() {
     let file = load_file(&paths);
     let ai = file.hits.iter().find(|h| h.id == "0001:1:viet-nam").unwrap().ai.clone().unwrap();
     assert_eq!((ai.label.as_str(), ai.model.as_str()), ("trungtinh", "Fake"));
+}
+
+#[test]
+fn ai_giai_thich_luu_ban_dich_nhanh_va_goi_y_cho_cho_chua_dich() {
+    let dir = story(&[("0001", "第1章\n\n拓刀说：“我学南越语一个月就会了。”", None)]);
+    let paths = story_paths(dir.path());
+    refresh(&paths, &Lexicon::builtin()).unwrap();
+    let id = load_file(&paths).hits[0].id.clone();
+    let reply = format!(
+        r#"{{"verdicts":[{{"id":"{id}","label":"trungtinh","reason":"Thác Đao khoe học tiếng Nam Việt một tháng là biết, không miệt thị.","translation":"Thác Đao nói: “Tôi học tiếng Nam Việt một tháng là biết.”","suggestion":"Giữ nguyên."}}]}}"#
+    );
+    let model = FakeModel { replies: Mutex::new(vec![reply]), calls: Mutex::new(0) };
+    let outcome = verify_with_model(&paths, &model, std::slice::from_ref(&id), &AtomicBool::new(false)).unwrap();
+    assert_eq!(outcome.verified, 1);
+    let ai = load_file(&paths).hits[0].ai.clone().unwrap();
+    assert_eq!(ai.translation, "Thác Đao nói: “Tôi học tiếng Nam Việt một tháng là biết.”");
+    assert_eq!(ai.suggestion, "Giữ nguyên.");
+    assert!(ai.reason.starts_with("Thác Đao khoe"));
+    assert!(SYSTEM_PROMPT.contains("`translation`") && SYSTEM_PROMPT.contains("`suggestion`"));
+}
+
+#[test]
+fn nhan_ai_luu_tu_ban_cu_thieu_ban_dich_nhanh_van_doc_duoc() {
+    let old = r#"{"label":"trungtinh","reason":"r","model":"m","at":1}"#;
+    let verdict: AiVerdict = serde_json::from_str(old).unwrap();
+    assert_eq!((verdict.translation.as_str(), verdict.suggestion.as_str()), ("", ""));
 }
 
 #[test]
@@ -572,4 +598,34 @@ fn quan_dao_chung_chung_khong_keo_nam_hai_vao() {
     // Cụm chủ quyền thật vẫn bắt nhờ mục strong, không nhờ COOCCUR.
     let raw = "第1章\n\n他们的船经过西沙群岛。";
     assert_eq!(found(&lex, raw, None), vec![(1, "hoang-sa".into(), Side::Raw)]);
+}
+
+#[test]
+fn quet_ca_thu_vien_tung_truyen_theo_ten_bo_folder_khong_phai_truyen_va_dung_khi_huy() {
+    use qt_ai_core::vn_check::{library_story_roots, library_threads, scan_library, LibraryScan, VN_FILE};
+    use std::sync::atomic::AtomicBool;
+    let dir = tempfile::tempdir().unwrap();
+    let story = |name: &str, raw: &str| {
+        let root = dir.path().join(name);
+        std::fs::create_dir_all(root.join("raw")).unwrap();
+        std::fs::write(root.join("raw").join("0001.txt"), raw).unwrap();
+        qt_ai_core::commands::init::run_init(&root, "qt-ai").unwrap();
+        root
+    };
+    let b = story("b", "越南人来了。");
+    let a = story("a", "第一章");
+    std::fs::create_dir_all(dir.path().join("khong-phai-truyen")).unwrap();
+    let roots = library_story_roots(dir.path());
+    assert_eq!(roots, vec![a.clone(), b.clone()]);
+    assert!((1..=4).contains(&library_threads()));
+
+    let mut seen = Vec::new();
+    let lex = qt_ai_core::vn_lexicon::Lexicon::builtin();
+    let result = scan_library(&roots, &lex, 1, &AtomicBool::new(false), &mut |done, root| seen.push((done, root.to_path_buf())));
+    assert_eq!(result, LibraryScan { scanned: 2, failed: vec![], cancelled: false });
+    assert_eq!(seen, vec![(1, a.clone()), (2, b.clone())]);
+    assert!(a.join(VN_FILE).is_file() && b.join(VN_FILE).is_file());
+
+    let result = scan_library(&roots, &lex, 1, &AtomicBool::new(true), &mut |_, _| {});
+    assert_eq!(result, LibraryScan { scanned: 0, failed: vec![], cancelled: true });
 }

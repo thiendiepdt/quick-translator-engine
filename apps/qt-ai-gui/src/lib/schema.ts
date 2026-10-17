@@ -348,6 +348,16 @@ export const libraryRescanSchema = z.object({
   stories: z.array(recentSummarySchema),
 });
 
+/** Quét nhạy cảm VN cả thư viện (màn chọn truyện). */
+export const vnLibraryScanSchema = z.object({
+  scanned: z.number(),
+  total: z.number(),
+  failed: z.array(z.string()),
+  cancelled: z.boolean(),
+  stories: z.array(recentSummarySchema),
+});
+export const vnLibraryProgressSchema = z.object({ done: z.number(), total: z.number(), root: z.string() });
+
 export const progressSchema = z.object({
   done: z.number(),
   queued: z.number(),
@@ -467,7 +477,18 @@ export const vnHitViewSchema = z.object({
   count: z.number(),
   fingerprint: z.string(),
   status: vnStatusSchema,
-  ai: z.object({ label: z.enum(VN_LABELS), reason: z.string(), model: z.string(), at: z.number() }).nullable().optional(),
+  ai: z
+    .object({
+      label: z.enum(VN_LABELS),
+      reason: z.string(),
+      /** Dịch nhanh các đoạn raw khi chương chưa dịch; rỗng nếu đã có bản dịch (hoặc nhãn lưu từ bản cũ). */
+      translation: z.string().optional().default(""),
+      suggestion: z.string().optional().default(""),
+      model: z.string(),
+      at: z.number(),
+    })
+    .nullable()
+    .optional(),
   raw: z.array(z.string()),
   out: z.array(z.string()),
   focus: z.number(),

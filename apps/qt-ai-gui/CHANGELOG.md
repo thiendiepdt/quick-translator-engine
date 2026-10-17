@@ -1,6 +1,11 @@
 # Có gì mới
 
 ## Chưa phát hành
+- Thêm nút **Đang dịch #N** trên thanh trang Dịch: bấm để cuộn tới và mở ngay chương đang dịch.
+- Thay nút **AI xét** của trang Kiểm tra VN bằng nút **AI giải thích** trên từng chỗ: AI dịch nhanh đoạn raw sang tiếng Việt (khi chương chưa dịch), diễn giải đoạn đó nói gì, có nhạy cảm không, và gợi ý cách xử lý; kết quả được lưu lại, mở lại vẫn thấy.
+- Thêm trang **Kiểm tra VN** riêng trên thanh bên trái (dưới **Hồ sơ truyện**) để dễ tìm; mục cũ trong Hồ sơ truyện vẫn giữ.
+- Thêm nút **Quét nhạy cảm VN** ở thư viện (màn chọn truyện): quét mọi truyện chạy nền, ít luồng để máy không giật, hiện tiến độ trên nút và bấm lại để dừng; lần sau chỉ đọc chương mới hoặc đã sửa nên gần như tức thì. Quét xong huy hiệu **⚠ VN** của từng truyện cập nhật luôn.
+- Sửa lỗi hộp **Dịch lại nhiều chương** bị che mất nút **Reset cả truyện…** khi hàng nút quá dài; các nút giờ chia thành hai hàng.
 - Sửa lỗi chữ bị hỏng mã hoá (kiểu “ChÆ°Æ¡ng”) khi API trung gian trả về sai: app tự sửa lại, không sửa được thì gọi lại API (3 lần vẫn lỗi thì báo lỗi chương đó rồi dịch tiếp chương sau), và không chốt chương còn chữ lỗi (đoạn lỗi được dịch lại).
 
 ## 1.0.24 — 2026-10-16
