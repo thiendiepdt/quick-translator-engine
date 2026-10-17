@@ -123,41 +123,46 @@ export function RetryRangeDialog({ root, chapters, open, onOpenChange }: Props) 
               </p>
             )}
           </div>
-          <DialogFooter>
-            {/* Reset nằm ở đây thay vì thanh công cụ: phải qua hai bước mới tới, không ấn nhầm cạnh Bắt đầu dịch. */}
-            <Button
-              variant="ghost"
-              className="mr-auto text-destructive hover:text-destructive"
-              disabled={busy}
-              title="Đưa truyện về như lúc vừa tạo (giữ raw, out, export) để dịch lại từ đầu"
-              onClick={() => {
-                onOpenChange(false);
-                setResetOpen(true);
-              }}
-            >
-              <History /> Reset cả truyện…
-            </Button>
-            <Button
-              variant="ghost"
-              disabled={busy}
-              title="Đánh dấu đã dịch các chương đã có bản dịch trong out/ (state.json lệch sau khi đồng bộ Google Drive)"
-              onClick={() => {
-                onOpenChange(false);
-                setSyncOpen(true);
-              }}
-            >
-              <RefreshCw /> Đồng bộ tiến độ…
-            </Button>
-            <Button variant="outline" disabled={busy} onClick={() => onOpenChange(false)}>
-              Huỷ
-            </Button>
-            <Button
-              variant={preview.done > 0 ? "destructive" : "default"}
-              disabled={busy || !preview.valid || preview.targets.length === 0}
-              onClick={() => void run()}
-            >
-              <RotateCcw /> Dịch lại {preview.valid ? preview.targets.length : 0} chương
-            </Button>
+          {/* Hai hàng: 4 nút một hàng tràn khỏi hộp thoại. Việc phụ ở trên, Huỷ / Dịch lại ở dưới. */}
+          <DialogFooter className="sm:flex-col sm:items-stretch">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              {/* Reset nằm ở đây thay vì thanh công cụ: phải qua hai bước mới tới, không ấn nhầm cạnh Bắt đầu dịch. */}
+              <Button
+                variant="ghost"
+                className="text-destructive hover:text-destructive"
+                disabled={busy}
+                title="Đưa truyện về như lúc vừa tạo (giữ raw, out, export) để dịch lại từ đầu"
+                onClick={() => {
+                  onOpenChange(false);
+                  setResetOpen(true);
+                }}
+              >
+                <History /> Reset cả truyện…
+              </Button>
+              <Button
+                variant="ghost"
+                disabled={busy}
+                title="Đánh dấu đã dịch các chương đã có bản dịch trong out/ (state.json lệch sau khi đồng bộ Google Drive)"
+                onClick={() => {
+                  onOpenChange(false);
+                  setSyncOpen(true);
+                }}
+              >
+                <RefreshCw /> Đồng bộ tiến độ…
+              </Button>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" disabled={busy} onClick={() => onOpenChange(false)}>
+                Huỷ
+              </Button>
+              <Button
+                variant={preview.done > 0 ? "destructive" : "default"}
+                disabled={busy || !preview.valid || preview.targets.length === 0}
+                onClick={() => void run()}
+              >
+                <RotateCcw /> Dịch lại {preview.valid ? preview.targets.length : 0} chương
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
