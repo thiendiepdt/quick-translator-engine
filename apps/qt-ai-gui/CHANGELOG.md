@@ -1,6 +1,6 @@
 # Có gì mới
 
-## Chưa phát hành
+## 1.0.26 — 2026-10-17
 - Thêm nút **Đang dịch #N** trên thanh trang Dịch: bấm để cuộn tới và mở ngay chương đang dịch.
 - Thay nút **AI xét** của trang Kiểm tra VN bằng nút **AI giải thích** trên từng chỗ: AI dịch nhanh đoạn raw sang tiếng Việt (khi chương chưa dịch), diễn giải đoạn đó nói gì, có nhạy cảm không, và gợi ý cách xử lý; kết quả được lưu lại, mở lại vẫn thấy.
 - Thêm trang **Kiểm tra VN** riêng trên thanh bên trái (dưới **Hồ sơ truyện**) để dễ tìm; mục cũ trong Hồ sơ truyện vẫn giữ.
