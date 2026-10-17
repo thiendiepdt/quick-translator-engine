@@ -46,6 +46,11 @@ export function TranslateToolbar() {
     [gapInfo],
   );
   /** Chọn chương hổng; đang bị lọc/tìm che thì bỏ lọc để danh sách cuộn tới được. */
+  // Chương đang dịch: phiên báo qua progress.current, chưa có thì lấy chương đang ở trạng thái translating.
+  const translatingId =
+    progress?.current ?? snapshot?.chapters.find((row) => row.status === "translating")?.id ?? undefined;
+  const translatingOrdinal = translatingId ? (snapshot?.chapters.findIndex((row) => row.id === translatingId) ?? -1) + 1 : 0;
+
   function jumpTo(id: string) {
     if (snapshot && !filterChapters(snapshot.chapters, statusFilter, searchQuery).some((row) => row.id === id)) {
       setStatusFilter("all");
@@ -259,6 +264,18 @@ export function TranslateToolbar() {
             />
           </>
         )}
+        {translatingId && translatingOrdinal > 0 && (
+          <button
+            type="button"
+            title={`${translatingId} — bấm để cuộn tới và mở chương này`}
+            aria-label={`Mở chương đang dịch #${translatingOrdinal}`}
+            onClick={() => jumpTo(translatingId)}
+            className="inline-flex items-center gap-1.5 rounded-full border border-status-translating/40 px-2 py-0.5 text-xs text-primary hover:bg-status-translating/10"
+          >
+            <span className="size-2 animate-pulse rounded-full bg-status-translating" aria-hidden />
+            Đang dịch <span className="font-mono tabular-nums">#{translatingOrdinal}</span>
+          </button>
+        )}
         {running &&
           (session.waitUntil ? (
             <span role="status" className="ml-auto inline-flex items-center gap-2 text-xs font-medium text-status-warning">
@@ -269,7 +286,6 @@ export function TranslateToolbar() {
             <span className="ml-auto inline-flex items-center gap-2 text-xs text-primary">
               <span className="size-2 animate-pulse rounded-full bg-status-translating" aria-hidden />
               Phiên {session.sessionNo}
-              {progress?.current ? ` · đang dịch ${progress.current}` : ""}
             </span>
           ))}
       </div>

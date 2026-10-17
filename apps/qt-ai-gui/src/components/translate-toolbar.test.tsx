@@ -255,3 +255,54 @@ describe("TranslateToolbar · chọn model agy", () => {
   });
 });
 
+
+describe("TranslateToolbar · chương đang dịch", () => {
+  const chapters = [
+    { id: "c1", status: "done", reviewRound: 0, reason: null, warnings: [] },
+    { id: "c2", status: "translating", reviewRound: 0, reason: null, warnings: [] },
+    { id: "c3", status: "queued", reviewRound: 0, reason: null, warnings: [] },
+  ];
+  beforeEach(() => {
+    useStoryStore.setState({
+      config,
+      root: ROOT,
+      roots: { [pathKey(ROOT)]: ROOT },
+      sessions: {},
+      progress: {},
+      selectedId: undefined,
+      statusFilter: "done",
+      searchQuery: "",
+      snapshot: {
+        root: ROOT,
+        story: { title: "T" },
+        counts: { total: 3, queued: 1, translating: 1, done: 1, error: 0, skipped: 0, withWarnings: 0 },
+        chapters,
+      } as never,
+    });
+  });
+
+  it("hiện số thứ tự chương đang dịch; bấm thì bỏ lọc che và mở chương đó", async () => {
+    render(<TranslateToolbar />);
+    const chip = screen.getByRole("button", { name: "Mở chương đang dịch #2" });
+    expect(chip).toHaveTextContent("Đang dịch #2");
+    await userEvent.click(chip);
+    expect(useStoryStore.getState()).toMatchObject({ selectedId: "c2", statusFilter: "all" });
+  });
+
+  it("phiên báo chương hiện tại thì theo phiên; không có chương nào đang dịch thì không hiện", () => {
+    useStoryStore.setState({
+      sessions: { [pathKey(ROOT)]: { status: "running", sessionNo: 1 } },
+      progress: { [pathKey(ROOT)]: { done: 1, queued: 1, translating: 1, error: 0, skipped: 0, warnings_count: 0, current: "c3" } },
+    });
+    const { unmount } = render(<TranslateToolbar />);
+    expect(screen.getByRole("button", { name: "Mở chương đang dịch #3" })).toBeInTheDocument();
+    unmount();
+    useStoryStore.setState((s) => ({
+      progress: {},
+      sessions: {},
+      snapshot: { ...s.snapshot!, chapters: chapters.map((c) => ({ ...c, status: "done" })) } as never,
+    }));
+    render(<TranslateToolbar />);
+    expect(screen.queryByRole("button", { name: /Mở chương đang dịch/ })).not.toBeInTheDocument();
+  });
+});
