@@ -125,7 +125,7 @@ describe("VnCheckPanel", () => {
 
   it("lọc theo mức, nhãn AI; chọn tất cả đang lọc", async () => {
     const user = userEvent.setup();
-    vi.mocked(vnReport).mockResolvedValue([hit({}), giaoChi({ ai: { label: "trungtinh", reason: "r", model: "m", at: 1 } })]);
+    vi.mocked(vnReport).mockResolvedValue([hit({}), giaoChi({ ai: { label: "trungtinh", reason: "r", translation: "", suggestion: "", model: "m", at: 1 } })]);
     renderPanel();
     await screen.findByText("0226");
     await user.selectOptions(screen.getByLabelText("Mức"), "canxem");
