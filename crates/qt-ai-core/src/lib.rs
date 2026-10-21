@@ -16,6 +16,7 @@ pub mod commands;
 pub mod agy;
 pub mod agy_data;
 pub mod process;
+pub mod child_guard;
 pub mod session;
 pub mod api;
 pub mod api_session;

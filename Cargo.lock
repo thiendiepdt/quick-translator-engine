@@ -2878,6 +2878,7 @@ dependencies = [
  "fancy-regex",
  "flate2",
  "indexmap 2.14.0",
+ "libc",
  "regex",
  "reqwest",
  "rusqlite",
@@ -2886,6 +2887,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "thiserror 2.0.19",
+ "windows-sys 0.61.2",
  "zip",
 ]
 

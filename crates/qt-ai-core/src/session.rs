@@ -171,11 +171,7 @@ fn release_lock(root: &Path) {
 }
 
 fn kill_tree(child: &mut Child) {
-    if cfg!(windows) {
-        let _ = quiet_command("taskkill").args(["/PID", &child.id().to_string(), "/T", "/F"]).output();
-    }
-    let _ = child.kill();
-    let _ = child.wait();
+    crate::child_guard::kill_tree(child);
 }
 
 /// agy 1.2 mặc định `--print-timeout 5m`: một lượt `agy -p` dịch nhiều chương (chaptersPerSession) dễ quá
@@ -193,7 +189,11 @@ fn spawn_agy(config: &SessionConfig, prompt: &str) -> Result<Child> {
         command.env("PATH", path_with(dir));
     }
     command.current_dir(&config.root).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
-    command.spawn().map_err(|_| CoreError::AgyMissing)
+    // Đóng app / app crash thì agy chết theo, không chạy mồ côi (xem child_guard).
+    crate::child_guard::prepare(&mut command);
+    let child = command.spawn().map_err(|_| CoreError::AgyMissing)?;
+    crate::child_guard::bind(&child);
+    Ok(child)
 }
 
 fn pump<R: std::io::Read + Send + 'static>(reader: R, stream: LogStream, sink: Sink) -> JoinHandle<()> {

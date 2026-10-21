@@ -1,5 +1,8 @@
 # Có gì mới
 
+## Chưa phát hành
+- Sửa lỗi đóng app khi đang dịch làm agy chạy ngầm tiếp (vẫn dịch, ăn quota, giữ folder truyện không xoá được): bấm đóng khi đang dịch giờ hỏi trước rồi dừng hết phiên; app bị tắt đột ngột (crash, Task Manager) thì agy cũng dừng theo.
+
 ## 1.0.26 — 2026-10-17
 - Thêm nút **Đang dịch #N** trên thanh trang Dịch: bấm để cuộn tới và mở ngay chương đang dịch.
 - Thay nút **AI xét** của trang Kiểm tra VN bằng nút **AI giải thích** trên từng chỗ: AI dịch nhanh đoạn raw sang tiếng Việt (khi chương chưa dịch), diễn giải đoạn đó nói gì, có nhạy cảm không, và gợi ý cách xử lý; kết quả được lưu lại, mở lại vẫn thấy.

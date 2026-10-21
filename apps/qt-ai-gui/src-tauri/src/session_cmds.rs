@@ -145,6 +145,28 @@ pub async fn session_stop<R: Runtime>(app: AppHandle<R>, root: String) -> CmdRes
     .await
 }
 
+/// Dừng mọi phiên đang chạy (đóng app khi đang dịch): huỷ hết trước rồi mới đợi, để các truyện dừng song song
+/// thay vì lần lượt. Chương đang dịch dở giữ trạng thái translating — mở lại app bấm Dịch là dịch tiếp chương đó.
+#[tauri::command]
+pub async fn sessions_stop_all<R: Runtime>(app: AppHandle<R>) -> CmdResult<SessionStatus> {
+    blocking(move || {
+        let state = app.state::<AppState>();
+        let handles: Vec<_> = {
+            let mut sessions = state.sessions.lock().unwrap();
+            let roots = sessions.running_roots();
+            roots.iter().filter_map(|root| sessions.take(root)).collect()
+        };
+        for handle in &handles {
+            handle.cancel();
+        }
+        for handle in handles {
+            let _ = handle.join();
+        }
+        Ok(status(&state))
+    })
+    .await
+}
+
 pub fn build_setup_prompt(root: &Path, name: &str, source_url: &str) -> String {
     let workflow = root.join(".agent").join("workflows").join("setup-story.md");
     format!(

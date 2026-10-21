@@ -4,6 +4,7 @@ import { toast } from "sonner";
 
 import { AgyMissing } from "@/components/agy-missing";
 import { AppRail } from "@/components/app-rail";
+import { CloseGuard } from "@/components/close-guard";
 import { ExportPage } from "@/components/pages/export-page";
 import { ReplacePage } from "@/components/pages/replace-page";
 import { SettingsPage } from "@/components/pages/settings-page";
@@ -125,7 +126,9 @@ export default function App() {
   }
   // Cài đặt chỉ có trong truyện: ở màn chọn truyện, "Xem tất cả" mở danh sách ngay trong hộp thoại.
   const whatsNewDialog = (
-    <WhatsNewDialog
+    <>
+      <CloseGuard />
+      <WhatsNewDialog
       version={whatsNew.version}
       since={whatsNew.since}
       onClose={whatsNew.dismiss}
@@ -137,7 +140,8 @@ export default function App() {
             }
           : undefined
       }
-    />
+      />
+    </>
   );
   if (screen === "picker") {
     return (
