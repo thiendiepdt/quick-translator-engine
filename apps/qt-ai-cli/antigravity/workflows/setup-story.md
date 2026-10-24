@@ -35,7 +35,9 @@ Các bước:
    - `summary`: 3–5 câu, ưu tiên thông tin tra được, không spoil quá phần đã đọc/tra.
    - `style.voice` (1 câu tả giọng kể), `style.toneRules` (3–5 luật xưng hô/giọng điệu rút từ chính truyện;
      truyện `ancient` chỉ dùng xưng hô cổ trang — `ta`/`ngươi`, `huynh`/`muội`/`đệ`/`tỷ`, `ca`, `tiểu nhân`,
-     `cha`/`nương`… — KHÔNG ghi `anh`/`em`/`chị`/`tôi`/`cậu`/`mày`/`tao`, kể cả cho anh chị em ruột hay dân thường),
+     `cha`/`nương`… — KHÔNG ghi `anh`/`em`/`chị`/`tôi`/`cậu`/`mày`/`tao`, kể cả cho anh chị em ruột hay dân thường;
+     tự xưng 本 + danh xưng viết `bổn` — `bổn tọa`, `bổn cung`, `bổn vương`, không `bản`; truyện `modern` gọi cha mẹ là
+     `cha`/`mẹ`, không `bố` (trừ câu chửi `bố mày`); không ghi luật dùng `chàng` làm đại từ lời kể),
      `style.avoid` (những kiểu diễn đạt cần tránh với truyện này).
    - `glossary`: seed tên riêng từ chương đã đọc + tên tra được trên web vào đúng nhóm
      (`names`, `places`, `items`, `creatures`, `skills`, `common`, `signature_phrases`) — source chữ Hán, target Hán-Việt.

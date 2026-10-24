@@ -59,7 +59,7 @@ tên, nhân vật hay tóm tắt. Trả về đúng một JSON theo mẫu:\n\
   }},\n\
   \"style\": {{\n\
     \"voice\": \"1 câu tả giọng kể (ngôi kể, nhịp, sắc thái)\",\n\
-    \"tone_rules\": [\"3-5 luật xưng hô/giọng điệu rút từ chính truyện; setting ancient chỉ dùng xưng hô cổ trang (ta/ngươi, huynh/muội/đệ/tỷ, ca, tiểu nhân, cha/nương…), KHÔNG ghi anh/em/chị/tôi/cậu/mày/tao, kể cả cho anh chị em ruột hay dân thường\"],\n\
+    \"tone_rules\": [\"3-5 luật xưng hô/giọng điệu rút từ chính truyện; setting ancient chỉ dùng xưng hô cổ trang (ta/ngươi, huynh/muội/đệ/tỷ, ca, tiểu nhân, cha/nương…), KHÔNG ghi anh/em/chị/tôi/cậu/mày/tao, kể cả cho anh chị em ruột hay dân thường; tự xưng 本 + danh xưng viết bổn (bổn tọa, bổn cung, bổn vương), không bản; setting modern gọi cha mẹ là cha/mẹ, không bố (trừ câu chửi bố mày); không ghi luật dùng chàng làm đại từ lời kể\"],\n\
     \"signature_phrases\": {{}},\n\
     \"avoid\": [\"những kiểu diễn đạt cần tránh với truyện này\"]\n\
   }},\n\
@@ -116,10 +116,36 @@ fn merge_string_maps(base: &mut Map<String, Value>, extra: Option<&Value>) {
     }
 }
 
+/// Tự xưng 本 + danh xưng viết `bổn` như accept: model điền hồ sơ hay ghi `bản tọa`, `bản cung` vào luật giọng và cặp
+/// xưng hô gieo sẵn — luật giọng nạp vào prompt mỗi chương nên kéo bản dịch về `bản`.
+fn bon_in_proposed(proposed: &Map<String, Value>) -> Map<String, Value> {
+    fn fix(value: &mut Value) {
+        match value {
+            Value::String(text) => *text = crate::self_ref::bon_text(text),
+            Value::Array(items) => items.iter_mut().for_each(fix),
+            Value::Object(map) => map.values_mut().for_each(fix),
+            _ => {}
+        }
+    }
+    let mut proposed = proposed.clone();
+    if let Some(Value::Object(style)) = proposed.get_mut("style") {
+        for key in ["voice", "tone_rules", "toneRules", "avoid"] {
+            if let Some(value) = style.get_mut(key) {
+                fix(value);
+            }
+        }
+    }
+    if let Some(addressing) = proposed.get_mut("glossary").and_then(|g| g.get_mut("addressing")) {
+        fix(addressing);
+    }
+    proposed
+}
+
 /// Đề xuất của model đè lên hồ sơ hiện tại: `name`/`sourceUrl` theo người dùng; protagonist/summary/
 /// genre/style lấy của model khi có; glossary GỘP (không xoá entry người dùng đã có); customPrompt,
 /// checkRules, autoGlossary* giữ nguyên. Kết quả đi qua `StoryConfig::normalize` nên sai schema cũng không đổ.
 pub fn merge_fill(current: &StoryConfig, proposed: &Map<String, Value>, name: &str, source_url: &str) -> StoryConfig {
+    let proposed = &bon_in_proposed(proposed);
     let mut value = serde_json::to_value(current).expect("StoryConfig luôn serialize được");
     let object = value.as_object_mut().expect("StoryConfig là object");
     object.insert("name".into(), Value::String(name.to_string()));
@@ -248,6 +274,23 @@ mod tests {
         assert!(matches!(parse_fill_json("không có gì"), Err(ApiError::BadOutput(_))));
         assert!(matches!(parse_fill_json("{hỏng"), Err(ApiError::BadOutput(_))));
         assert!(matches!(parse_fill_json("[1]"), Err(ApiError::BadOutput(_))));
+    }
+
+    #[test]
+    fn merge_doi_tu_xung_ban_thanh_bon_trong_luat_giong_va_cap_xung_ho() {
+        let proposed = parse_fill_json(
+            r#"{
+              "style": { "voice": "Ngôi ba; bản tọa lạnh lùng", "tone_rules": ["phi tần tự xưng bản cung; hoàng đế xưng trẫm"], "avoid": ["dùng văn bản quan trọng"] },
+              "glossary": { "addressing": { "武则天→薛绍": "bản cung–ngươi" }, "names": { "本因": "Bản Nhân" } }
+            }"#,
+        )
+        .unwrap();
+        let after = merge_fill(&current(), &proposed, "Tên", "");
+        assert_eq!(after.style.voice, "Ngôi ba; bổn tọa lạnh lùng");
+        assert_eq!(after.style.tone_rules, vec!["phi tần tự xưng bổn cung; hoàng đế xưng trẫm"]);
+        assert_eq!(after.style.avoid, vec!["dùng văn bản quan trọng"]);
+        assert_eq!(after.glossary["addressing"]["武则天→薛绍"], "bổn cung–ngươi");
+        assert_eq!(after.glossary["names"]["本因"], "Bản Nhân"); // tên riêng không đụng
     }
 
     #[test]

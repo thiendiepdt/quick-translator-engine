@@ -106,6 +106,11 @@ pub fn bon_self_reference(text: &str, keep: &[&str]) -> (String, usize) {
     (out, fixed)
 }
 
+/// Chuỗi bất kỳ (luật giọng, cặp xưng hô) đổi theo cùng luật, không có danh xưng nào được giữ `bản`.
+pub fn bon_text(text: &str) -> String {
+    bon_self_reference(text, &[]).0
+}
+
 /// Cặp xưng hô model khai kèm bản dịch (`bản cung–ngươi`) đổi theo cùng luật trước khi học — cặp đã học được nạp lại
 /// vào prompt mỗi chương, để `bản` thì kéo model về `bản`.
 pub fn bon_in_addressing(entries: &mut Value) {
