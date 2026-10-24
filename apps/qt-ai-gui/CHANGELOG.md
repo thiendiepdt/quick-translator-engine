@@ -15,6 +15,8 @@
 - Lời kể: nhân vật nữ phản diện, kẻ đáng khinh được gọi “ả” / “mụ” khi nguyên tác lộ giọng khinh (nữ chính vẫn “nàng” / “cô”); không dùng “chàng” làm đại từ ngôi ba trong lời kể (vẫn dùng trong thoại và trong “chàng trai”, “anh chàng”). Đại từ ghi riêng trong bảng nhân vật vẫn được ưu tiên.
 - AI điền hồ sơ truyện theo các quy ước mới: luật giọng ghi tự xưng “bổn” (bổn tọa, bổn cung…), truyện hiện đại gọi cha mẹ là “cha”/“mẹ”, không đặt luật dùng “chàng” trong lời kể; luật giọng và cặp xưng hô AI đề xuất còn ghi “bản tọa”, “bản cung” thì app tự đổi sang “bổn”.
 - Dịch “đường” / “phố” theo cách nói miền Nam: chỗ đi lại dùng “đường” (trên đường, góc đường, đầu đường, ra đường), còn “phố” dành cho nơi ở, buôn bán (khu phố, phố xá, phố ẩm thực, dạo phố, thành phố); tên đường gọi “đường X”. Truyện cổ đại chỉ giữ “phố xá”, “phố phường”: 街 → “đường”, 街市 → “chợ”, 逛街 → “dạo chơi”.
+- Truyện cổ đại: lời kể dùng “mẹ”, “cha mẹ”, và các từ “mẹ ruột”, “mẹ đẻ”, “mẹ kế”, “cha ruột”, “cha dượng” thay vì “nương ruột”, “nương kế”; trong thoại con vẫn gọi mẹ là “nương”.
+- AI điền hồ sơ không còn đưa từ thường vào từ điển của truyện (như 入赘 thành “nhập chuế” thay vì “ở rể”), không ghi luật cấm chữ “mẹ” cho truyện cổ đại, và bỏ cặp xưng hô sai định dạng.
 
 ## 1.0.26 — 2026-10-17
 - Thêm nút **Đang dịch #N** trên thanh trang Dịch: bấm để cuộn tới và mở ngay chương đang dịch.

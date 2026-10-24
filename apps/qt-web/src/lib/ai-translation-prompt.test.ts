@@ -128,12 +128,14 @@ describe("composeBasePrompt", () => {
     expect(mixed).toContain("bề dưới nói với bề trên tự xưng theo thân phận");
   });
 
-  it("cổ đại: 爹 → cha, 娘 → nương, 父亲/母亲 → phụ thân/mẫu thân; hỗn hợp có ở cảnh cổ đại", () => {
-    const note = "> **Gọi cha mẹ:** `爹` / `爹爹` → `cha`; `娘` / `娘亲` (con gọi mẹ) → `nương`";
+  it("cổ đại: 爹 → cha, 娘 → nương trong thoại, mẹ / cha mẹ trong lời kể, mẹ ruột / mẹ kế; hỗn hợp có ở cảnh cổ đại", () => {
+    const note = "> **Gọi cha mẹ:** `爹` / `爹爹` → `cha`; `娘` / `娘亲` (con gọi mẹ, trong thoại) → `nương`";
     for (const setting of ["ancient", "mixed"] as const) {
       const prompt = composeBasePrompt({ setting, names: "han", tone: "neutral" });
       expect(prompt).toContain(note);
-      expect(prompt).toContain("`爹娘` → `cha nương`");
+      expect(prompt).toContain("`爹娘` trong thoại → `cha nương`");
+      expect(prompt).toContain("Lời kể (ngoài ngoặc kép): `娘` → `mẹ`, `爹娘` → `cha mẹ`");
+      expect(prompt).toContain("`后娘` / `继母` → `mẹ kế`");
       expect(prompt).toContain("Glossary của truyện đã chốt cặp với `mẹ` thì giữ `mẹ` cho cả truyện");
     }
     expect(composeBasePrompt({ setting: "modern", names: "han", tone: "neutral" })).not.toContain(note);

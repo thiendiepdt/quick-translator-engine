@@ -16,8 +16,9 @@ import type { GenreNames, GenreSetting, GenreTone, StoryGenre } from "@/lib/ai-s
 // thêm ghi chú 气息 → khí tức, chỉ thở thật mới là hơi thở, dòng tự xưng theo thân phận: 本 + danh xưng đọc bổn,
 // thứ tự ưu tiên thành ngữ (Việt tương đương > tự nhiên > Hán-Việt quen), dòng dịch thơ, lóng ngôn tình 白月光 / 白莲花,
 // 赐婚 → ban hôn, ghi chú giọng kể thù địch: ả / mụ cho nữ phản diện, không `chàng` ngôi ba trong lời kể, và luật
-// đường để đi, phố để ở / buôn bán theo cách nói miền Nam; cổ đại chỉ giữ phố xá / phố phường, bảng 街 → đường).
-export const LEGACY_BASE_PROMPT_FNV1A64 = "4ccfc3c37b286f0e";
+// đường để đi, phố để ở / buôn bán theo cách nói miền Nam; cổ đại chỉ giữ phố xá / phố phường, bảng 街 → đường;
+// lời kể cổ đại dùng mẹ / cha mẹ, từ ghép mẹ ruột / mẹ kế / cha dượng, thoại vẫn nương).
+export const LEGACY_BASE_PROMPT_FNV1A64 = "d862cd852b9812d2";
 
 const CORE_HEAD: string[] = [
   "Bạn là dịch giả tiểu thuyết Trung Quốc sang tiếng Việt. Nhiệm vụ của bạn là chuyển ngữ trung thành, không phải sáng tác lại hay biên tập nâng giọng.",
@@ -459,7 +460,7 @@ const ancient: SettingModule = {
     "",
     "> **Giọng kể khinh, thù địch:** nhân vật nữ là kẻ địch, phản diện hay kẻ đáng khinh mà raw lộ giọng khinh (`贱人`, `毒妇`, `那女人`, `这婆娘`…) → lời kể dùng `ả` (trẻ, trung niên) / `mụ` (già); nữ chính và nhân vật nữ thường vẫn `nàng`. `chàng` chỉ dùng trong thoại (`thiếp`–`chàng`) hoặc làm danh từ (`chàng trai`, `anh chàng`), KHÔNG làm đại từ ngôi ba trong lời kể. Bảng nhân vật ghi riêng đại từ lời kể thì theo bảng.",
     "",
-    "> **Gọi cha mẹ:** `爹` / `爹爹` → `cha`; `娘` / `娘亲` (con gọi mẹ) → `nương` — gọi thẳng `Cha!`, `Nương!`, cha mẹ tự xưng với con `cha` / `nương`; `爹娘` → `cha nương`; `父亲` / `母亲` (trang trọng, lời kể) → `phụ thân` / `mẫu thân`. KHÔNG `bố`, `ba`, `mẹ`, `má` trong cổ đại. Từ ghép giữ Hán-Việt: `姑娘` → `cô nương`, `娘娘` → `nương nương`, `娘子` → `nương tử`, `新娘` → `tân nương`. Glossary của truyện đã chốt cặp với `mẹ` thì giữ `mẹ` cho cả truyện để thống nhất.",
+    "> **Gọi cha mẹ:** `爹` / `爹爹` → `cha`; `娘` / `娘亲` (con gọi mẹ, trong thoại) → `nương` — gọi thẳng `Cha!`, `Nương!`, cha mẹ tự xưng với con `cha` / `nương`; `爹娘` trong thoại → `cha nương`. Lời kể (ngoài ngoặc kép): `娘` → `mẹ`, `爹娘` → `cha mẹ`; `父亲` / `母亲` (trang trọng) → `phụ thân` / `mẫu thân`. Từ ghép chỉ quan hệ dùng tiếng Việt ở cả lời kể lẫn thoại: `亲娘` / `生母` → `mẹ ruột` / `mẹ đẻ`, `后娘` / `继母` → `mẹ kế`, `亲爹` → `cha ruột`, `继父` → `cha dượng` — KHÔNG `nương ruột`, `nương kế`. KHÔNG `bố`, `ba`, `má` trong cổ đại; `mẹ` đứng riêng trong thoại vẫn là `nương`. Từ ghép giữ Hán-Việt: `姑娘` → `cô nương`, `娘娘` → `nương nương`, `娘子` → `nương tử`, `新娘` → `tân nương`. Glossary của truyện đã chốt cặp với `mẹ` thì giữ `mẹ` cho cả truyện để thống nhất.",
     "",
     "> **Gọi anh chị em ruột:** `哥` / `哥哥` → `ca` / `ca ca`, `大哥` / `二哥` → `đại ca` / `nhị ca`; `姐` / `姐姐` → `tỷ` / `tỷ tỷ`; `妹妹` → `muội muội` / `tiểu muội`, `弟弟` → `đệ đệ`. Em nói với anh chị: gọi `ca` / `tỷ`, `你` → `huynh` / `tỷ`, tự xưng `muội` (em gái) / `đệ` (em trai); anh chị nói với em: tự xưng `ta` hoặc `ca` / `tỷ`, gọi `muội` / `đệ` hoặc tên. KHÔNG `anh`, `em`, `chị` dù là nhà dân thường. Ví dụ: `哥，你回来了！` → `Ca, huynh về rồi!`, không phải `Anh, anh về rồi!`.",
     "",

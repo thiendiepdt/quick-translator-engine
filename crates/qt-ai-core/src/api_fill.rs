@@ -59,7 +59,7 @@ tên, nhân vật hay tóm tắt. Trả về đúng một JSON theo mẫu:\n\
   }},\n\
   \"style\": {{\n\
     \"voice\": \"1 câu tả giọng kể (ngôi kể, nhịp, sắc thái)\",\n\
-    \"tone_rules\": [\"3-5 luật xưng hô/giọng điệu rút từ chính truyện; setting ancient chỉ dùng xưng hô cổ trang (ta/ngươi, huynh/muội/đệ/tỷ, ca, tiểu nhân, cha/nương…), KHÔNG ghi anh/em/chị/tôi/cậu/mày/tao, kể cả cho anh chị em ruột hay dân thường; tự xưng 本 + danh xưng viết bổn (bổn tọa, bổn cung, bổn vương), không bản; setting modern gọi cha mẹ là cha/mẹ, không bố (trừ câu chửi bố mày); không ghi luật dùng chàng làm đại từ lời kể\"],\n\
+    \"tone_rules\": [\"3-5 luật xưng hô/giọng điệu rút từ chính truyện; setting ancient chỉ dùng xưng hô cổ trang (ta/ngươi, huynh/muội/đệ/tỷ, ca, tiểu nhân, cha/nương…), KHÔNG ghi anh/em/chị/tôi/cậu/mày/tao, kể cả cho anh chị em ruột hay dân thường; tự xưng 本 + danh xưng viết bổn (bổn tọa, bổn cung, bổn vương), không bản; setting modern gọi cha mẹ là cha/mẹ, không bố (trừ câu chửi bố mày); setting ancient KHÔNG ghi luật cấm mẹ — lời kể dùng mẹ, cha mẹ, mẹ ruột, mẹ kế, cha dượng, thoại con gọi mẹ là nương; không ghi luật dùng chàng làm đại từ lời kể\"],\n\
     \"signature_phrases\": {{}},\n\
     \"avoid\": [\"những kiểu diễn đạt cần tránh với truyện này\"]\n\
   }},\n\
@@ -70,6 +70,9 @@ tên, nhân vật hay tóm tắt. Trả về đúng một JSON theo mẫu:\n\
   }}\n\
 }}\n\
 Glossary chỉ seed tên riêng thật sự xuất hiện trong các chương (source chữ Hán, target Hán-Việt hoặc dạng gốc). \
+Nhóm common chỉ cho thuật ngữ riêng của thế giới truyện lặp lại nhiều chương (cảnh giới, hệ thống, tổ chức, chức vị môn phái); \
+KHÔNG seed từ đời thường, phong tục, giấy tờ, nghề nghiệp, thân phận đã có cách nói tiếng Việt quen (入赘 là ở rể, 束脩, 寡妇, 里正) — \
+để lượt dịch dịch tự nhiên theo ngữ cảnh. Nhóm addressing chỉ ghi cặp \"甲→乙\" giữa hai tên nhân vật (target \"X–Y\"), không chắc thì để rỗng. \
 Không giải thích, không markdown.\n",
         name = serde_json::to_string(name).unwrap_or_default(),
         url = serde_json::to_string(source_url).unwrap_or_default(),
@@ -185,7 +188,19 @@ pub fn merge_fill(current: &StoryConfig, proposed: &Map<String, Value>, name: &s
         let mut merged = object.get("glossary").and_then(Value::as_object).cloned().unwrap_or_default();
         for (group, entries) in glossary {
             let mut base = merged.get(group).and_then(Value::as_object).cloned().unwrap_or_default();
-            merge_string_maps(&mut base, Some(entries));
+            if group == "addressing" {
+                // Cặp xưng hô phải là "甲→乙"; model hay gieo danh xưng lẻ ("牛婶子": "Ngưu thẩm") — bỏ.
+                let pairs: Map<String, Value> = entries
+                    .as_object()
+                    .into_iter()
+                    .flatten()
+                    .filter(|(key, _)| key.contains('→'))
+                    .map(|(key, value)| (key.clone(), value.clone()))
+                    .collect();
+                merge_string_maps(&mut base, Some(&Value::Object(pairs)));
+            } else {
+                merge_string_maps(&mut base, Some(entries));
+            }
             merged.insert(group.clone(), Value::Object(base));
         }
         object.insert("glossary".into(), Value::Object(merged));
@@ -291,6 +306,15 @@ mod tests {
         assert_eq!(after.style.avoid, vec!["dùng văn bản quan trọng"]);
         assert_eq!(after.glossary["addressing"]["武则天→薛绍"], "bổn cung–ngươi");
         assert_eq!(after.glossary["names"]["本因"], "Bản Nhân"); // tên riêng không đụng
+    }
+
+    #[test]
+    fn merge_bo_cap_xung_ho_khong_dung_dang_giap_toi_at() {
+        let proposed = parse_fill_json(r#"{"glossary": {"addressing": {"牛婶子": "Ngưu thẩm", "赵嘉禾→牛娇娘": "cháu–thẩm"}}}"#).unwrap();
+        let after = merge_fill(&current(), &proposed, "Tên", "");
+        let addressing = &after.glossary["addressing"];
+        assert!(!addressing.contains_key("牛婶子"), "{addressing:?}");
+        assert_eq!(addressing["赵嘉禾→牛娇娘"], "cháu–thẩm");
     }
 
     #[test]

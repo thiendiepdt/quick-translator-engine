@@ -37,9 +37,14 @@ Các bước:
      truyện `ancient` chỉ dùng xưng hô cổ trang — `ta`/`ngươi`, `huynh`/`muội`/`đệ`/`tỷ`, `ca`, `tiểu nhân`,
      `cha`/`nương`… — KHÔNG ghi `anh`/`em`/`chị`/`tôi`/`cậu`/`mày`/`tao`, kể cả cho anh chị em ruột hay dân thường;
      tự xưng 本 + danh xưng viết `bổn` — `bổn tọa`, `bổn cung`, `bổn vương`, không `bản`; truyện `modern` gọi cha mẹ là
-     `cha`/`mẹ`, không `bố` (trừ câu chửi `bố mày`); không ghi luật dùng `chàng` làm đại từ lời kể),
+     `cha`/`mẹ`, không `bố` (trừ câu chửi `bố mày`); truyện `ancient` KHÔNG ghi luật cấm `mẹ` — lời kể dùng `mẹ`,
+     `cha mẹ`, `mẹ ruột`, `mẹ kế`, `cha dượng`, thoại con gọi mẹ là `nương`; không ghi luật dùng `chàng` làm đại từ lời kể),
      `style.avoid` (những kiểu diễn đạt cần tránh với truyện này).
    - `glossary`: seed tên riêng từ chương đã đọc + tên tra được trên web vào đúng nhóm
      (`names`, `places`, `items`, `creatures`, `skills`, `common`, `signature_phrases`) — source chữ Hán, target Hán-Việt.
+     `common` chỉ cho thuật ngữ riêng của thế giới truyện lặp lại nhiều chương (cảnh giới, hệ thống, tổ chức, chức vị
+     môn phái); KHÔNG seed từ đời thường, phong tục, giấy tờ, nghề nghiệp, thân phận đã có cách nói tiếng Việt quen
+     (`入赘` là ở rể, `束脩`, `寡妇`, `里正`) — để lượt dịch dịch tự nhiên. `addressing` chỉ ghi cặp `甲→乙` giữa hai
+     tên nhân vật.
    - Giữ nguyên các field khác (`customPrompt`, `checkRules`, `autoGlossaryLog`, `autoGlossary`).
 5. Trình `story.json` cho người dùng duyệt trước khi chạy /translate.
