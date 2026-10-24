@@ -2893,7 +2893,7 @@ dependencies = [
 
 [[package]]
 name = "qt-ai-gui"
-version = "1.0.26"
+version = "1.0.27"
 dependencies = [
  "qt-ai-core",
  "serde",

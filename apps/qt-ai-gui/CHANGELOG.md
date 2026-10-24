@@ -1,6 +1,6 @@
 # Có gì mới
 
-## Chưa phát hành
+## 1.0.27 — 2026-10-24
 - Sửa lỗi đóng app khi đang dịch làm agy chạy ngầm tiếp (vẫn dịch, ăn quota, giữ folder truyện không xoá được): bấm đóng khi đang dịch giờ hỏi trước rồi dừng hết phiên; app bị tắt đột ngột (crash, Task Manager) thì agy cũng dừng theo.
 - Thêm kiểm tra chữ tiếng Việt viết sai khi chốt chương: bắt các chữ không thể có trong tiếng Việt do AI sinh hỏng (kiểu “mồhôi”, “pháthuy”, “tươnglai”) rồi đưa vào bước soát để AI sửa lại; chữ kéo dài, nói lắp hay tiếng lóng cố ý trong lời thoại vẫn được giữ.
 - Cải thiện bước soát khi dịch bằng API key: AI chỉ trả lại những đoạn cần sửa thay vì in lại cả chương, nên tốn ít token hơn, soát nhanh hơn và không sửa lan sang đoạn khác; AI cũng được xem nguyên văn tiếng Trung của đoạn bị nêu để sửa cho đúng.
