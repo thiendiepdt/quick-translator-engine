@@ -26,6 +26,8 @@ pub struct AcceptResult {
     pub cast_notes: Vec<String>,
     /// Tên lệch dấu so với glossary đã tự sửa trước khi ghi out (`"sai → đúng"`).
     pub glossary_fixes: Vec<String>,
+    /// Số chỗ tự xưng `bản X` đã đổi thành `bổn X` (bổn cung, bổn tọa…).
+    pub self_ref_fixes: usize,
 }
 
 pub fn run_accept(root: &Path, id: &str, force: bool) -> Result<AcceptResult> {
@@ -54,6 +56,16 @@ pub fn run_accept_with(root: &Path, id: &str, force: bool, lexicon: &crate::vn_l
     let merged_glossary = crate::prompt::merge_story_glossary(&base_glossary, Some(&story));
     let mut parsed = draft.parsed.clone();
     let glossary_fixes = fix_glossary_drifts(&draft.paragraphs, &mut parsed, &merged_glossary);
+    // Tự xưng 本 + danh xưng một âm `bổn` (model đọc lẫn bản/bổn); glossary của truyện cố ý ghi `bản X` thì giữ.
+    let keep = crate::self_ref::glossary_keeps(merged_glossary.values().flat_map(|group| group.values()).map(String::as_str));
+    let mut self_ref_fixes = 0;
+    for paragraph in parsed.iter_mut().flatten() {
+        let (text, fixed) = crate::self_ref::bon_self_reference(paragraph, &keep);
+        if fixed > 0 {
+            *paragraph = text;
+            self_ref_fixes += fixed;
+        }
+    }
     let final_text = parsed.iter().flatten().cloned().collect::<Vec<_>>().join("\n\n");
     let mut output = format_translation(&strip_markers(&final_text));
     // Tiêu đề một định dạng `Chương N: Tên`, không kèm lời xin phiếu — sửa trước để titles.json ghi tên sạch.
@@ -148,5 +160,5 @@ pub fn run_accept_with(root: &Path, id: &str, force: bool, lexicon: &crate::vn_l
     for kind in WORK_KINDS {
         let _ = fs::remove_file(work_file(&paths, id, kind)); // force: true
     }
-    Ok(AcceptResult { out_path, added_glossary, warnings, cast_notes, glossary_fixes })
+    Ok(AcceptResult { out_path, added_glossary, warnings, cast_notes, glossary_fixes, self_ref_fixes })
 }

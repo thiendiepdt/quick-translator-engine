@@ -30,5 +30,6 @@ pub mod vn_check;
 pub mod vn_ai;
 pub mod mojibake;
 pub mod vn_syllable;
+pub mod self_ref;
 
 pub use error::{CoreError, Result};

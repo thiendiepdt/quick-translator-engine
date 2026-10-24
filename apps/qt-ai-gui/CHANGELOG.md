@@ -8,6 +8,7 @@
 - Cải thiện văn dịch: AI được dặn bỏ thêm 5 cấu trúc văn convert (“đối với X mà nói”, “đem ánh mắt”, “tiến hành một phen”, “một loại cảm giác”, “lộ ra thần sắc”); bốn cấu trúc sau còn sót thì chương được ghi cảnh báo khi chốt.
 - Cải thiện văn dịch truyện cổ đại và hỗn hợp: 气息 tỏa ra từ người, vật, cảnh giới được dịch là “khí tức” thay vì “hơi thở”; chỉ khi nhân vật thở thật mới dùng “hơi thở”.
 - Cải thiện xưng hô họ hàng trong truyện hiện đại: thống nhất theo quy ước cha / mẹ (cha vợ, mẹ vợ, cha chồng, mẹ chồng, cha dượng, mẹ kế, anh rể, chị dâu…) thay vì lẫn “bố vợ”, “ba vợ”, “nhạc phụ” trong cùng một truyện; còn sót “bố vợ / bố chồng / bố dượng” thì chương được ghi cảnh báo khi chốt.
+- Thống nhất tự xưng 本 đọc “bổn” (bổn cung, bổn vương, bổn tọa, bổn tiểu thư, bổn cô nương…) thay vì lẫn “bản”/“bổn” trong cùng một truyện: AI được dặn trước, chỗ còn sót app tự sửa khi chốt chương (không đụng “bản tôn” chỉ chân thân, “văn bản”, “phiên bản”, tên Nhật như Cung Bản); từ điển của truyện ghi “bản …” thì vẫn theo từ điển.
 
 ## 1.0.26 — 2026-10-17
 - Thêm nút **Đang dịch #N** trên thanh trang Dịch: bấm để cuộn tới và mở ngay chương đang dịch.

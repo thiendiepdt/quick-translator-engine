@@ -13,8 +13,8 @@ import type { GenreNames, GenreSetting, GenreTone, StoryGenre } from "@/lib/ai-s
 // — docs/reviews/2026-10-06-chat-luong-dich/tien-trinh-sua.md; 2026-10-12 thêm ghi chú Gọi cha mẹ: 爹 → cha,
 // 娘 → nương, 爹娘 → cha nương; 他 không dùng cậu, cậu ta; 2026-10-24 thêm 5 dòng convert vào bảng Dấu hiệu câu vẫn
 // còn là convert: đối với X mà nói, đem ánh mắt, tiến hành một phen, một loại cảm giác, lộ ra thần sắc; cùng ngày
-// thêm ghi chú 气息 → khí tức, chỉ thở thật mới là hơi thở).
-export const LEGACY_BASE_PROMPT_FNV1A64 = "e275ffb8e28130ad";
+// thêm ghi chú 气息 → khí tức, chỉ thở thật mới là hơi thở, và dòng tự xưng theo thân phận: 本 + danh xưng đọc bổn).
+export const LEGACY_BASE_PROMPT_FNV1A64 = "5dc1372c665ad7a8";
 
 const CORE_HEAD: string[] = [
   "Bạn là dịch giả tiểu thuyết Trung Quốc sang tiếng Việt. Nhiệm vụ của bạn là chuyển ngữ trung thành, không phải sáng tác lại hay biên tập nâng giọng.",
@@ -107,6 +107,7 @@ const CORE_TERMS: string[] = [
   "",
   "- Glossary của truyện luôn được ưu tiên. Mục đã có trong glossary phải dùng đúng bản dịch đã định.",
   "- Chỉ dùng Hán-Việt cho tên riêng, thuật ngữ chuyên ngành, cảnh giới, pháp bảo, tước vị và chức quan đã có cách gọi ổn định.",
+  "- Tự xưng theo thân phận giữ Hán-Việt theo raw: `朕` trẫm, `哀家` ai gia, `臣妾` thần thiếp, `妾身` thiếp thân, `寡人` quả nhân, `贫道` bần đạo, `贫僧` bần tăng, `老夫` lão phu, `在下` tại hạ, `晚辈` vãn bối, `奴婢` nô tỳ. `本` + danh xưng khi tự xưng đọc **bổn**, KHÔNG `bản`: `本宫` bổn cung, `本王` bổn vương, `本座` bổn tọa, `本官` bổn quan, `本帝` bổn đế, `本小姐` bổn tiểu thư, `本姑娘` bổn cô nương, `本公子` bổn công tử, `本少爷` bổn thiếu gia; `本尊` tự xưng là bổn tôn, chỉ chân thân (đối lập phân thân) thì là bản tôn.",
   "- Với động từ, tính từ, trạng thái, hình ảnh, thành ngữ và lời kể thông thường, dùng tiếng Việt tự nhiên, đúng nghĩa. KHÔNG phiên âm Hán-Việt chỉ để câu nghe giống “văn tu tiên” hoặc “văn convert”.",
   "- Gặp thuật ngữ/chức quan lạ, phải nhận diện cả cụm và chức năng trong ngữ cảnh trước khi dịch. KHÔNG bẻ từng chữ rồi ghép thành một cụm Hán-Việt vô nghĩa.",
   "",

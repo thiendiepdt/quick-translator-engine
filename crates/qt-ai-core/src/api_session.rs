@@ -514,6 +514,9 @@ fn log_cast_notes(chapter: &Chapter, accepted: &crate::commands::accept::AcceptR
     if !accepted.glossary_fixes.is_empty() {
         (chapter.log)(format!("{}: tự sửa theo glossary: {}", chapter.id, accepted.glossary_fixes.join(", ")));
     }
+    if accepted.self_ref_fixes > 0 {
+        (chapter.log)(format!("{}: tự xưng bản → bổn: {} chỗ", chapter.id, accepted.self_ref_fixes));
+    }
 }
 
 /// Dịch một chương đang ở trạng thái translating tới khi accept/error. Lỗi API tạm thời được gọi lại ngay tại

@@ -704,6 +704,18 @@ fn ten_lech_dau_glossary_khong_bat_soat_accept_tu_sua_theo_glossary() {
 }
 
 #[test]
+fn accept_doi_tu_xung_ban_thanh_bon_tru_khi_glossary_ghi_ban() {
+    let raw = "本宫要进城。\n\n本座和本喵并肩走来。\n\n他看了看文本。";
+    let draft = "[[1]] Bản cung muốn vào thành.\n\n[[2]] Bản tọa và bản miêu sóng vai đi tới.\n\n[[3]] Hắn nhìn văn bản quan trọng.";
+    let dir = story_with_glossary(raw, &[("本喵", "bản miêu")], draft);
+    let accepted = run_accept(dir.path(), "0001", true).unwrap();
+    assert_eq!(accepted.self_ref_fixes, 2);
+    let out = fs::read_to_string(&accepted.out_path).unwrap();
+    assert!(out.contains("Bổn cung muốn vào thành.") && out.contains("Bổn tọa và bản miêu"), "{out}");
+    assert!(out.contains("văn bản quan trọng"), "{out}");
+}
+
+#[test]
 fn check_bat_ten_viet_gan_dung_glossary_va_review_co_muc_bat_buoc() {
     let raw = "毛千亦走了进来。\n\n苏小白和林青云并肩走来。\n\n延禧宫的灯亮了。";
     let names = [

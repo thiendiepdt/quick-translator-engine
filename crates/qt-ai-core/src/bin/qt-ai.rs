@@ -98,6 +98,9 @@ fn run(argv: &[String]) -> Result<i32, CoreError> {
             if !result.glossary_fixes.is_empty() {
                 println!("Tự sửa theo glossary: {}", result.glossary_fixes.join(", "));
             }
+            if result.self_ref_fixes > 0 {
+                println!("Tự xưng bản → bổn: {} chỗ", result.self_ref_fixes);
+            }
             // Dòng kiểm tra VN không lưu vào state nên in thẳng; cảnh báo còn lại xem ở status.
             let (vn, stored): (Vec<&String>, Vec<&String>) =
                 result.warnings.iter().partition(|w| w.starts_with(qt_ai_core::vn_check::VN_WARNING_PREFIX));
