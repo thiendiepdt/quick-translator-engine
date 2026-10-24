@@ -61,7 +61,9 @@ Cặp xưng hô mới trong thoại ghi category \"addressing\": source \"甲→
 target \"X–Y\" với X là cách 甲 tự xưng và Y là cách 甲 gọi 乙 trong bản dịch; mỗi chiều một mục. \
 Cặp ĐÃ CÓ trong mục \"Cặp xưng hô đang dùng\" mà chương này cho thấy quan hệ hai người đã khác lúc chốt cặp \
 (đã là người yêu, đính hôn, vợ chồng, thầy trò, chủ tớ, nhận người thân, kết nghĩa, trở mặt thành thù) nên bạn đã dịch bằng cặp khác: \
-khai lại cặp đó với target đúng như vừa dịch và \"note\": \"lý do ngắn\", cả hai chiều; giận dỗi nhất thời, đóng kịch, nói đùa thì không khai. \
+khai lại cặp đó với target đúng như vừa dịch và \"note\": \"lý do ngắn\", cả hai chiều. \
+Xưng hô chỉ của một cảnh thì dịch theo cảnh nhưng KHÔNG khai: cải trang, giả làm, đóng kịch; xưng hô trước mặt người ngoài, thuộc hạ, sứ giả; \
+hồi tưởng, kiếp trước, dòng thời gian khác; mỉa mai, trêu đùa, giận dỗi nhất thời. \
 Cặp xưng hô khai cả khi không có tên mới; chỉ trả {\"entries\": []} khi không có cả tên mới lẫn cặp xưng hô mới. \
 Khối này nằm ngoài bản dịch, không có nhãn [[n]].";
 

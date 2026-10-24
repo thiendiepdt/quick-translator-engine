@@ -630,7 +630,7 @@ pub fn chapter_addressing_section(
             })
             .collect();
         section.push_str(&format!(
-            "\nCặp xưng hô đang dùng (chương đang dịch: ch.{}) — `甲→乙: X–Y` nghĩa là trong thoại 甲 tự xưng X và gọi 乙 là Y (cặp ngược `乙→甲` có mục riêng):\n\n{}\n\nĐây là cặp gần nhất đã ghi, kèm chương chốt; mặc định giữ. Nếu chương này cho thấy quan hệ hai người đã khác lúc chốt — thoại gọi nhau bằng danh xưng khác hẳn (师父/师尊, 主人, 夫君/相公/老公/老婆, 姐/哥, 宝贝…), hoặc đã thành người yêu, vợ chồng, thầy trò, chủ tớ, kết nghĩa, trở mặt thành thù — thì dịch theo quan hệ hiện tại cho cả hai chiều trong cả chương và khai lại cặp trong danh sách glossary đề xuất kèm `note`.\n",
+            "\nCặp xưng hô đang dùng (chương đang dịch: ch.{}) — `甲→乙: X–Y` nghĩa là trong thoại 甲 tự xưng X và gọi 乙 là Y (cặp ngược `乙→甲` có mục riêng):\n\n{}\n\nĐây là cặp gần nhất đã ghi, kèm chương chốt; mặc định giữ. Nếu chương này cho thấy quan hệ hai người đã khác lúc chốt — thoại gọi nhau bằng danh xưng khác hẳn (师父/师尊, 主人, 夫君/相公/老公/老婆, 姐/哥, 宝贝…), hoặc đã thành người yêu, vợ chồng, thầy trò, chủ tớ, kết nghĩa, trở mặt thành thù — thì dịch theo quan hệ hiện tại cho cả hai chiều trong cả chương và khai lại cặp trong danh sách glossary đề xuất kèm `note`. Xưng hô chỉ của một cảnh (cải trang, giả làm, đóng kịch, trước mặt người ngoài, hồi tưởng, kiếp trước, mỉa mai) thì dịch theo cảnh nhưng không khai lại cặp.\n",
             chapter_label(chapter_id),
             list.join("\n")
         ));
@@ -929,9 +929,27 @@ pub fn filter_new_pairs(
         .collect()
 }
 
-/// Nhận thay đổi cho cặp ĐÃ CÓ (ở `story.json` hoặc mốc trước): phải có `note`, không ghim, khác cặp đang
-/// hiệu lực, không đảo về giá trị ngay trước đó, hợp giới. Ghi mốc `from` = chương đang chốt; dịch lại cùng
-/// chương thì thay mốc cũ của chương đó.
+/// Lý do đổi cặp cho thấy xưng hô chỉ của một cảnh (cải trang, đóng kịch, trước mặt người ngoài, hồi tưởng…). Nhận
+/// làm mốc thì cặp tạm dính suốt các chương sau — luật không đảo về giá trị ngay trước đó còn chặn đường quay lại
+/// (thư viện: "tại hạ–Mộc tiểu thư" vì "trước mặt sứ giả" dính 123 chương).
+static SITUATIONAL_NOTE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+    regex::Regex::new(
+        r"(?i)\b(trước mặt|cải trang|ngụy trang|giả làm|giả vờ|giả danh|giả giọng|giả trang|đóng kịch|diễn kịch|nhập vai|mỉa mai|châm chọc|chế giễu|hồi tưởng|kiếp trước|trước khi trọng sinh|trước trọng sinh|dòng thời gian|nhất thời|tạm thời|chưa nhận ra|không nhận ra|khi ở|lúc ở|say rượu|giận dỗi)\b",
+    )
+    .unwrap()
+});
+/// … trừ khi màn kịch đã hạ ("không còn đóng kịch", "hết giả vờ"): đó là quay về quan hệ thật.
+static ENDED_NOTE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+    regex::Regex::new(r"(?i)\b(không còn|hết|thôi|kết thúc|lộ|bại lộ|vạch trần|lật tẩy|đã nhận ra)\b").unwrap()
+});
+
+fn situational_note(note: &str) -> bool {
+    SITUATIONAL_NOTE.is_match(note) && !ENDED_NOTE.is_match(note)
+}
+
+/// Nhận thay đổi cho cặp ĐÃ CÓ (ở `story.json` hoặc mốc trước): phải có `note`, không theo tình huống một cảnh,
+/// không ghim, khác cặp đang hiệu lực, không đảo về giá trị ngay trước đó, hợp giới. Ghi mốc `from` = chương đang
+/// chốt; dịch lại cùng chương thì thay mốc cũ của chương đó.
 pub fn apply_address_changes(
     entries: &Value,
     raw: &str,
@@ -958,6 +976,10 @@ pub fn apply_address_changes(
             continue; // cặp mới → đi đường học cặp mới
         }
         if cast.addressing.get(&key).is_some_and(|timeline| timeline.pinned) || pair_gender_conflict(&key, &target, cast) {
+            continue;
+        }
+        if situational_note(text("note")) {
+            notes.push(format!("bỏ đổi xưng hô {key} → {target}: chỉ của một cảnh ({})", text("note")));
             continue;
         }
         let mut history: Vec<String> = base.get(&key).map(|value| pair_text(value)).into_iter().collect();

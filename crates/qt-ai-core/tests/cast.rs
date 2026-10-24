@@ -739,3 +739,28 @@ fn loi_ke_ngoi_ba_mac_dinh_han_chi_nhan_vat_ghi_rieng_moi_dung_cau() {
     assert!(got.contains("- 唐晨 (Đường Thần): nam — lời kể: `cậu` (ghi riêng)"), "{got}");
     assert!(got.contains("trẻ nhỏ được dùng `nó`"), "danh sách có mặt không ép `hắn` cho trẻ nhỏ");
 }
+
+#[test]
+fn doi_cap_theo_tinh_huong_mot_canh_thi_bo_ghi_chu_ly_do() {
+    use qt_ai_core::story::GenreSetting;
+    // Lý do thật từ thư viện: cặp tạm từng dính hàng trăm chương sau.
+    let situational = [
+        "xưng hô trước mặt sứ giả các phương",
+        "Lý Phàm giả làm tiền bối thượng cổ Kim Đan",
+        "dòng thời gian trước trọng sinh, chưa yêu nhau",
+        "Lý Thần Phong không nhận ra Lý Phàm cải trang",
+        "Trần Mạn xưng em gọi anh khi ở cùng nhóm các cô gái",
+    ];
+    // Màn kịch đã hạ, hoặc đổi quan hệ thật (kể cả biệt danh thân mật): vẫn nhận.
+    let lasting = ["trở mặt, không còn đóng kịch sư đồ", "đã thành người yêu", "quan hệ thân mật trêu chọc"];
+    for (note, kept) in situational.iter().map(|n| (n, false)).chain(lasting.iter().map(|n| (n, true))) {
+        let base = map(&[("李凡→何正浩", "ta–tiên sư")]);
+        let entries = json!([{ "category": "addressing", "source": "李凡→何正浩", "target": "ta–ngươi", "note": note }]);
+        let mut cast = Cast::default();
+        let notes = apply_address_changes(&entries, "李凡对何正浩说。", &base, &mut cast, "0042", GenreSetting::Ancient);
+        assert_eq!(cast.addressing.contains_key("李凡→何正浩"), kept, "{note}");
+        if !kept {
+            assert_eq!(notes, vec![format!("bỏ đổi xưng hô 李凡→何正浩 → ta–ngươi: chỉ của một cảnh ({note})")]);
+        }
+    }
+}

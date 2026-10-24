@@ -36,6 +36,7 @@ fn agent_instructions(id: &str, unpaired: &[(String, String)]) -> String {
     }
     lines.extend([
         r#"   Cặp ĐÃ CÓ mà chương này cho thấy quan hệ hai người đã khác lúc chốt cặp (đã là người yêu, đính hôn, vợ chồng, thầy trò, chủ tớ, nhận người thân, kết nghĩa, trở mặt) nên đã dịch bằng cặp khác: khai lại cặp đó với target đúng như vừa dịch và "note": "lý do ngắn", cả hai chiều."#.to_string(),
+        r#"   Xưng hô chỉ của một cảnh thì dịch theo cảnh nhưng KHÔNG khai: cải trang, giả làm, đóng kịch; xưng hô trước mặt người ngoài, thuộc hạ, sứ giả; hồi tưởng, kiếp trước, dòng thời gian khác; mỉa mai, trêu đùa, giận dỗi nhất thời."#.to_string(),
         r#"   Chỉ ghi {"entries": []} khi không có cả tên mới lẫn cặp xưng hô mới."#.to_string(),
         format!("4. Chạy: qt-ai check {id} (xem AGENTS.md để biết lệnh đầy đủ)."),
     ]);
