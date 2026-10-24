@@ -3,6 +3,7 @@ use crate::check::{
 };
 use crate::error::{CoreError, Result};
 use crate::mojibake::{mojibake_score, MOJIBAKE_ISSUE};
+use crate::vn_syllable::{suspect_syllables, VN_SYLLABLE_ISSUE};
 use crate::paragraphs::{labeled_repair_payload, paragraphs_of, parse_labeled_translation};
 use crate::story_fs::{
     load_state, load_story_config, now_ms, read_raw_chapter, read_text, resolve_root, save_state, story_paths,
@@ -157,6 +158,18 @@ fn check_chapter(root: &Path, id: &str, record: bool) -> Result<CheckResult> {
         .collect();
     let mut violations = check_violations(&final_text, &story.check_rules, story.genre.setting);
     violations.extend(garbled.iter().map(|label| paragraph_violation(&parsed, label - 1, MOJIBAKE_ISSUE.to_string())));
+    // Âm tiết không thể có trong tiếng Việt (model sinh hỏng: "mồhôi", "pháthuy") — vi phạm mềm: vào soát, model sửa
+    // hoặc giữ chữ lóng cố ý. Riêng phía Rust như mojibake; đoạn đã dính mojibake thì không kể thêm.
+    violations.extend(parsed.iter().enumerate().filter(|(i, _)| !garbled.contains(&(i + 1))).filter_map(|(i, p)| {
+        let words = suspect_syllables(p.as_deref()?);
+        (!words.is_empty()).then(|| {
+            let list = words.iter().map(|w| format!("“{w}”")).collect::<Vec<_>>().join(", ");
+            let message = format!(
+                "{VN_SYLLABLE_ISSUE}: {list} — sửa đúng chính tả; chữ lóng, kéo dài, nói lắp cố ý trong thoại thì giữ"
+            );
+            paragraph_violation(&parsed, i, message)
+        })
+    }));
     let mut advisories: Vec<String> = advisory_violations(&final_text, story.genre.setting)
         .iter()
         .map(|v| format!("[[{}]] {} — \"{}\"", violation_label(&parsed, v), v.message, v.text))

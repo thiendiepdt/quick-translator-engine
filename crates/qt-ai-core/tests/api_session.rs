@@ -164,6 +164,25 @@ fn vi_pham_rule_thi_soat_tren_draft_co_nhan_roi_accept() {
 }
 
 #[test]
+fn am_tiet_hong_thi_soat_va_nhan_ban_sua_chinh_ta() {
+    let dir = story(1);
+    let bad = format!("[[1]] {GOOD_1}\n\n[[2]] Nàng im lặng rất lâu, mồhôi lấm tấm, không nói một lời nào.");
+    let fixed = format!("[[1]] {GOOD_1}\n\n[[2]] Nàng im lặng rất lâu, mồ hôi lấm tấm, không nói một lời nào.");
+    let model = FakeModel::new(vec![Ok(bad), Ok(fixed)]);
+    let (sink, _) = collect();
+    let handle = start_api_session(config(dir.path()), model.clone(), sink).unwrap();
+    assert_eq!(handle.join(), StopReason::Finished);
+    let calls = model.calls();
+    assert_eq!(calls.len(), 2);
+    assert!(calls[1].1.contains("[[2]] Âm tiết không có trong tiếng Việt: “mồhôi”"), "{}", calls[1].1);
+    let state = load_state(&story_paths(dir.path())).unwrap();
+    assert_eq!(state.chapters["0001"].status, ChapterStatus::Done);
+    assert!(state.chapters["0001"].warnings.is_none(), "bản sửa phải được nhận, không chốt kèm cảnh báo");
+    let out = fs::read_to_string(dir.path().join("out").join("0001.txt")).unwrap();
+    assert!(out.contains("mồ hôi lấm tấm"), "{out}");
+}
+
+#[test]
 fn ban_soat_te_hon_thi_bo_va_het_vong_chot_kem_canh_bao() {
     let dir = story(1);
     let bad = format!("[[1]] Anh ấy ngẩng đầu nhìn về phía tòa tháp cao ở nơi xa.\n\n[[2]] {GOOD_2}");

@@ -435,7 +435,8 @@ Giữ nguyên toàn bộ chữ, thứ tự câu, dấu câu và ngắt đoạn k
         let names = chapter.glossary.get("names").unwrap_or(&no_names);
         let addressing = crate::cast::addressing_issues(chapter.paragraphs, &parsed, names, chapter.cast).len();
         let near = glossary_near_misses(chapter.paragraphs, &parsed, chapter.glossary).len();
-        (han, check_violations(&final_text(text), &story.check_rules, story.genre.setting).len() + addressing + near)
+        let syllables = text.iter().filter(|p| !crate::vn_syllable::suspect_syllables(p).is_empty()).count();
+        (han, check_violations(&final_text(text), &story.check_rules, story.genre.setting).len() + addressing + near + syllables)
     };
     let (before_han, before) = score(draft);
     let (after_han, after) = score(&reviewed);

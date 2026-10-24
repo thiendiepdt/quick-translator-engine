@@ -617,6 +617,25 @@ fn check_bao_doan_loi_ma_hoa_theo_nhan_va_ghi_review() {
 }
 
 #[test]
+fn check_bao_am_tiet_hong_la_vi_pham_mem_vao_soat() {
+    let draft = "[[1]] Triệu Tĩnh Văn ngẩng đầu nhìn về phía tòa tháp cao nơi xa.\n\n[[2]] Nàng im lặng hồi lâu, mồhôi lấm tấm, không nói lời nào.";
+    let dir = story_with_draft(draft, None);
+    let result = run_check(dir.path(), "0001").unwrap();
+    assert!(!result.pass);
+    assert!(result.garbled.is_empty() && result.untranslated.is_empty(), "không phải lỗi cứng");
+    assert!(
+        result.issues.iter().any(|i| i.starts_with("[[2]] Âm tiết không có trong tiếng Việt: “mồhôi” — sửa đúng chính tả")),
+        "{:?}",
+        result.issues
+    );
+    let review = fs::read_to_string(result.review_path.unwrap()).unwrap();
+    assert!(review.contains("Âm tiết không có trong tiếng Việt: “mồhôi”"), "{review}");
+    // Bản dịch đúng thì không dính.
+    let clean = run_check(story_with_draft(GOOD_DRAFT, None).path(), "0001").unwrap();
+    assert!(!clean.issues.iter().any(|i| i.contains("Âm tiết không có")), "{:?}", clean.issues);
+}
+
+#[test]
 fn check_bat_doan_hong_le_trong_chuong_dai_khong_can_ca_chuong_vuot_nguong() {
     let long = "Triệu Tĩnh Văn ngẩng đầu nhìn về phía tòa tháp cao nơi xa, gió thổi lạnh buốt qua vạt áo. ".repeat(6);
     let dir = story_with_draft(&format!("[[1]] {long}\n\n[[2]] Nàng Ä‘ứng im lặng hồi lâu không nói lời nào."), None);
