@@ -155,6 +155,12 @@ const ADVISORY_CHECK_RULES: Array<[RegExp, string, GenreSetting?]> = [
   [/(?:^|[.!?…]\s+|[“"])Bản thân(?!\s+(?:là|hắn|nàng|cô|y|lão|gã|nó)(?!\p{L}))(?!\p{L})/u, "自己 làm chủ ngữ → hắn/nàng/cô hoặc lược, không mở câu bằng Bản thân"],
   [/chiếm (?:hết )?tiện nghi/iu, "占便宜 → lợi dụng / sàm sỡ / bắt nạt theo cảnh, không chiếm tiện nghi"],
   [/tổng không thể/iu, "总不能 → đâu thể / chẳng lẽ, không tổng không thể"],
+  // Cấu trúc convert ít gặp nhưng gần như luôn sai (thư viện 40 nghìn chương: 0,1–0,6% chương mỗi mẫu).
+  // "đối với X mà nói" (12% chương) chỉ nằm ở prompt — cảnh báo thì ngập.
+  [/(?<!\p{L})đem ánh mắt(?!\p{L})/iu, "把目光 → đưa mắt nhìn / hướng mắt về, không đem ánh mắt"],
+  [/(?<!\p{L})tiến hành một (?:phen|lần|chút|hồi)(?!\p{L})/iu, "进行了一番 → dùng thẳng động từ, không tiến hành một phen"],
+  [/(?<!\p{L})một loại cảm giác(?!\p{L})/iu, "一种感觉 → một cảm giác / cảm thấy, không một loại cảm giác"],
+  [/(?<!\p{L})lộ ra (?:thần sắc|biểu tình|thần tình)(?!\p{L})/iu, "露出…神色/表情 → lộ vẻ…, không lộ ra thần sắc"],
 ];
 
 export function defaultAdvisoryRules(setting: GenreSetting): AiCheckRule[] {

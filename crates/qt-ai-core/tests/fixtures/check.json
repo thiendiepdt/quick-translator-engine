@@ -868,6 +868,26 @@
         "pattern": "tổng không thể",
         "flags": "iu",
         "message": "总不能 → đâu thể / chẳng lẽ, không tổng không thể"
+      },
+      {
+        "pattern": "(?<!\\p{L})đem ánh mắt(?!\\p{L})",
+        "flags": "iu",
+        "message": "把目光 → đưa mắt nhìn / hướng mắt về, không đem ánh mắt"
+      },
+      {
+        "pattern": "(?<!\\p{L})tiến hành một (?:phen|lần|chút|hồi)(?!\\p{L})",
+        "flags": "iu",
+        "message": "进行了一番 → dùng thẳng động từ, không tiến hành một phen"
+      },
+      {
+        "pattern": "(?<!\\p{L})một loại cảm giác(?!\\p{L})",
+        "flags": "iu",
+        "message": "一种感觉 → một cảm giác / cảm thấy, không một loại cảm giác"
+      },
+      {
+        "pattern": "(?<!\\p{L})lộ ra (?:thần sắc|biểu tình|thần tình)(?!\\p{L})",
+        "flags": "iu",
+        "message": "露出…神色/表情 → lộ vẻ…, không lộ ra thần sắc"
       }
     ],
     "modern": [
@@ -915,6 +935,26 @@
         "pattern": "tổng không thể",
         "flags": "iu",
         "message": "总不能 → đâu thể / chẳng lẽ, không tổng không thể"
+      },
+      {
+        "pattern": "(?<!\\p{L})đem ánh mắt(?!\\p{L})",
+        "flags": "iu",
+        "message": "把目光 → đưa mắt nhìn / hướng mắt về, không đem ánh mắt"
+      },
+      {
+        "pattern": "(?<!\\p{L})tiến hành một (?:phen|lần|chút|hồi)(?!\\p{L})",
+        "flags": "iu",
+        "message": "进行了一番 → dùng thẳng động từ, không tiến hành một phen"
+      },
+      {
+        "pattern": "(?<!\\p{L})một loại cảm giác(?!\\p{L})",
+        "flags": "iu",
+        "message": "一种感觉 → một cảm giác / cảm thấy, không một loại cảm giác"
+      },
+      {
+        "pattern": "(?<!\\p{L})lộ ra (?:thần sắc|biểu tình|thần tình)(?!\\p{L})",
+        "flags": "iu",
+        "message": "露出…神色/表情 → lộ vẻ…, không lộ ra thần sắc"
       }
     ],
     "mixed": [
@@ -952,6 +992,26 @@
         "pattern": "tổng không thể",
         "flags": "iu",
         "message": "总不能 → đâu thể / chẳng lẽ, không tổng không thể"
+      },
+      {
+        "pattern": "(?<!\\p{L})đem ánh mắt(?!\\p{L})",
+        "flags": "iu",
+        "message": "把目光 → đưa mắt nhìn / hướng mắt về, không đem ánh mắt"
+      },
+      {
+        "pattern": "(?<!\\p{L})tiến hành một (?:phen|lần|chút|hồi)(?!\\p{L})",
+        "flags": "iu",
+        "message": "进行了一番 → dùng thẳng động từ, không tiến hành một phen"
+      },
+      {
+        "pattern": "(?<!\\p{L})một loại cảm giác(?!\\p{L})",
+        "flags": "iu",
+        "message": "一种感觉 → một cảm giác / cảm thấy, không một loại cảm giác"
+      },
+      {
+        "pattern": "(?<!\\p{L})lộ ra (?:thần sắc|biểu tình|thần tình)(?!\\p{L})",
+        "flags": "iu",
+        "message": "露出…神色/表情 → lộ vẻ…, không lộ ra thần sắc"
       }
     ]
   },
@@ -1169,7 +1229,7 @@
   "advisoryCases": [
     {
       "name": "an",
-      "text": "“Ân.” Hắn ân một tiếng.\nHứa Ân, đi thôi.\nÂn công cứu mạng.\nNàng gật đầu. Ân~ được.\nKhổ nỗi tình hình của bản thân hắn có chút đặc thù.\nBản thân cũng chẳng muốn đi. Bản thân là chưởng môn, sao lùi được.\nHắn tự hỏi bản thân mình.\nTôi lắc đầu.\n“Tôi không đi.”\n【Tôi vốn đã định làm người phụ nữ của hắn】\n[Hệ thống: tôi]\nCá Muối Biết Bay: Bây giờ tôi đi đầu thai làm mèo\nChương 119: Dạo này tôi thể hiện không tốt sao?\n“Thiếu gia, ta nhớ là đã từng nói với ngài.”\n“Sư phụ, ngươi đừng lo.”\n“Thiếu gia, chúng ta đi thôi, người ta đợi.”\n“Thiếu gia, nô tỳ nhớ đã thưa với ngài.”\n“Công tử, ngươi là ai?”\nGom góp một trăm ức mua biệt thự.\nSố dư: 9,6 ức điểm.\nHắn bị ức hiếp, sống ức vạn năm, mấy ức vạn sinh linh.\nCó 20 vạn fan theo dõi.\nMười vạn đại quân áp sát.\nHô vạn tuế, vạn nhất có chuyện.\nToàn chiếm tiện nghi của ta.\nTiện nghi sư tôn lại tới.\nTổng không thể bỏ mặc nàng.",
+      "text": "“Ân.” Hắn ân một tiếng.\nHứa Ân, đi thôi.\nÂn công cứu mạng.\nNàng gật đầu. Ân~ được.\nKhổ nỗi tình hình của bản thân hắn có chút đặc thù.\nBản thân cũng chẳng muốn đi. Bản thân là chưởng môn, sao lùi được.\nHắn tự hỏi bản thân mình.\nTôi lắc đầu.\n“Tôi không đi.”\n【Tôi vốn đã định làm người phụ nữ của hắn】\n[Hệ thống: tôi]\nCá Muối Biết Bay: Bây giờ tôi đi đầu thai làm mèo\nChương 119: Dạo này tôi thể hiện không tốt sao?\n“Thiếu gia, ta nhớ là đã từng nói với ngài.”\n“Sư phụ, ngươi đừng lo.”\n“Thiếu gia, chúng ta đi thôi, người ta đợi.”\n“Thiếu gia, nô tỳ nhớ đã thưa với ngài.”\n“Công tử, ngươi là ai?”\nGom góp một trăm ức mua biệt thự.\nSố dư: 9,6 ức điểm.\nHắn bị ức hiếp, sống ức vạn năm, mấy ức vạn sinh linh.\nCó 20 vạn fan theo dõi.\nMười vạn đại quân áp sát.\nHô vạn tuế, vạn nhất có chuyện.\nToàn chiếm tiện nghi của ta.\nTiện nghi sư tôn lại tới.\nTổng không thể bỏ mặc nàng.\nHắn đem ánh mắt khóa chặt.\nThiên Hậu tiến hành một phen thanh trừng.\nMột loại cảm giác áp bách.\nHắn lộ ra thần sắc cảnh giác.\nHắn đưa mắt nhìn, một cảm giác lạ, mặt lộ vẻ cảnh giác.\nĐối với Phi Tuyết mà nói, công tử là mạng sống.",
       "setting": "ancient",
       "violations": [
         {
@@ -1226,12 +1286,32 @@
           "line": 27,
           "message": "总不能 → đâu thể / chẳng lẽ, không tổng không thể",
           "text": "Tổng không thể bỏ mặc nàng."
+        },
+        {
+          "line": 28,
+          "message": "把目光 → đưa mắt nhìn / hướng mắt về, không đem ánh mắt",
+          "text": "Hắn đem ánh mắt khóa chặt."
+        },
+        {
+          "line": 29,
+          "message": "进行了一番 → dùng thẳng động từ, không tiến hành một phen",
+          "text": "Thiên Hậu tiến hành một phen thanh trừng."
+        },
+        {
+          "line": 30,
+          "message": "一种感觉 → một cảm giác / cảm thấy, không một loại cảm giác",
+          "text": "Một loại cảm giác áp bách."
+        },
+        {
+          "line": 31,
+          "message": "露出…神色/表情 → lộ vẻ…, không lộ ra thần sắc",
+          "text": "Hắn lộ ra thần sắc cảnh giác."
         }
       ]
     },
     {
       "name": "an-modern",
-      "text": "“Ân.” Hắn ân một tiếng.\nHứa Ân, đi thôi.\nÂn công cứu mạng.\nNàng gật đầu. Ân~ được.\nKhổ nỗi tình hình của bản thân hắn có chút đặc thù.\nBản thân cũng chẳng muốn đi. Bản thân là chưởng môn, sao lùi được.\nHắn tự hỏi bản thân mình.\nTôi lắc đầu.\n“Tôi không đi.”\n【Tôi vốn đã định làm người phụ nữ của hắn】\n[Hệ thống: tôi]\nCá Muối Biết Bay: Bây giờ tôi đi đầu thai làm mèo\nChương 119: Dạo này tôi thể hiện không tốt sao?\n“Thiếu gia, ta nhớ là đã từng nói với ngài.”\n“Sư phụ, ngươi đừng lo.”\n“Thiếu gia, chúng ta đi thôi, người ta đợi.”\n“Thiếu gia, nô tỳ nhớ đã thưa với ngài.”\n“Công tử, ngươi là ai?”\nGom góp một trăm ức mua biệt thự.\nSố dư: 9,6 ức điểm.\nHắn bị ức hiếp, sống ức vạn năm, mấy ức vạn sinh linh.\nCó 20 vạn fan theo dõi.\nMười vạn đại quân áp sát.\nHô vạn tuế, vạn nhất có chuyện.\nToàn chiếm tiện nghi của ta.\nTiện nghi sư tôn lại tới.\nTổng không thể bỏ mặc nàng.",
+      "text": "“Ân.” Hắn ân một tiếng.\nHứa Ân, đi thôi.\nÂn công cứu mạng.\nNàng gật đầu. Ân~ được.\nKhổ nỗi tình hình của bản thân hắn có chút đặc thù.\nBản thân cũng chẳng muốn đi. Bản thân là chưởng môn, sao lùi được.\nHắn tự hỏi bản thân mình.\nTôi lắc đầu.\n“Tôi không đi.”\n【Tôi vốn đã định làm người phụ nữ của hắn】\n[Hệ thống: tôi]\nCá Muối Biết Bay: Bây giờ tôi đi đầu thai làm mèo\nChương 119: Dạo này tôi thể hiện không tốt sao?\n“Thiếu gia, ta nhớ là đã từng nói với ngài.”\n“Sư phụ, ngươi đừng lo.”\n“Thiếu gia, chúng ta đi thôi, người ta đợi.”\n“Thiếu gia, nô tỳ nhớ đã thưa với ngài.”\n“Công tử, ngươi là ai?”\nGom góp một trăm ức mua biệt thự.\nSố dư: 9,6 ức điểm.\nHắn bị ức hiếp, sống ức vạn năm, mấy ức vạn sinh linh.\nCó 20 vạn fan theo dõi.\nMười vạn đại quân áp sát.\nHô vạn tuế, vạn nhất có chuyện.\nToàn chiếm tiện nghi của ta.\nTiện nghi sư tôn lại tới.\nTổng không thể bỏ mặc nàng.\nHắn đem ánh mắt khóa chặt.\nThiên Hậu tiến hành một phen thanh trừng.\nMột loại cảm giác áp bách.\nHắn lộ ra thần sắc cảnh giác.\nHắn đưa mắt nhìn, một cảm giác lạ, mặt lộ vẻ cảnh giác.\nĐối với Phi Tuyết mà nói, công tử là mạng sống.",
       "setting": "modern",
       "violations": [
         {
@@ -1293,6 +1373,26 @@
           "line": 27,
           "message": "总不能 → đâu thể / chẳng lẽ, không tổng không thể",
           "text": "Tổng không thể bỏ mặc nàng."
+        },
+        {
+          "line": 28,
+          "message": "把目光 → đưa mắt nhìn / hướng mắt về, không đem ánh mắt",
+          "text": "Hắn đem ánh mắt khóa chặt."
+        },
+        {
+          "line": 29,
+          "message": "进行了一番 → dùng thẳng động từ, không tiến hành một phen",
+          "text": "Thiên Hậu tiến hành một phen thanh trừng."
+        },
+        {
+          "line": 30,
+          "message": "一种感觉 → một cảm giác / cảm thấy, không một loại cảm giác",
+          "text": "Một loại cảm giác áp bách."
+        },
+        {
+          "line": 31,
+          "message": "露出…神色/表情 → lộ vẻ…, không lộ ra thần sắc",
+          "text": "Hắn lộ ra thần sắc cảnh giác."
         }
       ]
     }

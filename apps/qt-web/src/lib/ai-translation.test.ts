@@ -353,6 +353,18 @@ describe("AI translation post-processing", () => {
     }
   });
 
+  it("cảnh báo cấu trúc convert đem ánh mắt, tiến hành một phen, một loại cảm giác, lộ ra thần sắc; cách nói tự nhiên thì qua", () => {
+    const text = [
+      "Hắn đem ánh mắt khóa chặt trên người lão quản gia.",
+      "Thiên Hậu đã tiến hành một phen thanh trừng đẫm máu.",
+      "Một loại cảm giác áp bách rỉ ra từ tận kẽ xương.",
+      "Xảo Công lộ ra thần sắc cảnh giác, đánh giá bốn phía.",
+      "Hắn đưa mắt nhìn quanh, tiến hành kiểm tra, một cảm giác lạ dâng lên, mặt lộ vẻ cảnh giác.",
+      "Đối với Phi Tuyết mà nói, công tử chính là mạng sống.",
+    ].join("\n");
+    expect(checkAdvisoryViolations(text).map((v) => v.line)).toEqual([1, 2, 3, 4]);
+  });
+
   it("cảnh báo 自己 dịch thành bản thân + đại từ hoặc mở câu bằng Bản thân; bản thân mình, Bản thân là thì qua", () => {
     const text = [
       "Khổ nỗi tình hình của bản thân hắn có chút đặc thù.",

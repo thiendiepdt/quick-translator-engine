@@ -5,6 +5,7 @@
 - Thêm kiểm tra chữ tiếng Việt viết sai khi chốt chương: bắt các chữ không thể có trong tiếng Việt do AI sinh hỏng (kiểu “mồhôi”, “pháthuy”, “tươnglai”) rồi đưa vào bước soát để AI sửa lại; chữ kéo dài, nói lắp hay tiếng lóng cố ý trong lời thoại vẫn được giữ.
 - Cải thiện bước soát khi dịch bằng API key: AI chỉ trả lại những đoạn cần sửa thay vì in lại cả chương, nên tốn ít token hơn, soát nhanh hơn và không sửa lan sang đoạn khác; AI cũng được xem nguyên văn tiếng Trung của đoạn bị nêu để sửa cho đúng.
 - Sửa lỗi xưng hô chỉ dùng trong một cảnh (cải trang, đóng kịch, nói trước mặt người ngoài, hồi tưởng, kiếp trước, mỉa mai) bị lưu thành cặp xưng hô mới và dính sang các chương sau; app giờ bỏ những lần đổi cặp kiểu này, còn đổi vì quan hệ thật (thành người yêu, bái sư, trở mặt, hết đóng kịch) vẫn nhận như cũ.
+- Cải thiện văn dịch: AI được dặn bỏ thêm 5 cấu trúc văn convert (“đối với X mà nói”, “đem ánh mắt”, “tiến hành một phen”, “một loại cảm giác”, “lộ ra thần sắc”); bốn cấu trúc sau còn sót thì chương được ghi cảnh báo khi chốt.
 
 ## 1.0.26 — 2026-10-17
 - Thêm nút **Đang dịch #N** trên thanh trang Dịch: bấm để cuộn tới và mở ngay chương đang dịch.

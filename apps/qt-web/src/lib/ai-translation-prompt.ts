@@ -11,8 +11,9 @@ import type { GenreNames, GenreSetting, GenreTone, StoryGenre } from "@/lib/ai-s
 // bỏ luật 嗯 → "Ân", bảng Thán từ & tiếng cười, luật 自己 bỏ ví dụ "bản thân hắn", mục Vai vế trong thoại,
 // 老X viết thường, bỏ dòng ép "kiểm trắc", mục Số và đơn vị
 // — docs/reviews/2026-10-06-chat-luong-dich/tien-trinh-sua.md; 2026-10-12 thêm ghi chú Gọi cha mẹ: 爹 → cha,
-// 娘 → nương, 爹娘 → cha nương; 他 không dùng cậu, cậu ta).
-export const LEGACY_BASE_PROMPT_FNV1A64 = "c35e1f460ecd027f";
+// 娘 → nương, 爹娘 → cha nương; 他 không dùng cậu, cậu ta; 2026-10-24 thêm 5 dòng convert vào bảng Dấu hiệu câu vẫn
+// còn là convert: đối với X mà nói, đem ánh mắt, tiến hành một phen, một loại cảm giác, lộ ra thần sắc).
+export const LEGACY_BASE_PROMPT_FNV1A64 = "d7cdb853c5ac10fa";
 
 const CORE_HEAD: string[] = [
   "Bạn là dịch giả tiểu thuyết Trung Quốc sang tiếng Việt. Nhiệm vụ của bạn là chuyển ngữ trung thành, không phải sáng tác lại hay biên tập nâng giọng.",
@@ -139,6 +140,11 @@ const CORE_TERMS: string[] = [
   "| 便/就 + động từ | chọn nhịp Việt phù hợp, nhiều trường hợp không cần từ riêng | luôn chèn `liền` |",
   "| 若有所思 | trầm ngâm / có vẻ suy tư | như có điều suy nghĩ |",
   "| 对于 X 究竟有多重要 | X quan trọng đến mức nào đối với... | đối với... rốt cuộc quan trọng ra sao |",
+  "| 对 X 来说 / 对于 X 而言 | Với X, … / Đối với X, … | đối với X mà nói |",
+  "| 把目光投向 / 落在…… | nhìn về / đưa mắt nhìn / hướng mắt về | đem ánh mắt… |",
+  "| 进行了一番 / 进行一下 + động từ | dùng thẳng động từ: thanh trừng, mật đàm, xem xét lại | tiến hành một phen / một lần / một chút… |",
+  "| 一种……的感觉 | một cảm giác… / cảm thấy… | một loại cảm giác |",
+  "| 露出……的神色 / 表情 | lộ vẻ… / mặt lộ vẻ… | lộ ra thần sắc / biểu tình… |",
   "| 还没……半点，反而…… | chưa... được chút nào thì đã... | còn chưa... nửa điểm, ngược lại... |",
   "| 被人……一脚踹开 | bị đá văng / bị một cú đạp tung | bị người ta... một chân đá văng |",
   "| 距离……已经不远了 | chẳng bao lâu nữa sẽ... / đã sắp... | khoảng cách... đã không còn xa |",
