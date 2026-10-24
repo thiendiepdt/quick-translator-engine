@@ -13,8 +13,9 @@ import type { GenreNames, GenreSetting, GenreTone, StoryGenre } from "@/lib/ai-s
 // — docs/reviews/2026-10-06-chat-luong-dich/tien-trinh-sua.md; 2026-10-12 thêm ghi chú Gọi cha mẹ: 爹 → cha,
 // 娘 → nương, 爹娘 → cha nương; 他 không dùng cậu, cậu ta; 2026-10-24 thêm 5 dòng convert vào bảng Dấu hiệu câu vẫn
 // còn là convert: đối với X mà nói, đem ánh mắt, tiến hành một phen, một loại cảm giác, lộ ra thần sắc; cùng ngày
-// thêm ghi chú 气息 → khí tức, chỉ thở thật mới là hơi thở, và dòng tự xưng theo thân phận: 本 + danh xưng đọc bổn).
-export const LEGACY_BASE_PROMPT_FNV1A64 = "5dc1372c665ad7a8";
+// thêm ghi chú 气息 → khí tức, chỉ thở thật mới là hơi thở, dòng tự xưng theo thân phận: 本 + danh xưng đọc bổn,
+// thứ tự ưu tiên thành ngữ (Việt tương đương > tự nhiên > Hán-Việt quen) và dòng dịch thơ).
+export const LEGACY_BASE_PROMPT_FNV1A64 = "0b30bc51c2ccfd46";
 
 const CORE_HEAD: string[] = [
   "Bạn là dịch giả tiểu thuyết Trung Quốc sang tiếng Việt. Nhiệm vụ của bạn là chuyển ngữ trung thành, không phải sáng tác lại hay biên tập nâng giọng.",
@@ -277,8 +278,12 @@ const CORE_VOCAB: string[] = [
   "",
   "### Thành ngữ — dịch nghĩa, KHÔNG phiên âm thô",
   "",
+  "Thứ tự ưu tiên: (1) thành ngữ, tục ngữ tiếng Việt tương đương (`打草惊蛇` → đánh rắn động cỏ); (2) diễn đạt tự nhiên đúng nghĩa bóng; (3) Hán-Việt khi đó là thành ngữ người Việt đã quen, đọc hiểu ngay (`名正言顺` → danh chính ngôn thuận, `心服口服` → tâm phục khẩu phục, `同归于尽` → đồng quy vu tận) — được giữ. Phiên âm thô là bê nguyên âm Hán-Việt của cụm người Việt không dùng.",
+  "",
   "| Trung | Tự nhiên | Phiên âm thô (SAI) |",
   "| ----- | -------- | ------------------ |",
+  "| 打草惊蛇 | đánh rắn động cỏ | đả thảo kinh xà |",
+  "| 兔死狐悲 | thỏ chết cáo thương | thố tử hồ bi |",
   "| 恍然大悟 | bất giác vỡ lẽ / chợt hiểu ra | hoảng nhiên đại ngộ |",
   "| 大动干戈 | làm to chuyện | đại động can qua |",
   "| 名义上的X | trên danh nghĩa X | X danh nghĩa |",
@@ -291,6 +296,8 @@ const CORE_VOCAB: string[] = [
   "Với mỗi thành ngữ/điển cố, phải nêu nghĩa bóng đã cố định của nó trong phần suy nghĩ trước khi chọn từ tiếng Việt. Cấm ghép nghĩa đen từng chữ rồi coi là xong. Nếu không chắc nghĩa bóng, diễn đạt bằng một câu trung tính đúng ý — **tuyệt đối không chế ra một thành ngữ tiếng Việt nghe xuôi tai nhưng sai nghĩa**, vì lỗi đó người đọc không tự đoán ngược lại được.",
   "",
   "Điển cố cổ văn (`虞国有凰，止王之庭`) giữ văn vực cổ: dùng lớp từ Hán-Việt trang trọng (`vương đình`), không hạ xuống lớp từ dân dã (`sân vua`).",
+  "",
+  "Thơ, câu đối, câu có vần nhịp: giữ ý và hình ảnh của từng câu, giữ số câu, chỉnh nhịp cho đọc xuôi tai; không sáng tác thêm câu, thêm ý hay ép vần làm sai nghĩa.",
   "",
   "### Từ tượng thanh",
   "",
