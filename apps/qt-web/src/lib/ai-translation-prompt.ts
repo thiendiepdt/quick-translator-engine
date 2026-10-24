@@ -14,8 +14,9 @@ import type { GenreNames, GenreSetting, GenreTone, StoryGenre } from "@/lib/ai-s
 // 娘 → nương, 爹娘 → cha nương; 他 không dùng cậu, cậu ta; 2026-10-24 thêm 5 dòng convert vào bảng Dấu hiệu câu vẫn
 // còn là convert: đối với X mà nói, đem ánh mắt, tiến hành một phen, một loại cảm giác, lộ ra thần sắc; cùng ngày
 // thêm ghi chú 气息 → khí tức, chỉ thở thật mới là hơi thở, dòng tự xưng theo thân phận: 本 + danh xưng đọc bổn,
-// thứ tự ưu tiên thành ngữ (Việt tương đương > tự nhiên > Hán-Việt quen) và dòng dịch thơ).
-export const LEGACY_BASE_PROMPT_FNV1A64 = "0b30bc51c2ccfd46";
+// thứ tự ưu tiên thành ngữ (Việt tương đương > tự nhiên > Hán-Việt quen), dòng dịch thơ, lóng ngôn tình 白月光 / 白莲花
+// và 赐婚 → ban hôn).
+export const LEGACY_BASE_PROMPT_FNV1A64 = "534a5426c22521e1";
 
 const CORE_HEAD: string[] = [
   "Bạn là dịch giả tiểu thuyết Trung Quốc sang tiếng Việt. Nhiệm vụ của bạn là chuyển ngữ trung thành, không phải sáng tác lại hay biên tập nâng giọng.",
@@ -109,6 +110,7 @@ const CORE_TERMS: string[] = [
   "- Glossary của truyện luôn được ưu tiên. Mục đã có trong glossary phải dùng đúng bản dịch đã định.",
   "- Chỉ dùng Hán-Việt cho tên riêng, thuật ngữ chuyên ngành, cảnh giới, pháp bảo, tước vị và chức quan đã có cách gọi ổn định.",
   "- Tự xưng theo thân phận giữ Hán-Việt theo raw: `朕` trẫm, `哀家` ai gia, `臣妾` thần thiếp, `妾身` thiếp thân, `寡人` quả nhân, `贫道` bần đạo, `贫僧` bần tăng, `老夫` lão phu, `在下` tại hạ, `晚辈` vãn bối, `奴婢` nô tỳ. `本` + danh xưng khi tự xưng đọc **bổn**, KHÔNG `bản`: `本宫` bổn cung, `本王` bổn vương, `本座` bổn tọa, `本官` bổn quan, `本帝` bổn đế, `本小姐` bổn tiểu thư, `本姑娘` bổn cô nương, `本公子` bổn công tử, `本少爷` bổn thiếu gia; `本尊` tự xưng là bổn tôn, chỉ chân thân (đối lập phân thân) thì là bản tôn.",
+  "- Từ lóng ngôn tình dùng chung mọi bối cảnh: `白月光` (người trong lòng không với tới) → bạch nguyệt quang, chỉ tả ánh trăng thật mới là ánh trăng; `白莲花` (kiểu người giả ngây thơ) → bạch liên hoa, không hoa sen trắng.",
   "- Với động từ, tính từ, trạng thái, hình ảnh, thành ngữ và lời kể thông thường, dùng tiếng Việt tự nhiên, đúng nghĩa. KHÔNG phiên âm Hán-Việt chỉ để câu nghe giống “văn tu tiên” hoặc “văn convert”.",
   "- Gặp thuật ngữ/chức quan lạ, phải nhận diện cả cụm và chức năng trong ngữ cảnh trước khi dịch. KHÔNG bẻ từng chữ rồi ghép thành một cụm Hán-Việt vô nghĩa.",
   "",
@@ -572,6 +574,7 @@ const ancient: SettingModule = {
     "| 世子  | thế tử |",
     "| 郡主  | quận chúa |",
     "| 公主  | công chúa |",
+    "| 赐婚  | ban hôn |",
     "",
     "#### Nhân vật cung đình",
     "",
@@ -747,6 +750,7 @@ const modern: SettingModule = {
     "| 内卷 / 躺平 | cày cuốc kiệt sức, cạnh tranh khốc liệt / nằm thẳng, buông xuôi | nội quyển |",
     "| 大佬 / 土豪 | đại lão, trùm / đại gia | thổ hào |",
     "| 学霸 / 学渣 | học bá / học kém | |",
+    "| 朋友圈 | vòng bạn bè | trang cá nhân, bảng tin, moments |",
     "| 单身狗 | ế / FA | chó độc thân |",
     "| 加油 | cố lên | gia du |",
     "",
