@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ReplacePage } from "@/components/pages/replace-page";
-import { replaceApply, replaceFind, replaceUndo, replaceUndoInfo } from "@/lib/api";
+import { replaceApply, replaceFind, replaceUndo, replaceUndoInfo, storySnapshot } from "@/lib/api";
 import { storySnapshotSchema } from "@/lib/schema";
 import { useStoryStore } from "@/store/story";
 
@@ -12,6 +12,7 @@ vi.mock("@/lib/api", () => ({
   replaceApply: vi.fn(),
   replaceUndoInfo: vi.fn(),
   replaceUndo: vi.fn(),
+  storySnapshot: vi.fn(),
 }));
 
 const row = (id: string) => ({ id, status: "done", reviewRound: 0, reason: null, warnings: [] });
@@ -48,15 +49,28 @@ const found = {
     { chapter: "0001", paragraph: 9, occurrence: 0, before: "Bốn ", matched: "người tộc", after: " Hải Cự Nhân", raw: "四名海巨人族" },
     { chapter: "0003", paragraph: 0, occurrence: 0, before: "", matched: "người tộc", after: " ta.", raw: null },
   ],
+  profile: [],
+};
+
+const inProfile = {
+  ...found,
+  profile: [
+    { field: "glossary.common", key: "人族", index: 0, occurrence: 0, before: "", matched: "người tộc", after: "", chapter: null },
+    { field: "toneRules", key: "", index: 1, occurrence: 0, before: "Gọi ", matched: "người tộc", after: " là…", chapter: null },
+    { field: "addressing", key: "林枫→人族", index: 0, occurrence: 0, before: "ta–", matched: "người tộc", after: "", chapter: "0002" },
+    { field: "titles", key: "人族大军", index: 0, occurrence: 0, before: "Đại quân ", matched: "người tộc", after: "", chapter: null },
+    { field: "titles", key: "人族之耻", index: 0, occurrence: 0, before: "Nỗi nhục ", matched: "người tộc", after: "", chapter: null },
+  ],
 };
 
 describe("ReplacePage", () => {
   beforeEach(() => {
     useStoryStore.setState({ root: snapshot.root, snapshot, sessions: {}, page: "replace", selectedId: undefined });
     vi.mocked(replaceFind).mockReset().mockResolvedValue(found);
-    vi.mocked(replaceApply).mockReset().mockResolvedValue({ chapters: 1, occurrences: 2 });
+    vi.mocked(replaceApply).mockReset().mockResolvedValue({ chapters: 1, occurrences: 2, profile: 0 });
     vi.mocked(replaceUndoInfo).mockReset().mockResolvedValue(null);
-    vi.mocked(replaceUndo).mockReset().mockResolvedValue({ restored: 1, conflicts: [] });
+    vi.mocked(replaceUndo).mockReset().mockResolvedValue({ restored: 1, conflicts: [], profileRestored: 0, profileConflicts: [] });
+    vi.mocked(storySnapshot).mockReset().mockResolvedValue(snapshot);
   });
 
   it("gõ để tìm, xem ngữ cảnh + raw, bỏ chọn một chỗ rồi thay phần còn lại", async () => {
@@ -77,6 +91,7 @@ describe("ReplacePage", () => {
       expect.objectContaining({ find: "người tộc", replace: "nhân tộc" }),
       [],
       [{ chapter: "0001", paragraph: 9, occurrence: 0 }],
+      [],
     );
     expect(await screen.findByText("Đã thay 2 chỗ trong 1 chương.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Hồ sơ truyện → Glossary" })).toBeInTheDocument();
@@ -92,7 +107,7 @@ describe("ReplacePage", () => {
     await user.click(screen.getByLabelText("Chọn Chương #1"));
     expect(screen.getByText("3 chỗ trong 2 chương — đang chọn 1.")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Thay 1 chỗ" }));
-    expect(vi.mocked(replaceApply).mock.lastCall?.slice(2)).toEqual([["0001"], []]);
+    expect(vi.mocked(replaceApply).mock.lastCall?.slice(2)).toEqual([["0001"], [], []]);
   });
 
   it("bấm vào một chỗ thì mở chương đó ở trang Dịch", async () => {
@@ -107,7 +122,7 @@ describe("ReplacePage", () => {
 
   it("hoàn tác lần thay gần nhất", async () => {
     const user = userEvent.setup();
-    vi.mocked(replaceUndoInfo).mockResolvedValue({ find: "Lục Đình Vân", replace: "Lục Vân Đình", chapters: 2, occurrences: 5, createdAt: 1 });
+    vi.mocked(replaceUndoInfo).mockResolvedValue({ find: "Lục Đình Vân", replace: "Lục Vân Đình", chapters: 2, occurrences: 5, profile: 0, createdAt: 1 });
     render(<ReplacePage />);
     expect(await screen.findByText("Lần thay gần nhất: “Lục Đình Vân” → “Lục Vân Đình” (5 chỗ, 2 chương).")).toBeInTheDocument();
     vi.mocked(replaceUndoInfo).mockResolvedValue(null);
@@ -115,5 +130,56 @@ describe("ReplacePage", () => {
     expect(replaceUndo).toHaveBeenCalledWith(snapshot.root);
     expect(await screen.findByText("Đã hoàn tác 1 chương.")).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole("button", { name: "Hoàn tác" })).not.toBeInTheDocument());
+  });
+
+  it("chỗ khớp trong hồ sơ chia tab Hồ sơ / Nhân vật / Tiêu đề chương, bỏ chọn rồi thay chung một lần", async () => {
+    const user = userEvent.setup();
+    vi.mocked(replaceFind).mockResolvedValue(inProfile);
+    vi.mocked(replaceApply).mockResolvedValue({ chapters: 2, occurrences: 3, profile: 4 });
+    render(<ReplacePage />);
+    await user.type(screen.getByLabelText("Tìm"), "người tộc");
+    await user.type(screen.getByLabelText("Thay bằng"), "nhân tộc");
+    expect(await screen.findByText("3 chỗ trong 2 chương, 5 chỗ trong hồ sơ — đang chọn 8.")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Chương 3" })).toHaveAttribute("aria-selected", "true");
+
+    await user.click(screen.getByRole("tab", { name: "Hồ sơ 2" }));
+    expect(screen.getByRole("region", { name: "Glossary · Từ thông dụng" })).toBeInTheDocument();
+    await user.click(screen.getByLabelText("Chọn Tone rules dòng 2"));
+    await user.click(screen.getByRole("tab", { name: "Nhân vật 1" }));
+    expect(screen.getByText("林枫→人族 · từ ch.2")).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Tiêu đề chương 2" }));
+    await user.click(screen.getByLabelText("Chọn cả nhóm Sổ tiêu đề chương"));
+    expect(screen.getByText("3 chỗ trong 2 chương, 5 chỗ trong hồ sơ — đang chọn 5.")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Thay 5 chỗ" }));
+    expect(vi.mocked(replaceApply).mock.lastCall?.[4]).toEqual([
+      { field: "toneRules", key: "", index: 1, occurrence: 0 },
+      { field: "titles", key: "人族大军", index: 0, occurrence: 0 },
+      { field: "titles", key: "人族之耻", index: 0, occurrence: 0 },
+    ]);
+    expect(await screen.findByText("Đã thay 3 chỗ trong 2 chương và 4 chỗ trong hồ sơ.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Hồ sơ truyện → Glossary" })).not.toBeInTheDocument();
+    expect(storySnapshot).toHaveBeenCalledWith(snapshot.root);
+  });
+
+  it("chỉ khớp trong hồ sơ thì mở sẵn tab có chỗ khớp", async () => {
+    const user = userEvent.setup();
+    vi.mocked(replaceFind).mockResolvedValue({ ...inProfile, total: 0, chapters: [], hits: [] });
+    render(<ReplacePage />);
+    await user.type(screen.getByLabelText("Tìm"), "người tộc");
+    expect(await screen.findByText("5 chỗ trong hồ sơ — đang chọn 5.")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Chương 0" })).toBeDisabled();
+    expect(screen.getByRole("tab", { name: "Hồ sơ 2" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("hoàn tác báo cả file hồ sơ trả về và file đã sửa tiếp", async () => {
+    const user = userEvent.setup();
+    vi.mocked(replaceUndoInfo).mockResolvedValue({ find: "a", replace: "b", chapters: 1, occurrences: 2, profile: 3, createdAt: 1 });
+    vi.mocked(replaceUndo).mockResolvedValue({ restored: 1, conflicts: [], profileRestored: 1, profileConflicts: ["cast.json"] });
+    render(<ReplacePage />);
+    expect(await screen.findByText("Lần thay gần nhất: “a” → “b” (2 chỗ, 1 chương, 3 chỗ trong hồ sơ).")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Hoàn tác" }));
+    expect(await screen.findByText("Đã hoàn tác 1 chương và 1 file hồ sơ. bảng nhân vật đã sửa tiếp sau đó nên giữ nguyên.")).toBeInTheDocument();
+    expect(storySnapshot).toHaveBeenCalledWith(snapshot.root);
   });
 });

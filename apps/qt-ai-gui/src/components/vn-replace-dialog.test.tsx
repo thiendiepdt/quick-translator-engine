@@ -41,7 +41,7 @@ describe("VnReplaceDialog", () => {
     vi.mocked(vnSettingsGet)
       .mockReset()
       .mockResolvedValue({ extra: [], disabled: [], replacements: [{ from: "Việt Nam", to: "Thái Lan", setting: "modern" }] });
-    vi.mocked(vnReplace).mockReset().mockResolvedValue({ chapters: 2, occurrences: 2 });
+    vi.mocked(vnReplace).mockReset().mockResolvedValue({ chapters: 2, occurrences: 2, profile: 0 });
   });
 
   it("điền sẵn cụm gốc + cụm thay theo bảng; phạm vi 'chỗ đang chọn' gửi đúng đoạn", async () => {

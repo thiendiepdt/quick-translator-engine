@@ -132,12 +132,27 @@ export interface ReplaceHitRef {
   paragraph: number;
   occurrence: number;
 }
-/** Tìm trong bản dịch đã chốt: tổng + số theo chương (đủ) + 500 chỗ đầu kèm ngữ cảnh. */
+/** Một chỗ trong hồ sơ (Rust `ProfileRef`). */
+export interface ReplaceProfileRef {
+  field: string;
+  key: string;
+  index: number;
+  occurrence: number;
+}
+/** Tìm trong bản dịch đã chốt: tổng + số theo chương (đủ) + 500 chỗ đầu kèm ngữ cảnh; hồ sơ trả đủ mọi chỗ. */
 export const replaceFind = (root: string, query: ReplaceQuery) =>
   call("replace_find", { root, query }, (v) => replaceFindSchema.parse(v));
-/** Thay mọi chỗ khớp trừ chương / chỗ bỏ chọn; lưu bản gốc để hoàn tác. */
-export const replaceApply = (root: string, query: ReplaceQuery, excludedChapters: string[], excludedHits: ReplaceHitRef[]) =>
-  call("replace_apply", { root, query, excludedChapters, excludedHits }, (v) => replaceOutcomeSchema.parse(v));
+/** Thay mọi chỗ khớp trong chương và hồ sơ trừ chương / chỗ bỏ chọn; lưu bản gốc để hoàn tác. */
+export const replaceApply = (
+  root: string,
+  query: ReplaceQuery,
+  excludedChapters: string[],
+  excludedHits: ReplaceHitRef[],
+  excludedProfile: ReplaceProfileRef[],
+) =>
+  call("replace_apply", { root, query, excludedChapters, excludedHits, excludedProfile }, (v) =>
+    replaceOutcomeSchema.parse(v),
+  );
 export const replaceUndoInfo = (root: string) => call("replace_undo_info", { root }, (v) => replaceUndoInfoSchema.parse(v));
 export const replaceUndo = (root: string) => call("replace_undo", { root }, (v) => replaceUndoOutcomeSchema.parse(v));
 export const saveSettings = (root: string, settings: HarnessSettings) =>

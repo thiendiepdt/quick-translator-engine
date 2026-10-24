@@ -1,11 +1,12 @@
-//! Trang "Tìm & thay": tìm trong bản dịch đã chốt của truyện, thay các chỗ đang chọn, hoàn tác lần thay gần nhất.
+//! Trang "Tìm & thay": tìm trong bản dịch đã chốt và hồ sơ của truyện, thay các chỗ đang chọn, hoàn tác lần thay
+//! gần nhất.
 //! Logic ở `qt_ai_core::replace`.
 
 use crate::error::{blocking, CmdResult, CommandError};
 use crate::AppState;
 use qt_ai_core::replace::{
-    find_in_story, replace_in_story, undo_info, undo_last_replace, FindQuery, FindResult, HitRef, ReplaceOutcome,
-    UndoInfo, UndoOutcome,
+    find_in_story, replace_in_story_and_profile, undo_info, undo_last_replace, FindQuery, FindResult, HitRef,
+    ProfileRef, ReplaceOutcome, UndoInfo, UndoOutcome,
 };
 use qt_ai_core::story_fs::story_paths;
 use std::path::Path;
@@ -28,8 +29,14 @@ pub fn find_inner(root: &Path, query: &FindQuery) -> CmdResult<FindResult> {
     Ok(find_in_story(&story_paths(root), query, SHOWN_HITS)?)
 }
 
-pub fn apply_inner(root: &Path, query: &FindQuery, excluded_chapters: &[String], excluded_hits: &[HitRef]) -> CmdResult<ReplaceOutcome> {
-    Ok(replace_in_story(&story_paths(root), query, excluded_chapters, excluded_hits)?)
+pub fn apply_inner(
+    root: &Path,
+    query: &FindQuery,
+    excluded_chapters: &[String],
+    excluded_hits: &[HitRef],
+    excluded_profile: &[ProfileRef],
+) -> CmdResult<ReplaceOutcome> {
+    Ok(replace_in_story_and_profile(&story_paths(root), query, excluded_chapters, excluded_hits, excluded_profile)?)
 }
 
 /// Đọc mọi chương đã dịch — chạy ngoài luồng IPC.
@@ -38,7 +45,7 @@ pub async fn replace_find(root: String, query: FindQuery) -> CmdResult<FindResul
     blocking(move || find_inner(Path::new(&root), &query)).await
 }
 
-/// Thay mọi chỗ khớp trừ chương / chỗ bỏ chọn; từ chối khi truyện đang dịch.
+/// Thay mọi chỗ khớp trong chương và hồ sơ trừ chương / chỗ bỏ chọn; từ chối khi truyện đang dịch.
 #[tauri::command]
 pub async fn replace_apply<R: Runtime>(
     app: AppHandle<R>,
@@ -46,10 +53,11 @@ pub async fn replace_apply<R: Runtime>(
     query: FindQuery,
     excluded_chapters: Vec<String>,
     excluded_hits: Vec<HitRef>,
+    excluded_profile: Vec<ProfileRef>,
 ) -> CmdResult<ReplaceOutcome> {
     blocking(move || {
         refuse_if_running(&app, &root)?;
-        apply_inner(Path::new(&root), &query, &excluded_chapters, &excluded_hits)
+        apply_inner(Path::new(&root), &query, &excluded_chapters, &excluded_hits, &excluded_profile)
     })
     .await
 }
@@ -83,7 +91,7 @@ mod tests {
         fs::write(dir.path().join("out/0001.txt"), "Người tộc.\n").unwrap();
         let query = FindQuery { find: "Người tộc".into(), replace: "Nhân tộc".into(), whole_word: true, ..FindQuery::default() };
         assert_eq!(find_inner(dir.path(), &query).unwrap().total, 1);
-        assert_eq!(apply_inner(dir.path(), &query, &[], &[]).unwrap().occurrences, 1);
+        assert_eq!(apply_inner(dir.path(), &query, &[], &[], &[]).unwrap().occurrences, 1);
         assert_eq!(fs::read_to_string(dir.path().join("out/0001.txt")).unwrap(), "Nhân tộc.\n");
     }
 }

@@ -17,6 +17,7 @@
 - Dịch “đường” / “phố” theo cách nói miền Nam: chỗ đi lại dùng “đường” (trên đường, góc đường, đầu đường, ra đường), còn “phố” dành cho nơi ở, buôn bán (khu phố, phố xá, phố ẩm thực, dạo phố, thành phố); tên đường gọi “đường X”. Truyện cổ đại chỉ giữ “phố xá”, “phố phường”: 街 → “đường”, 街市 → “chợ”, 逛街 → “dạo chơi”.
 - Truyện cổ đại: lời kể dùng “mẹ”, “cha mẹ”, và các từ “mẹ ruột”, “mẹ đẻ”, “mẹ kế”, “cha ruột”, “cha dượng” thay vì “nương ruột”, “nương kế”; trong thoại con vẫn gọi mẹ là “nương”.
 - AI điền hồ sơ không còn đưa từ thường vào từ điển của truyện (như 入赘 thành “nhập chuế” thay vì “ở rể”), không ghi luật cấm chữ “mẹ” cho truyện cổ đại, và bỏ cặp xưng hô sai định dạng.
+- **Tìm & thay** tìm cả trong hồ sơ truyện, kết quả chia tab **Chương / Hồ sơ / Nhân vật / Tiêu đề chương**: đổi tên một nhân vật thì sửa luôn glossary, cặp xưng hô, tóm tắt, tone rules, mốc đổi xưng hô và sổ tiêu đề chương, để các chương dịch sau không quay về tên cũ. Mọi chỗ được tick sẵn, bỏ tick chỗ nào không muốn thay; một lần **Hoàn tác** trả lại cả chương lẫn hồ sơ.
 
 ## 1.0.26 — 2026-10-17
 - Thêm nút **Đang dịch #N** trên thanh trang Dịch: bấm để cuộn tới và mở ngay chương đang dịch.

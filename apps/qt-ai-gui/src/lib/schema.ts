@@ -104,7 +104,7 @@ export const glossaryBackfillSchema = z.object({
   occurrences: z.number(),
   skipped: z.number(),
 });
-/** Trang Tìm & thay: kết quả tìm trong bản dịch đã chốt. */
+/** Trang Tìm & thay: kết quả tìm trong bản dịch đã chốt và hồ sơ truyện. */
 export const replaceFindSchema = z.object({
   total: z.number(),
   chapters: z.array(z.object({ chapter: z.string(), count: z.number() })),
@@ -120,12 +120,39 @@ export const replaceFindSchema = z.object({
     }),
   ),
   skipped: z.number(),
+  /** Chỗ khớp trong hồ sơ (Rust `ProfileHit`): `field` là ô chứa, `key` khoá Hán của mục (rỗng ở ô chữ trơn). */
+  profile: z.array(
+    z.object({
+      field: z.string(),
+      key: z.string(),
+      index: z.number(),
+      occurrence: z.number(),
+      before: z.string(),
+      matched: z.string(),
+      after: z.string(),
+      chapter: z.string().nullable(),
+    }),
+  ),
 });
-export const replaceOutcomeSchema = z.object({ chapters: z.number(), occurrences: z.number() });
+/** `profile`: số chỗ đã thay trong hồ sơ (thay nhiều cặp ở Kiểm tra VN luôn 0). */
+export const replaceOutcomeSchema = z.object({ chapters: z.number(), occurrences: z.number(), profile: z.number() });
 export const replaceUndoInfoSchema = z
-  .object({ find: z.string(), replace: z.string(), chapters: z.number(), occurrences: z.number(), createdAt: z.number() })
+  .object({
+    find: z.string(),
+    replace: z.string(),
+    chapters: z.number(),
+    occurrences: z.number(),
+    profile: z.number(),
+    createdAt: z.number(),
+  })
   .nullable();
-export const replaceUndoOutcomeSchema = z.object({ restored: z.number(), conflicts: z.array(z.string()) });
+/** `profileConflicts`: tên file hồ sơ (story.json, cast.json, titles.json) đã sửa tiếp nên giữ nguyên. */
+export const replaceUndoOutcomeSchema = z.object({
+  restored: z.number(),
+  conflicts: z.array(z.string()),
+  profileRestored: z.number(),
+  profileConflicts: z.array(z.string()),
+});
 export const scanCastViewSchema = z.object({
   asked: z.number(),
   filled: z.number(),
