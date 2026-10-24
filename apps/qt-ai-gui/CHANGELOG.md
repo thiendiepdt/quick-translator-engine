@@ -11,6 +11,7 @@
 - Thống nhất tự xưng 本 đọc “bổn” (bổn cung, bổn vương, bổn tọa, bổn tiểu thư, bổn cô nương…) thay vì lẫn “bản”/“bổn” trong cùng một truyện: AI được dặn trước, chỗ còn sót app tự sửa khi chốt chương (không đụng “bản tôn” chỉ chân thân, “văn bản”, “phiên bản”, tên Nhật như Cung Bản); từ điển của truyện ghi “bản …” thì vẫn theo từ điển.
 - Cải thiện dịch thành ngữ và thơ: ưu tiên thành ngữ tiếng Việt tương đương (打草惊蛇 → “đánh rắn động cỏ”), rồi diễn đạt tự nhiên, vẫn giữ thành ngữ Hán-Việt quen thuộc (“danh chính ngôn thuận”, “tâm phục khẩu phục”); thơ, câu đối giữ ý, giữ số câu, không sáng tác thêm.
 - Thống nhất vài thuật ngữ ngôn tình, cung đình hay bị dịch lẫn: 白月光 → “bạch nguyệt quang”, 白莲花 → “bạch liên hoa”, 朋友圈 → “vòng bạn bè”, 赐婚 → “ban hôn”.
+- Giọng văn ngôn tình: AI được dặn không đẩy nhanh tình cảm (thiện cảm chưa phải yêu) và không thêm cử chỉ thân mật, từ ngọt mà nguyên tác không có.
 
 ## 1.0.26 — 2026-10-17
 - Thêm nút **Đang dịch #N** trên thanh trang Dịch: bấm để cuộn tới và mở ngay chương đang dịch.
