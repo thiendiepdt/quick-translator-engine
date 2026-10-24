@@ -21,6 +21,7 @@ use crate::story_fs::{
     ChapterStatus, StoryPaths, WorkKind,
 };
 use serde_json::{json, Value};
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -76,11 +77,17 @@ pub fn split_glossary_block(output: &str) -> (&str, Option<Value>) {
     (text, entries)
 }
 
-/// Port system prompt của `buildAiTranslationReviewPrompt`, thêm yêu cầu giữ nhãn.
+/// Port system prompt của `buildAiTranslationReviewPrompt`; khác web: chỉ xuất các đoạn có sửa — in lại cả chương
+/// (~90 đoạn) để sửa 1–2 đoạn tốn token ra gấp mấy chục lần và mở đường sửa lan sang đoạn không bị nêu.
 const REVIEW_SYSTEM_PROMPT: &str = "Đây là tác vụ soát tối thiểu một bản dịch tiểu thuyết hư cấu do người dùng cung cấp. \
 Chỉ sửa đúng các vi phạm được liệt kê; tuyệt đối không đổi văn phong, thêm nội dung hoặc chỉnh phần khác. \
-Bản dịch gồm các đoạn mở đầu bằng nhãn [[n]]; GIỮ NGUYÊN mọi nhãn, không gộp, không tách, không bỏ đoạn. \
-Chỉ xuất toàn bộ bản dịch đã soát (kèm nhãn), không giải thích và không markdown.";
+Bản dịch gồm các đoạn mở đầu bằng nhãn [[n]]. CHỈ xuất những đoạn có sửa: mỗi đoạn viết lại TRỌN VẸN (cả đoạn, không chỉ \
+câu có sửa) và mở đầu bằng đúng nhãn [[n]] của nó; không xuất đoạn không đổi. Không đoạn nào cần sửa thì chỉ xuất GIỮ NGUYÊN. \
+Không giải thích và không markdown.";
+
+/// Đoạn soát trả về ngắn hơn tỉ lệ này so với đoạn cũ (ký tự không tính khoảng trắng) là model chỉ trả câu có sửa
+/// thay vì cả đoạn — ghép vào là mất chữ, bỏ.
+const REVIEW_MIN_PARAGRAPH_RATIO: f64 = 0.6;
 
 /// Khoảng cách tối thiểu giữa hai dòng log "đã nhận … ký tự" khi đang stream.
 const STREAM_LOG_INTERVAL: Duration = Duration::from_secs(5);
@@ -377,11 +384,18 @@ enum ReviewOutcome {
     Kept,
 }
 
-/// Soát tối thiểu theo danh sách vấn đề của check; chỉ nhận bản soát khi còn đủ nhãn và ít vi phạm hơn
-/// (đoạn còn chữ Hán xét trước, rồi mới tới tổng vi phạm rule + tên lệch glossary).
-/// Model trả y hệt bản cũ nghĩa là đã xét từng vi phạm và thấy đúng ngữ cảnh — lặp thêm chỉ tốn tiền.
+/// Nhãn [[n]] (1-based) ở đầu một dòng vấn đề của check.
+fn issue_label(issue: &str) -> Option<usize> {
+    issue.strip_prefix("[[")?.split_once("]]")?.0.parse().ok()
+}
+
+/// Soát tối thiểu theo danh sách vấn đề của check: model đọc cả bản nháp (kèm raw các đoạn bị nêu) và chỉ trả các
+/// đoạn có sửa; chỉ ghép đoạn nằm trong danh sách vi phạm, rồi chỉ nhận khi ít vi phạm hơn (đoạn còn chữ Hán xét
+/// trước, rồi mới tới tổng vi phạm rule + tên lệch glossary + âm tiết hỏng).
+/// Model trả GIỮ NGUYÊN (hoặc y hệt bản cũ) nghĩa là đã xét từng vi phạm và thấy đúng ngữ cảnh — lặp thêm chỉ tốn tiền.
 fn review(chapter: &Chapter, round: u32, draft: &mut [String], issues: &[String]) -> std::result::Result<ReviewOutcome, ApiError> {
     let (id, log, story) = (chapter.id, chapter.log, chapter.story);
+    let flagged: BTreeSet<usize> = issues.iter().filter_map(|issue| issue_label(issue)).filter(|label| (1..=draft.len()).contains(label)).collect();
     let (names, others): (Vec<&String>, Vec<&String>) = issues.iter().partition(|issue| issue.contains(GLOSSARY_NAME_ISSUE));
     let bullets = |items: &[&String]| items.iter().map(|issue| format!("- {issue}")).collect::<Vec<_>>().join("\n");
     let names_block = if names.is_empty() {
@@ -393,12 +407,22 @@ fn review(chapter: &Chapter, round: u32, draft: &mut [String], issues: &[String]
         )
     };
     let list = bullets(&others);
+    let raw: Vec<String> = flagged
+        .iter()
+        .filter_map(|label| chapter.paragraphs.get(label - 1).map(|paragraph| format!("[[{label}]] {paragraph}")))
+        .collect();
+    let raw_block = if raw.is_empty() {
+        String::new()
+    } else {
+        format!("Nguyên văn tiếng Trung của các đoạn bị nêu (để đối chiếu, không dịch lại):\n\n{}\n\n", raw.join("\n\n"))
+    };
     let user = format!(
         "Bản dịch dưới đây có các vi phạm được phát hiện tự động (nhãn [[n]] chỉ đoạn):\n\n{names_block}{list}\n\n\
 Kiểm tra từng vi phạm. Nếu thực sự sai, chỉ thay từ hoặc cụm gây lỗi bằng phương án ngắn nhất. Nếu đúng trong ngữ cảnh, giữ nguyên. \
-Giữ nguyên toàn bộ chữ, thứ tự câu, dấu câu và ngắt đoạn không liên quan. Không chau chuốt, viết lại, thêm từ nối hoặc thêm miêu tả. \
-Đoạn nào còn nguyên chữ Hán thì dịch đoạn đó theo đúng quy tắc.\n\n---\n\n{}",
-        labeled_draft(draft)
+Giữ nguyên toàn bộ chữ, thứ tự câu và dấu câu không liên quan. Không chau chuốt, viết lại, thêm từ nối hoặc thêm miêu tả.\n\n\
+{raw_block}---\n\n{}\n---\n\n\
+Chỉ xuất các đoạn đã sửa, mỗi đoạn trọn vẹn và mở đầu bằng nhãn [[n]] của nó; không đoạn nào cần sửa thì xuất GIỮ NGUYÊN.",
+        labeled_draft(draft).trim_end()
     );
     let output = match generate(chapter, ApiStep::Review, &format!("soát lần {round}"), REVIEW_SYSTEM_PROMPT, &user) {
         Ok(output) => output,
@@ -410,16 +434,41 @@ Giữ nguyên toàn bộ chữ, thứ tự câu, dấu câu và ngắt đoạn k
         }
         Err(error) => return Err(error),
     };
-    let Some(reviewed) = parse_labeled_translation(split_glossary_block(&output).0, draft.len()) else {
-        log(format!("{id}: bản soát mất nhãn — bỏ"));
-        return Ok(ReviewOutcome::Changed);
-    };
-    if reviewed.iter().any(Option::is_none) {
-        log(format!("{id}: bản soát thiếu đoạn — bỏ"));
-        return Ok(ReviewOutcome::Changed);
+    let text = split_glossary_block(&output).0;
+    let mut patches: Vec<(usize, String)> = Vec::new();
+    let mut rejected = 0;
+    match parse_labeled_translation(text, draft.len()) {
+        None if text.to_lowercase().contains("giữ nguyên") => {}
+        None => {
+            log(format!("{id}: bản soát không có nhãn — bỏ"));
+            return Ok(ReviewOutcome::Changed);
+        }
+        Some(parsed) => {
+            let mut outside = 0;
+            for (index, paragraph) in parsed.into_iter().enumerate() {
+                let Some(paragraph) = paragraph.filter(|p| p.trim() != draft[index].trim()) else { continue };
+                if !flagged.contains(&(index + 1)) {
+                    outside += 1;
+                } else if (chars_no_ws(std::slice::from_ref(&paragraph)) as f64)
+                    < chars_no_ws(&draft[index..=index]) as f64 * REVIEW_MIN_PARAGRAPH_RATIO
+                {
+                    log(format!("{id}: bỏ đoạn [[{}]] của bản soát — ngắn hẳn đoạn cũ (model chỉ trả một phần đoạn)", index + 1));
+                    rejected += 1;
+                } else {
+                    patches.push((index, paragraph));
+                }
+            }
+            if outside > 0 {
+                log(format!("{id}: bỏ {outside} đoạn bản soát sửa ngoài danh sách vi phạm"));
+                rejected += outside;
+            }
+        }
     }
-    let reviewed: Vec<String> = reviewed.into_iter().flatten().collect();
-    if reviewed.iter().map(|p| p.trim()).eq(draft.iter().map(|p| p.trim())) {
+    if patches.is_empty() {
+        if rejected > 0 {
+            // Model có sửa nhưng mọi đoạn sửa đều bị bỏ: không phải "đúng ngữ cảnh", soát vòng sau.
+            return Ok(ReviewOutcome::Changed);
+        }
         if !names.is_empty() {
             // Tên theo từ điển không được "đúng ngữ cảnh": soát tiếp; hết vòng thì check chốt kèm cảnh báo.
             log(format!("{id}: model giữ nguyên tên sai so với từ điển — soát tiếp"));
@@ -438,12 +487,18 @@ Giữ nguyên toàn bộ chữ, thứ tự câu, dấu câu và ngắt đoạn k
         let syllables = text.iter().filter(|p| !crate::vn_syllable::suspect_syllables(p).is_empty()).count();
         (han, check_violations(&final_text(text), &story.check_rules, story.genre.setting).len() + addressing + near + syllables)
     };
+    let mut reviewed = draft.to_vec();
+    let fixed = patches.len();
+    for (index, paragraph) in patches {
+        reviewed[index] = paragraph;
+    }
     let (before_han, before) = score(draft);
     let (after_han, after) = score(&reviewed);
     if (after_han, after) >= (before_han, before) {
         log(format!("{id}: bản soát không giảm vi phạm ({before} → {after}) — bỏ"));
         return Ok(ReviewOutcome::Changed);
     }
+    log(format!("{id}: soát sửa {fixed} đoạn"));
     draft.clone_from_slice(&reviewed);
     Ok(ReviewOutcome::Changed)
 }

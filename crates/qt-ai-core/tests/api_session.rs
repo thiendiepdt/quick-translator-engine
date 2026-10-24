@@ -154,7 +154,7 @@ fn vi_pham_rule_thi_soat_tren_draft_co_nhan_roi_accept() {
     assert_eq!(handle.join(), StopReason::Finished);
     let calls = model.calls();
     assert_eq!(calls.len(), 2);
-    assert!(calls[1].0.contains("soát tối thiểu") && calls[1].0.contains("GIỮ NGUYÊN mọi nhãn"));
+    assert!(calls[1].0.contains("soát tối thiểu") && calls[1].0.contains("CHỈ xuất những đoạn có sửa"));
     assert!(calls[1].1.contains("[[1]] Đại từ sai") && calls[1].1.contains("[[1]] Anh ấy"), "{}", calls[1].1);
     let state = load_state(&story_paths(dir.path())).unwrap();
     assert_eq!(state.chapters["0001"].status, ChapterStatus::Done);
@@ -167,7 +167,7 @@ fn vi_pham_rule_thi_soat_tren_draft_co_nhan_roi_accept() {
 fn am_tiet_hong_thi_soat_va_nhan_ban_sua_chinh_ta() {
     let dir = story(1);
     let bad = format!("[[1]] {GOOD_1}\n\n[[2]] Nàng im lặng rất lâu, mồhôi lấm tấm, không nói một lời nào.");
-    let fixed = format!("[[1]] {GOOD_1}\n\n[[2]] Nàng im lặng rất lâu, mồ hôi lấm tấm, không nói một lời nào.");
+    let fixed = "[[2]] Nàng im lặng rất lâu, mồ hôi lấm tấm, không nói một lời nào.".to_string();
     let model = FakeModel::new(vec![Ok(bad), Ok(fixed)]);
     let (sink, _) = collect();
     let handle = start_api_session(config(dir.path()), model.clone(), sink).unwrap();
@@ -180,6 +180,68 @@ fn am_tiet_hong_thi_soat_va_nhan_ban_sua_chinh_ta() {
     assert!(state.chapters["0001"].warnings.is_none(), "bản sửa phải được nhận, không chốt kèm cảnh báo");
     let out = fs::read_to_string(dir.path().join("out").join("0001.txt")).unwrap();
     assert!(out.contains("mồ hôi lấm tấm"), "{out}");
+}
+
+const BAD_PRONOUN: &str = "Anh ấy ngẩng đầu nhìn về phía tòa tháp cao ở nơi xa.";
+
+fn run_review(review_outputs: Vec<&str>) -> (tempfile::TempDir, Arc<FakeModel>, Vec<String>) {
+    let dir = story(1);
+    let mut script = vec![Ok(format!("[[1]] {BAD_PRONOUN}\n\n[[2]] {GOOD_2}"))];
+    script.extend(review_outputs.into_iter().map(|output| Ok(output.to_string())));
+    let model = FakeModel::new(script);
+    let (sink, events) = collect();
+    let handle = start_api_session(config(dir.path()), model.clone(), sink).unwrap();
+    assert_eq!(handle.join(), StopReason::Finished);
+    let lines = logs(&events.lock().unwrap());
+    (dir, model, lines)
+}
+
+#[test]
+fn soat_chi_tra_doan_sua_thi_ghep_vao_draft_va_gui_kem_raw_doan_bi_neu() {
+    let (dir, model, lines) = run_review(vec!["[[1]] Hắn ngẩng đầu nhìn về phía tòa tháp cao ở nơi xa."]);
+    let calls = model.calls();
+    assert_eq!(calls.len(), 2);
+    let user = &calls[1].1;
+    assert!(user.contains("Nguyên văn tiếng Trung của các đoạn bị nêu") && user.contains("[[1]] 赵静文抬头看向远方的高塔。"), "{user}");
+    assert!(!user.contains("她沉默"), "chỉ gửi raw đoạn bị nêu: {user}");
+    assert!(user.contains(&format!("[[2]] {GOOD_2}")), "vẫn gửi cả bản nháp làm ngữ cảnh: {user}");
+    assert!(user.trim_end().ends_with("xuất GIỮ NGUYÊN."), "{user}");
+    let state = load_state(&story_paths(dir.path())).unwrap();
+    assert_eq!(state.chapters["0001"].status, ChapterStatus::Done);
+    assert!(state.chapters["0001"].warnings.is_none());
+    let out = fs::read_to_string(dir.path().join("out").join("0001.txt")).unwrap();
+    assert_eq!(out.trim(), format!("Hắn ngẩng đầu nhìn về phía tòa tháp cao ở nơi xa.\n\n{GOOD_2}"));
+    assert!(lines.iter().any(|l| l == "0001: soát sửa 1 đoạn"), "{lines:?}");
+}
+
+#[test]
+fn soat_tra_giu_nguyen_thi_chot_kem_canh_bao_ngay() {
+    let (dir, model, lines) = run_review(vec!["GIỮ NGUYÊN"]);
+    assert_eq!(model.calls().len(), 2, "dịch + đúng một lượt soát");
+    let state = load_state(&story_paths(dir.path())).unwrap();
+    assert_eq!(state.chapters["0001"].status, ChapterStatus::Done);
+    assert!(state.chapters["0001"].warnings.as_ref().unwrap()[0].contains("Đại từ sai"));
+    assert!(lines.iter().any(|l| l.contains("model giữ nguyên bản dịch")), "{lines:?}");
+}
+
+#[test]
+fn soat_sua_doan_ngoai_danh_sach_vi_pham_thi_bo_doan_do() {
+    let (dir, _, lines) = run_review(vec![
+        "[[1]] Hắn ngẩng đầu nhìn về phía tòa tháp cao ở nơi xa.\n\n[[2]] Nàng trầm mặc thật lâu, chẳng nói câu nào.",
+    ]);
+    let out = fs::read_to_string(dir.path().join("out").join("0001.txt")).unwrap();
+    assert_eq!(out.trim(), format!("Hắn ngẩng đầu nhìn về phía tòa tháp cao ở nơi xa.\n\n{GOOD_2}"), "đoạn 2 không bị nêu thì giữ bản cũ");
+    assert!(lines.iter().any(|l| l.contains("bỏ 1 đoạn bản soát sửa ngoài danh sách vi phạm")), "{lines:?}");
+}
+
+#[test]
+fn soat_chi_tra_cau_co_sua_thay_vi_ca_doan_thi_bo_va_soat_lai() {
+    // Lượt 1 chỉ trả mẩu câu (ghép vào là mất nửa đoạn) → bỏ, soát vòng 2; hết kịch bản FakeModel trả bản tốt.
+    let (dir, model, lines) = run_review(vec!["[[1]] Hắn ngẩng đầu."]);
+    assert_eq!(model.calls().len(), 3);
+    assert!(lines.iter().any(|l| l.contains("bỏ đoạn [[1]] của bản soát — ngắn hẳn đoạn cũ")), "{lines:?}");
+    let out = fs::read_to_string(dir.path().join("out").join("0001.txt")).unwrap();
+    assert!(out.starts_with(GOOD_1), "{out}");
 }
 
 #[test]
@@ -664,7 +726,7 @@ fn loi_tam_thoi_o_buoc_soat_chi_goi_lai_buoc_soat_khong_dich_lai_ca_chuong() {
     assert_eq!(status(dir.path(), "0001"), ChapterStatus::Done);
     let calls = model.calls();
     assert_eq!(calls.len(), 4, "1 lượt dịch + 3 lượt soát (2 lỗi), không dịch lại cả chương");
-    assert!(calls[1..].iter().all(|(system, user)| system.contains("soát tối thiểu") && !user.contains("[[1]] 赵静文")), "các lượt sau đều là soát");
+    assert!(calls[1..].iter().all(|(system, user)| system.contains("soát tối thiểu") && !user.contains("Nguyên văn gồm")), "các lượt sau đều là soát");
 }
 
 #[test]
