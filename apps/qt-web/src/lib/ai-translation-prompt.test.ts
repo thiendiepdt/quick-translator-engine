@@ -175,16 +175,19 @@ describe("composeBasePrompt", () => {
     }
   });
 
-  it("lời kể ngôi ba không dùng cậu / cậu ta ở mọi bối cảnh", () => {
+  it("lời kể ngôi ba không dùng cậu / cậu ta / chàng ở mọi bối cảnh; nữ thù địch dùng ả / mụ", () => {
     const modern = composeBasePrompt({ setting: "modern", names: "han", tone: "neutral" });
     const ancient = composeBasePrompt({ setting: "ancient", names: "han", tone: "neutral" });
     const mixed = composeBasePrompt({ setting: "mixed", names: "han", tone: "neutral" });
-    const modernRow = "| anh, anh ấy, anh ta, cậu, cậu ta, cậu ấy (trong lời kể); y, gã (trừ khi giọng kể mỉa) |";
-    const ancientRow = "| 他          | **hắn**                          | anh ấy, anh ta, ông ta, ông ấy, cậu, cậu ta |";
+    const modernRow = "| anh, anh ấy, anh ta, cậu, cậu ta, cậu ấy, chàng (trong lời kể); y, gã (trừ khi giọng kể mỉa) |";
+    const ancientRow = "| 他          | **hắn**                          | anh ấy, anh ta, ông ta, ông ấy, cậu, cậu ta, chàng |";
     expect(modern).toContain(modernRow);
     expect(ancient).toContain(ancientRow);
     expect(mixed).toContain(modernRow);
     expect(mixed).toContain(ancientRow);
+    for (const prompt of [modern, ancient, mixed]) {
+      expect(prompt).toContain("> **Giọng kể khinh, thù địch:**");
+    }
   });
 
   it("tớ–cậu chỉ cho tuổi học trò; hỗn hợp thay `tôi` bằng `ta` trong ghi chú", () => {

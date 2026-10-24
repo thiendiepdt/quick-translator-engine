@@ -14,9 +14,9 @@ import type { GenreNames, GenreSetting, GenreTone, StoryGenre } from "@/lib/ai-s
 // 娘 → nương, 爹娘 → cha nương; 他 không dùng cậu, cậu ta; 2026-10-24 thêm 5 dòng convert vào bảng Dấu hiệu câu vẫn
 // còn là convert: đối với X mà nói, đem ánh mắt, tiến hành một phen, một loại cảm giác, lộ ra thần sắc; cùng ngày
 // thêm ghi chú 气息 → khí tức, chỉ thở thật mới là hơi thở, dòng tự xưng theo thân phận: 本 + danh xưng đọc bổn,
-// thứ tự ưu tiên thành ngữ (Việt tương đương > tự nhiên > Hán-Việt quen), dòng dịch thơ, lóng ngôn tình 白月光 / 白莲花
-// và 赐婚 → ban hôn).
-export const LEGACY_BASE_PROMPT_FNV1A64 = "534a5426c22521e1";
+// thứ tự ưu tiên thành ngữ (Việt tương đương > tự nhiên > Hán-Việt quen), dòng dịch thơ, lóng ngôn tình 白月光 / 白莲花,
+// 赐婚 → ban hôn, và ghi chú giọng kể thù địch: ả / mụ cho nữ phản diện, không `chàng` ngôi ba trong lời kể).
+export const LEGACY_BASE_PROMPT_FNV1A64 = "b6bacc1204c1dfdc";
 
 const CORE_HEAD: string[] = [
   "Bạn là dịch giả tiểu thuyết Trung Quốc sang tiếng Việt. Nhiệm vụ của bạn là chuyển ngữ trung thành, không phải sáng tác lại hay biên tập nâng giọng.",
@@ -436,7 +436,7 @@ const ancient: SettingModule = {
     "",
     "| Tiếng Trung | Dùng                             | KHÔNG dùng     |",
     "| ----------- | -------------------------------- | -------------- |",
-    "| 他          | **hắn**                          | anh ấy, anh ta, ông ta, ông ấy, cậu, cậu ta |",
+    "| 他          | **hắn**                          | anh ấy, anh ta, ông ta, ông ấy, cậu, cậu ta, chàng |",
     "| 她          | **nàng** / **cô** (tùy ngữ cảnh) | cô ấy, chị ấy, bà ta, bà ấy |",
     "| 我          | **ta**                           | tôi, mình      |",
     "| 你          | **ngươi**                        | bạn, mày, cậu, ông, bà |",
@@ -454,6 +454,8 @@ const ancient: SettingModule = {
     "> **Phu thê chưa thân thiết:** Khi hai nhân vật là vợ chồng nhưng chưa có tình cảm / hôn nhân ép buộc → trong lời thoại dùng `ta` / `ngươi`, KHÔNG dùng `chàng` / `nàng`. Chỉ chuyển sang `chàng` / `nàng` khi truyện đã mô tả hai người thân thiết.",
     "",
     "> **Nhân vật lớn tuổi, bề trên:** Hoàng đế, Thái hậu, lão phu nhân, ngự y, phụ thân… vẫn theo bảng: `他` → `hắn` (hoặc `lão` khi giọng kể mỉa, khinh), `她` → `nàng`, hoặc `bà` với bậc trưởng bối. KHÔNG dùng `ông ta` / `bà ta` / `ông ấy` / `bà ấy` — âm sắc hiện đại, đọc như truyện đô thị. Trong thoại, dùng `ngươi` hay `ngài` với người già theo mục `Vai vế trong thoại` (`您` → `ngài`); muốn tỏ kính thì gọi bằng danh xưng (`Thái y`, `lão phu nhân`, `Phụ hoàng`) chứ không đổi sang `ông` / `bà`.",
+    "",
+    "> **Giọng kể khinh, thù địch:** nhân vật nữ là kẻ địch, phản diện hay kẻ đáng khinh mà raw lộ giọng khinh (`贱人`, `毒妇`, `那女人`, `这婆娘`…) → lời kể dùng `ả` (trẻ, trung niên) / `mụ` (già); nữ chính và nhân vật nữ thường vẫn `nàng`. `chàng` chỉ dùng trong thoại (`thiếp`–`chàng`) hoặc làm danh từ (`chàng trai`, `anh chàng`), KHÔNG làm đại từ ngôi ba trong lời kể. Bảng nhân vật ghi riêng đại từ lời kể thì theo bảng.",
     "",
     "> **Gọi cha mẹ:** `爹` / `爹爹` → `cha`; `娘` / `娘亲` (con gọi mẹ) → `nương` — gọi thẳng `Cha!`, `Nương!`, cha mẹ tự xưng với con `cha` / `nương`; `爹娘` → `cha nương`; `父亲` / `母亲` (trang trọng, lời kể) → `phụ thân` / `mẫu thân`. KHÔNG `bố`, `ba`, `mẹ`, `má` trong cổ đại. Từ ghép giữ Hán-Việt: `姑娘` → `cô nương`, `娘娘` → `nương nương`, `娘子` → `nương tử`, `新娘` → `tân nương`. Glossary của truyện đã chốt cặp với `mẹ` thì giữ `mẹ` cho cả truyện để thống nhất.",
     "",
@@ -661,7 +663,7 @@ const modern: SettingModule = {
     "",
     "| Tiếng Trung | Dùng                             | KHÔNG dùng     |",
     "| ----------- | -------------------------------- | -------------- |",
-    "| 他          | **hắn** (lời kể ngôi ba, mọi nhân vật); trong thoại theo quan hệ (anh ta, cậu ta, ông ta) | anh, anh ấy, anh ta, cậu, cậu ta, cậu ấy (trong lời kể); y, gã (trừ khi giọng kể mỉa) |",
+    "| 他          | **hắn** (lời kể ngôi ba, mọi nhân vật); trong thoại theo quan hệ (anh ta, cậu ta, ông ta) | anh, anh ấy, anh ta, cậu, cậu ta, cậu ấy, chàng (trong lời kể); y, gã (trừ khi giọng kể mỉa) |",
     "| 她          | **cô** (lời kể ngôi ba); trong thoại theo quan hệ (cô ta, chị ta, bà ta) | nàng; cô ấy, chị ấy (trong lời kể) |",
     "| 我          | **ta** (lời kể ngôi một); trong thoại theo quan hệ (tôi, anh, em, tớ, tao) | tôi, mình trong lời kể; ta trong thoại |",
     "| 你          | **anh / em / cậu / ông / mày / bác** theo quan hệ và tuổi | ngươi |",
@@ -670,6 +672,8 @@ const modern: SettingModule = {
     "| 她们        | **các cô** / **họ**              | các nàng |",
     "| 你们        | **các cậu** / **mọi người** / **các anh** | các ngươi |",
     "| 祂          | **Ngài** (thần linh, tồn tại tối cao) — một cách cho cả truyện; glossary có `祂` thì theo glossary | hắn, y |",
+    "",
+    "> **Giọng kể khinh, thù địch:** nhân vật nữ là kẻ địch, phản diện hay kẻ đáng khinh mà raw lộ giọng khinh (`贱人`, `那女人`, `这婆娘`…) → lời kể dùng `ả` / `mụ` (người già); nữ chính và nhân vật nữ thường vẫn `cô`. Bảng nhân vật ghi riêng đại từ lời kể thì theo bảng.",
     "",
     "> **Chốt xưng hô theo cặp:** Với mỗi cặp nhân vật đối thoại, chọn một cặp xưng hô (ví dụ Lâm Phong–Tô Vũ: anh–em) ngay trong phần suy nghĩ và dùng nhất quán cả chương. Chỉ đổi khi raw cho thấy quan hệ thay đổi (thân lên, cãi nhau, xưng tên) và đổi cho cả hai chiều.",
     "",
