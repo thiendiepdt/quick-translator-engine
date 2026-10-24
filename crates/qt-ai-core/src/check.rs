@@ -158,6 +158,8 @@ pub const ADVISORY_RULES: &[(&str, &str, &str, Option<&str>)] = &[
     (r"(?<!\p{L})tiến hành một (?:phen|lần|chút|hồi)(?!\p{L})", "iu", "进行了一番 → dùng thẳng động từ, không tiến hành một phen", None),
     (r"(?<!\p{L})một loại cảm giác(?!\p{L})", "iu", "一种感觉 → một cảm giác / cảm thấy, không một loại cảm giác", None),
     (r"(?<!\p{L})lộ ra (?:thần sắc|biểu tình|thần tình)(?!\p{L})", "iu", "露出…神色/表情 → lộ vẻ…, không lộ ra thần sắc", None),
+    // Quy ước cha / mẹ; không bắt "ba vợ" (trùng số: cưới ba vợ).
+    (r"(?<!\p{L})bố (?:vợ|chồng|dượng)(?!\p{L})", "iu", "岳父 / 公公 / 继父 → cha vợ / cha chồng / cha dượng (quy ước cha / mẹ), không bố vợ / bố chồng / bố dượng", None),
 ];
 
 type RuleSpec = (&'static str, &'static str, &'static str, Option<&'static str>);

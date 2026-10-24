@@ -161,6 +161,9 @@ const ADVISORY_CHECK_RULES: Array<[RegExp, string, GenreSetting?]> = [
   [/(?<!\p{L})tiến hành một (?:phen|lần|chút|hồi)(?!\p{L})/iu, "进行了一番 → dùng thẳng động từ, không tiến hành một phen"],
   [/(?<!\p{L})một loại cảm giác(?!\p{L})/iu, "一种感觉 → một cảm giác / cảm thấy, không một loại cảm giác"],
   [/(?<!\p{L})lộ ra (?:thần sắc|biểu tình|thần tình)(?!\p{L})/iu, "露出…神色/表情 → lộ vẻ…, không lộ ra thần sắc"],
+  // Quy ước cha / mẹ: 岳父 hiện đại từng ra bố vợ / ba vợ / cha vợ / nhạc phụ lẫn trong cùng truyện. Không bắt "ba vợ"
+  // (trùng số: cưới ba vợ).
+  [/(?<!\p{L})bố (?:vợ|chồng|dượng)(?!\p{L})/iu, "岳父 / 公公 / 继父 → cha vợ / cha chồng / cha dượng (quy ước cha / mẹ), không bố vợ / bố chồng / bố dượng"],
 ];
 
 export function defaultAdvisoryRules(setting: GenreSetting): AiCheckRule[] {

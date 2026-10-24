@@ -195,7 +195,8 @@ const ADVISORY_TEXT = "“Ân.” Hắn ân một tiếng.\nHứa Ân, đi thôi
   + "\nCó 20 vạn fan theo dõi.\nMười vạn đại quân áp sát.\nHô vạn tuế, vạn nhất có chuyện."
   + "\nToàn chiếm tiện nghi của ta.\nTiện nghi sư tôn lại tới.\nTổng không thể bỏ mặc nàng."
   + "\nHắn đem ánh mắt khóa chặt.\nThiên Hậu tiến hành một phen thanh trừng.\nMột loại cảm giác áp bách.\nHắn lộ ra thần sắc cảnh giác."
-  + "\nHắn đưa mắt nhìn, một cảm giác lạ, mặt lộ vẻ cảnh giác.\nĐối với Phi Tuyết mà nói, công tử là mạng sống.";
+  + "\nHắn đưa mắt nhìn, một cảm giác lạ, mặt lộ vẻ cảnh giác.\nĐối với Phi Tuyết mà nói, công tử là mạng sống."
+  + "\nÔng bố vợ dân xã hội đen.\nBố chồng tôi vẫn còn sống.\nCha vợ, cha chồng, cha dượng; hắn cưới ba vợ.";
 // Bẫy đồng âm: cặp đoạn raw / bản dịch (null = đoạn thiếu).
 const RAW_PAIR_INPUTS: Array<[string[], Array<string | null>]> = [
   [

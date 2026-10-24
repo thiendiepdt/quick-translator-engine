@@ -365,6 +365,12 @@ describe("AI translation post-processing", () => {
     expect(checkAdvisoryViolations(text).map((v) => v.line)).toEqual([1, 2, 3, 4]);
   });
 
+  it("cảnh báo bố vợ, bố chồng, bố dượng theo quy ước cha / mẹ; cha vợ và ba vợ (số) thì qua", () => {
+    const text = ["Giờ lại lòi ra một ông bố vợ dân xã hội đen.", "Bố chồng tôi vẫn còn sống.", "Cha vợ, cha chồng, cha dượng; hắn cưới ba vợ."].join("\n");
+    const kin = checkAdvisoryViolations(text, "modern").filter((v) => v.message.startsWith("岳父"));
+    expect(kin.map((v) => v.line)).toEqual([1, 2]);
+  });
+
   it("cảnh báo 自己 dịch thành bản thân + đại từ hoặc mở câu bằng Bản thân; bản thân mình, Bản thân là thì qua", () => {
     const text = [
       "Khổ nỗi tình hình của bản thân hắn có chút đặc thù.",
