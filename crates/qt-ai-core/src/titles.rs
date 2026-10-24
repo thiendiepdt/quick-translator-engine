@@ -323,9 +323,14 @@ pub fn load_titles(paths: &StoryPaths) -> TitleBook {
         .unwrap_or_default()
 }
 
-pub fn save_titles(paths: &StoryPaths, book: &TitleBook) -> Result<()> {
+/// Nội dung titles.json đúng như `save_titles` ghi.
+pub fn titles_to_json(book: &TitleBook) -> Result<String> {
     let json = serde_json::to_string_pretty(book).map_err(|e| CoreError::Internal(e.to_string()))?;
-    write_atomic(&paths.titles_json, &format!("{json}\n"))
+    Ok(format!("{json}\n"))
+}
+
+pub fn save_titles(paths: &StoryPaths, book: &TitleBook) -> Result<()> {
+    write_atomic(&paths.titles_json, &titles_to_json(book)?)
 }
 
 /// Dòng tiêu đề đúng chuẩn cho bản dịch `translated` của tiêu đề gốc `source`: phần đánh số của model + tên

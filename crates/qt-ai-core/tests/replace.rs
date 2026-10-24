@@ -1,8 +1,11 @@
-//! Tìm & thay trong bản dịch đã chốt.
+//! Tìm & thay trong bản dịch đã chốt và hồ sơ truyện.
+use qt_ai_core::cast::load_cast;
 use qt_ai_core::replace::{
-    find_in_story, replace_batch_in_story, replace_in_story, undo_info, undo_last_replace, FindQuery, HitRef, ReplaceJob,
+    find_in_story, replace_batch_in_story, replace_in_story, replace_in_story_and_profile, undo_info, undo_last_replace,
+    FindQuery, HitRef, ProfileRef, ReplaceJob,
 };
-use qt_ai_core::story_fs::story_paths;
+use qt_ai_core::story_fs::{load_story_config, story_paths};
+use qt_ai_core::titles::load_titles;
 use std::fs;
 
 fn story(chapters: &[(&str, &str, &str)]) -> tempfile::TempDir {
@@ -173,4 +176,106 @@ fn thay_nhieu_cap_cum_thay_rong_van_giu_dau_phan_cach() {
     assert_eq!(read(&dir, "0001"), "1 .\n");
     let info = undo_info(&paths).unwrap();
     assert_eq!((info.find.as_str(), info.replace.as_str()), ("Ồ, ; Một; hai", "; 1; "), "find/replace thẳng hàng");
+}
+
+/// Hồ sơ có "Diệp Tường" ở glossary, ô chữ story.json, mốc xưng hô, sổ tiêu đề.
+fn profile_story() -> tempfile::TempDir {
+    let dir = story(&[("0001", "叶翔来了。", "Diệp Tường tới.\n")]);
+    let story = r#"{
+  "name": "x",
+  "protagonist": "Diệp Tường (叶翔)",
+  "summary": "Diệp Tường xuyên không.",
+  "glossary": {
+    "names": { "叶翔": "Diệp Tường", "安娜": "Anna" },
+    "addressing": { "赛奇→叶翔": "ta–Diệp Tường các hạ" }
+  },
+  "style": { "voice": "", "toneRules": ["Không dính.", "Diệp Tường xưng ta, Diệp Tường dí dỏm."], "signaturePhrases": {}, "avoid": [] }
+}"#;
+    fs::write(dir.path().join("story.json"), story).unwrap();
+    let cast = r#"{"version":1,"characters":{"叶翔":{"source":"user","narration":"hắn"}},"addressing":{"安娜→叶翔":{"pinned":false,"changes":[{"from":"0002","target":"em–Diệp Tường","source":"auto"}]}}}"#;
+    fs::write(dir.path().join("cast.json"), cast).unwrap();
+    fs::write(dir.path().join("titles.json"), r#"{"version":1,"titles":{"叶翔的规劝":"Lời khuyên can của Diệp Tường","别的":"Khác"}}"#)
+        .unwrap();
+    dir
+}
+
+fn at(field: &str, key: &str, index: usize, occurrence: usize) -> ProfileRef {
+    ProfileRef { field: field.into(), key: key.into(), index, occurrence }
+}
+
+#[test]
+fn tim_ca_trong_glossary_o_chu_ho_so_moc_xung_ho_va_so_tieu_de() {
+    let dir = profile_story();
+    let paths = story_paths(dir.path());
+    let found = find_in_story(&paths, &query("Diệp Tường", "Diệp Tiêu"), 100).unwrap();
+    assert_eq!(found.total, 1, "chương vẫn tìm như cũ");
+    let places: Vec<_> = found.profile.iter().map(|hit| hit.at.clone()).collect();
+    assert_eq!(
+        places,
+        vec![
+            at("glossary.names", "叶翔", 0, 0),
+            at("glossary.addressing", "赛奇→叶翔", 0, 0),
+            at("protagonist", "", 0, 0),
+            at("summary", "", 0, 0),
+            at("toneRules", "", 1, 0),
+            at("toneRules", "", 1, 1),
+            at("addressing", "安娜→叶翔", 0, 0),
+            at("titles", "叶翔的规劝", 0, 0),
+        ]
+    );
+    let pair = &found.profile[6];
+    assert_eq!((pair.before.as_str(), pair.after.as_str(), pair.chapter.as_deref()), ("em–", "", Some("0002")));
+    let filtered = FindQuery { raw_filter: "赛奇".into(), ..query("Diệp Tường", "x") };
+    let found = find_in_story(&paths, &filtered, 100).unwrap();
+    assert_eq!(
+        found.profile.iter().map(|hit| hit.at.clone()).collect::<Vec<_>>(),
+        vec![at("glossary.addressing", "赛奇→叶翔", 0, 0)],
+        "lọc raw so với khoá Hán; ô chữ trơn không có khoá thì bỏ"
+    );
+}
+
+#[test]
+fn thay_ca_ho_so_tru_cho_bo_chon_roi_hoan_tac_chung_mot_lan() {
+    let dir = profile_story();
+    let paths = story_paths(dir.path());
+    let before = ["story.json", "cast.json", "titles.json"].map(|name| fs::read_to_string(dir.path().join(name)).unwrap());
+    let skip = [at("toneRules", "", 1, 1), at("titles", "叶翔的规劝", 0, 0)];
+    let done = replace_in_story_and_profile(&paths, &query("Diệp Tường", "Diệp Tiêu"), &[], &[], &skip).unwrap();
+    assert_eq!((done.chapters, done.occurrences, done.profile), (1, 1, 6));
+    let story = load_story_config(&paths).unwrap();
+    assert_eq!(story.glossary["names"]["叶翔"], "Diệp Tiêu");
+    assert_eq!(story.glossary["addressing"]["赛奇→叶翔"], "ta–Diệp Tiêu các hạ");
+    assert_eq!(story.protagonist, "Diệp Tiêu (叶翔)");
+    assert_eq!(story.style.tone_rules[1], "Diệp Tiêu xưng ta, Diệp Tường dí dỏm.", "chừa chỗ bỏ chọn");
+    assert_eq!(load_cast(&paths).addressing["安娜→叶翔"].changes[0].target, "em–Diệp Tiêu");
+    assert!(!load_cast(&paths).addressing["安娜→叶翔"].pinned, "đổi tên không ghim cặp");
+    assert_eq!(load_titles(&paths).titles["叶翔的规劝"], "Lời khuyên can của Diệp Tường", "tiêu đề bỏ chọn giữ nguyên");
+    assert_eq!(undo_info(&paths).unwrap().profile, 6);
+
+    let undone = undo_last_replace(&paths).unwrap();
+    assert_eq!((undone.restored, undone.profile_restored, undone.profile_conflicts.len()), (1, 2, 0));
+    let after = ["story.json", "cast.json", "titles.json"].map(|name| fs::read_to_string(dir.path().join(name)).unwrap());
+    assert_eq!(after, before, "trả đúng từng byte bản trước");
+    assert_eq!(read(&dir, "0001"), "Diệp Tường tới.\n");
+}
+
+#[test]
+fn hoan_tac_bo_qua_file_ho_so_da_sua_tiep() {
+    let dir = profile_story();
+    let paths = story_paths(dir.path());
+    replace_in_story_and_profile(&paths, &query("Diệp Tường", "Diệp Tiêu"), &[], &[], &[]).unwrap();
+    fs::write(dir.path().join("cast.json"), r#"{"version":1,"characters":{},"addressing":{}}"#).unwrap();
+    let undone = undo_last_replace(&paths).unwrap();
+    assert_eq!((undone.profile_restored, undone.profile_conflicts.clone()), (2, vec!["cast.json".to_string()]));
+    assert_eq!(load_story_config(&paths).unwrap().glossary["names"]["叶翔"], "Diệp Tường");
+    assert!(load_cast(&paths).addressing.is_empty(), "file sửa sau đó không bị đè");
+}
+
+#[test]
+fn chi_thay_chuong_thi_khong_dung_ho_so() {
+    let dir = profile_story();
+    let paths = story_paths(dir.path());
+    let done = replace_in_story(&paths, &query("Diệp Tường", "Diệp Tiêu"), &[], &[]).unwrap();
+    assert_eq!((done.occurrences, done.profile), (1, 0));
+    assert_eq!(load_story_config(&paths).unwrap().glossary["names"]["叶翔"], "Diệp Tường");
 }

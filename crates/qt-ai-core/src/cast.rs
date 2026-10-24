@@ -157,9 +157,14 @@ pub fn load_cast(paths: &StoryPaths) -> Cast {
         .unwrap_or_default()
 }
 
-pub fn save_cast(paths: &StoryPaths, cast: &Cast) -> Result<()> {
+/// Nội dung cast.json đúng như `save_cast` ghi.
+pub fn cast_to_json(cast: &Cast) -> String {
     let json = serde_json::to_string_pretty(cast).expect("Cast luôn serialize được");
-    write_atomic(&paths.cast_json, &format!("{json}\n"))
+    format!("{json}\n")
+}
+
+pub fn save_cast(paths: &StoryPaths, cast: &Cast) -> Result<()> {
+    write_atomic(&paths.cast_json, &cast_to_json(cast))
 }
 
 const MALE_TERMS: &[&str] = &[
