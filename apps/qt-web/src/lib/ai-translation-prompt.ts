@@ -15,8 +15,9 @@ import type { GenreNames, GenreSetting, GenreTone, StoryGenre } from "@/lib/ai-s
 // còn là convert: đối với X mà nói, đem ánh mắt, tiến hành một phen, một loại cảm giác, lộ ra thần sắc; cùng ngày
 // thêm ghi chú 气息 → khí tức, chỉ thở thật mới là hơi thở, dòng tự xưng theo thân phận: 本 + danh xưng đọc bổn,
 // thứ tự ưu tiên thành ngữ (Việt tương đương > tự nhiên > Hán-Việt quen), dòng dịch thơ, lóng ngôn tình 白月光 / 白莲花,
-// 赐婚 → ban hôn, và ghi chú giọng kể thù địch: ả / mụ cho nữ phản diện, không `chàng` ngôi ba trong lời kể).
-export const LEGACY_BASE_PROMPT_FNV1A64 = "b6bacc1204c1dfdc";
+// 赐婚 → ban hôn, ghi chú giọng kể thù địch: ả / mụ cho nữ phản diện, không `chàng` ngôi ba trong lời kể, và luật
+// đường để đi, phố để ở / buôn bán theo cách nói miền Nam).
+export const LEGACY_BASE_PROMPT_FNV1A64 = "c55fa6cbf9a76b39";
 
 const CORE_HEAD: string[] = [
   "Bạn là dịch giả tiểu thuyết Trung Quốc sang tiếng Việt. Nhiệm vụ của bạn là chuyển ngữ trung thành, không phải sáng tác lại hay biên tập nâng giọng.",
@@ -111,6 +112,7 @@ const CORE_TERMS: string[] = [
   "- Chỉ dùng Hán-Việt cho tên riêng, thuật ngữ chuyên ngành, cảnh giới, pháp bảo, tước vị và chức quan đã có cách gọi ổn định.",
   "- Tự xưng theo thân phận giữ Hán-Việt theo raw: `朕` trẫm, `哀家` ai gia, `臣妾` thần thiếp, `妾身` thiếp thân, `寡人` quả nhân, `贫道` bần đạo, `贫僧` bần tăng, `老夫` lão phu, `在下` tại hạ, `晚辈` vãn bối, `奴婢` nô tỳ. `本` + danh xưng khi tự xưng đọc **bổn**, KHÔNG `bản`: `本宫` bổn cung, `本王` bổn vương, `本座` bổn tọa, `本官` bổn quan, `本帝` bổn đế, `本小姐` bổn tiểu thư, `本姑娘` bổn cô nương, `本公子` bổn công tử, `本少爷` bổn thiếu gia; `本尊` tự xưng là bổn tôn, chỉ chân thân (đối lập phân thân) thì là bản tôn.",
   "- Từ lóng ngôn tình dùng chung mọi bối cảnh: `白月光` (người trong lòng không với tới) → bạch nguyệt quang, chỉ tả ánh trăng thật mới là ánh trăng; `白莲花` (kiểu người giả ngây thơ) → bạch liên hoa, không hoa sen trắng.",
+  "- Đường để đi, phố để ở và buôn bán: `街上` / `大街` / `街头` / `街角` / `马路` (chỗ đi lại, nơi công cộng) → trên đường, ngoài đường, góc đường, đầu đường, giữa đường, ra đường, con đường, đường lớn; KHÔNG trên phố, góc phố, đầu phố, ra phố. Giữ `phố` cho nơi ở, buôn bán: khu phố, dãy phố, căn phố, phố xá, phố thương mại, phố ẩm thực, phố đi bộ, dạo phố (`逛街`), thành phố. Tên đường (`X街`, `X路`) gọi đường X; glossary đã chốt thì theo glossary.",
   "- Với động từ, tính từ, trạng thái, hình ảnh, thành ngữ và lời kể thông thường, dùng tiếng Việt tự nhiên, đúng nghĩa. KHÔNG phiên âm Hán-Việt chỉ để câu nghe giống “văn tu tiên” hoặc “văn convert”.",
   "- Gặp thuật ngữ/chức quan lạ, phải nhận diện cả cụm và chức năng trong ngữ cảnh trước khi dịch. KHÔNG bẻ từng chữ rồi ghép thành một cụm Hán-Việt vô nghĩa.",
   "",
