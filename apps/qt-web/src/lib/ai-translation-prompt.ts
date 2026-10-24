@@ -12,8 +12,9 @@ import type { GenreNames, GenreSetting, GenreTone, StoryGenre } from "@/lib/ai-s
 // 老X viết thường, bỏ dòng ép "kiểm trắc", mục Số và đơn vị
 // — docs/reviews/2026-10-06-chat-luong-dich/tien-trinh-sua.md; 2026-10-12 thêm ghi chú Gọi cha mẹ: 爹 → cha,
 // 娘 → nương, 爹娘 → cha nương; 他 không dùng cậu, cậu ta; 2026-10-24 thêm 5 dòng convert vào bảng Dấu hiệu câu vẫn
-// còn là convert: đối với X mà nói, đem ánh mắt, tiến hành một phen, một loại cảm giác, lộ ra thần sắc).
-export const LEGACY_BASE_PROMPT_FNV1A64 = "d7cdb853c5ac10fa";
+// còn là convert: đối với X mà nói, đem ánh mắt, tiến hành một phen, một loại cảm giác, lộ ra thần sắc; cùng ngày
+// thêm ghi chú 气息 → khí tức, chỉ thở thật mới là hơi thở).
+export const LEGACY_BASE_PROMPT_FNV1A64 = "e275ffb8e28130ad";
 
 const CORE_HEAD: string[] = [
   "Bạn là dịch giả tiểu thuyết Trung Quốc sang tiếng Việt. Nhiệm vụ của bạn là chuyển ngữ trung thành, không phải sáng tác lại hay biên tập nâng giọng.",
@@ -487,6 +488,8 @@ const ancient: SettingModule = {
     "| 传承  | truyền thừa |",
     "| 阵法  | trận pháp   |",
     "| 神识  | thần thức   |",
+    "",
+    "`气息` tỏa ra từ người, vật, cảnh giới (khí thế, tu vi, linh lực: `散发着…的气息`, `修为气息`, `气息暴涨`) → **khí tức**; chỉ khi là thở thật (`呼吸`, `没了气息`, `气息紊乱`, `气息微弱`) mới dịch `hơi thở`.",
     "",
     "### Kiến trúc & Sinh vật",
     "",
