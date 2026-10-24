@@ -716,6 +716,20 @@ fn accept_doi_tu_xung_ban_thanh_bon_tru_khi_glossary_ghi_ban() {
 }
 
 #[test]
+fn accept_hoc_cap_xung_ho_khai_ban_cung_thanh_bon_cung() {
+    let raw = "武则天看向薛绍：“本宫问你。”\n\n薛绍低头。";
+    let draft = "[[1]] Võ Tắc Thiên nhìn Tiết Thiệu: “Bản cung hỏi ngươi.”\n\n[[2]] Tiết Thiệu cúi đầu.";
+    let dir = story_with_glossary(raw, &[("武则天", "Võ Tắc Thiên"), ("薛绍", "Tiết Thiệu")], draft);
+    let paths = story_paths(dir.path());
+    let entries = r#"{"entries": [{"source": "武则天→薛绍", "target": "bản cung–ngươi", "category": "addressing"}]}"#;
+    fs::write(work_file(&paths, "0001", WorkKind::Glossary), entries).unwrap();
+    let accepted = run_accept(dir.path(), "0001", true).unwrap();
+    assert_eq!(accepted.self_ref_fixes, 1);
+    let story = load_story_config(&paths).unwrap();
+    assert_eq!(story.glossary["addressing"]["武则天→薛绍"], "bổn cung–ngươi", "{:?}", story.glossary.get("addressing"));
+}
+
+#[test]
 fn check_bat_ten_viet_gan_dung_glossary_va_review_co_muc_bat_buoc() {
     let raw = "毛千亦走了进来。\n\n苏小白和林青云并肩走来。\n\n延禧宫的灯亮了。";
     let names = [

@@ -57,7 +57,13 @@ pub fn run_accept_with(root: &Path, id: &str, force: bool, lexicon: &crate::vn_l
     let mut parsed = draft.parsed.clone();
     let glossary_fixes = fix_glossary_drifts(&draft.paragraphs, &mut parsed, &merged_glossary);
     // Tự xưng 本 + danh xưng một âm `bổn` (model đọc lẫn bản/bổn); glossary của truyện cố ý ghi `bản X` thì giữ.
-    let keep = crate::self_ref::glossary_keeps(merged_glossary.values().flat_map(|group| group.values()).map(String::as_str));
+    let keep = crate::self_ref::glossary_keeps(
+        merged_glossary
+            .iter()
+            .filter(|(category, _)| category.as_str() != "addressing")
+            .flat_map(|(_, group)| group.values())
+            .map(String::as_str),
+    );
     let mut self_ref_fixes = 0;
     for paragraph in parsed.iter_mut().flatten() {
         let (text, fixed) = crate::self_ref::bon_self_reference(paragraph, &keep);
@@ -96,12 +102,14 @@ pub fn run_accept_with(root: &Path, id: &str, force: bool, lexicon: &crate::vn_l
     let glossary_path = work_file(&paths, id, WorkKind::Glossary);
     if glossary_path.exists() && resolve_auto_glossary_enabled(story.auto_glossary, true) {
         // Đề xuất hỏng → bỏ qua, không chặn accept.
-        let entries: Value = serde_json::from_str::<Value>(&read_text(&glossary_path)?)
+        let mut entries: Value = serde_json::from_str::<Value>(&read_text(&glossary_path)?)
             .map(|envelope| match envelope.get("entries") {
                 Some(entries) => entries.clone(),
                 None => envelope,
             })
             .unwrap_or(Value::Array(vec![]));
+        // Cặp xưng hô khai theo bản nháp (trước khi đổi tự xưng) — học vào phải khớp `bổn` như out.
+        crate::self_ref::bon_in_addressing(&mut entries);
         let raw = read_raw_chapter(&paths, id)?;
         let existing = collect_glossary_keys(&TranslationGlossary::new(), &story.glossary);
         let pairs = drop_conflicting_readings(sanitize_extracted(&entries, &raw, &output, &existing), &story.glossary);

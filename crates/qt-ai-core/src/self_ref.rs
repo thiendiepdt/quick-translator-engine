@@ -6,6 +6,8 @@
 //! ("phiên bản thiếu nữ"); `bản` là vế sau từ ghép (văn bản, phiên bản, kịch bản, Nhật Bản…); `Bản` viết hoa giữa câu
 //! (tên Nhật: Cung Bản 宫本, Sơn Bản 山本); cụm đi tiếp thành từ khác (bản quan trọng, bản miêu tả, bản tọa độ…).
 
+use serde_json::Value;
+
 /// Danh xưng sau 本 khi tự xưng, kèm chữ đi ngay sau làm nó thành từ khác (không phải tự xưng).
 const TITLES: &[(&str, &[&str])] = &[
     ("tướng quân", &[]),
@@ -104,7 +106,25 @@ pub fn bon_self_reference(text: &str, keep: &[&str]) -> (String, usize) {
     (out, fixed)
 }
 
-/// Danh xưng mà glossary của truyện ghi `bản X` (cố ý giữ `bản`): không đổi các chỗ đó.
+/// Cặp xưng hô model khai kèm bản dịch (`bản cung–ngươi`) đổi theo cùng luật trước khi học — cặp đã học được nạp lại
+/// vào prompt mỗi chương, để `bản` thì kéo model về `bản`.
+pub fn bon_in_addressing(entries: &mut Value) {
+    for item in entries.as_array_mut().into_iter().flatten() {
+        let Some(record) = item.as_object_mut() else { continue };
+        if record.get("category").and_then(Value::as_str) != Some("addressing") {
+            continue;
+        }
+        if let Some(Value::String(target)) = record.get_mut("target") {
+            let (fixed, count) = bon_self_reference(target, &[]);
+            if count > 0 {
+                *target = fixed;
+            }
+        }
+    }
+}
+
+/// Danh xưng mà glossary của truyện ghi `bản X` (cố ý giữ `bản`): không đổi các chỗ đó. Truyền target các nhóm trừ
+/// `addressing` — cặp xưng hô là model tự học, không phải lựa chọn chính tả.
 pub fn glossary_keeps<'a>(targets: impl IntoIterator<Item = &'a str>) -> Vec<&'static str> {
     let targets: Vec<String> = targets.into_iter().map(str::to_lowercase).collect();
     TITLES
@@ -156,6 +176,17 @@ mod tests {
         ] {
             assert_eq!(fix(text), text, "{text}");
         }
+    }
+
+    #[test]
+    fn cap_xung_ho_khai_kem_ban_dich_doi_bon_truoc_khi_hoc() {
+        let mut entries = serde_json::json!([
+            { "category": "addressing", "source": "武则天→薛绍", "target": "bản cung–ngươi" },
+            { "category": "names", "source": "本因", "target": "Bản Nhân" },
+        ]);
+        bon_in_addressing(&mut entries);
+        assert_eq!(entries[0]["target"], "bổn cung–ngươi");
+        assert_eq!(entries[1]["target"], "Bản Nhân");
     }
 
     #[test]
