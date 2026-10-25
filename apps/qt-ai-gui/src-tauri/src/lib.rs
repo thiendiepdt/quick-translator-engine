@@ -16,6 +16,7 @@ mod title_cmds;
 mod vn_cmds;
 mod vn_library_cmds;
 mod zh_cmds;
+mod padding_cmds;
 
 use app_config::AppConfig;
 use session_registry::SessionRegistry;
@@ -167,6 +168,11 @@ pub fn run() {
             zh_cmds::zh_story_undo,
             zh_cmds::zh_convert_text,
             zh_cmds::zh_convert_files,
+            padding_cmds::padding_get,
+            padding_cmds::padding_save,
+            padding_cmds::padding_reset,
+            padding_cmds::short_chapters,
+            padding_cmds::chapter_pad,
         ])
         .run(tauri::generate_context!())
         .expect("không khởi động được VNCVT AI Translator");
@@ -221,6 +227,7 @@ mod tests {
             include_str!("vn_library_cmds.rs"),
             include_str!("vn_cmds.rs"),
             include_str!("zh_cmds.rs"),
+            include_str!("padding_cmds.rs"),
         ]
         .join("\n");
         let heavy = [
@@ -276,6 +283,11 @@ mod tests {
             "zh_story_undo",
             "zh_convert_text",
             "zh_convert_files",
+            "padding_get",
+            "padding_save",
+            "padding_reset",
+            "short_chapters",
+            "chapter_pad",
         ];
         for name in heavy {
             // Có AppHandle thì generic theo Runtime (mock runtime trong test gọi được), không thì không.

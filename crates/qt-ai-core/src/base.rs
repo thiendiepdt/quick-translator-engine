@@ -194,6 +194,10 @@ impl BaseStore {
         self.write(self.padding_path(), &format!("{json}\n"))
     }
 
+    pub fn reset_padding(&self) -> Result<()> {
+        self.remove(self.padding_path())
+    }
+
     pub fn reset_prompt(&self, genre: &StoryGenre) -> Result<()> {
         self.remove(self.prompt_path(genre))
     }

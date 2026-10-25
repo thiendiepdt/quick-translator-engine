@@ -5,6 +5,7 @@ import {
   Copy,
   FolderOpen,
   ListOrdered,
+  ListPlus,
   Pencil,
   RotateCcw,
   Save,
@@ -32,6 +33,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLineNumbers, useReadingWidth } from "@/hooks/use-reading-width";
 import {
   chapterForceAccept,
+  chapterPad,
   chapterRetry,
   chaptersDelete,
   chapterSkip,
@@ -54,7 +56,7 @@ import {
 } from "@/lib/reading";
 import { STATUS_LABELS, type ChapterRow, type ChapterStatus, type ChapterView } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { selectCurrentRunning, useStoryStore } from "@/store/story";
+import { selectCurrentRunning, selectCurrentShort, useStoryStore } from "@/store/story";
 
 const TAB_LABELS = { output: "bản dịch", draft: "nháp", review: "yêu cầu sửa", raw: "bản gốc" } as const;
 
@@ -193,6 +195,9 @@ interface Props {
 export function ChapterReader({ root, row, ordinal, hasPrev, hasNext, onPrev, onNext }: Props) {
   const running = useStoryStore(selectCurrentRunning);
   const setSnapshot = useStoryStore((s) => s.setSnapshot);
+  const threshold = useStoryStore(selectCurrentShort).threshold;
+  const refreshShort = useStoryStore((s) => s.refreshShort);
+  const [padding, setPadding] = useState(false);
   const { width, setWidth } = useReadingWidth();
   const { lineNumbers, setLineNumbers } = useLineNumbers();
   // View gắn key theo (chương, trạng thái, vòng soát): đổi chương → key lệch → hiện "Đang đọc…"
@@ -243,6 +248,21 @@ export function ChapterReader({ root, row, ordinal, hasPrev, hasNext, onPrev, on
       toast.success("Đã chép vào clipboard");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Không chép được");
+    }
+  }
+
+  /** Chèn văn mẫu (hoặc lặp nội dung, theo Cài đặt) sau dòng ❖❖❖ cho đủ ngưỡng chữ của nền tảng đăng truyện. */
+  async function pad() {
+    setPadding(true);
+    try {
+      const changed = await chapterPad(root, row.id);
+      setLoaded({ key: viewKey, view: await readChapter(root, row.id) });
+      void refreshShort(root);
+      toast.success(changed ? `Đã chèn cho đủ ${threshold} chữ — phần chèn nằm sau dòng ❖❖❖` : "Chương đã đủ chữ, không chèn gì");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Không chèn được");
+    } finally {
+      setPadding(false);
     }
   }
 
@@ -385,6 +405,22 @@ export function ChapterReader({ root, row, ordinal, hasPrev, hasNext, onPrev, on
             <article className="reading mx-auto px-6 py-8" data-width={width}>
               {view && (
                 <div className="mb-4 flex items-center justify-end gap-2 font-sans text-sm">
+                  {key === "output" && !editing && threshold > 0 && view.outputWords != null && view.outputWords < threshold && (
+                    <>
+                      <span className="mr-auto text-xs text-status-warning">
+                        Chương ngắn: {view.outputWords}/{threshold} chữ — nền tảng đăng truyện có thể không nhận
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={padding}
+                        title="Chèn văn mẫu (hoặc lặp nội dung chương, theo Cài đặt) sau dòng ❖❖❖ cho đủ chữ"
+                        onClick={() => void pad()}
+                      >
+                        <ListPlus /> Chèn cho đủ {threshold} chữ
+                      </Button>
+                    </>
+                  )}
                   <Button
                     variant="ghost"
                     size="sm"

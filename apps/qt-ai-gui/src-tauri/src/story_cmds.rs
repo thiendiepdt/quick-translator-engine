@@ -75,6 +75,8 @@ pub struct ChapterView {
     /// raw/<id>.txt đã mất (xoá khi app đang mở) — `raw` rỗng, UI nhắc Quét lại để gỡ chương.
     pub raw_missing: bool,
     pub output: Option<String>,
+    /// Số chữ bản dịch như nền tảng đăng truyện đếm (cả phần chèn, không tính tên chương).
+    pub output_words: Option<usize>,
     pub draft: Option<String>,
     pub review: Option<String>,
     pub warnings: Vec<String>,
@@ -217,12 +219,14 @@ pub fn chapter_view(root: &Path, id: &str) -> CmdResult<ChapterView> {
         .ok_or_else(|| CommandError::new("story_not_found", format!("Không có chương {id} trong state.json.")))?;
     let raw_path = paths.raw_dir.join(format!("{id}.txt"));
     let raw_missing = !raw_path.is_file();
+    let output = optional_text(&paths.out_dir.join(format!("{id}.txt")));
     Ok(ChapterView {
         id: id.to_string(),
         status: chapter.status.as_str().to_string(),
         raw: if raw_missing { String::new() } else { read_raw_chapter(&paths, id)? },
         raw_missing,
-        output: optional_text(&paths.out_dir.join(format!("{id}.txt"))),
+        output_words: output.as_deref().map(qt_ai_core::padding::published_words),
+        output,
         draft: optional_text(&work_file(&paths, id, WorkKind::Draft)),
         review: optional_text(&work_file(&paths, id, WorkKind::Review)),
         warnings: live_warnings(

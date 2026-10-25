@@ -32,7 +32,7 @@ pub struct Backfill {
 }
 
 /// Chương đã có bản dịch, theo thứ tự tên file.
-pub(crate) fn translated_chapters(paths: &StoryPaths) -> Vec<(String, PathBuf)> {
+pub fn translated_chapters(paths: &StoryPaths) -> Vec<(String, PathBuf)> {
     let mut files: Vec<(String, PathBuf)> = std::fs::read_dir(&paths.out_dir)
         .into_iter()
         .flatten()

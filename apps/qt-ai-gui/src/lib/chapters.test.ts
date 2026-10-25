@@ -18,6 +18,14 @@ describe("chapters", () => {
     expect(filterChapters(rows, "done", "")).toHaveLength(2);
   });
 
+  it("lọc Ngắn theo danh sách chương dưới ngưỡng chữ; chưa có danh sách thì không chương nào", () => {
+    const short = new Set(["chuong-0002", "chuong-0010"]);
+    expect(filterChapters(rows, "short", "", short).map((r) => r.id)).toEqual(["chuong-0002", "chuong-0010"]);
+    expect(countByFilter(rows, short).short).toBe(2);
+    expect(filterChapters(rows, "short", "")).toEqual([]);
+    expect(countByFilter(rows).short).toBe(0);
+  });
+
   it("tìm theo số thứ tự: '3' khớp chương thứ 3 lẫn mã chứa 3, '#3' chỉ chương thứ 3", () => {
     expect(filterChapters(rows, "all", "#3").map((r) => r.id)).toEqual(["chuong-0003"]);
     expect(filterChapters(rows, "all", "4").map((r) => r.id)).toEqual(["chuong-0010"]); // thứ 4, mã không chứa 4

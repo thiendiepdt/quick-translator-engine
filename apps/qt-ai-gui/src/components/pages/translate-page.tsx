@@ -1,5 +1,5 @@
 import { FileDown, FolderOpen, TriangleAlert } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { ChapterList } from "@/components/chapter-list";
@@ -12,7 +12,7 @@ import { revealFolder } from "@/lib/api";
 import { filterChapters } from "@/lib/chapters";
 import type { ImportOutcome } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { useStoryStore } from "@/store/story";
+import { selectCurrentShort, useStoryStore } from "@/store/story";
 
 export function TranslatePage() {
   const root = useStoryStore((s) => s.root);
@@ -25,6 +25,14 @@ export function TranslatePage() {
   const setQuery = useStoryStore((s) => s.setSearchQuery);
   const setSnapshot = useStoryStore((s) => s.setSnapshot);
   const [syncOpen, setSyncOpen] = useState(false);
+  const short = useStoryStore(selectCurrentShort);
+  const refreshShort = useStoryStore((s) => s.refreshShort);
+  const shortIds = useMemo(() => new Set(short.words.keys()), [short]);
+  // Chương ngắn đọc lại khi mở truyện và mỗi lần số chương xong đổi (chương mới chốt có thể ngắn).
+  const doneCount = snapshot?.counts.done;
+  useEffect(() => {
+    if (root) void refreshShort(root);
+  }, [root, doneCount, refreshShort]);
   const onImported = useCallback(
     (outcome: ImportOutcome) => {
       setSnapshot(outcome.snapshot);
@@ -37,7 +45,7 @@ export function TranslatePage() {
   const onImportError = useCallback((message: string) => toast.error(message), []);
   const dragging = useChapterDrop(root, onImported, onImportError);
   if (!root || !snapshot) return null;
-  const visible = filterChapters(snapshot.chapters, filter, query);
+  const visible = filterChapters(snapshot.chapters, filter, query, shortIds);
   const index = visible.findIndex((c) => c.id === selectedId);
   const row = index >= 0 ? visible[index] : snapshot.chapters.find((c) => c.id === selectedId);
   const empty = snapshot.counts.total === 0;
@@ -85,6 +93,7 @@ export function TranslatePage() {
               onSelect={select}
               onFilter={setFilter}
               onQuery={setQuery}
+              short={shortIds}
             />
           )}
         </aside>

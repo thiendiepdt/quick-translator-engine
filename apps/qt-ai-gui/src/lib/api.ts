@@ -27,6 +27,8 @@ import {
   replaceOutcomeSchema,
   replaceUndoInfoSchema,
   replaceUndoOutcomeSchema,
+  paddingSettingsSchema,
+  shortChaptersSchema,
   zhConvertReportSchema,
   zhStoryOutcomeSchema,
   zhStoryStatusSchema,
@@ -174,6 +176,16 @@ export interface ZhConvertJob {
   extensions: string[];
   mode: ZhOutputMode;
 }
+export type PaddingSettings = z.infer<typeof paddingSettingsSchema>;
+export const paddingGet = () => call("padding_get", undefined, (v) => paddingSettingsSchema.parse(v));
+export const paddingSave = (settings: PaddingSettings) =>
+  call("padding_save", { settings }, (v) => paddingSettingsSchema.parse(v));
+/** Về mặc định: tắt, 500 chữ, văn mẫu gốc. */
+export const paddingReset = () => call("padding_reset", undefined, (v) => paddingSettingsSchema.parse(v));
+/** Chương đã dịch dưới ngưỡng chữ của nền tảng đăng truyện. */
+export const shortChapters = (root: string) => call("short_chapters", { root }, (v) => shortChaptersSchema.parse(v));
+/** Chèn cho đủ ngưỡng một chương; false khi chương đã đủ, không đổi gì. */
+export const chapterPad = (root: string, id: string) => call("chapter_pad", { root, id }, (v) => z.boolean().parse(v));
 export const zhConvertText = (text: string) => call("zh_convert_text", { text }, (v) => z.string().parse(v));
 export const zhConvertFiles = (job: ZhConvertJob) => call("zh_convert_files", { job }, (v) => zhConvertReportSchema.parse(v));
 export const saveSettings = (root: string, settings: HarnessSettings) =>

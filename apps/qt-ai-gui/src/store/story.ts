@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-import { progressDrift } from "@/lib/api";
+import { progressDrift, shortChapters } from "@/lib/api";
 import { filterChapters, type ChapterFilter } from "@/lib/chapters";
 import { pathKey, samePath } from "@/lib/paths";
 import type { AgyStatus, AppConfig, Progress, SessionEvent, StopReason, StorySnapshot } from "@/lib/types";
@@ -36,6 +36,12 @@ export function touchRecent(recent: string[], root: string): string[] {
 export interface StoryIssues {
   skipped: number;
   error: number;
+}
+
+/** Chương ngắn của một truyện: ngưỡng chữ đang đặt + số chữ từng chương dưới ngưỡng (ngưỡng 0 = chưa đọc). */
+export interface ShortInfo {
+  threshold: number;
+  words: Map<string, number>;
 }
 
 /** Ghi số chương bỏ qua/lỗi của một truyện; không đổi thì trả đúng object cũ để selector không render lại. */
@@ -81,6 +87,10 @@ interface StoryState extends PerStory {
   views: Record<string, StoryView>;
   agy?: AgyStatus;
   config?: AppConfig;
+  /** Chương ngắn (dưới ngưỡng chữ của nền tảng đăng truyện) theo `pathKey(root)`: ngưỡng + số chữ từng chương. */
+  short: Record<string, ShortInfo>;
+  /** Đọc lại danh sách chương ngắn (mọi out/ của truyện, chạy nền ở Rust). */
+  refreshShort: (root: string) => Promise<void>;
   /** Tăng mỗi lần dialog Bản mặc định lưu/xoá — hook defaults nạp lại prompt/rule mặc định. */
   baseVersion: number;
   bumpBaseVersion: () => void;
@@ -154,6 +164,8 @@ export function runningRoots(state: Pick<PerStory, "sessions" | "roots">): strin
 }
 
 export const selectCurrentSession = (s: StoryState): SessionState => sessionOf(s, s.root);
+const NO_SHORT: ShortInfo = { threshold: 0, words: new Map() };
+export const selectCurrentShort = (s: StoryState): ShortInfo => (s.root ? (s.short[pathKey(s.root)] ?? NO_SHORT) : NO_SHORT);
 export const selectCurrentRunning = (s: StoryState): boolean => isRunning(s, s.root);
 export const selectCurrentProgress = (s: StoryState): Progress | undefined =>
   s.root ? s.progress[pathKey(s.root)] : undefined;
@@ -226,6 +238,7 @@ export const useStoryStore = create<StoryState>()((set, get) => ({
   roots: {},
   names: {},
   issues: {},
+  short: {},
   opened: [],
   baseVersion: 0,
   bumpBaseVersion: () => set((state) => ({ baseVersion: state.baseVersion + 1 })),
@@ -255,6 +268,15 @@ export const useStoryStore = create<StoryState>()((set, get) => ({
       set({ snapshot: { ...latest, progressDrift: { untracked: drift.untracked.length, missing: drift.missing.length } } });
     } catch {
       // Giữ con số cũ: dialog Đồng bộ luôn đối chiếu lại khi mở.
+    }
+  },
+  refreshShort: async (root) => {
+    try {
+      const found = await shortChapters(root);
+      const words = new Map(found.chapters.map((item) => [item.id, item.words]));
+      set((state) => ({ short: { ...state.short, [pathKey(root)]: { threshold: found.threshold, words } } }));
+    } catch {
+      // Không đọc được thì giữ danh sách cũ; chip Ngắn chỉ là nhắc.
     }
   },
   select: (id) => set({ selectedId: id }),

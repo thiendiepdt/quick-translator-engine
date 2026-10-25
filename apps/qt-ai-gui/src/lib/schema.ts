@@ -174,6 +174,18 @@ export const zhConvertReportSchema = z.object({
   written: z.array(z.string()),
   skipped: z.array(z.object({ path: z.string(), reason: z.string() })),
 });
+/** Bù chữ chương ngắn cho nền tảng đăng truyện (Rust `padding::PaddingSettings`, base/padding.json). */
+export const PADDING_MODES = ["off", "filler", "repeat"] as const;
+export const paddingSettingsSchema = z.object({
+  mode: z.enum(PADDING_MODES),
+  threshold: z.number().int().min(1),
+  filler: z.string(),
+});
+/** Chương đã dịch dưới ngưỡng, số chữ tính như nền tảng đếm. */
+export const shortChaptersSchema = z.object({
+  threshold: z.number(),
+  chapters: z.array(z.object({ id: z.string(), words: z.number() })),
+});
 export const scanCastViewSchema = z.object({
   asked: z.number(),
   filled: z.number(),
@@ -237,6 +249,8 @@ export const chapterViewSchema = z.object({
   /** raw/<id>.txt đã mất sau lần quét gần nhất — UI nhắc Quét lại để gỡ chương. */
   rawMissing: z.boolean().default(false),
   output: z.string().nullable(),
+  /** Số chữ bản dịch như nền tảng đăng truyện đếm (cả phần chèn, không tính tên chương). */
+  outputWords: z.number().nullable().optional(),
   draft: z.string().nullable(),
   review: z.string().nullable(),
   warnings: z.array(z.string()),

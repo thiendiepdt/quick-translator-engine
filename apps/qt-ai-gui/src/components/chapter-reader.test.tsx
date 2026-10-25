@@ -4,13 +4,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ChapterReader } from "@/components/chapter-reader";
 import { appConfigSet, chapterRetry, chaptersDelete, readChapter, saveChapterOutput, storySnapshot } from "@/lib/api";
+import { pathKey } from "@/lib/paths";
 import { appConfigSchema } from "@/lib/schema";
 import { useStoryStore } from "@/store/story";
 
 vi.mock("@/lib/api", () => ({
   appConfigSet: vi.fn((config: unknown) => Promise.resolve(config)),
   chapterForceAccept: vi.fn(),
+  chapterPad: vi.fn(),
   chapterRetry: vi.fn(),
+  shortChapters: vi.fn(() => Promise.resolve({ threshold: 500, chapters: [] })),
   chaptersDelete: vi.fn(),
   chapterSkip: vi.fn(),
   readChapter: vi.fn(() =>
@@ -30,6 +33,21 @@ describe("ChapterReader", () => {
     useStoryStore.setState({ config, sessions: {} });
     vi.mocked(chapterRetry).mockReset();
     vi.mocked(chapterRetry).mockResolvedValue(undefined);
+  });
+
+  it("chương ngắn: báo số chữ và nút chèn cho đủ; chèn xong đọc lại chương", async () => {
+    const user = userEvent.setup();
+    const { chapterPad } = await import("@/lib/api");
+    const short = { threshold: 500, words: new Map([["0002", 17]]) };
+    useStoryStore.setState({ root: ROOT, short: { [pathKey(ROOT)]: short } });
+    const view = { id: "0002", status: "done" as const, raw: "原文", rawMissing: false, output: "Chương 2\n\nNghỉ một ngày.", draft: null, review: null, warnings: [], reason: null };
+    vi.mocked(readChapter).mockResolvedValueOnce({ ...view, outputWords: 17 }).mockResolvedValueOnce({ ...view, outputWords: 535 });
+    vi.mocked(chapterPad).mockResolvedValue(true);
+    render(<ChapterReader root={ROOT} row={row} hasPrev={false} hasNext={false} onPrev={vi.fn()} onNext={vi.fn()} />);
+    expect(await screen.findByText(/Chương ngắn: 17\/500 chữ/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Chèn cho đủ 500 chữ/ }));
+    expect(chapterPad).toHaveBeenCalledWith(ROOT, "0002");
+    await waitFor(() => expect(screen.queryByText(/Chương ngắn:/)).not.toBeInTheDocument());
   });
 
   it("nút chương trước/sau nằm trên đầu trang, theo hasPrev/hasNext; vùng đọc theo readingWidth", async () => {

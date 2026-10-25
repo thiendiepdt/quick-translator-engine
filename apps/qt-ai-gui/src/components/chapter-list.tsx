@@ -29,15 +29,17 @@ interface Props {
   onSelect: (id: string) => void;
   onFilter: (filter: ChapterFilter) => void;
   onQuery: (query: string) => void;
+  /** Mã chương dưới ngưỡng chữ của nền tảng đăng truyện — chip lọc Ngắn. */
+  short?: ReadonlySet<string>;
 }
 
 /**
  * Danh sách chương chỉ vẽ các dòng đang thấy (cộng vài dòng đệm): truyện 2.500 chương vẽ đủ là hơn 10 nghìn phần tử,
  * chặn giao diện ~220 ms lúc mở truyện và mỗi lần snapshot đổi khi đang dịch.
  */
-export function ChapterList({ rows, filter, query, selectedId, onSelect, onFilter, onQuery }: Props) {
-  const visible = useMemo(() => filterChapters(rows, filter, query), [rows, filter, query]);
-  const counts = useMemo(() => countByFilter(rows), [rows]);
+export function ChapterList({ rows, filter, query, selectedId, onSelect, onFilter, onQuery, short }: Props) {
+  const visible = useMemo(() => filterChapters(rows, filter, query, short), [rows, filter, query, short]);
+  const counts = useMemo(() => countByFilter(rows, short), [rows, short]);
   // Số thứ tự theo danh sách đầy đủ (không đổi khi lọc) — dùng để gõ khoảng "dịch lại 120–180".
   const ordinal = useMemo(() => new Map(rows.map((row, index) => [row.id, index + 1])), [rows]);
   const width = String(rows.length).length;

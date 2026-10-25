@@ -14,6 +14,7 @@ import { PalettePicker } from "@/components/palette-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PaddingSettingsEditor } from "@/components/padding-settings-editor";
 import { VnSettingsEditor } from "@/components/vn-settings-editor";
 import { ChangelogList } from "@/components/whats-new";
 import { useReadingWidth } from "@/hooks/use-reading-width";
@@ -474,6 +475,12 @@ export function SettingsPage() {
             description="Dùng chung mọi truyện, lưu ở vn-terms.json cạnh bản mặc định. Đổi từ điển thì mỗi truyện quét lại toàn bộ ở lần quét kế tiếp."
           >
             <VnSettingsEditor />
+          </Card>
+          <Card
+            title="Chương ngắn"
+            description="Nền tảng đăng truyện không nhận chương dưới ngưỡng chữ. Chương ngắn được nhắc ở danh sách chương (chip Ngắn) và trang Export; có thể tự chèn văn mẫu hoặc lặp nội dung khi chốt chương. Dùng chung mọi truyện."
+          >
+            <PaddingSettingsEditor />
           </Card>
           <AgyDataCard />
           <form id={FORM_ID} onSubmit={(e) => void submit(e)} className="flex flex-col gap-6">

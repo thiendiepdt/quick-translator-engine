@@ -11,6 +11,9 @@ import { useStoryStore } from "@/store/story";
 vi.mock("@tauri-apps/api/app", () => ({ getVersion: vi.fn(() => Promise.resolve("1.0.21")) }));
 vi.mock("sonner", () => ({ toast: { message: vi.fn(), success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/lib/api", () => ({
+  paddingGet: vi.fn(() => Promise.resolve({ mode: "off", threshold: 500, filler: "Văn mẫu." })),
+  paddingSave: vi.fn(),
+  paddingReset: vi.fn(),
   agyDataClean: vi.fn(),
   agyDataStats: vi.fn(() =>
     Promise.resolve({ dataDir: null, appCount: 0, appBytes: 0, otherCount: 0, otherBytes: 0 }),

@@ -1,5 +1,5 @@
 import { Download, FolderOpen } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { ChapterRefHint } from "@/components/chapter-ref-hint";
@@ -15,7 +15,7 @@ import { resolveChapterRef } from "@/lib/chapters";
 import { splitStoryName } from "@/lib/epub-cover";
 import { previewRange } from "@/lib/export-range";
 import type { ChapterRow, ExportOutcome } from "@/lib/types";
-import { useStoryStore } from "@/store/story";
+import { selectCurrentShort, useStoryStore } from "@/store/story";
 
 /** Số thứ tự (1-based, dạng chuỗi để điền vào ô) của chương done đầu/cuối; rỗng khi chưa có chương done. */
 function doneBounds(chapters: ChapterRow[]): { from: string; to: string } {
@@ -44,6 +44,11 @@ export function ExportPage() {
   const [to, setTo] = useState(() => doneBounds(chapters).to);
   const [result, setResult] = useState<ExportOutcome | undefined>();
   const [busy, setBusy] = useState(false);
+  const short = useStoryStore(selectCurrentShort);
+  const refreshShort = useStoryStore((s) => s.refreshShort);
+  useEffect(() => {
+    if (root) void refreshShort(root);
+  }, [root, refreshShort]);
   // Ô nhập nhận số thứ tự (cột # trong danh sách) hoặc nguyên mã chương; rỗng = đầu/cuối.
   const fromIndex = resolveChapterRef(chapters, from);
   const toIndex = resolveChapterRef(chapters, to);
@@ -52,6 +57,9 @@ export function ExportPage() {
   const toId = to.trim() ? (chapters[toIndex]?.id ?? "\0") : "";
   const preview = previewRange(chapters, fromId, toId);
   const canRun = !busy && preview.valid && preview.included.length > 0;
+  // Chương dưới ngưỡng chữ của nền tảng đăng truyện trong khoảng sẽ export.
+  const shortIncluded = preview.valid ? preview.included.map((row) => row.id).filter((id) => short.words.has(id)) : [];
+  const ordinalOf = new Map(chapters.map((row, index) => [row.id, index + 1]));
 
   async function run(pickPath: boolean) {
     if (!root) return;
@@ -165,6 +173,19 @@ export function ExportPage() {
                     Sẽ {format === "epub" ? "đưa vào sách" : "gộp"}{" "}
                     <strong className="tabular-nums">{preview.included.length}</strong> chương done.
                   </p>
+                  {shortIncluded.length > 0 && (
+                    <p className="mt-1 text-status-warning">
+                      {shortIncluded.length} chương dưới {short.threshold} chữ, nền tảng đăng truyện có thể không nhận
+                      (chèn cho đủ ở khung đọc chương hoặc bật tự chèn trong Cài đặt):{" "}
+                      <span className="font-mono text-xs">
+                        {shortIncluded
+                          .slice(0, 20)
+                          .map((id) => `#${ordinalOf.get(id)} (${short.words.get(id)} chữ)`)
+                          .join(", ")}
+                        {shortIncluded.length > 20 ? "…" : ""}
+                      </span>
+                    </p>
+                  )}
                   {preview.gaps.length > 0 && (
                     <p className="mt-1 text-status-warning">
                       Hổng {preview.gaps.length} chương chưa done:{" "}

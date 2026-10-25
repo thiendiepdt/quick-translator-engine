@@ -106,6 +106,11 @@ pub fn chapter_words(text: &str) -> usize {
     translation_part(text).lines().filter(|line| !line.trim().is_empty()).skip(1).map(count_words).sum()
 }
 
+/// Số chữ nền tảng đếm khi đăng: cả phần chèn, chỉ không tính dòng tên chương (dòng ngăn không có chữ).
+pub fn published_words(text: &str) -> usize {
+    text.lines().filter(|line| !line.trim().is_empty()).skip(1).map(count_words).sum()
+}
+
 fn paragraphs(text: &str) -> Vec<String> {
     text.lines().map(str::trim).filter(|line| !line.is_empty()).map(str::to_string).collect()
 }
@@ -186,6 +191,7 @@ mod tests {
         let padded = pad_chapter(text, PaddingMode::Filler, &settings(10, filler)).unwrap();
         assert_eq!(padded, format!("Chương 1\n\nTa đi.\n\n{PADDING_MARKER}\n\nmột hai ba bốn năm\n\nsáu bảy tám chín mười\n\nHết.\n"));
         assert!(chapter_words(&padded) == 2, "đếm chữ chương không tính phần chèn");
+        assert_eq!(published_words(&padded), 13, "nền tảng đếm cả phần chèn");
         // Chèn lại (đổi văn mẫu) thì thay phần chèn cũ, không chèn chồng.
         let again = pad_chapter(&padded, PaddingMode::Filler, &settings(10, "a b c d e f g h\n\nKết.")).unwrap();
         assert_eq!(again, format!("Chương 1\n\nTa đi.\n\n{PADDING_MARKER}\n\na b c d e f g h\n\nKết.\n"));

@@ -11,7 +11,7 @@ import { chaptersRetryIds, rescanStory, sessionStart, sessionStop, storySnapshot
 import { chapterGaps, filterChapters } from "@/lib/chapters";
 import { clockLabel, engineLabel, STATUS_LABELS } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { selectCurrentProgress, selectCurrentSession, useStoryStore } from "@/store/story";
+import { selectCurrentProgress, selectCurrentSession, selectCurrentShort, useStoryStore } from "@/store/story";
 
 /** Số chip chương hổng hiện tối đa; truyện vài nghìn chương skip nhiều thì xem tiếp ở bộ lọc Bỏ qua/Lỗi. */
 const GAP_CHIPS = 12;
@@ -39,6 +39,7 @@ export function TranslateToolbar() {
   const searchQuery = useStoryStore((s) => s.searchQuery);
   const setStatusFilter = useStoryStore((s) => s.setStatusFilter);
   const setSearchQuery = useStoryStore((s) => s.setSearchQuery);
+  const short = useStoryStore(selectCurrentShort);
   // Chương chưa dịch đứng trước chương done cuối (skip vì model từ chối, lỗi…) — dễ bị bỏ quên khi phiên chạy tiếp.
   const gapInfo = useMemo(() => (snapshot ? chapterGaps(snapshot.chapters) : null), [snapshot]);
   // Chương hổng còn phải đưa về hàng đợi (queued sẵn thì thôi).
@@ -53,7 +54,7 @@ export function TranslateToolbar() {
   const translatingOrdinal = translatingId ? (snapshot?.chapters.findIndex((row) => row.id === translatingId) ?? -1) + 1 : 0;
 
   function jumpTo(id: string) {
-    if (snapshot && !filterChapters(snapshot.chapters, statusFilter, searchQuery).some((row) => row.id === id)) {
+    if (snapshot && !filterChapters(snapshot.chapters, statusFilter, searchQuery, new Set(short.words.keys())).some((row) => row.id === id)) {
       setStatusFilter("all");
       setSearchQuery("");
     }

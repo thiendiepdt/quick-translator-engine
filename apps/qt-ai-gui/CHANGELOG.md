@@ -1,5 +1,8 @@
 # Có gì mới
 
+## Chưa phát hành
+- Cảnh báo chương ngắn cho nền tảng đăng truyện (không nhận chương dưới 500 chữ, không tính tên chương): chip **Ngắn** ở danh sách chương, báo ở trang Export và trong khung đọc chương, kèm nút **Chèn cho đủ 500 chữ**. Cài đặt → **Chương ngắn** cho phép tự chèn văn mẫu hài hước (sửa được) hoặc lặp lại nội dung chương lúc chốt chương, từng đoạn nguyên vẹn tới khi vừa đủ; mặc định tắt. Phần chèn nằm cuối chương sau dòng ❖❖❖❖❖❖❖❖❖❖ để tool khác tách được, và không bị Tìm & thay, rà glossary hay kiểm tra VN đụng tới.
+
 ## 1.0.28 — 2026-10-25
 - Truyện cổ đại gọi trẻ con theo cách các bản dịch kiếm hiệp vẫn dùng: “thằng bé”, “con bé”, đứa trẻ mới xuất hiện là “một đứa bé trai” / “một đứa bé gái”, 小姑娘 là “tiểu cô nương”, 女孩子 nói chung là “con gái”; không còn “cậu bé”, “cô bé”, “nam hài”, “nữ hài”. Chỗ còn sót được bắt khi kiểm tra chương để bước soát sửa lại. Truyện hỗn hợp chọn theo cảnh: cảnh cổ đại như trên, cảnh hiện đại vẫn “cậu bé”, “cô bé”.
 - Thêm nút **Phồn → Giản…** ở trang Dịch: chuyển raw phồn thể (và file GBK, Big5) sang giản thể UTF-8 để glossary và tên riêng khớp, bản gốc giữ ở folder `raw-phon-the/`, hoàn tác được. Khoá chữ Hán trong glossary, bảng nhân vật, sổ tiêu đề đổi theo; chương vốn là giản thể giữ nguyên. Mở truyện có raw phồn thể thì app nhắc ngay dưới thanh công cụ. Bộ chuyển đổi theo cụm từ nên giữ đúng 著名, 乾隆, tên riêng như 大乾王朝, và đổi cả từ vựng Đài Loan sang Đại lục (滑鼠 → 鼠标).
