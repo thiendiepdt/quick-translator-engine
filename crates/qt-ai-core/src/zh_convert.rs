@@ -15,13 +15,11 @@ use zhconv::{get_builtin_converter, Variant};
 
 use crate::story_fs::write_atomic;
 
-/// 著 + chữ này đọc "trứ": 著名, 著作, 著述…
-const ZHU_FIRST: &[char] = &['名', '作', '述', '称', '者', '录', '书', '文', '有', '论', '译'];
-/// Chữ này + 著 đọc "trứ": 显著, 原著, 土著…
-const ZHU_SECOND: &[char] = &[
-    '显', '卓', '昭', '土', '编', '原', '名', '论', '专', '巨', '遗', '拙', '新', '合', '译', '大', '佳', '杰', '近', '所',
-    '撰', '鸿', '宏', '力', '旧', '前',
-];
+/// 著 + chữ này đọc "trứ": 著称, 著述… (著名, 著作 xét riêng vì hay dính trợ từ: 念著名字, 做著作业).
+const ZHU_FIRST: &[char] = &['称', '述', '录', '者'];
+/// Chữ này + 著 đọc "trứ": 显著, 原著, 土著… Không có chữ hay đi với trợ từ 着 (大着胆子, 编着辫子, 努力着, 靠近着,
+/// 依旧着, 向前着); 论 / 译 xét riêng (讨论着, 翻译着).
+const ZHU_SECOND: &[char] = &['显', '卓', '昭', '土', '原', '名', '专', '巨', '遗', '拙', '佳', '杰', '撰', '鸿', '宏'];
 
 /// Từ chừng này phần chữ Hán phải đổi thì coi là phồn thể. Giản thể thật dưới 0,1% (thư viện 63 truyện cao nhất
 /// 0,06%), phồn thể thật 25–43%.
@@ -81,15 +79,31 @@ fn fix_zhe(text: &str) -> String {
             if c != '著' {
                 return c;
             }
-            let zhu = chars.get(i + 1).is_some_and(|next| ZHU_FIRST.contains(next))
-                || i.checked_sub(1).is_some_and(|prev| ZHU_SECOND.contains(&chars[prev]));
-            if zhu {
+            if is_zhu(&chars, i) {
                 '著'
             } else {
                 '着'
             }
         })
         .collect()
+}
+
+/// 著 ở vị trí `i` đọc "trứ" (từ chỉ sáng tác / rõ rệt), không phải trợ từ 着. Xét cả chữ thứ hai bên cạnh: luật
+/// cụm từ của bộ chuyển giữ 著 khi khớp 论著 / 著作 / 大著… kể cả trong 讨论著, 做著作业, 大著胆子.
+fn is_zhu(chars: &[char], i: usize) -> bool {
+    let at = |offset: isize| i.checked_add_signed(offset).and_then(|j| chars.get(j)).copied();
+    match at(1) {
+        Some('名') => return at(2) != Some('字'),
+        Some('作') => return !matches!(at(2), Some('业' | '品')),
+        Some(next) if ZHU_FIRST.contains(&next) => return true,
+        _ => {}
+    }
+    match at(-1) {
+        Some('论') => !matches!(at(-2), Some('讨' | '议' | '谈' | '争' | '辩' | '评')),
+        Some('译') => at(-2) != Some('翻'),
+        Some(prev) => ZHU_SECOND.contains(&prev),
+        None => false,
+    }
 }
 
 fn is_han(c: char) -> bool {
@@ -312,6 +326,18 @@ mod tests {
         assert_eq!(to_simplified("她吃了一個雪梨，用滑鼠點開。「走吧。」"), "她吃了一个雪梨，用鼠标点开。“走吧。”");
         assert_eq!(to_simplified("Tiếng Việt giữ nguyên, 显著 cũng vậy."), "Tiếng Việt giữ nguyên, 显著 cũng vậy.");
         assert_eq!(to_simplified("於是於夫人說：「鍾離先生，請。」"), "于是于夫人说：“钟离先生，请。”");
+    }
+
+    #[test]
+    fn tro_tu_著_sat_tu_doc_tru_van_thanh_着() {
+        assert_eq!(
+            to_simplified("他們討論著新奇的事，做著作業，大著膽子翻譯著文件，編著辮子，依舊著，念著名字。"),
+            "他们讨论着新奇的事，做着作业，大着胆子翻译着文件，编着辫子，依旧着，念着名字。"
+        );
+        assert_eq!(
+            to_simplified("臭名昭著的土著讀過原著和名著，這部論著、譯著在學界著稱，成績顯著。"),
+            "臭名昭著的土著读过原著和名著，这部论著、译著在学界著称，成绩显著。"
+        );
     }
 
     #[test]
