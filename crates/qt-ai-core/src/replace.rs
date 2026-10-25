@@ -255,7 +255,8 @@ fn scan_chapter(paths: &StoryPaths, id: &str, path: &Path, query: &FindQuery, ne
         return Ok(Scan::NoMatch);
     }
     let lines: Vec<String> = text.split_inclusive('\n').map(str::to_string).collect();
-    let content: Vec<usize> = lines.iter().enumerate().filter(|(_, l)| !l.trim().is_empty()).map(|(i, _)| i).collect();
+    // Phần chèn cho đủ chữ (sau dòng ngăn) không phải đoạn dịch: không ghép với raw, không bị sửa theo.
+    let content: Vec<usize> = crate::padding::content_lines(&lines);
     let raw = if query.raw_filter.is_empty() {
         None
     } else {

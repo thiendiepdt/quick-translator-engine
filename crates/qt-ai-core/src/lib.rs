@@ -33,5 +33,6 @@ pub mod vn_syllable;
 pub mod self_ref;
 pub mod zh_convert;
 pub mod zh_story;
+pub mod padding;
 
 pub use error::{CoreError, Result};

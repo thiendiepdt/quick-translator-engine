@@ -4,6 +4,7 @@
 
 use crate::check::default_rules_as_check_rules;
 use crate::error::{CoreError, Result};
+use crate::padding::PaddingSettings;
 use crate::prompt::base_prompt;
 use crate::story::{CheckRule, GenreSetting, Glossary, StoryGenre, StringMap, GLOSSARY_CATEGORIES};
 use crate::story_fs::write_atomic;
@@ -173,6 +174,24 @@ impl BaseStore {
     pub fn save_glossary(&self, setting: GenreSetting, glossary: &Glossary) -> Result<()> {
         let json = serde_json::to_string_pretty(glossary).expect("Glossary luôn serialize được");
         self.write(self.glossary_path(setting), &format!("{json}\n"))
+    }
+
+    /// Cài đặt bù chữ chương ngắn (áp cho mọi truyện, cả phiên agy qua `qt-ai accept`).
+    pub fn padding_path(&self) -> Option<PathBuf> {
+        self.dir.as_ref().map(|dir| dir.join("padding.json"))
+    }
+
+    /// File thiếu / hỏng → mặc định (tắt, 500 chữ, văn mẫu có sẵn).
+    pub fn padding(&self) -> PaddingSettings {
+        self.padding_path()
+            .and_then(|path| fs::read_to_string(path).ok())
+            .and_then(|text| serde_json::from_str(&text).ok())
+            .unwrap_or_default()
+    }
+
+    pub fn save_padding(&self, settings: &PaddingSettings) -> Result<()> {
+        let json = serde_json::to_string_pretty(settings).expect("PaddingSettings luôn serialize được");
+        self.write(self.padding_path(), &format!("{json}\n"))
     }
 
     pub fn reset_prompt(&self, genre: &StoryGenre) -> Result<()> {

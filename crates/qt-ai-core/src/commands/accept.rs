@@ -90,6 +90,11 @@ pub fn run_accept_with(root: &Path, id: &str, force: bool, lexicon: &crate::vn_l
             output = replace_first_line(&output, &line);
         }
     }
+    // Chương ngắn hơn ngưỡng của nền tảng đăng truyện: bù chữ nếu người dùng bật (mặc định tắt).
+    let padding = crate::base::BaseStore::from_env().padding();
+    if let Some(padded) = crate::padding::pad_chapter(&output, padding.mode, &padding) {
+        output = padded;
+    }
     let out_path = paths.out_dir.join(format!("{id}.txt"));
     // Atomic + ép xuống đĩa: state chỉ được ghi done sau khi bản dịch đã nằm chắc trên đĩa.
     write_atomic(&out_path, &output)?;

@@ -53,7 +53,8 @@ fn aligned(paths: &StoryPaths, id: &str, out: &Path) -> Result<Option<Aligned>> 
     let raw = paragraphs_of(&read_raw_chapter(paths, id)?);
     let text = read_text(out)?;
     let lines: Vec<String> = text.split_inclusive('\n').map(str::to_string).collect();
-    let content: Vec<usize> = lines.iter().enumerate().filter(|(_, line)| !line.trim().is_empty()).map(|(i, _)| i).collect();
+    // Phần chèn cho đủ chữ (sau dòng ngăn) không phải đoạn dịch: không ghép với raw, không bị sửa theo.
+    let content: Vec<usize> = crate::padding::content_lines(&lines);
     Ok((content.len() == raw.len()).then_some((raw, lines, content)))
 }
 

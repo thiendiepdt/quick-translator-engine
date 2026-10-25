@@ -33,8 +33,9 @@ pub struct Finding {
 }
 
 /// Đoạn của bản dịch = các dòng không rỗng — cùng cách `replace.rs` đánh số đoạn.
+/// Đoạn bản dịch, bỏ phần chèn cho đủ chữ (sau dòng ngăn) — văn mẫu không phải bản dịch, không ghép với raw.
 pub fn out_paragraphs(out: &str) -> Vec<String> {
-    out.lines().map(str::trim).filter(|line| !line.is_empty()).map(str::to_string).collect()
+    crate::padding::translation_part(out).lines().map(str::trim).filter(|line| !line.is_empty()).map(str::to_string).collect()
 }
 
 /// `find_zh`/`find_vi` đã bỏ chỗ bị loại trừ nên không cần kiểm tra lại ở đây.
