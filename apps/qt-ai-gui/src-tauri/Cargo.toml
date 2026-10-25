@@ -28,4 +28,6 @@ tauri-plugin-updater = "2"
 
 [dev-dependencies]
 tempfile = "3"
+# Test thả file chương GBK / Big5 (đã có trong lock qua qt-ai-core).
+encoding_rs = "0.8"
 tauri = { version = "2", features = ["test"] }

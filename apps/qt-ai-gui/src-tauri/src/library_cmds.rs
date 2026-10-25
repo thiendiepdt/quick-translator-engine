@@ -8,7 +8,8 @@ use crate::summary_cache::SummaryCache;
 use crate::vn_cmds::{lexicon, refresh_quietly};
 use crate::AppState;
 use qt_ai_core::commands::init::{raw_drift, run_init};
-use qt_ai_core::story_fs::{load_story_config, save_story_config, story_paths};
+use qt_ai_core::story_fs::{load_story_config, save_story_config, story_paths, write_atomic};
+use qt_ai_core::zh_convert::decode_text;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
@@ -171,8 +172,19 @@ pub fn import_chapters_inner(root: &Path, sources: &[PathBuf], qt_ai: &str) -> C
             counts.skipped_existing.push(file_name);
             continue;
         }
-        std::fs::copy(&source, &target)
-            .map_err(|e| CommandError::new("io", format!("Không copy được {}: {e}", source.display())))?;
+        // File GBK / Big5 / UTF-16 (raw tải từ web Trung, Đài) ghi lại UTF-8 — core chỉ đọc UTF-8; file đã là UTF-8
+        // thì copy nguyên byte. Không đọc được như text (file nhị phân đổi đuôi .txt) thì bỏ.
+        let bytes = std::fs::read(&source)
+            .map_err(|e| CommandError::new("io", format!("Không đọc được {}: {e}", source.display())))?;
+        match decode_text(&bytes) {
+            Some(decoded) if decoded.utf8 => std::fs::write(&target, &bytes)
+                .map_err(|e| CommandError::new("io", format!("Không copy được {}: {e}", source.display())))?,
+            Some(decoded) => write_atomic(&target, &decoded.text)?,
+            None => {
+                counts.ignored.push(source.display().to_string());
+                continue;
+            }
+        }
         counts.added.push(file_name);
     }
     run_init(root, qt_ai)?;
@@ -497,5 +509,24 @@ mod tests {
         let state = load_state(&story_paths(&root)).unwrap();
         assert_eq!(state.chapters["0001"].status, ChapterStatus::Queued);
         assert_eq!(state.chapters["0003"].status, ChapterStatus::Queued);
+    }
+
+    #[test]
+    fn import_chapters_ghi_lai_utf8_cho_file_gbk_big5_va_bo_file_nhi_phan() {
+        let lib = tempfile::tempdir().unwrap();
+        let root = create_story_inner(lib.path(), "T", "t", "", "qt-ai").unwrap();
+        let src = tempfile::tempdir().unwrap();
+        let (gbk, _, _) = encoding_rs::GBK.encode("第一章 少年的修炼之路，他慢慢地走向远方的山门。");
+        let (big5, _, _) = encoding_rs::BIG5.encode("第二章 少年的修煉之路，他慢慢地走向遠方的山門。");
+        fs::write(src.path().join("0001.txt"), &gbk).unwrap();
+        fs::write(src.path().join("0002.txt"), &big5).unwrap();
+        fs::write(src.path().join("0003.txt"), [0x89, b'P', b'N', b'G', 0, 0]).unwrap();
+        let files = ["0001.txt", "0002.txt", "0003.txt"].map(|name| src.path().join(name));
+        let counts = import_chapters_inner(&root, &files, "qt-ai").unwrap();
+        assert_eq!(counts.added, vec!["0001.txt", "0002.txt"]);
+        assert_eq!(counts.ignored.len(), 1, "file nhị phân đổi đuôi .txt");
+        let raw = root.join("raw");
+        assert_eq!(fs::read_to_string(raw.join("0001.txt")).unwrap(), "第一章 少年的修炼之路，他慢慢地走向远方的山门。");
+        assert_eq!(fs::read_to_string(raw.join("0002.txt")).unwrap(), "第二章 少年的修煉之路，他慢慢地走向遠方的山門。");
     }
 }

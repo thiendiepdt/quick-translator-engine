@@ -2955,6 +2955,7 @@ dependencies = [
 name = "qt-ai-gui"
 version = "1.0.27"
 dependencies = [
+ "encoding_rs",
  "qt-ai-core",
  "serde",
  "serde_json",
