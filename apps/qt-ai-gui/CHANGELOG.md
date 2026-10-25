@@ -1,7 +1,7 @@
 # Có gì mới
 
 ## Chưa phát hành
-- Truyện cổ đại gọi trẻ con theo cách các bản dịch kiếm hiệp vẫn dùng: “thằng bé”, “con bé”, đứa trẻ mới xuất hiện là “một đứa bé trai” / “một đứa bé gái”, 小姑娘 là “tiểu cô nương”, 女孩子 nói chung là “con gái”; không còn “cậu bé”, “cô bé”, “nam hài”, “nữ hài”. Chỗ còn sót được bắt khi kiểm tra chương để bước soát sửa lại.
+- Truyện cổ đại gọi trẻ con theo cách các bản dịch kiếm hiệp vẫn dùng: “thằng bé”, “con bé”, đứa trẻ mới xuất hiện là “một đứa bé trai” / “một đứa bé gái”, 小姑娘 là “tiểu cô nương”, 女孩子 nói chung là “con gái”; không còn “cậu bé”, “cô bé”, “nam hài”, “nữ hài”. Chỗ còn sót được bắt khi kiểm tra chương để bước soát sửa lại. Truyện hỗn hợp chọn theo cảnh: cảnh cổ đại như trên, cảnh hiện đại vẫn “cậu bé”, “cô bé”.
 
 ## 1.0.27 — 2026-10-24
 - Sửa lỗi đóng app khi đang dịch làm agy chạy ngầm tiếp (vẫn dịch, ăn quota, giữ folder truyện không xoá được): bấm đóng khi đang dịch giờ hỏi trước rồi dừng hết phiên; app bị tắt đột ngột (crash, Task Manager) thì agy cũng dừng theo.

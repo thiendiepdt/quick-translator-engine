@@ -842,6 +842,10 @@ const mixedSetting: SettingModule = {
     "",
     'Cảnh cổ đại: thê tử, phu nhân, phu quân, lang quân, phụ thân, mẫu thân — KHÔNG dùng "vợ", "chồng". Cảnh hiện đại: vợ, chồng, cha, mẹ, bạn trai, bạn gái — KHÔNG dùng thê tử, phu quân, phụ thân, mẫu thân trừ khi nhân vật cố tình nói cổ.',
     "",
+    "### Trẻ con theo cảnh",
+    "",
+    "Cảnh cổ đại theo đúng câu raw: `一个` / `一名` + (小)男孩 / 女孩 → `một đứa bé trai` / `một đứa bé gái`; 男孩 / 女孩 nhắc lại → `thằng bé` / `con bé`; 小姑娘 → `tiểu cô nương` — KHÔNG `cậu bé`, `cô bé`. Cảnh hiện đại: `cậu bé`, `cô bé`, `bé trai`, `bé gái` như văn đời thường. Mọi cảnh: 男孩子 / 女孩子 chỉ giới → `con trai` / `con gái` — KHÔNG `nam hài`, `nữ hài`, `nam hài tử`, `nữ hài tử`.",
+    "",
   ],
   editing: [
     "Soát lại xưng hô theo cảnh: mỗi cảnh chỉ dùng một bộ (cổ: ta/ngươi/hắn/nàng; hiện đại: hắn/cô trong lời kể, tự xưng ta hoặc theo quan hệ, gọi cậu/anh/cô trong thoại), không lẫn `ngươi`/`nàng` vào cảnh hiện đại; không còn `tôi`/`mình` tự xưng trong thoại ở bất kỳ cảnh nào; không tự thêm hành động raw không có.",

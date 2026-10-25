@@ -85,6 +85,11 @@ describe("composeBasePrompt", () => {
     expect(ancientHan).toContain("| 小姑娘 | tiểu cô nương | cô bé |");
     expect(ancientHan).toContain("`男孩正是卫渊` → `Thằng bé chính là Vệ Uyên`");
     expect(modern).not.toContain("| 男孩 / 小男孩 / 那男孩 (nhắc lại) | thằng bé");
+    // Hỗn hợp: trẻ con chọn theo cảnh, nam hài / nữ hài cấm ở mọi cảnh.
+    const mixedSetting = composeBasePrompt({ setting: "mixed", names: "han", tone: "neutral" });
+    expect(mixedSetting).toContain("### Trẻ con theo cảnh");
+    expect(mixedSetting).toContain("Cảnh hiện đại: `cậu bé`, `cô bé`, `bé trai`, `bé gái` như văn đời thường.");
+    expect(modern).not.toContain("### Trẻ con theo cảnh");
     expect(modern).not.toContain('KHÔNG dùng "vợ", "chồng"');
     expect(modern).not.toContain("### Tu tiên / Xianxia");
     expect(modern).toContain("Kế Duyên");
