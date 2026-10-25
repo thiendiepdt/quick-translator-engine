@@ -18,6 +18,8 @@ type Target = ZhOutputMode["kind"];
 
 /** Gõ xong chừng này ms mới chuyển — dán cả chương cũng không bắn lệnh liên tục. */
 const DEBOUNCE_MS = 250;
+/** Hai ô cao cố định bằng nhau (Textarea mặc định co theo nội dung nên hai bên lệch nhau khi gõ). */
+const BOX = "field-sizing-fixed h-[55vh] min-h-48 resize-none";
 /** Hiện tối đa chừng này file bị bỏ qua; còn lại chỉ đếm. */
 const SKIPPED_SHOWN = 20;
 
@@ -47,18 +49,20 @@ function TextConvert() {
   return (
     <div className="grid gap-3 md:grid-cols-2">
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="zh-input">Phồn thể</Label>
+        <div className="flex h-7 items-center">
+          <Label htmlFor="zh-input">Phồn thể</Label>
+        </div>
         <Textarea
           id="zh-input"
-          rows={14}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Dán chữ phồn thể vào đây, vd. 他著急地看著後臺"
           spellCheck={false}
+          className={BOX}
         />
       </div>
       <div className="flex flex-col gap-1.5">
-        <div className="flex items-center gap-2">
+        <div className="flex h-7 items-center gap-2">
           <Label htmlFor="zh-output" className="flex-1">
             Giản thể
           </Label>
@@ -76,8 +80,26 @@ function TextConvert() {
             <Copy /> Chép
           </Button>
         </div>
-        <Textarea id="zh-output" rows={14} value={shown} readOnly spellCheck={false} className="bg-muted/40" />
+        <Textarea id="zh-output" value={shown} readOnly spellCheck={false} className={`${BOX} bg-muted/40`} />
       </div>
+    </div>
+  );
+}
+
+/** Nút chọn file / folder + đường dẫn đã chọn (mono), chưa chọn thì chữ thường mờ. */
+function PathRow({ button, onPick, path, empty, title }: { button: string; onPick: () => void; path: string; empty: string; title?: string }) {
+  return (
+    <div className="flex min-w-0 items-center gap-3">
+      <Button type="button" size="sm" variant="outline" onClick={onPick}>
+        <FolderOpen /> {button}
+      </Button>
+      {path ? (
+        <span className="min-w-0 flex-1 truncate font-mono text-xs" title={title ?? path}>
+          {path}
+        </span>
+      ) : (
+        <span className="text-xs text-muted-foreground">{empty}</span>
+      )}
     </div>
   );
 }
@@ -139,22 +161,21 @@ function FileConvert({ folder }: { folder: boolean }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2 rounded-lg border bg-card p-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" variant="outline" onClick={() => void choose()}>
-            <FolderOpen /> {folder ? "Chọn folder…" : "Chọn file…"}
-          </Button>
-          <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground" title={inputs.join("\n")}>
-            {inputs.length === 0 ? "Chưa chọn" : inputs.length === 1 ? inputs[0] : `${inputs.length} file: ${inputs[0]}, …`}
-          </span>
-        </div>
+      <div className="flex flex-col gap-3 rounded-lg border bg-card p-4">
+        <PathRow
+          button={folder ? "Chọn folder…" : "Chọn file…"}
+          onPick={() => void choose()}
+          path={inputs.length === 0 ? "" : inputs.length === 1 ? inputs[0] : `${inputs.length} file: ${inputs[0]}, …`}
+          title={inputs.join("\n")}
+          empty={folder ? "Chưa chọn folder" : "Chưa chọn file (chọn được nhiều file)"}
+        />
         {folder && (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-            <label className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+            <label className="flex items-center gap-2">
               <input type="checkbox" checked={recursive} onChange={(e) => setRecursive(e.target.checked)} />
               Gồm thư mục con
             </label>
-            <label className="flex items-center gap-1.5">
+            <label className="flex items-center gap-2">
               Đuôi file
               <Input
                 aria-label="Đuôi file"
@@ -168,35 +189,38 @@ function FileConvert({ folder }: { folder: boolean }) {
         )}
       </div>
 
-      <fieldset className="flex flex-col gap-2 rounded-lg border bg-card p-4 text-sm">
+      <fieldset className="flex flex-col gap-3 rounded-lg border bg-card p-4 text-sm">
         <legend className="px-1 text-sm font-medium">Ghi kết quả</legend>
-        <label className="flex flex-wrap items-center gap-2">
-          <input type="radio" name={`zh-target-${folder}`} checked={target === "folder"} onChange={() => setTarget("folder")} />
-          Ra folder khác{folder ? " (giữ cấu trúc thư mục con)" : ""}
+        <div className="flex flex-col gap-2">
+          <label className="flex items-center gap-2">
+            <input type="radio" name={`zh-target-${folder}`} checked={target === "folder"} onChange={() => setTarget("folder")} />
+            Ra folder khác{folder ? " (giữ cấu trúc thư mục con)" : ""}
+          </label>
           {target === "folder" && (
-            <>
-              <Button type="button" size="xs" variant="outline" onClick={() => void chooseDir()}>
-                <FolderOpen /> Chọn folder đích…
-              </Button>
-              <span className="min-w-0 truncate font-mono text-xs text-muted-foreground">{dir || "Chưa chọn"}</span>
-            </>
+            <div className="pl-6">
+              <PathRow button="Chọn folder đích…" onPick={() => void chooseDir()} path={dir} empty="Chưa chọn folder đích" />
+            </div>
           )}
-        </label>
-        <label className="flex flex-wrap items-center gap-2">
-          <input type="radio" name={`zh-target-${folder}`} checked={target === "suffix"} onChange={() => setTarget("suffix")} />
-          Cạnh file gốc, thêm hậu tố vào tên
+        </div>
+        <div className="flex flex-col gap-2">
+          <label className="flex items-center gap-2">
+            <input type="radio" name={`zh-target-${folder}`} checked={target === "suffix"} onChange={() => setTarget("suffix")} />
+            Cạnh file gốc, thêm hậu tố vào tên
+          </label>
           {target === "suffix" && (
-            <>
+            <div className="flex items-center gap-2 pl-6">
               <Input
                 aria-label="Hậu tố tên file"
                 value={suffix}
                 onChange={(e) => setSuffix(e.target.value)}
                 className="h-8 w-28 font-mono"
               />
-              <span className="font-mono text-xs text-muted-foreground">vd. chuong1{suffix.trim()}.txt</span>
-            </>
+              <span className="text-xs text-muted-foreground">
+                vd. <span className="font-mono">chuong1{suffix.trim()}.txt</span>
+              </span>
+            </div>
           )}
-        </label>
+        </div>
         <label className="flex items-center gap-2">
           <input type="radio" name={`zh-target-${folder}`} checked={target === "replace"} onChange={() => setTarget("replace")} />
           Ghi đè file gốc <span className="text-xs text-muted-foreground">(không hoàn tác được)</span>
@@ -247,11 +271,11 @@ export function ConverterPage() {
   return (
     <div className="fine-scrollbar h-full min-h-0 overflow-y-auto">
       <div className="mx-auto flex max-w-4xl flex-col gap-4 px-6 py-6">
-        <div className="flex items-start gap-3">
-          <Button type="button" variant="outline" size="sm" onClick={closeConverter}>
+        <div className="flex flex-col items-start gap-2">
+          <Button type="button" variant="ghost" size="sm" className="-ml-2" onClick={closeConverter}>
             <ArrowLeft /> {toolFrom === "workbench" ? "Về truyện" : "Về danh sách truyện"}
           </Button>
-          <div className="min-w-0">
+          <div>
             <h1 className="text-lg font-semibold">Chuyển phồn thể → giản thể</h1>
             <p className="text-xs text-muted-foreground">
               Công cụ riêng, không gắn với truyện nào. Chuyển theo cụm từ, chuẩn Đại lục: 看著 → 看着 nhưng giữ 著名,
