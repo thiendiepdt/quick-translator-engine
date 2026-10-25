@@ -9,6 +9,9 @@ import { appConfigSchema } from "@/lib/schema";
 import { useStoryStore } from "@/store/story";
 
 vi.mock("@/lib/api", () => ({
+  zhStoryStatus: vi.fn(() => Promise.resolve({ scanned: 0, traditional: 0, notUtf8: 0, undoChapters: null })),
+  zhStoryConvert: vi.fn(),
+  zhStoryUndo: vi.fn(),
   ApiError: class ApiError extends Error {
     kind: string;
     constructor(kind: string, message: string) {

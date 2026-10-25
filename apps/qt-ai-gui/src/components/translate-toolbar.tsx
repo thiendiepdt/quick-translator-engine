@@ -1,4 +1,4 @@
-import { KeyRound, LoaderCircle, Play, RefreshCw, RotateCcw, Square, Trash2, TriangleAlert } from "lucide-react";
+import { FileType, KeyRound, LoaderCircle, Play, RefreshCw, RotateCcw, Square, Trash2, TriangleAlert } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -6,6 +6,7 @@ import { DeleteRangeDialog } from "@/components/delete-range-dialog";
 import { RetryRangeDialog } from "@/components/retry-range-dialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ZhStoryBanner, ZhStoryDialog } from "@/components/zh-story-dialog";
 import { chaptersRetryIds, rescanStory, sessionStart, sessionStop, storySnapshot } from "@/lib/api";
 import { chapterGaps, filterChapters } from "@/lib/chapters";
 import { clockLabel, engineLabel, STATUS_LABELS } from "@/lib/types";
@@ -65,6 +66,9 @@ export function TranslateToolbar() {
   const [retryingGaps, setRetryingGaps] = useState(false);
   const [retryOpen, setRetryOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [zhOpen, setZhOpen] = useState(false);
+  // Tăng sau mỗi lần chuyển / hoàn tác để thanh nhắc phồn thể đọc lại raw.
+  const [zhVersion, setZhVersion] = useState(0);
 
   /** Đưa mọi chương hổng (skip/lỗi) về hàng đợi; không tự chạy phiên. */
   async function retryGaps() {
@@ -205,10 +209,27 @@ export function TranslateToolbar() {
         >
           <Trash2 /> Xoá…
         </Button>
+        <Button
+          type="button"
+          variant="outline"
+          className="h-9"
+          title="Chuyển raw phồn thể (và file GBK / Big5) sang giản thể UTF-8; bản gốc giữ ở raw-phon-the/"
+          disabled={!snapshot}
+          onClick={() => setZhOpen(true)}
+        >
+          <FileType /> Phồn → Giản…
+        </Button>
         {root && (
           <>
             <RetryRangeDialog root={root} chapters={snapshot?.chapters ?? []} open={retryOpen} onOpenChange={setRetryOpen} />
             <DeleteRangeDialog root={root} chapters={snapshot?.chapters ?? []} open={deleteOpen} onOpenChange={setDeleteOpen} />
+            <ZhStoryDialog
+              root={root}
+              running={running}
+              open={zhOpen}
+              onOpenChange={setZhOpen}
+              onChanged={() => setZhVersion((v) => v + 1)}
+            />
           </>
         )}
         <Button
@@ -289,6 +310,13 @@ export function TranslateToolbar() {
             </span>
           ))}
       </div>
+      {root && (
+        <ZhStoryBanner
+          root={root}
+          version={`${snapshot?.chapters.length ?? 0}|${zhVersion}`}
+          onOpen={() => setZhOpen(true)}
+        />
+      )}
       {gapInfo && (
         <p
           role="status"

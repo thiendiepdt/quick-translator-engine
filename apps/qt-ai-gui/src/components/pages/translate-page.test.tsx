@@ -20,6 +20,9 @@ vi.mock("@tauri-apps/api/webview", () => ({
 }));
 
 vi.mock("@/lib/api", () => ({
+  zhStoryStatus: vi.fn(() => Promise.resolve({ scanned: 0, traditional: 0, notUtf8: 0, undoChapters: null })),
+  zhStoryConvert: vi.fn(),
+  zhStoryUndo: vi.fn(),
   importChapters: vi.fn(),
   progressDrift: vi.fn(),
   readChapter: vi.fn(),

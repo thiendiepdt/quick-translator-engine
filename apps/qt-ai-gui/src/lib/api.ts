@@ -27,6 +27,9 @@ import {
   replaceOutcomeSchema,
   replaceUndoInfoSchema,
   replaceUndoOutcomeSchema,
+  zhStoryOutcomeSchema,
+  zhStoryStatusSchema,
+  zhUndoOutcomeSchema,
   glossaryBackfillSchema,
   deleteOutcomeSchema,
   progressDriftSchema,
@@ -155,6 +158,12 @@ export const replaceApply = (
   );
 export const replaceUndoInfo = (root: string) => call("replace_undo_info", { root }, (v) => replaceUndoInfoSchema.parse(v));
 export const replaceUndo = (root: string) => call("replace_undo", { root }, (v) => replaceUndoOutcomeSchema.parse(v));
+/** Raw phồn thể: `full = false` chỉ đọc mấy chương đầu (thanh nhắc), true đọc cả truyện. */
+export const zhStoryStatus = (root: string, full: boolean) =>
+  call("zh_story_status", { root, full }, (v) => zhStoryStatusSchema.parse(v));
+/** Chuyển chương phồn thể / khác UTF-8 sang giản thể, bản gốc vào raw-phon-the/, đổi khoá hồ sơ theo. */
+export const zhStoryConvert = (root: string) => call("zh_story_convert", { root }, (v) => zhStoryOutcomeSchema.parse(v));
+export const zhStoryUndo = (root: string) => call("zh_story_undo", { root }, (v) => zhUndoOutcomeSchema.parse(v));
 export const saveSettings = (root: string, settings: HarnessSettings) =>
   call("save_settings", { root, settings }, (v) => harnessSettingsSchema.parse(v));
 export const chapterRetry = (root: string, id: string) => call("chapter_retry", { root, id }, noop);

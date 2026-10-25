@@ -153,6 +153,20 @@ export const replaceUndoOutcomeSchema = z.object({
   profileRestored: z.number(),
   profileConflicts: z.array(z.string()),
 });
+/** Chuyển raw phồn thể của truyện (Rust `zh_story`). `undoChapters`: lần chuyển gần nhất còn hoàn tác được. */
+export const zhStoryStatusSchema = z.object({
+  scanned: z.number(),
+  traditional: z.number(),
+  notUtf8: z.number(),
+  undoChapters: z.number().nullable(),
+});
+export const zhStoryOutcomeSchema = z.object({ chapters: z.number(), keys: z.number(), merged: z.number() });
+export const zhUndoOutcomeSchema = z.object({
+  restored: z.number(),
+  conflicts: z.array(z.string()),
+  profileRestored: z.number(),
+  profileConflicts: z.array(z.string()),
+});
 export const scanCastViewSchema = z.object({
   asked: z.number(),
   filled: z.number(),
