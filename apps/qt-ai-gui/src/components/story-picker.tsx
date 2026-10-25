@@ -1,4 +1,4 @@
-import { FileType, FolderOpen, FolderPlus, FolderSync, LibraryBig, Play, RefreshCw, Search, Sparkles, Square, X } from "lucide-react";
+import { FileType, FolderOpen, FolderPlus, FolderSync, LibraryBig, LoaderCircle, Play, RefreshCw, Search, Sparkles, Square, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -44,6 +44,7 @@ const displayName = (item: { root: string; name: string | null }) => item.name?.
 function StoryRow({
   item,
   busy,
+  opening = false,
   live,
   onOpen,
   onForget,
@@ -52,6 +53,8 @@ function StoryRow({
 }: {
   item: RecentSummary;
   busy: boolean;
+  /** Truyện này đang được mở: giữ rõ (không mờ như các dòng bị khoá) và hiện "Đang mở…". */
+  opening?: boolean;
   /** Tiến độ live từ phiên đang chạy (đè lên số đọc từ đĩa). */
   live?: Progress;
   onOpen: () => void;
@@ -70,7 +73,11 @@ function StoryRow({
         type="button"
         disabled={busy}
         onClick={onOpen}
-        className="flex min-w-0 flex-1 items-center gap-4 overflow-hidden rounded-lg border bg-card p-4 text-left transition-colors hover:bg-accent disabled:opacity-50"
+        aria-busy={opening || undefined}
+        className={cn(
+          "flex min-w-0 flex-1 items-center gap-4 overflow-hidden rounded-lg border bg-card p-4 text-left transition-colors hover:bg-accent disabled:opacity-50",
+          opening && "border-primary disabled:opacity-100",
+        )}
       >
         <div className="min-w-0 flex-1">
           {item.name ? (
@@ -109,7 +116,11 @@ function StoryRow({
             </p>
           )}
         </div>
-        {!uninitialized && (
+        {opening ? (
+          <span role="status" className="flex w-32 shrink-0 items-center justify-end gap-1.5 text-sm text-primary">
+            <LoaderCircle className="size-4 animate-spin" aria-hidden /> Đang mở…
+          </span>
+        ) : !uninitialized && (
           <div className="w-32 shrink-0 text-right">
             <p className="text-sm tabular-nums">
               {done}/{item.total}
@@ -171,6 +182,8 @@ export function StoryPicker() {
   const [pendingLibrary, setPendingLibrary] = useState<{ root: string; count: number } | undefined>();
   const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Truyện đang chờ open_story: dòng của nó hiện "Đang mở…" thay vì mờ như các dòng bị khoá.
+  const [opening, setOpening] = useState<string>();
   const [refreshing, setRefreshing] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [batchOpen, setBatchOpen] = useState(false);
@@ -297,6 +310,7 @@ export function StoryPicker() {
 
   async function tryOpen(root: string) {
     setBusy(true);
+    setOpening(root);
     try {
       open(await openStory(root));
     } catch (error) {
@@ -308,6 +322,7 @@ export function StoryPicker() {
       } else toast.error(error instanceof Error ? error.message : "Không mở được truyện");
     } finally {
       setBusy(false);
+      setOpening(undefined);
     }
   }
 
@@ -529,6 +544,7 @@ export function StoryPicker() {
                         key={item.root}
                         item={item}
                         busy={busy}
+                        opening={opening !== undefined && samePath(opening, item.root)}
                         onOpen={() => void tryOpen(item.root)}
                         {...rowProps(item)}
                       />
@@ -571,6 +587,7 @@ export function StoryPicker() {
                   key={item.root}
                   item={item}
                   busy={busy}
+                  opening={opening !== undefined && samePath(opening, item.root)}
                   onOpen={() => void tryOpen(item.root)}
                   onForget={() => void forget(item.root)}
                   {...rowProps(item)}

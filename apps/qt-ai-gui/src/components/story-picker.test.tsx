@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -75,6 +75,20 @@ describe("StoryPicker · Mở gần đây", () => {
     await user.click(screen.getByRole("button", { name: "Bỏ D:\\truyen-hong khỏi danh sách" }));
     await waitFor(() => expect(useStoryStore.getState().config?.recent).toEqual([]));
     expect(screen.queryByText("Mở gần đây")).not.toBeInTheDocument();
+  });
+
+  it("bấm mở truyện: dòng đó hiện Đang mở… trong lúc chờ, các dòng khác khoá", async () => {
+    const user = userEvent.setup();
+    let finish: (value: never) => void = () => undefined;
+    vi.mocked(openStory).mockReturnValueOnce(new Promise((resolve) => (finish = resolve)));
+    render(<StoryPicker />);
+    await user.click(await screen.findByText("Truyện A"));
+    const row = screen.getByText("Truyện A").closest("button");
+    expect(row).toHaveAttribute("aria-busy", "true");
+    expect(within(row as HTMLElement).getByRole("status")).toHaveTextContent("Đang mở…");
+    expect(screen.getByText("D:\\truyen-hong").closest("button")).toBeDisabled();
+    finish({ root: "D:\\truyen-a", story: { name: "Truyện A" }, counts: { skipped: 0, error: 0 }, sessionRunning: false } as never);
+    await waitFor(() => expect(screen.queryByText("Đang mở…")).not.toBeInTheDocument());
   });
 
   it("huy hiệu ⚠ VN chỉ hiện khi vnFlags > 0", async () => {
