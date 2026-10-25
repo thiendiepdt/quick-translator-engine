@@ -17,8 +17,10 @@ import type { GenreNames, GenreSetting, GenreTone, StoryGenre } from "@/lib/ai-s
 // thứ tự ưu tiên thành ngữ (Việt tương đương > tự nhiên > Hán-Việt quen), dòng dịch thơ, lóng ngôn tình 白月光 / 白莲花,
 // 赐婚 → ban hôn, ghi chú giọng kể thù địch: ả / mụ cho nữ phản diện, không `chàng` ngôi ba trong lời kể, và luật
 // đường để đi, phố để ở / buôn bán theo cách nói miền Nam; cổ đại chỉ giữ phố xá / phố phường, bảng 街 → đường;
-// lời kể cổ đại dùng mẹ / cha mẹ, từ ghép mẹ ruột / mẹ kế / cha dượng, thoại vẫn nương).
-export const LEGACY_BASE_PROMPT_FNV1A64 = "d862cd852b9812d2";
+// lời kể cổ đại dùng mẹ / cha mẹ, từ ghép mẹ ruột / mẹ kế / cha dượng, thoại vẫn nương; 2026-10-25 bảng trẻ con
+// cổ đại: 一个男孩 → một đứa bé trai, 男孩 → thằng bé, 女孩 → con bé, 小姑娘 → tiểu cô nương, 女孩子 → con gái,
+// không cậu bé / cô bé / nam hài / nữ hài).
+export const LEGACY_BASE_PROMPT_FNV1A64 = "955235e5d46523b8";
 
 const CORE_HEAD: string[] = [
   "Bạn là dịch giả tiểu thuyết Trung Quốc sang tiếng Việt. Nhiệm vụ của bạn là chuyển ngữ trung thành, không phải sáng tác lại hay biên tập nâng giọng.",
@@ -651,8 +653,17 @@ const ancient: SettingModule = {
     "| 妇人 / 少妇 | phụ nhân / thiếu phụ | người đàn bà |",
     "| 姑娘 / 小姐 / 公子 / 少爷 | cô nương / tiểu thư / công tử / thiếu gia | cô gái, cô chủ, cậu chủ |",
     "| 大汉 / 汉子 | đại hán / hán tử | gã to con, người đàn ông vạm vỡ |",
+    "| 一个 / 一名 + (小)男孩 (đứa trẻ mới xuất hiện) | một đứa bé trai | một cậu bé, một bé trai, một tiểu nam hài |",
+    "| 男孩 / 小男孩 / 那男孩 (nhắc lại) | thằng bé | cậu bé, cậu nhóc, nam hài |",
+    "| 一个 / 一名 + (小)女孩 (đứa trẻ mới xuất hiện) | một đứa bé gái | một cô bé, một bé gái, một tiểu nữ hài |",
+    "| 女孩 / 小女孩 / 那女孩 (nhắc lại) | con bé | cô bé, cô nhóc, nữ hài |",
+    "| 小姑娘 | tiểu cô nương | cô bé |",
+    "| 男孩子 / 女孩子 (chỉ giới, người trẻ nói chung: 女孩子家, 变成女孩子) | con trai / con gái; một người cụ thể: thiếu niên / cô nương | nam hài tử, nữ hài tử |",
+    "| 孩子 / 小孩 | đứa bé / đứa trẻ | |",
     "",
     "`Người đàn ông khoác hắc bào` → `Nam nhân khoác hắc bào`; `giọng của một người đàn ông` → `giọng của một nam nhân`.",
+    "",
+    "Trẻ con theo đúng câu raw đang dịch, không cần nhớ chương trước: có `一个` / `一名` đứng trước là đứa trẻ mới xuất hiện → `một đứa bé trai` / `một đứa bé gái`; không có → `thằng bé` / `con bé`. `一个男孩从天上掉下来` → `Một đứa bé trai từ trên trời rơi xuống`; `男孩正是卫渊` → `Thằng bé chính là Vệ Uyên`. Không dùng `cậu bé`, `cô bé` trong truyện cổ đại, kể cả trong thoại.",
     "",
   ],
   editing: [

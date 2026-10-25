@@ -80,6 +80,11 @@ describe("composeBasePrompt", () => {
     const ancientHan = composeBasePrompt({ setting: "ancient", names: "han", tone: "neutral" });
     expect(ancientHan).toContain("| 男人 / 男子 / 男的 | nam nhân / nam tử");
     expect(ancientHan).toContain("`Nam nhân khoác hắc bào`");
+    // Trẻ con: raw có 一个 là giới thiệu, không thì nhắc lại — model không phải nhớ chương trước.
+    expect(ancientHan).toContain("| 男孩 / 小男孩 / 那男孩 (nhắc lại) | thằng bé | cậu bé, cậu nhóc, nam hài |");
+    expect(ancientHan).toContain("| 小姑娘 | tiểu cô nương | cô bé |");
+    expect(ancientHan).toContain("`男孩正是卫渊` → `Thằng bé chính là Vệ Uyên`");
+    expect(modern).not.toContain("| 男孩 / 小男孩 / 那男孩 (nhắc lại) | thằng bé");
     expect(modern).not.toContain('KHÔNG dùng "vợ", "chồng"');
     expect(modern).not.toContain("### Tu tiên / Xianxia");
     expect(modern).toContain("Kế Duyên");
