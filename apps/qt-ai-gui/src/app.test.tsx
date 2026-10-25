@@ -19,6 +19,7 @@ vi.mock("@/lib/api", () => ({
 }));
 vi.mock("@tauri-apps/api/app", () => ({ getVersion: vi.fn(() => Promise.resolve("1.0.21")) }));
 vi.mock("@/hooks/use-session-events", () => ({ useSessionEvents: () => undefined }));
+vi.mock("@/hooks/use-story-checked", () => ({ useStoryChecked: () => undefined }));
 vi.mock("@/hooks/use-theme", () => ({ useThemeSync: () => undefined }));
 vi.mock("@/components/story-picker", () => ({ StoryPicker: () => <div>PICKER</div> }));
 vi.mock("@/components/app-rail", () => ({ AppRail: () => null }));

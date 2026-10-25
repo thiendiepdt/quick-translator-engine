@@ -16,6 +16,7 @@ import { StoryPicker } from "@/components/story-picker";
 import { StorySidebar } from "@/components/story-sidebar";
 import { WhatsNewDialog } from "@/components/whats-new";
 import { useSessionEvents } from "@/hooks/use-session-events";
+import { useStoryChecked } from "@/hooks/use-story-checked";
 import { useThemeSync } from "@/hooks/use-theme";
 import { useUndoFallback } from "@/hooks/use-undo-fallback";
 import { useUpdateCheck } from "@/hooks/use-update-check";
@@ -43,6 +44,7 @@ export default function App() {
   const config = useStoryStore((s) => s.config);
   const engine = config?.engine ?? "api";
   useSessionEvents();
+  useStoryChecked();
   useThemeSync();
   useUndoFallback();
   useUpdateCheck();

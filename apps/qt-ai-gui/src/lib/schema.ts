@@ -216,6 +216,11 @@ export const storySnapshotSchema = z.object({
   progressDrift: z.object({ untracked: z.number(), missing: z.number() }).nullable().optional(),
 });
 
+/** Event `story-checked`: quét nền sau khi mở truyện xong (kiểm tra VN + độ lệch tiến độ). */
+export const storyCheckedSchema = z.object({
+  root: z.string(),
+  progressDrift: z.object({ untracked: z.number(), missing: z.number() }),
+});
 /** Chương chưa done mà out/ đã có bản dịch (untracked) và chương done mà chưa thấy bản dịch (missing). */
 export const progressDriftSchema = z.object({ untracked: z.array(z.string()), missing: z.array(z.string()) });
 export const requeueUntrackedResultSchema = z.object({ requeued: z.array(z.string()), snapshot: storySnapshotSchema });

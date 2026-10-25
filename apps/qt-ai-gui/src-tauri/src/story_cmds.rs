@@ -21,7 +21,7 @@ use qt_ai_core::story_fs::{
 use serde::Serialize;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
-use tauri::{AppHandle, Manager, Runtime, State};
+use tauri::{AppHandle, Emitter, Manager, Runtime, State};
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -278,27 +278,61 @@ fn session_running(state: &State<'_, AppState>, root: &str) -> bool {
     state.sessions.lock().unwrap().is_running(root)
 }
 
-/// Mở truyện đã init: quét raw/ lấy chương mới vào hàng đợi trước (run_init idempotent) và quét kiểm tra VN,
-/// rồi snapshot.
+/// Mở truyện đã init: quét raw/ lấy chương mới vào hàng đợi (run_init idempotent) rồi trả snapshot ngay; quét kiểm
+/// tra VN và độ lệch tiến độ chạy nền sau đó (`spawn_story_checks`).
 /// Folder chưa có state.json vẫn trả story_not_found để UI hỏi "Khởi tạo?".
 #[tauri::command]
 pub async fn open_story<R: Runtime>(app: AppHandle<R>, root: String) -> CmdResult<StorySnapshot> {
-    blocking(move || open_story_sync(&app.state::<AppState>(), &root)).await
+    blocking(move || {
+        let snap = open_story_sync(&app.state::<AppState>(), &root)?;
+        spawn_story_checks(app, root);
+        Ok(snap)
+    })
+    .await
 }
 
-/// Truyện đã init: quét raw/ lấy chương mới (run_init idempotent) rồi quét kiểm tra VN. Folder lạ thì bỏ qua.
+/// Truyện đã init: quét raw/ lấy chương mới (run_init idempotent). Folder lạ thì bỏ qua.
 pub fn rescan_if_initialized(path: &Path) -> CmdResult<()> {
     if story_paths(path).state_json.is_file() {
         run_init(path, &qt_ai_command())?;
-        crate::vn_cmds::refresh_quietly(path, &crate::vn_cmds::lexicon());
     }
     Ok(())
+}
+
+/// Event báo giao diện kết quả quét nền sau khi mở truyện — giao diện tải lại snapshot (cảnh báo VN) kèm độ lệch.
+pub const STORY_CHECKED_EVENT: &str = "story-checked";
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StoryChecked {
+    pub root: String,
+    pub progress_drift: DriftCounts,
+}
+
+/// Phần chậm của mở truyện (truyện 2.500 chương 0,25–0,65 s): quét kiểm tra VN cả raw lẫn out và tính độ lệch
+/// state.json ↔ out/. Chưa init thì không làm gì.
+pub fn run_story_checks(path: &Path) -> Option<DriftCounts> {
+    if !story_paths(path).state_json.is_file() {
+        return None;
+    }
+    crate::vn_cmds::refresh_quietly(path, &crate::vn_cmds::lexicon());
+    let drift = qt_ai_core::commands::sync_progress::progress_drift(path).ok()?;
+    Some(DriftCounts { untracked: drift.untracked.len(), missing: drift.missing.len() })
+}
+
+/// Chạy `run_story_checks` ở luồng riêng sau khi giao diện đã vào truyện, xong thì phát `story-checked`.
+fn spawn_story_checks<R: Runtime>(app: AppHandle<R>, root: String) {
+    std::thread::spawn(move || {
+        if let Some(progress_drift) = run_story_checks(Path::new(&root)) {
+            let _ = app.emit(STORY_CHECKED_EVENT, &StoryChecked { root, progress_drift });
+        }
+    });
 }
 
 fn open_story_sync(state: &State<'_, AppState>, root: &str) -> CmdResult<StorySnapshot> {
     let path = Path::new(root);
     rescan_if_initialized(path)?;
-    let snap = snapshot_with_drift(path, session_running(state, root))?;
+    let snap = snapshot(path, session_running(state, root))?;
     let mut config = state.config.lock().unwrap();
     config.touch_recent(root);
     config.save(&state.config_path)?;
@@ -309,7 +343,9 @@ fn open_story_sync(state: &State<'_, AppState>, root: &str) -> CmdResult<StorySn
 pub async fn init_story<R: Runtime>(app: AppHandle<R>, root: String) -> CmdResult<StorySnapshot> {
     blocking(move || {
         run_init(Path::new(&root), &qt_ai_command())?;
-        open_story_sync(&app.state::<AppState>(), &root)
+        let snap = open_story_sync(&app.state::<AppState>(), &root)?;
+        spawn_story_checks(app, root);
+        Ok(snap)
     })
     .await
 }
@@ -658,10 +694,13 @@ pub(crate) mod tests {
         fs::write(dir.path().join("raw").join("0003.txt"), "第三章").unwrap();
         rescan_if_initialized(dir.path()).unwrap();
         assert_eq!(snapshot(dir.path(), false).unwrap().counts.total, 3);
-        assert!(dir.path().join(qt_ai_core::vn_check::VN_FILE).is_file(), "mở truyện thì quét kiểm tra VN");
+        assert!(!dir.path().join(qt_ai_core::vn_check::VN_FILE).exists(), "quét VN để chạy nền sau khi vào truyện");
+        assert_eq!(run_story_checks(dir.path()), Some(DriftCounts { untracked: 0, missing: 0 }));
+        assert!(dir.path().join(qt_ai_core::vn_check::VN_FILE).is_file(), "quét nền xong thì có kết quả kiểm tra VN");
         let fresh = tempfile::tempdir().unwrap();
         rescan_if_initialized(fresh.path()).unwrap();
         assert!(!story_paths(fresh.path()).state_json.is_file());
+        assert_eq!(run_story_checks(fresh.path()), None);
         assert!(!fresh.path().join(qt_ai_core::vn_check::VN_FILE).exists());
         assert_eq!(snapshot(fresh.path(), false).unwrap_err().kind, "story_not_found");
     }
