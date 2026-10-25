@@ -66,7 +66,9 @@ interface PerStory {
 }
 
 interface StoryState extends PerStory {
-  screen: "picker" | "workbench";
+  /** `converter`: công cụ chuyển phồn → giản, không gắn truyện; `toolFrom` là màn để quay lại. */
+  screen: "picker" | "workbench" | "converter";
+  toolFrom: "picker" | "workbench";
   page: Page;
   /** Root mọi truyện đã mở trong phiên app này theo thứ tự mở lần đầu (sidebar phải). Không lưu đĩa. */
   opened: string[];
@@ -86,6 +88,8 @@ interface StoryState extends PerStory {
   /** Chuyển nhanh sang truyện khác từ dock/dialog: như openStory nhưng giữ trang đang xem. */
   switchStory: (snapshot: StorySnapshot) => void;
   closeStory: () => void;
+  openConverter: () => void;
+  closeConverter: () => void;
   setPage: (page: Page) => void;
   setSnapshot: (snapshot: StorySnapshot) => void;
   /** Đang nhắc chương lệch tiến độ (banner) thì hỏi lại Rust cho con số mới — gọi sau phiên dừng, dịch lại, xoá, reset.
@@ -211,6 +215,7 @@ function enterStory(state: StoryState, snapshot: StorySnapshot, page: Page): Par
 
 export const useStoryStore = create<StoryState>()((set, get) => ({
   screen: "picker",
+  toolFrom: "picker",
   page: "translate",
   statusFilter: "all",
   searchQuery: "",
@@ -231,6 +236,9 @@ export const useStoryStore = create<StoryState>()((set, get) => ({
   switchStory: (snapshot) => set((state) => enterStory(state, snapshot, state.page)),
   closeStory: () =>
     set((state) => ({ screen: "picker", root: undefined, snapshot: undefined, selectedId: undefined, views: rememberView(state) })),
+  openConverter: () => set((state) => (state.screen === "converter" ? {} : { screen: "converter", toolFrom: state.screen })),
+  // Về màn trước; truyện đã đóng trong lúc đó (không còn root) thì về màn chọn truyện.
+  closeConverter: () => set((state) => ({ screen: state.toolFrom === "workbench" && state.root ? "workbench" : "picker" })),
   setPage: (page) => set({ page }),
   setSnapshot: (snapshot) =>
     set((state) => ({

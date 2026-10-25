@@ -167,6 +167,13 @@ export const zhUndoOutcomeSchema = z.object({
   profileRestored: z.number(),
   profileConflicts: z.array(z.string()),
 });
+/** Công cụ chuyển phồn → giản (Rust `zh_convert::ConvertReport`): `unchanged` = file vốn là giản thể UTF-8. */
+export const zhConvertReportSchema = z.object({
+  converted: z.number(),
+  unchanged: z.number(),
+  written: z.array(z.string()),
+  skipped: z.array(z.object({ path: z.string(), reason: z.string() })),
+});
 export const scanCastViewSchema = z.object({
   asked: z.number(),
   filled: z.number(),

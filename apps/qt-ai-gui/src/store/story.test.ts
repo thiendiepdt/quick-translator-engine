@@ -287,3 +287,21 @@ describe("refreshProgressDrift", () => {
     expect(useStoryStore.getState().snapshot?.progressDrift).toEqual({ untracked: 3, missing: 0 });
   });
 });
+
+describe("openConverter/closeConverter", () => {
+  it("mở công cụ chuyển từ truyện thì quay lại truyện; truyện đã đóng thì về màn chọn truyện", () => {
+    useStoryStore.getState().openStory(snapshotFor(A, false));
+    useStoryStore.getState().openConverter();
+    expect(useStoryStore.getState()).toMatchObject({ screen: "converter", toolFrom: "workbench", root: A });
+    useStoryStore.getState().openConverter();
+    expect(useStoryStore.getState().toolFrom).toBe("workbench"); // bấm lại không ghi đè màn quay về
+    useStoryStore.getState().closeConverter();
+    expect(useStoryStore.getState().screen).toBe("workbench");
+
+    useStoryStore.getState().closeStory();
+    useStoryStore.getState().openConverter();
+    expect(useStoryStore.getState().toolFrom).toBe("picker");
+    useStoryStore.getState().closeConverter();
+    expect(useStoryStore.getState().screen).toBe("picker");
+  });
+});

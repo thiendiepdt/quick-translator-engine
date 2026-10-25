@@ -1,4 +1,4 @@
-import { ArrowLeft, BookUser, Download, Languages, LibraryBig, Moon, Replace, Settings2, ShieldAlert, Sun } from "lucide-react";
+import { ArrowLeft, BookUser, Download, FileType, Languages, LibraryBig, Moon, Replace, Settings2, ShieldAlert, Sun } from "lucide-react";
 import { useEffect, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -56,6 +56,7 @@ export function AppRail() {
   const page = useStoryStore((s) => s.page);
   const setPage = useStoryStore((s) => s.setPage);
   const closeStory = useStoryStore((s) => s.closeStory);
+  const openConverter = useStoryStore((s) => s.openConverter);
   const { mode, toggleMode } = useThemeActions();
 
   // Ctrl+Shift+F mở trang Tìm & thay như ô tìm trong cả dự án của các trình soạn thảo.
@@ -103,6 +104,11 @@ export function AppRail() {
           <Icon className="size-5" />
         </RailButton>
       ))}
+      <div className="my-1 h-px w-8 bg-border" aria-hidden />
+      {/* Công cụ riêng, không gắn truyện: mở màn riêng, nút Quay lại về đúng truyện này. */}
+      <RailButton label="Chuyển phồn → giản (công cụ riêng)" onClick={openConverter}>
+        <FileType className="size-5" />
+      </RailButton>
       <div className="flex-1" />
       <RailButton label={mode === "dark" ? "Chuyển sang sáng" : "Chuyển sang tối"} onClick={() => void toggleMode()}>
         {mode === "dark" ? <Sun className="size-5" /> : <Moon className="size-5" />}

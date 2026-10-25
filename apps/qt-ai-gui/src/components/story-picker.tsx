@@ -1,4 +1,4 @@
-import { FolderOpen, FolderPlus, FolderSync, LibraryBig, Play, RefreshCw, Search, Sparkles, Square, X } from "lucide-react";
+import { FileType, FolderOpen, FolderPlus, FolderSync, LibraryBig, Play, RefreshCw, Search, Sparkles, Square, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -154,6 +154,7 @@ export function StoryPicker() {
   const recent = useStoryStore((s) => s.config?.recent ?? []);
   const libraryRoot = useStoryStore((s) => s.config?.libraryRoot ?? null);
   const open = useStoryStore((s) => s.openStory);
+  const openConverter = useStoryStore((s) => s.openConverter);
   const setConfig = useStoryStore((s) => s.setConfig);
   const sessions = useStoryStore((s) => s.sessions);
   const sessionRoots = useStoryStore((s) => s.roots);
@@ -429,6 +430,14 @@ export function StoryPicker() {
           </Button>
           <Button size="lg" variant="outline" disabled={busy} onClick={() => void pickAndOpen()}>
             <FolderOpen /> Mở folder truyện
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            title="Công cụ riêng: chuyển cụm chữ, file hoặc cả folder từ phồn thể sang giản thể"
+            onClick={openConverter}
+          >
+            <FileType /> Chuyển phồn → giản
           </Button>
           {libraryRoot && (
             <Button

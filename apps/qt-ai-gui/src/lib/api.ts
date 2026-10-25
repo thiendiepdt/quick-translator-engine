@@ -27,6 +27,7 @@ import {
   replaceOutcomeSchema,
   replaceUndoInfoSchema,
   replaceUndoOutcomeSchema,
+  zhConvertReportSchema,
   zhStoryOutcomeSchema,
   zhStoryStatusSchema,
   zhUndoOutcomeSchema,
@@ -164,6 +165,17 @@ export const zhStoryStatus = (root: string, full: boolean) =>
 /** Chuyển chương phồn thể / khác UTF-8 sang giản thể, bản gốc vào raw-phon-the/, đổi khoá hồ sơ theo. */
 export const zhStoryConvert = (root: string) => call("zh_story_convert", { root }, (v) => zhStoryOutcomeSchema.parse(v));
 export const zhStoryUndo = (root: string) => call("zh_story_undo", { root }, (v) => zhUndoOutcomeSchema.parse(v));
+/** Cách ghi của công cụ chuyển: đè file gốc / ra folder khác (giữ cấu trúc) / cạnh file gốc thêm hậu tố. */
+export type ZhOutputMode = { kind: "replace" } | { kind: "folder"; dir: string } | { kind: "suffix"; suffix: string };
+export interface ZhConvertJob {
+  /** File hoặc folder; file trong folder lọc theo `extensions` (rỗng = mọi file text). */
+  inputs: string[];
+  recursive: boolean;
+  extensions: string[];
+  mode: ZhOutputMode;
+}
+export const zhConvertText = (text: string) => call("zh_convert_text", { text }, (v) => z.string().parse(v));
+export const zhConvertFiles = (job: ZhConvertJob) => call("zh_convert_files", { job }, (v) => zhConvertReportSchema.parse(v));
 export const saveSettings = (root: string, settings: HarnessSettings) =>
   call("save_settings", { root, settings }, (v) => harnessSettingsSchema.parse(v));
 export const chapterRetry = (root: string, id: string) => call("chapter_retry", { root, id }, noop);
@@ -299,6 +311,11 @@ export const importChapters = (root: string, paths: string[]) =>
 export async function pickFolder(title: string): Promise<string | undefined> {
   const selected = await open({ directory: true, multiple: false, title });
   return typeof selected === "string" ? selected : undefined;
+}
+
+export async function pickFiles(title: string): Promise<string[]> {
+  const selected = await open({ directory: false, multiple: true, title });
+  return Array.isArray(selected) ? selected : typeof selected === "string" ? [selected] : [];
 }
 
 export async function pickAgyFile(): Promise<string | undefined> {

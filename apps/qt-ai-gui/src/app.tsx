@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { AgyMissing } from "@/components/agy-missing";
 import { AppRail } from "@/components/app-rail";
 import { CloseGuard } from "@/components/close-guard";
+import { ConverterPage } from "@/components/pages/converter-page";
 import { ExportPage } from "@/components/pages/export-page";
 import { ReplacePage } from "@/components/pages/replace-page";
 import { SettingsPage } from "@/components/pages/settings-page";
@@ -149,6 +150,14 @@ export default function App() {
         <StoryPicker />
         {whatsNewDialog}
       </>
+    );
+  }
+  if (screen === "converter") {
+    return (
+      <div className="h-full">
+        <ConverterPage />
+        {whatsNewDialog}
+      </div>
     );
   }
   const Current = PAGES[page];
