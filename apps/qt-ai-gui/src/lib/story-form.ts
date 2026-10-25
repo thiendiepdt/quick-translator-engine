@@ -112,7 +112,7 @@ export function toFormValues(config: StoryConfig): StoryFormValues {
   };
 }
 
-/** Form → config; `autoGlossaryLog` không sửa trên form nên lấy từ `base`. */
+/** Form → config. `autoGlossaryLog` không sửa trên form; snapshot không mang nhật ký (rỗng), Rust giữ bản trên đĩa khi lưu. */
 export function fromFormValues(values: StoryFormValues, base: StoryConfig): StoryConfig {
   return {
     name: values.name,

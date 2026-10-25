@@ -270,6 +270,7 @@ mod tests {
             "progress_drift",
             "sync_progress",
             "requeue_untracked",
+            "story_snapshot",
             "zh_story_status",
             "zh_story_convert",
             "zh_story_undo",

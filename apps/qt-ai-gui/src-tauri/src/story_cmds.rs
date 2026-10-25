@@ -152,7 +152,10 @@ pub async fn recent_summaries<R: Runtime>(app: AppHandle<R>) -> CmdResult<Vec<Re
 pub fn snapshot(root: &Path, session_running: bool) -> CmdResult<StorySnapshot> {
     let paths = story_paths(root);
     let state = load_state(&paths)?;
-    let story = load_story_config(&paths)?;
+    let mut story = load_story_config(&paths)?;
+    // Nhật ký tự thêm glossary (truyện lớn vài nghìn dòng, hàng trăm KB) không màn nào hiển thị: bỏ khỏi snapshot cho
+    // gói gửi sang giao diện nhẹ — snapshot tải lại mỗi lần một chương dịch xong. Lưu hồ sơ giữ nhật ký trên đĩa.
+    story.auto_glossary_log.clear();
     // Cảnh báo kiểm tra VN tính sống từ vn-check.json (xét / thay xong là hết), không lấy từ state.json.
     let vn_open = open_by_chapter(&qt_ai_core::vn_check::load_file(&paths));
     let counts = count_chapters_live(&state, &vn_open);
@@ -243,18 +246,23 @@ pub fn save_chapter_output_inner(root: &Path, id: &str, text: &str) -> CmdResult
 
 pub fn save_story_inner(root: &Path, story: Value) -> CmdResult<StoryConfig> {
     let paths = story_paths(root);
-    let config = StoryConfig::normalize(&story);
+    let mut config = StoryConfig::normalize(&story);
+    let old = load_story_config(&paths).ok();
+    // Giao diện không cầm nhật ký tự thêm (snapshot bỏ đi): giữ nhật ký đang có trên đĩa.
+    if let Some(old) = &old {
+        config.auto_glossary_log = old.auto_glossary_log.clone();
+    }
     // Cặp xưng hô người dùng sửa/thêm tay được ghim trong cast.json — harness không tự đổi theo mốc chương nữa.
     let no_pairs = qt_ai_core::story::StringMap::new();
-    let old_pairs = load_story_config(&paths).ok().and_then(|old| old.glossary.get("addressing").cloned());
-    if let Some(old_pairs) = old_pairs {
+    if let Some(old_pairs) = old.as_ref().and_then(|old| old.glossary.get("addressing")) {
         let mut cast = qt_ai_core::cast::load_cast(&paths);
         let new_pairs = config.glossary.get("addressing").unwrap_or(&no_pairs);
-        if qt_ai_core::cast::pin_edited_pairs(&old_pairs, new_pairs, &mut cast) {
+        if qt_ai_core::cast::pin_edited_pairs(old_pairs, new_pairs, &mut cast) {
             qt_ai_core::cast::save_cast(&paths, &cast)?;
         }
     }
     save_story_config(&paths, &config)?;
+    config.auto_glossary_log.clear();
     Ok(config)
 }
 
@@ -306,9 +314,11 @@ pub async fn init_story<R: Runtime>(app: AppHandle<R>, root: String) -> CmdResul
     .await
 }
 
+/// Đọc state.json + story.json + vn-check.json (truyện lớn ~2 MB) — chạy ngoài luồng IPC cho cửa sổ không đứng; gọi
+/// lại mỗi lần một chương dịch xong.
 #[tauri::command]
-pub fn story_snapshot(state: State<'_, AppState>, root: String) -> CmdResult<StorySnapshot> {
-    snapshot(Path::new(&root), session_running(&state, &root))
+pub async fn story_snapshot<R: Runtime>(app: AppHandle<R>, root: String) -> CmdResult<StorySnapshot> {
+    blocking(move || snapshot(Path::new(&root), session_running(&app.state::<AppState>(), &root))).await
 }
 
 #[tauri::command]
@@ -582,6 +592,30 @@ pub(crate) mod tests {
         let before = fs::read_to_string(&paths.cast_json).unwrap();
         save_story_inner(dir.path(), serde_json::to_value(&config).unwrap()).unwrap();
         assert_eq!(fs::read_to_string(&paths.cast_json).unwrap(), before);
+    }
+
+    #[test]
+    fn snapshot_bo_nhat_ky_tu_them_con_luu_ho_so_giu_nhat_ky_tren_dia() {
+        let dir = story();
+        let paths = story_paths(dir.path());
+        let mut config = load_story_config(&paths).unwrap();
+        config.auto_glossary_log.push(qt_ai_core::story::AutoGlossaryEntry {
+            source: "赵静文".into(),
+            target: "Triệu Tĩnh Văn".into(),
+            category: "names".into(),
+            chapter: "0001".into(),
+        });
+        save_story_config(&paths, &config).unwrap();
+
+        let snap = snapshot(dir.path(), false).unwrap();
+        assert!(snap.story.auto_glossary_log.is_empty(), "snapshot không mang nhật ký");
+        // Giao diện gửi lại hồ sơ lấy từ snapshot (nhật ký rỗng): nhật ký trên đĩa vẫn còn.
+        let mut edited = snap.story.clone();
+        edited.summary = "Tóm tắt mới".into();
+        let saved = save_story_inner(dir.path(), serde_json::to_value(&edited).unwrap()).unwrap();
+        assert!(saved.auto_glossary_log.is_empty());
+        let on_disk = load_story_config(&paths).unwrap();
+        assert_eq!((on_disk.summary.as_str(), on_disk.auto_glossary_log.len()), ("Tóm tắt mới", 1));
     }
 
     #[test]
