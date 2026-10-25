@@ -31,5 +31,7 @@ pub mod vn_ai;
 pub mod mojibake;
 pub mod vn_syllable;
 pub mod self_ref;
+pub mod zh_convert;
+pub mod zh_story;
 
 pub use error::{CoreError, Result};

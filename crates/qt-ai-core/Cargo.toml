@@ -21,6 +21,11 @@ rusqlite = { version = "0.40.2", features = ["bundled"] }
 zip = { version = "4.6.1", default-features = false, features = ["deflate-flate2"] }
 # zip bật flate2 không kèm backend: chọn miniz_oxide (Rust thuần, đã có trong lock).
 flate2 = { version = "1.1.9", default-features = false, features = ["rust_backend"] }
+# Phồn → giản theo luật MediaWiki zh-CN (cụm từ, từ vựng Đài Loan → Đại lục); GPL-2.0+ hợp với GPL-3.
+zhconv = { version = "0.4", default-features = false, features = ["compress", "mediawiki-hans", "mediawiki-cn"] }
+# Đọc file text GBK / Big5 / UTF-16 (raw tải từ web Trung, Đài): đoán mã hoá rồi giải mã.
+encoding_rs = "0.8"
+chardetng = "1"
 
 [target.'cfg(windows)'.dependencies]
 # Job Object KILL_ON_JOB_CLOSE: app chết thì agy chết theo (child_guard). Bản 0.61 đã có trong lock.
