@@ -21,6 +21,16 @@
         "message": "Từ chỉ người đời thường trong bối cảnh cổ → nam nhân/nữ nhân (nam tử/nữ tử)"
       },
       {
+        "pattern": "(?<!\\p{L})(?:cậu|cô) (?:bé|nhóc)(?!\\p{L})",
+        "flags": "iu",
+        "message": "男孩 / 女孩 / 小姑娘 trong bối cảnh cổ → thằng bé / con bé / tiểu cô nương (raw có 一个: một đứa bé trai / gái), không cậu bé / cô bé"
+      },
+      {
+        "pattern": "(?<!\\p{L})(?:nam|nữ) hài(?!\\p{L})",
+        "flags": "iu",
+        "message": "男孩子 / 女孩子 chỉ giới → con trai / con gái; 男孩 / 女孩 → thằng bé / con bé; không nam hài / nữ hài"
+      },
+      {
         "pattern": "\\banh ấy\\b|\\banh ta\\b|\\bcô ấy\\b|\\bchị ấy\\b",
         "flags": "i",
         "message": "Đại từ sai → dùng hắn/nàng"
@@ -1440,7 +1450,7 @@
   "cases": [
     {
       "name": "default",
-      "text": "Triệu Tĩnh Văn ngẩng đầu，nhìn tòa 高塔 nơi xa.\nBut nàng im lặng. Vợ của hắn và anh ấy đều biết.\n\"Mình không đi,\" nàng nói. Hừm. Ơ? Thập phần kỳ lạ…\nNão hải hắn KHẤP HUYẾT, cư nhiên Cư Nhiên. Lãnh diễm.\nKiểm trắc thấy một kẻ liếm chó.\nChiêu lãm hắn về Đông Cung, rồi dùng chiêu Lãm Tước Vĩ.\nMột trận chiến không tiền khoáng hậu, đúng là vô tiền khoáng hậu.\nTiểu nhị cười: “Chỗ khác chẳng ngon bằng chỗ chúng tôi đâu.”\n“Bề tôi trung thành, bầy tôi của bệ hạ, vua tôi một lòng, kẻ tôi tớ, tôi luyện thân thể.”\nDòng sạch không vi phạm gì cả.\n",
+      "text": "Triệu Tĩnh Văn ngẩng đầu，nhìn tòa 高塔 nơi xa.\nBut nàng im lặng. Vợ của hắn và anh ấy đều biết.\n\"Mình không đi,\" nàng nói. Hừm. Ơ? Thập phần kỳ lạ…\nNão hải hắn KHẤP HUYẾT, cư nhiên Cư Nhiên. Lãnh diễm.\nKiểm trắc thấy một kẻ liếm chó.\nChiêu lãm hắn về Đông Cung, rồi dùng chiêu Lãm Tước Vĩ.\nMột trận chiến không tiền khoáng hậu, đúng là vô tiền khoáng hậu.\nTiểu nhị cười: “Chỗ khác chẳng ngon bằng chỗ chúng tôi đâu.”\n“Bề tôi trung thành, bầy tôi của bệ hạ, vua tôi một lòng, kẻ tôi tớ, tôi luyện thân thể.”\nCậu bé kéo cô bé ra sau, một tiểu nữ hài đứng nhìn; nữ hài tử nhà ai vậy.\nThằng bé cười, con bé gật đầu, tiểu cô nương đứng xem; cô bếp và cậu bếp không tính.\nDòng sạch không vi phạm gì cả.\n",
       "rules": null,
       "setting": "ancient",
       "violations": [
@@ -1523,6 +1533,16 @@
           "line": 8,
           "message": "Dùng tôi/chúng tôi tự xưng → ta/chúng ta, hoặc tự xưng theo thân phận (tiểu nhân/nô tỳ/thuộc hạ/đệ tử/con)",
           "text": "Tiểu nhị cười: “Chỗ khác chẳng ngon bằng chỗ chúng tôi đâu.”"
+        },
+        {
+          "line": 10,
+          "message": "男孩 / 女孩 / 小姑娘 trong bối cảnh cổ → thằng bé / con bé / tiểu cô nương (raw có 一个: một đứa bé trai / gái), không cậu bé / cô bé",
+          "text": "Cậu bé kéo cô bé ra sau, một tiểu nữ hài đứng nhìn; nữ hài tử nhà ai vậy."
+        },
+        {
+          "line": 10,
+          "message": "男孩子 / 女孩子 chỉ giới → con trai / con gái; 男孩 / 女孩 → thằng bé / con bé; không nam hài / nữ hài",
+          "text": "Cậu bé kéo cô bé ra sau, một tiểu nữ hài đứng nhìn; nữ hài tử nhà ai vậy."
         }
       ]
     },

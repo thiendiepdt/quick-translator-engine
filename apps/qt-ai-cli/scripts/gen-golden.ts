@@ -178,6 +178,8 @@ const CHECK_TEXT = [
   "Một trận chiến không tiền khoáng hậu, đúng là vô tiền khoáng hậu.",
   "Tiểu nhị cười: “Chỗ khác chẳng ngon bằng chỗ chúng tôi đâu.”",
   "“Bề tôi trung thành, bầy tôi của bệ hạ, vua tôi một lòng, kẻ tôi tớ, tôi luyện thân thể.”",
+  "Cậu bé kéo cô bé ra sau, một tiểu nữ hài đứng nhìn; nữ hài tử nhà ai vậy.",
+  "Thằng bé cười, con bé gật đầu, tiểu cô nương đứng xem; cô bếp và cậu bếp không tính.",
   "Dòng sạch không vi phạm gì cả.",
   "",
 ].join("\n");
