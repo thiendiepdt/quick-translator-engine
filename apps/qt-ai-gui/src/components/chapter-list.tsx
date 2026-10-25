@@ -1,5 +1,5 @@
 import { Search } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Input } from "@/components/ui/input";
 import { countByFilter, FILTER_LABELS, FILTER_ORDER, filterChapters, type ChapterFilter } from "@/lib/chapters";
@@ -14,6 +14,13 @@ const DOT: Record<ChapterStatus, string> = {
   skipped: "bg-status-queued ring-1 ring-foreground/30",
 };
 
+/** Mỗi dòng cao cố định (h-9) nên tính được dòng nào đang thấy mà không phải đo từng dòng. */
+const ROW_HEIGHT = 36;
+/** Vẽ thêm chừng này dòng trên / dưới vùng thấy để cuộn nhanh không lộ khoảng trắng. */
+const OVERSCAN = 10;
+/** Chưa đo được khung danh sách (lần vẽ đầu, môi trường test) thì coi khung cao chừng này. */
+const FALLBACK_HEIGHT = 800;
+
 interface Props {
   rows: ChapterRow[];
   filter: ChapterFilter;
@@ -24,20 +31,44 @@ interface Props {
   onQuery: (query: string) => void;
 }
 
+/**
+ * Danh sách chương chỉ vẽ các dòng đang thấy (cộng vài dòng đệm): truyện 2.500 chương vẽ đủ là hơn 10 nghìn phần tử,
+ * chặn giao diện ~220 ms lúc mở truyện và mỗi lần snapshot đổi khi đang dịch.
+ */
 export function ChapterList({ rows, filter, query, selectedId, onSelect, onFilter, onQuery }: Props) {
-  const visible = filterChapters(rows, filter, query);
-  const counts = countByFilter(rows);
+  const visible = useMemo(() => filterChapters(rows, filter, query), [rows, filter, query]);
+  const counts = useMemo(() => countByFilter(rows), [rows]);
   // Số thứ tự theo danh sách đầy đủ (không đổi khi lọc) — dùng để gõ khoảng "dịch lại 120–180".
-  const ordinal = new Map(rows.map((row, index) => [row.id, index + 1]));
+  const ordinal = useMemo(() => new Map(rows.map((row, index) => [row.id, index + 1])), [rows]);
   const width = String(rows.length).length;
   const list = useRef<HTMLUListElement>(null);
-  // Chọn chương từ nơi khác (chip hổng ở toolbar, Trước/Sau trong reader) thì cuộn danh sách tới hàng đó.
-  // `nearest` → hàng đang thấy thì không nhúc nhích. Chạy lại khi lọc/tìm đổi vì hàng có thể vừa hiện ra.
+  const [scrollTop, setScrollTop] = useState(0);
+  const [height, setHeight] = useState(0);
+  const selectedIndex = useMemo(() => visible.findIndex((row) => row.id === selectedId), [visible, selectedId]);
+
+  // ResizeObserver báo kích thước ngay khi bắt đầu theo dõi, rồi mỗi lần khung đổi cỡ.
   useEffect(() => {
-    if (!selectedId || !list.current) return;
-    const item = Array.from(list.current.children).find((li) => (li as HTMLElement).dataset.id === selectedId);
-    item?.scrollIntoView({ block: "nearest" });
-  }, [selectedId, filter, query]);
+    const element = list.current;
+    if (!element) return;
+    const observer = new ResizeObserver(() => setHeight(element.clientHeight));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  // Chọn chương từ nơi khác (chip hổng ở toolbar, Trước/Sau trong reader) thì cuộn tới hàng đó; hàng đang thấy thì
+  // không nhúc nhích. Chạy lại khi lọc/tìm đổi vì hàng có thể vừa hiện ra.
+  useEffect(() => {
+    const element = list.current;
+    if (selectedIndex < 0 || !element) return;
+    const top = selectedIndex * ROW_HEIGHT;
+    const view = element.clientHeight || FALLBACK_HEIGHT;
+    if (top < element.scrollTop) element.scrollTop = top;
+    else if (top + ROW_HEIGHT > element.scrollTop + view) element.scrollTop = top + ROW_HEIGHT - view;
+  }, [selectedIndex, filter, query]);
+
+  const viewport = height || FALLBACK_HEIGHT;
+  const first = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
+  const last = Math.min(visible.length, Math.ceil((scrollTop + viewport) / ROW_HEIGHT) + OVERSCAN);
   return (
     <div className="flex h-full flex-col">
       <div className="flex flex-col gap-2 border-b p-3">
@@ -71,9 +102,16 @@ export function ChapterList({ rows, filter, query, selectedId, onSelect, onFilte
           ))}
         </div>
       </div>
-      <ul ref={list} role="listbox" aria-label="Danh sách chương" className="fine-scrollbar flex-1 overflow-y-auto">
+      <ul
+        ref={list}
+        role="listbox"
+        aria-label="Danh sách chương"
+        className="fine-scrollbar flex-1 overflow-y-auto"
+        onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
+      >
         {visible.length === 0 && <li className="p-4 text-sm text-muted-foreground">Không có chương nào khớp.</li>}
-        {visible.map((row) => {
+        {first > 0 && <li role="presentation" aria-hidden style={{ height: first * ROW_HEIGHT }} />}
+        {visible.slice(first, last).map((row) => {
           const selected = selectedId === row.id;
           return (
             <li
@@ -90,7 +128,7 @@ export function ChapterList({ rows, filter, query, selectedId, onSelect, onFilte
                 }
               }}
               className={cn(
-                "flex cursor-pointer items-center gap-2.5 border-l-2 border-transparent px-3 py-2 text-sm hover:bg-accent/60",
+                "flex h-9 cursor-pointer items-center gap-2.5 border-l-2 border-transparent px-3 text-sm hover:bg-accent/60",
                 selected && "border-l-primary bg-accent",
               )}
             >
@@ -108,6 +146,7 @@ export function ChapterList({ rows, filter, query, selectedId, onSelect, onFilte
             </li>
           );
         })}
+        {last < visible.length && <li role="presentation" aria-hidden style={{ height: (visible.length - last) * ROW_HEIGHT }} />}
       </ul>
     </div>
   );

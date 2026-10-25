@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -42,17 +42,44 @@ describe("ChapterList", () => {
     expect(onQuery).toHaveBeenLastCalledWith("2");
   });
 
-  it("selectedId đổi từ ngoài thì cuộn tới hàng đó (block nearest)", () => {
+  it("truyện nhiều chương chỉ vẽ dòng đang thấy, cuộn tới đâu vẽ tới đó", () => {
+    const many: ChapterRow[] = Array.from({ length: 2500 }, (_, i) => ({
+      id: String(i + 1).padStart(4, "0"),
+      status: "done",
+      reviewRound: 0,
+      reason: null,
+      warnings: [],
+    }));
+    render(<ChapterList rows={many} filter="all" query="" selectedId={undefined} onSelect={noop} onFilter={noop} onQuery={noop} />);
+    expect(screen.getAllByRole("option").length).toBeLessThan(60);
+    expect(screen.getByRole("option", { name: /^#1\s*0001$/ })).toBeInTheDocument();
+    const list = screen.getByRole("listbox", { name: "Danh sách chương" });
+    list.scrollTop = 2000 * 36;
+    fireEvent.scroll(list);
+    expect(screen.getByRole("option", { name: /^#2001\s*2001$/ })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /^#1\s*0001$/ })).not.toBeInTheDocument();
+  });
+
+  it("selectedId đổi từ ngoài thì cuộn tới hàng đó; hàng đang thấy thì không cuộn", () => {
+    const many: ChapterRow[] = Array.from({ length: 300 }, (_, i) => ({
+      id: String(i + 1).padStart(4, "0"),
+      status: "queued",
+      reviewRound: 0,
+      reason: null,
+      warnings: [],
+    }));
     const { rerender } = render(
-      <ChapterList rows={rows} filter="all" query="" selectedId={undefined} onSelect={noop} onFilter={noop} onQuery={noop} />,
+      <ChapterList rows={many} filter="all" query="" selectedId="0005" onSelect={noop} onFilter={noop} onQuery={noop} />,
     );
-    const scroll = vi.spyOn(Element.prototype, "scrollIntoView");
-    rerender(
-      <ChapterList rows={rows} filter="all" query="" selectedId="0003" onSelect={noop} onFilter={noop} onQuery={noop} />,
-    );
-    expect(scroll).toHaveBeenCalledExactlyOnceWith({ block: "nearest" });
-    expect(scroll.mock.contexts).toEqual([screen.getByRole("option", { name: /0003/ })]);
-    scroll.mockRestore();
+    const list = screen.getByRole("listbox", { name: "Danh sách chương" });
+    expect(list.scrollTop).toBe(0);
+    rerender(<ChapterList rows={many} filter="all" query="" selectedId="0200" onSelect={noop} onFilter={noop} onQuery={noop} />);
+    // Khung chưa đo được (jsdom) coi như cao 800 px: hàng 200 nằm sát đáy khung.
+    expect(list.scrollTop).toBe(200 * 36 - 800);
+    fireEvent.scroll(list);
+    expect(screen.getByRole("option", { name: /0200/ })).toHaveAttribute("aria-selected", "true");
+    rerender(<ChapterList rows={many} filter="all" query="" selectedId="0010" onSelect={noop} onFilter={noop} onQuery={noop} />);
+    expect(list.scrollTop).toBe(9 * 36);
   });
 
   it("lọc error chỉ còn 1 hàng, rỗng thì báo", () => {

@@ -5,6 +5,7 @@
 - Thêm nút **Phồn → Giản…** ở trang Dịch: chuyển raw phồn thể (và file GBK, Big5) sang giản thể UTF-8 để glossary và tên riêng khớp, bản gốc giữ ở folder `raw-phon-the/`, hoàn tác được. Khoá chữ Hán trong glossary, bảng nhân vật, sổ tiêu đề đổi theo; chương vốn là giản thể giữ nguyên. Mở truyện có raw phồn thể thì app nhắc ngay dưới thanh công cụ. Bộ chuyển đổi theo cụm từ nên giữ đúng 著名, 乾隆, tên riêng như 大乾王朝, và đổi cả từ vựng Đài Loan sang Đại lục (滑鼠 → 鼠标).
 - Thêm công cụ riêng **Chuyển phồn → giản**, không gắn với truyện nào: mở ở màn chọn truyện hoặc nút trên thanh bên trái. Có ô dán cụm chữ để chuyển ngay khi gõ (kèm nút Chép), chuyển một hay nhiều file, hoặc cả folder (gồm thư mục con, lọc theo đuôi file). Kết quả ghi ra folder khác (giữ cấu trúc thư mục), cạnh file gốc với tên thêm hậu tố (mặc định `_gian`), hoặc ghi đè file gốc. File GBK, Big5, UTF-16 đọc đúng và ghi ra UTF-8.
 - Sửa lỗi thả file chương mã hoá GBK hoặc Big5 (hay gặp ở raw tải từ web Trung Quốc, Đài Loan) vào truyện thì raw thành chữ rác: app tự nhận mã hoá và ghi lại UTF-8; file không phải text bị bỏ qua.
+- Mở truyện lớn nhanh hơn: danh sách chương chỉ vẽ các dòng đang thấy, nên truyện 2.500 chương vẽ trong khoảng 50 ms thay vì 250 ms, và lúc đang dịch danh sách không còn khựng mỗi khi một chương xong.
 
 ## 1.0.27 — 2026-10-24
 - Sửa lỗi đóng app khi đang dịch làm agy chạy ngầm tiếp (vẫn dịch, ăn quota, giữ folder truyện không xoá được): bấm đóng khi đang dịch giờ hỏi trước rồi dừng hết phiên; app bị tắt đột ngột (crash, Task Manager) thì agy cũng dừng theo.
