@@ -2,6 +2,7 @@
 
 ## Chưa phát hành
 - Cảnh báo chương ngắn cho nền tảng đăng truyện (không nhận chương dưới 500 chữ, không tính tên chương): chip **Ngắn** ở danh sách chương, báo ở trang Export và trong khung đọc chương, kèm nút **Chèn cho đủ 500 chữ**. Cài đặt → **Chương ngắn** cho phép tự chèn văn mẫu hài hước (sửa được) hoặc lặp lại nội dung chương lúc chốt chương, từng đoạn nguyên vẹn tới khi vừa đủ; mặc định tắt. Phần chèn nằm cuối chương sau dòng ❖❖❖❖❖❖❖❖❖❖ để tool khác tách được, và không bị Tìm & thay, rà glossary hay kiểm tra VN đụng tới.
+- App nhẹ máy hơn khi bạn làm việc khác: thu nhỏ cửa sổ thì app ngừng vẽ hẳn, còn lúc chuyển sang cửa sổ khác thì các chấm nhấp nháy “đang dịch” đứng yên. Trước đây app vẫn vẽ liên tục dù không ai nhìn, làm máy đồ hoạ onboard thêm giật. Phiên dịch vẫn chạy bình thường, mở lại là thấy tiến độ mới nhất.
 
 ## 1.0.28 — 2026-10-25
 - Truyện cổ đại gọi trẻ con theo cách các bản dịch kiếm hiệp vẫn dùng: “thằng bé”, “con bé”, đứa trẻ mới xuất hiện là “một đứa bé trai” / “một đứa bé gái”, 小姑娘 là “tiểu cô nương”, 女孩子 nói chung là “con gái”; không còn “cậu bé”, “cô bé”, “nam hài”, “nữ hài”. Chỗ còn sót được bắt khi kiểm tra chương để bước soát sửa lại. Truyện hỗn hợp chọn theo cảnh: cảnh cổ đại như trên, cảnh hiện đại vẫn “cậu bé”, “cô bé”.

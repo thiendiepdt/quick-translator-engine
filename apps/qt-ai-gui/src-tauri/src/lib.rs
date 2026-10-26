@@ -21,6 +21,7 @@ mod padding_cmds;
 use app_config::AppConfig;
 use session_registry::SessionRegistry;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use tauri::Manager;
 
@@ -71,6 +72,27 @@ pub fn migrate_legacy_config(config_path: &Path) {
     let _ = std::fs::copy(&legacy, config_path);
 }
 
+/// Webview đang bị ẩn vì cửa sổ thu nhỏ — app chỉ có một cửa sổ.
+static WEBVIEW_HIDDEN: AtomicBool = AtomicBool::new(false);
+
+/// Thu nhỏ thì ẩn webview (WebView2 IsVisible=false: ngừng vẽ, ghìm timer JS), mở lại thì hiện. wry bỏ qua WM_SIZE
+/// lúc thu nhỏ nên webview vẫn vẽ chấm nhấp nháy "đang dịch" ~3,7% GPU dù không ai thấy. Phiên dịch chạy phía Rust,
+/// sự kiện tiến độ vẫn tới JS nên mở lên là đúng ngay. Chỉ gọi khi đổi trạng thái — Resized bắn liên tục lúc kéo cỡ.
+fn sync_webview_visibility<R: tauri::Runtime>(window: &tauri::Window<R>) {
+    let minimized = window.is_minimized().unwrap_or(false);
+    if WEBVIEW_HIDDEN.swap(minimized, Ordering::Relaxed) == minimized {
+        return;
+    }
+    let focused = !minimized && window.is_focused().unwrap_or(false);
+    for webview in window.webviews() {
+        let _ = if minimized { webview.hide() } else { webview.show() };
+        // WM_SETFOCUS có thể tới lúc webview còn ẩn → bàn phím không vào trang; trả focus sau khi hiện.
+        if focused {
+            let _ = webview.set_focus();
+        }
+    }
+}
+
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -92,6 +114,11 @@ pub fn run() {
                 summaries: summary_cache::SummaryCache::new(),
             });
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::Resized(_) = event {
+                sync_webview_visibility(window);
+            }
         })
         .invoke_handler(tauri::generate_handler![
             agy_cmds::agy_status,

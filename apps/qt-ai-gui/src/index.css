@@ -275,6 +275,12 @@
   height: 16px;
 }
 
+/* Cửa sổ mất focus (lib/motion): dừng hiệu ứng lặp vô hạn — chấm "đang dịch" đứng yên đủ màu, spinner đứng —
+   để webview khỏi vẽ liên tục khi không ai nhìn. Ngoài @layer nên thắng utility animate-* của Tailwind. */
+:root[data-inactive] :is(.animate-pulse, .animate-spin, .animate-ping, .animate-bounce) {
+  animation: none;
+}
+
 @layer components {
   /* Vùng đọc bản dịch: cột hẹp, chữ to, giãn dòng. */
   .reading {
