@@ -504,7 +504,7 @@ export function SettingsPage() {
                 </p>
               </div>
               {field("model", "Model mặc định", "Trống = model mặc định của agy; danh sách ở dropdown trang Dịch.")}
-              {field("maxSessions", "Số phiên tối đa mỗi lần Bắt đầu", "Cầu dao chống chạy vô hạn; mặc định 50.", {
+              {field("maxSessions", "Số phiên tối đa mỗi lần Bắt đầu", "Chỉ áp dụng cho agy: mỗi phiên là một lượt agy dịch tối đa số chương mỗi phiên (500 phiên × 10 chương ≈ 5.000 chương). Cầu dao khi agy chạy vòng vô hạn; dịch bằng API key không giới hạn. Mặc định 500.", {
                 type: "number",
                 min: 1,
                 max: 1000,

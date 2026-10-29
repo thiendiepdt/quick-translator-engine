@@ -105,6 +105,12 @@ pub struct AppConfig {
     pub resume_on_quota: bool,
 }
 
+/// Số phiên agy tối đa mỗi lần Bắt đầu. 500 phiên × 10 chương/phiên ≈ 5.000 chương — đủ cho truyện dài nhất
+/// mà vẫn là cầu dao khi agy chạy vòng vô hạn. API không dùng số này.
+pub const DEFAULT_MAX_SESSIONS: u32 = 500;
+/// Mặc định cũ (tới 2026-10): 50 phiên ≈ 500 chương, truyện dài treo qua đêm chạm trần rồi dừng.
+const LEGACY_DEFAULT_MAX_SESSIONS: u32 = 50;
+
 impl Default for AppConfig {
     fn default() -> Self {
         AppConfig {
@@ -112,7 +118,7 @@ impl Default for AppConfig {
             api: ApiSettings::default(),
             agy_path: None,
             model: None,
-            max_sessions: 50,
+            max_sessions: DEFAULT_MAX_SESSIONS,
             max_parallel: 20,
             recent: vec![],
             library_root: None,
@@ -131,6 +137,10 @@ impl AppConfig {
         let mut config: AppConfig =
             std::fs::read_to_string(path).ok().and_then(|text| serde_json::from_str(&text).ok()).unwrap_or_default();
         config.api.migrate_legacy();
+        // Config còn đúng mặc định cũ (người dùng chưa đổi) thì lên mặc định mới.
+        if config.max_sessions == LEGACY_DEFAULT_MAX_SESSIONS {
+            config.max_sessions = DEFAULT_MAX_SESSIONS;
+        }
         config
     }
 
@@ -155,11 +165,21 @@ mod tests {
     use super::*;
 
     #[test]
+    fn config_con_mac_dinh_cu_50_phien_thi_len_500_so_khac_giu_nguyen() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+        std::fs::write(&path, r#"{"agyPath":null,"model":null,"maxSessions":50,"recent":[]}"#).unwrap();
+        assert_eq!(AppConfig::load(&path).max_sessions, 500);
+        std::fs::write(&path, r#"{"agyPath":null,"model":null,"maxSessions":120,"recent":[]}"#).unwrap();
+        assert_eq!(AppConfig::load(&path).max_sessions, 120);
+    }
+
+    #[test]
     fn load_thieu_file_ra_default_save_roi_load_lai_khop() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("config.json");
         let mut config = AppConfig::load(&path);
-        assert_eq!(config.max_sessions, 50);
+        assert_eq!(config.max_sessions, 500);
         assert!(config.recent.is_empty());
         config.model = Some("gemini".into());
         for i in 0..12 {
