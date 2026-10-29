@@ -134,15 +134,56 @@ fn lock_path(root: &Path) -> PathBuf {
     root.join("work").join(".session.lock")
 }
 
-fn pid_alive(pid: u32) -> bool {
-    if cfg!(windows) {
-        quiet_command("tasklist")
-            .args(["/FI", &format!("PID eq {pid}"), "/NH", "/FO", "CSV"])
-            .output()
-            .map(|o| String::from_utf8_lossy(&o.stdout).contains(&format!("\"{pid}\"")))
-            .unwrap_or(false)
-    } else {
-        quiet_command("kill").args(["-0", &pid.to_string()]).status().map(|s| s.success()).unwrap_or(false)
+/// Chủ khoá còn sống không. Chỉ hỏi "PID còn sống" là không đủ: app tắt ngang (tắt máy, crash, End task) để lại
+/// khoá, Windows cấp lại PID đó cho tiến trình khác rất nhanh (nhất là sau khởi động lại) → truyện bị chặn "đang
+/// có phiên khác chạy" tới khi tiến trình lạ kia thoát. Chủ khoá phải sinh ra trước lúc ghi khoá; tiến trình đang
+/// giữ PID mà sinh sau là kẻ dùng lại PID → khoá mồ côi.
+fn lock_owner_alive(lock: &LockFile) -> bool {
+    #[cfg(windows)]
+    {
+        windows_process::born_ms(lock.pid).is_some_and(|born| born <= lock.started_at + LOCK_CLOCK_SLACK_MS)
+    }
+    #[cfg(not(windows))]
+    {
+        quiet_command("kill").args(["-0", &lock.pid.to_string()]).status().map(|s| s.success()).unwrap_or(false)
+    }
+}
+
+/// Sai số giữa giờ tạo tiến trình (FILETIME) và giờ ghi khoá (SystemTime) — chủ khoá luôn sinh trước vài trăm ms.
+#[cfg(windows)]
+const LOCK_CLOCK_SLACK_MS: u64 = 2_000;
+
+#[cfg(windows)]
+mod windows_process {
+    use windows_sys::Win32::Foundation::{CloseHandle, FILETIME, STILL_ACTIVE};
+    use windows_sys::Win32::System::Threading::{
+        GetExitCodeProcess, GetProcessTimes, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION,
+    };
+
+    /// FILETIME (100ns từ 1601) của mốc Unix epoch.
+    const UNIX_EPOCH_FILETIME: u64 = 116_444_736_000_000_000;
+
+    /// Giờ tạo (Unix ms) của tiến trình đang sống mang `pid`; None = không có tiến trình đó hoặc không mở được.
+    /// Không mở được (tiến trình hệ thống của user khác) cũng là None: app cùng user luôn mở được QUERY_LIMITED,
+    /// nên đó không thể là chủ khoá.
+    pub fn born_ms(pid: u32) -> Option<u64> {
+        // SAFETY: handle mở rồi đóng trong hàm; các struct ra là FILETIME khởi tạo zero.
+        unsafe {
+            let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
+            if handle.is_null() {
+                return None;
+            }
+            let mut code = 0u32;
+            let alive = GetExitCodeProcess(handle, &mut code) != 0 && code == STILL_ACTIVE as u32;
+            let [mut created, mut exited, mut kernel, mut user]: [FILETIME; 4] = std::mem::zeroed();
+            let timed = GetProcessTimes(handle, &mut created, &mut exited, &mut kernel, &mut user) != 0;
+            CloseHandle(handle);
+            if !alive || !timed {
+                return None;
+            }
+            let ticks = (u64::from(created.dwHighDateTime) << 32) | u64::from(created.dwLowDateTime);
+            Some(ticks.saturating_sub(UNIX_EPOCH_FILETIME) / 10_000)
+        }
     }
 }
 
@@ -156,8 +197,8 @@ fn acquire_lock(root: &Path) -> Result<()> {
         let existing: Option<LockFile> =
             std::fs::read_to_string(&path).ok().and_then(|t| serde_json::from_str(&t).ok());
         if let Some(lock) = existing {
-            // PID còn sống (kể cả chính tiến trình này — phiên trước chưa dừng) → khoá.
-            if pid_alive(lock.pid) {
+            // Chủ khoá còn sống (kể cả chính tiến trình này — phiên trước chưa dừng) → khoá.
+            if lock_owner_alive(&lock) {
                 return Err(CoreError::SessionLocked { pid: lock.pid });
             }
         }

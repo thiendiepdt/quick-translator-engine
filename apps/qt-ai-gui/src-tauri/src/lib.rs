@@ -94,7 +94,18 @@ fn sync_webview_visibility<R: tauri::Runtime>(window: &tauri::Window<R>) {
 }
 
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    // Mở app lần nữa thì đưa cửa sổ đang có lên thay vì chạy bản thứ hai: hai bản cùng ghi config.json, và bản
+    // sau bấm Dịch truyện bản trước đang dịch thì vướng khoá phiên. Bản dev bỏ qua để chạy song song bản cài.
+    #[cfg(all(desktop, not(debug_assertions)))]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        if let Some(window) = app.webview_windows().into_values().next() {
+            let _ = window.unminimize();
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
+    }));
+    builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
         .setup(|app| {

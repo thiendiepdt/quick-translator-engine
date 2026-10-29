@@ -137,6 +137,19 @@ fn lock_chan_phien_thu_hai_va_tu_don_lock_mo_coi() {
     assert_eq!(handle.join(), StopReason::NoProgress);
 }
 
+#[cfg(windows)]
+#[test]
+fn lock_mo_coi_ma_pid_bi_tien_trinh_khac_dung_lai_thi_van_tu_don() {
+    // PID còn sống (chính tiến trình test) nhưng sinh sau lúc ghi khoá → không phải chủ khoá.
+    let dir = story("noop", 1);
+    let (sink, _) = collect();
+    fs::create_dir_all(dir.path().join("work")).unwrap();
+    let stale = format!(r#"{{"pid": {}, "startedAt": 1}}"#, std::process::id());
+    fs::write(dir.path().join("work").join(".session.lock"), stale).unwrap();
+    let handle = start_session(config(dir.path()), sink).unwrap();
+    assert_eq!(handle.join(), StopReason::NoProgress);
+}
+
 #[test]
 fn build_translate_prompt_dua_duong_dan_tuyet_doi() {
     let prompt = build_translate_prompt(Path::new("D:\\truyen"));
