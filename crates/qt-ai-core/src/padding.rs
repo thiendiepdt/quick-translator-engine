@@ -149,11 +149,12 @@ pub fn pad_chapter(text: &str, mode: PaddingMode, settings: &PaddingSettings) ->
             // Đoạn cuối văn mẫu là câu kết: luôn chèn sau cùng, không lặp.
             let closing = (pool.len() > 1).then(|| pool.pop()).flatten();
             let reserve = closing.as_deref().map_or(0, count_words);
+            // Thiếu ít chữ (vd 497/500): riêng câu kết đã đủ, không lấy đoạn nào — vẫn phải chèn câu kết.
             let mut taken = take_until(&pool, words, reserve, settings.threshold);
+            taken.extend(closing);
             if taken.is_empty() {
                 return unpadded();
             }
-            taken.extend(closing);
             taken
         }
         PaddingMode::Repeat => {
@@ -210,6 +211,28 @@ mod tests {
         // Sửa tay cho đủ chữ rồi bấm lại: gỡ phần chèn.
         let longer = format!("Chương 1\n\nmột hai ba bốn năm sáu bảy tám chín\n\n{PADDING_MARKER}\n\nx\n");
         assert_eq!(pad_chapter(&longer, PaddingMode::Filler, &settings(9, "y")), Some("Chương 1\n\nmột hai ba bốn năm sáu bảy tám chín\n".into()));
+    }
+
+    #[test]
+    fn thieu_vai_chu_thi_chen_rieng_cau_ket() {
+        // 497/500 chữ: câu kết 5 chữ đã đủ — trước đây không lấy đoạn nào rồi bỏ luôn, báo "đã đủ chữ".
+        let body = vec!["chữ"; 497].join(" ");
+        let text = format!("Chương 1
+
+{body}
+");
+        let padded = pad_chapter(&text, PaddingMode::Filler, &settings(500, "đoạn một hai
+
+một hai ba bốn năm")).unwrap();
+        assert_eq!(padded, format!("Chương 1
+
+{body}
+
+{PADDING_MARKER}
+
+một hai ba bốn năm
+"));
+        assert_eq!(published_words(&padded), 502);
     }
 
     #[test]
