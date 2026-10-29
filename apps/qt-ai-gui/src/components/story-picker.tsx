@@ -1,4 +1,4 @@
-import { FileType, FolderOpen, FolderPlus, FolderSync, LibraryBig, LoaderCircle, Play, RefreshCw, Search, Sparkles, Square, X } from "lucide-react";
+import { Activity, FileType, FolderOpen, FolderPlus, FolderSync, LibraryBig, LoaderCircle, Play, RefreshCw, Search, Sparkles, Square, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -166,6 +166,7 @@ export function StoryPicker() {
   const libraryRoot = useStoryStore((s) => s.config?.libraryRoot ?? null);
   const open = useStoryStore((s) => s.openStory);
   const openConverter = useStoryStore((s) => s.openConverter);
+  const openProcesses = useStoryStore((s) => s.openProcesses);
   const setConfig = useStoryStore((s) => s.setConfig);
   const sessions = useStoryStore((s) => s.sessions);
   const sessionRoots = useStoryStore((s) => s.roots);
@@ -453,6 +454,14 @@ export function StoryPicker() {
             onClick={openConverter}
           >
             <FileType /> Chuyển phồn → giản
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            title="Phiên dịch, agy và khoá phiên của từng truyện; Kill hoặc gỡ khoá khi bị kẹt"
+            onClick={() => openProcesses()}
+          >
+            <Activity /> Tiến trình
           </Button>
           {libraryRoot && (
             <Button

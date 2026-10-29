@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { AgyMissing } from "@/components/agy-missing";
 import { AppRail } from "@/components/app-rail";
 import { CloseGuard } from "@/components/close-guard";
+import { ProcessesDialog } from "@/components/processes-dialog";
 import { ConverterPage } from "@/components/pages/converter-page";
 import { ExportPage } from "@/components/pages/export-page";
 import { ReplacePage } from "@/components/pages/replace-page";
@@ -131,6 +132,7 @@ export default function App() {
   const whatsNewDialog = (
     <>
       <CloseGuard />
+      <ProcessesDialog />
       <WhatsNewDialog
       version={whatsNew.version}
       since={whatsNew.since}

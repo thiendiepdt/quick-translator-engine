@@ -100,6 +100,10 @@ interface StoryState extends PerStory {
   closeStory: () => void;
   openConverter: () => void;
   closeConverter: () => void;
+  /** Bảng Tiến trình đang mở; `focus` = root truyện cần cuộn tới (mở từ toolbar truyện), null = cả bảng. */
+  processes?: { focus: string | null };
+  openProcesses: (focus?: string) => void;
+  closeProcesses: () => void;
   setPage: (page: Page) => void;
   setSnapshot: (snapshot: StorySnapshot) => void;
   /** Đang nhắc chương lệch tiến độ (banner) thì hỏi lại Rust cho con số mới — gọi sau phiên dừng, dịch lại, xoá, reset.
@@ -252,6 +256,8 @@ export const useStoryStore = create<StoryState>()((set, get) => ({
   openConverter: () => set((state) => (state.screen === "converter" ? {} : { screen: "converter", toolFrom: state.screen })),
   // Về màn trước; truyện đã đóng trong lúc đó (không còn root) thì về màn chọn truyện.
   closeConverter: () => set((state) => ({ screen: state.toolFrom === "workbench" && state.root ? "workbench" : "picker" })),
+  openProcesses: (focus) => set({ processes: { focus: focus ?? null } }),
+  closeProcesses: () => set({ processes: undefined }),
   setPage: (page) => set({ page }),
   setSnapshot: (snapshot) =>
     set((state) => ({

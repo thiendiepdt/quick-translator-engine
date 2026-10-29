@@ -1,4 +1,4 @@
-import { FileType, KeyRound, LoaderCircle, Play, RefreshCw, RotateCcw, Square, Trash2, TriangleAlert } from "lucide-react";
+import { Activity, FileType, KeyRound, LoaderCircle, Play, RefreshCw, RotateCcw, Square, Trash2, TriangleAlert } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -34,6 +34,7 @@ export function TranslateToolbar() {
   const config = useStoryStore((s) => s.config);
   const setSnapshot = useStoryStore((s) => s.setSnapshot);
   const setPage = useStoryStore((s) => s.setPage);
+  const openProcesses = useStoryStore((s) => s.openProcesses);
   const select = useStoryStore((s) => s.select);
   const statusFilter = useStoryStore((s) => s.statusFilter);
   const searchQuery = useStoryStore((s) => s.searchQuery);
@@ -219,6 +220,16 @@ export function TranslateToolbar() {
           onClick={() => setZhOpen(true)}
         >
           <FileType /> Phồn → Giản…
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          className="h-9"
+          title="Phiên, agy và khoá phiên của truyện này; Kill khi Dừng bị treo, gỡ khoá khi báo đang có phiên khác chạy"
+          disabled={!root}
+          onClick={() => root && openProcesses(root)}
+        >
+          <Activity /> Tiến trình
         </Button>
         {root && (
           <>

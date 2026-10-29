@@ -187,16 +187,14 @@ mod windows_process {
     }
 }
 
-/// Giữ lock cho một folder truyện; lock mồ côi (PID chết) thì tự dọn.
-fn acquire_lock(root: &Path) -> Result<()> {
+/// Giữ lock cho một folder truyện; lock mồ côi (PID chết) thì tự dọn. Trả `started_at` để thả đúng khoá của mình.
+fn acquire_lock(root: &Path) -> Result<u64> {
     let path = lock_path(root);
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(CoreError::io(parent))?;
     }
     if path.exists() {
-        let existing: Option<LockFile> =
-            std::fs::read_to_string(&path).ok().and_then(|t| serde_json::from_str(&t).ok());
-        if let Some(lock) = existing {
+        if let Some(lock) = read_lock(root) {
             // Chủ khoá còn sống (kể cả chính tiến trình này — phiên trước chưa dừng) → khoá.
             if lock_owner_alive(&lock) {
                 return Err(CoreError::SessionLocked { pid: lock.pid });
@@ -204,11 +202,43 @@ fn acquire_lock(root: &Path) -> Result<()> {
         }
     }
     let lock = LockFile { pid: std::process::id(), started_at: now_ms() };
-    std::fs::write(&path, serde_json::to_string(&lock).unwrap()).map_err(CoreError::io(&path))
+    std::fs::write(&path, serde_json::to_string(&lock).unwrap()).map_err(CoreError::io(&path))?;
+    Ok(lock.started_at)
 }
 
-fn release_lock(root: &Path) {
-    let _ = std::fs::remove_file(lock_path(root));
+fn read_lock(root: &Path) -> Option<LockFile> {
+    std::fs::read_to_string(lock_path(root)).ok().and_then(|t| serde_json::from_str(&t).ok())
+}
+
+/// Chỉ xoá khi file vẫn là khoá của phiên này: phiên bị Kill tay (bảng Tiến trình) có thể kết thúc muộn, lúc
+/// người dùng đã gỡ khoá và chạy phiên mới — không được xoá khoá của phiên mới.
+fn release_lock(root: &Path, started_at: u64) {
+    if read_lock(root).is_some_and(|lock| lock.pid == std::process::id() && lock.started_at == started_at) {
+        let _ = std::fs::remove_file(lock_path(root));
+    }
+}
+
+/// Khoá phiên của một truyện cho bảng Tiến trình.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LockStatus {
+    pub pid: u32,
+    pub started_at: u64,
+    /// Chủ khoá còn sống (PID sống và sinh trước lúc ghi khoá); false = khoá mồ côi, phiên mới tự gỡ.
+    pub owner_alive: bool,
+}
+
+pub fn lock_status(root: &Path) -> Option<LockStatus> {
+    let lock = read_lock(root)?;
+    Some(LockStatus { pid: lock.pid, started_at: lock.started_at, owner_alive: lock_owner_alive(&lock) })
+}
+
+/// Gỡ khoá bằng tay (bảng Tiến trình) khi tự động không gỡ được. Caller phải chắc app không còn phiên của truyện.
+pub fn remove_lock(root: &Path) -> Result<()> {
+    let path = lock_path(root);
+    match std::fs::remove_file(&path) {
+        Err(error) if error.kind() != std::io::ErrorKind::NotFound => Err(CoreError::io(&path)(error)),
+        _ => Ok(()),
+    }
 }
 
 fn kill_tree(child: &mut Child) {
@@ -448,7 +478,7 @@ pub fn spawn_runner(
     sink: Sink,
     run: impl FnOnce(Arc<AtomicBool>) -> StopReason + Send + 'static,
 ) -> Result<SessionHandle> {
-    acquire_lock(&root)?;
+    let lock_started = acquire_lock(&root)?;
     let cancel = Arc::new(AtomicBool::new(false));
     let running = Arc::new(AtomicBool::new(true));
     let thread_cancel = cancel.clone();
@@ -456,7 +486,7 @@ pub fn spawn_runner(
     let thread = thread::spawn(move || {
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| run(thread_cancel)));
         let reason = result.unwrap_or_else(|_| StopReason::Internal { message: "runner panic".to_string() });
-        release_lock(&root);
+        release_lock(&root, lock_started);
         sink(SessionEvent::Stopped(reason.clone()));
         thread_running.store(false, Ordering::SeqCst);
         reason
@@ -483,5 +513,28 @@ mod path_tests {
         assert_eq!(parts.next().as_deref(), Some(dir.as_path()));
         let old: Vec<_> = std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default()).collect();
         assert_eq!(parts.collect::<Vec<_>>(), old);
+    }
+}
+
+#[cfg(test)]
+mod lock_tests {
+    use super::*;
+
+    #[test]
+    fn tha_khoa_chi_xoa_khoa_cua_minh_va_go_tay_duoc() {
+        let dir = tempfile::tempdir().unwrap();
+        let started = acquire_lock(dir.path()).unwrap();
+        let status = lock_status(dir.path()).unwrap();
+        assert_eq!((status.pid, status.started_at, status.owner_alive), (std::process::id(), started, true));
+        // Phiên cũ bị Kill tay, người dùng gỡ khoá rồi chạy phiên mới; phiên cũ kết thúc muộn không xoá khoá mới.
+        remove_lock(dir.path()).unwrap();
+        assert!(lock_status(dir.path()).is_none());
+        let newer = LockFile { pid: std::process::id(), started_at: started + 1 };
+        std::fs::write(lock_path(dir.path()), serde_json::to_string(&newer).unwrap()).unwrap();
+        release_lock(dir.path(), started);
+        assert!(lock_status(dir.path()).is_some());
+        release_lock(dir.path(), started + 1);
+        assert!(lock_status(dir.path()).is_none());
+        remove_lock(dir.path()).unwrap();
     }
 }

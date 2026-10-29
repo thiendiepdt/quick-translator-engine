@@ -186,6 +186,35 @@ export const shortChaptersSchema = z.object({
   threshold: z.number(),
   chapters: z.array(z.object({ id: z.string(), words: z.number() })),
 });
+/** Bảng Tiến trình (Rust process_cmds): agy của app, khoá phiên theo truyện. */
+const agyProcessSchema = z.object({
+  pid: z.number(),
+  startedAt: z.number(),
+  memory: z.number(),
+  cpu: z.number(),
+  kind: z.enum(["translate", "setup", "other"]),
+  owned: z.boolean(),
+});
+export const processOverviewSchema = z.object({
+  appPid: z.number(),
+  stories: z.array(
+    z.object({
+      root: z.string(),
+      name: z.string(),
+      running: z.boolean(),
+      agy: z.array(agyProcessSchema),
+      lock: z
+        .object({
+          pid: z.number(),
+          startedAt: z.number(),
+          holder: z.enum(["session", "app", "other", "stale"]),
+          holderName: z.string().nullable(),
+        })
+        .nullable(),
+    }),
+  ),
+  stray: z.array(agyProcessSchema),
+});
 export const scanCastViewSchema = z.object({
   asked: z.number(),
   filled: z.number(),

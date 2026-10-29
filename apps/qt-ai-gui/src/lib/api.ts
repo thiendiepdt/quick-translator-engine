@@ -29,6 +29,7 @@ import {
   replaceUndoOutcomeSchema,
   paddingSettingsSchema,
   shortChaptersSchema,
+  processOverviewSchema,
   zhConvertReportSchema,
   zhStoryOutcomeSchema,
   zhStoryStatusSchema,
@@ -186,6 +187,17 @@ export const paddingReset = () => call("padding_reset", undefined, (v) => paddin
 export const shortChapters = (root: string) => call("short_chapters", { root }, (v) => shortChaptersSchema.parse(v));
 /** Chèn cho đủ ngưỡng một chương; false khi chương đã đủ, không đổi gì. */
 export const chapterPad = (root: string, id: string) => call("chapter_pad", { root, id }, (v) => z.boolean().parse(v));
+export type ProcessOverview = z.infer<typeof processOverviewSchema>;
+export type StoryProcesses = ProcessOverview["stories"][number];
+export type AgyProcess = ProcessOverview["stray"][number];
+/** Phiên, agy và khoá phiên theo truyện (bảng Tiến trình). */
+export const processOverview = () => call("process_overview", undefined, (v) => processOverviewSchema.parse(v));
+/** Huỷ phiên của app (không đợi) và giết mọi agy đang dịch truyện này. */
+export const storyKill = (root: string) => call("story_kill", { root }, (v) => processOverviewSchema.parse(v));
+/** Giết một agy của app theo PID (agy không rõ truyện). */
+export const agyKill = (pid: number) => call("agy_kill", { pid }, (v) => processOverviewSchema.parse(v));
+/** Gỡ khoá phiên work/.session.lock bằng tay. */
+export const lockRemove = (root: string) => call("lock_remove", { root }, (v) => processOverviewSchema.parse(v));
 export const zhConvertText = (text: string) => call("zh_convert_text", { text }, (v) => z.string().parse(v));
 export const zhConvertFiles = (job: ZhConvertJob) => call("zh_convert_files", { job }, (v) => zhConvertReportSchema.parse(v));
 export const saveSettings = (root: string, settings: HarnessSettings) =>
