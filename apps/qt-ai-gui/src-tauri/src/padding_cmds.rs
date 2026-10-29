@@ -91,6 +91,22 @@ pub async fn chapter_pad(root: String, id: String) -> CmdResult<bool> {
     blocking(move || chapter_pad_inner(Path::new(&root), &id, &BaseStore::from_env().padding())).await
 }
 
+/// Chèn cho mọi chương ngắn của truyện (nút "Chèn cho cả N chương" trên toolbar). Trả số chương đã chèn.
+pub fn chapters_pad_all_inner(root: &Path, settings: &PaddingSettings) -> CmdResult<usize> {
+    let mut padded = 0;
+    for chapter in short_chapters_inner(root, settings.threshold).chapters {
+        if chapter_pad_inner(root, &chapter.id, settings)? {
+            padded += 1;
+        }
+    }
+    Ok(padded)
+}
+
+#[tauri::command]
+pub async fn chapters_pad_all(root: String) -> CmdResult<usize> {
+    blocking(move || chapters_pad_all_inner(Path::new(&root), &BaseStore::from_env().padding())).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -111,5 +127,34 @@ mod tests {
         assert!(short_chapters_inner(dir.path(), 5).chapters.is_empty());
         assert!(!chapter_pad_inner(dir.path(), "0001", &settings).unwrap(), "đủ chữ thì không đổi");
         assert!(chapter_pad_inner(dir.path(), "0009", &settings).is_err());
+    }
+
+    #[test]
+    fn chen_ca_truyen_chi_dung_chuong_ngan() {
+        let dir = tempfile::tempdir().unwrap();
+        let out = dir.path().join("out");
+        fs::create_dir_all(&out).unwrap();
+        fs::write(out.join("0001.txt"), "Chương 1
+
+một hai ba bốn năm sáu
+").unwrap();
+        fs::write(out.join("0002.txt"), "Chương 2
+
+một hai
+").unwrap();
+        fs::write(out.join("0003.txt"), "Chương 3
+
+một
+").unwrap();
+        let settings = PaddingSettings { mode: PaddingMode::Off, threshold: 5, filler: "a b c d
+
+Kết.".into() };
+        assert_eq!(chapters_pad_all_inner(dir.path(), &settings).unwrap(), 2);
+        assert_eq!(fs::read_to_string(out.join("0001.txt")).unwrap(), "Chương 1
+
+một hai ba bốn năm sáu
+");
+        assert!(short_chapters_inner(dir.path(), 5).chapters.is_empty());
+        assert_eq!(chapters_pad_all_inner(dir.path(), &settings).unwrap(), 0);
     }
 }

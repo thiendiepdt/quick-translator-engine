@@ -1,4 +1,4 @@
-import { Activity, FileType, KeyRound, LoaderCircle, Play, RefreshCw, RotateCcw, Square, Trash2, TriangleAlert } from "lucide-react";
+import { Activity, FileType, KeyRound, ListPlus, LoaderCircle, Play, RefreshCw, RotateCcw, Square, Trash2, TriangleAlert } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -7,7 +7,7 @@ import { RetryRangeDialog } from "@/components/retry-range-dialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ZhStoryBanner, ZhStoryDialog } from "@/components/zh-story-dialog";
-import { chaptersRetryIds, rescanStory, sessionStart, sessionStop, storySnapshot } from "@/lib/api";
+import { chaptersPadAll, chaptersRetryIds, rescanStory, sessionStart, sessionStop, storySnapshot } from "@/lib/api";
 import { chapterGaps, filterChapters } from "@/lib/chapters";
 import { clockLabel, engineLabel, isAbnormalStop, STATUS_LABELS, stopReasonBrief, stopReasonLabel } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -41,6 +41,8 @@ export function TranslateToolbar() {
   const setStatusFilter = useStoryStore((s) => s.setStatusFilter);
   const setSearchQuery = useStoryStore((s) => s.setSearchQuery);
   const short = useStoryStore(selectCurrentShort);
+  const refreshShort = useStoryStore((s) => s.refreshShort);
+  const [padding, setPadding] = useState(false);
   // Chương chưa dịch đứng trước chương done cuối (skip vì model từ chối, lỗi…) — dễ bị bỏ quên khi phiên chạy tiếp.
   const gapInfo = useMemo(() => (snapshot ? chapterGaps(snapshot.chapters) : null), [snapshot]);
   // Chương hổng còn phải đưa về hàng đợi (queued sẵn thì thôi).
@@ -53,6 +55,28 @@ export function TranslateToolbar() {
   const translatingId =
     progress?.current ?? snapshot?.chapters.find((row) => row.status === "translating")?.id ?? undefined;
   const translatingOrdinal = translatingId ? (snapshot?.chapters.findIndex((row) => row.id === translatingId) ?? -1) + 1 : 0;
+
+  /** Bù chữ cho mọi chương ngắn theo cài đặt Chương ngắn (đang tắt thì văn mẫu). */
+  async function padAll() {
+    if (!root) return;
+    const count = short.words.size;
+    if (
+      !window.confirm(
+        `Chèn cho đủ ${short.threshold} chữ cả ${count} chương ngắn? Phần chèn theo Cài đặt → Chương ngắn (đang tắt thì dùng văn mẫu), nằm cuối chương sau dòng ❖❖❖❖❖❖❖❖❖❖.`,
+      )
+    )
+      return;
+    setPadding(true);
+    try {
+      const padded = await chaptersPadAll(root);
+      toast.success(`Đã chèn cho ${padded} chương`);
+      await refreshShort(root);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Không chèn được");
+    } finally {
+      setPadding(false);
+    }
+  }
 
   function jumpTo(id: string) {
     if (snapshot && !filterChapters(snapshot.chapters, statusFilter, searchQuery, new Set(short.words.keys())).some((row) => row.id === id)) {
@@ -307,6 +331,30 @@ export function TranslateToolbar() {
               tone="text-status-warning border-status-warning/30"
             />
           </>
+        )}
+        {short.words.size > 0 && (
+          <span className="inline-flex items-center gap-1">
+            <button
+              type="button"
+              title={`${short.words.size} chương dưới ${short.threshold} chữ (không tính tên chương) — nền tảng đăng truyện có thể không nhận. Bấm để lọc.`}
+              aria-label={`Lọc ${short.words.size} chương ngắn`}
+              onClick={() => setStatusFilter("short")}
+              className="inline-flex items-center gap-1.5 rounded-full border border-status-warning/60 bg-status-warning/15 px-2 py-0.5 text-xs font-medium text-status-warning hover:bg-status-warning/25"
+            >
+              <TriangleAlert className="size-3" aria-hidden />
+              Ngắn <span className="tabular-nums">{short.words.size}</span>
+            </button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-xs text-status-warning hover:text-status-warning"
+              disabled={padding}
+              onClick={() => void padAll()}
+            >
+              {padding ? <LoaderCircle className="animate-spin" /> : <ListPlus />} Chèn cho cả {short.words.size} chương
+            </Button>
+          </span>
         )}
         {translatingId && translatingOrdinal > 0 && (
           <button

@@ -1,9 +1,9 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TranslateToolbar } from "@/components/translate-toolbar";
-import { chaptersRetryIds, sessionStart, sessionStop, storySnapshot } from "@/lib/api";
+import { chaptersPadAll, chaptersRetryIds, sessionStart, sessionStop, shortChapters, storySnapshot } from "@/lib/api";
 import { pathKey } from "@/lib/paths";
 import { appConfigSchema } from "@/lib/schema";
 import { useStoryStore } from "@/store/story";
@@ -24,6 +24,8 @@ vi.mock("@/lib/api", () => ({
   chaptersDelete: vi.fn(),
   chaptersRetry: vi.fn(),
   chaptersRetryIds: vi.fn(),
+  chaptersPadAll: vi.fn(),
+  shortChapters: vi.fn(),
   rescanStory: vi.fn(),
   sessionStart: vi.fn(),
   sessionStop: vi.fn(),
@@ -92,6 +94,30 @@ describe("TranslateToolbar · lý do dừng, thử lại qua đêm", () => {
     });
     render(<TranslateToolbar />);
     expect(screen.queryByText(/Phiên trước dừng/)).not.toBeInTheDocument();
+  });
+});
+
+describe("TranslateToolbar · chương ngắn", () => {
+  it("chip Ngắn nổi trên toolbar: bấm thì lọc; Chèn cho cả N hỏi trước rồi chèn và đọc lại danh sách", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(window, "confirm").mockReturnValueOnce(true);
+    vi.mocked(chaptersPadAll).mockReset().mockResolvedValue(2);
+    vi.mocked(shortChapters).mockReset().mockResolvedValue({ threshold: 500, chapters: [] });
+    useStoryStore.setState({
+      config,
+      root: ROOT,
+      snapshot: undefined,
+      statusFilter: "all",
+      sessions: {},
+      short: { [pathKey(ROOT)]: { threshold: 500, words: new Map([["c1", 120], ["c2", 480]]) } },
+    });
+    render(<TranslateToolbar />);
+    await user.click(screen.getByRole("button", { name: "Lọc 2 chương ngắn" }));
+    expect(useStoryStore.getState().statusFilter).toBe("short");
+    await user.click(screen.getByRole("button", { name: /Chèn cho cả 2 chương/ }));
+    expect(chaptersPadAll).toHaveBeenCalledWith(ROOT);
+    await waitFor(() => expect(shortChapters).toHaveBeenCalledWith(ROOT));
+    await waitFor(() => expect(screen.queryByRole("button", { name: /chương ngắn/ })).not.toBeInTheDocument());
   });
 });
 

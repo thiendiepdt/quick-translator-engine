@@ -187,6 +187,8 @@ export const paddingReset = () => call("padding_reset", undefined, (v) => paddin
 export const shortChapters = (root: string) => call("short_chapters", { root }, (v) => shortChaptersSchema.parse(v));
 /** Chèn cho đủ ngưỡng một chương; false khi chương đã đủ, không đổi gì. */
 export const chapterPad = (root: string, id: string) => call("chapter_pad", { root, id }, (v) => z.boolean().parse(v));
+/** Chèn cho mọi chương ngắn của truyện; trả số chương đã chèn. */
+export const chaptersPadAll = (root: string) => call("chapters_pad_all", { root }, (v) => z.number().parse(v));
 export type ProcessOverview = z.infer<typeof processOverviewSchema>;
 export type StoryProcesses = ProcessOverview["stories"][number];
 export type AgyProcess = ProcessOverview["stray"][number];

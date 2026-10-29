@@ -202,7 +202,9 @@ export function ChapterReader({ root, row, ordinal, hasPrev, hasNext, onPrev, on
   const { lineNumbers, setLineNumbers } = useLineNumbers();
   // View gắn key theo (chương, trạng thái, vòng soát): đổi chương → key lệch → hiện "Đang đọc…"
   // mà không cần reset state đồng bộ trong effect.
-  const viewKey = `${root}|${row.id}|${row.status}|${row.reviewRound}`;
+  // Số chữ khi còn là chương ngắn: "Chèn cho cả N chương" trên toolbar đổi out/ → key đổi → đọc lại bản đã chèn.
+  const shortWords = useStoryStore((s) => selectCurrentShort(s).words.get(row.id));
+  const viewKey = `${root}|${row.id}|${row.status}|${row.reviewRound}|${shortWords ?? "ok"}`;
   const [loaded, setLoaded] = useState<{ key: string; view: ChapterView } | undefined>();
   const view = loaded?.key === viewKey ? loaded.view : undefined;
   const [skipOpen, setSkipOpen] = useState(false);
