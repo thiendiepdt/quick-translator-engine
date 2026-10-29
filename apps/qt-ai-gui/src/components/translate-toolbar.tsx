@@ -137,8 +137,9 @@ export function TranslateToolbar() {
 
   return (
     <header className={cn("border-b bg-card px-5 py-3 transition-colors", running && "border-b-primary/50")}>
-      <div className="flex items-center gap-3">
-        <div className="min-w-0 flex-1">
+      {/* Cửa sổ hẹp: khối tên truyện giữ tối thiểu 16rem, các nút xuống dòng thay vì ép tên về 0. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="min-w-64 flex-1">
           {snapshot?.story.name ? (
             <>
               <h1 className="truncate text-base font-semibold tracking-tight">{snapshot.story.name}</h1>
