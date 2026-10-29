@@ -316,10 +316,16 @@ describe("StoryPicker · Thư viện", () => {
       await screen.findByText("A");
       await user.click(screen.getByRole("button", { name: "Dịch tất cả truyện chưa xong (3)" }));
 
-      expect(await screen.findByText(/Bắt đầu phiên dịch cho 2 truyện \(13 chương còn chờ\) bằng API · Gemini/)).toBeInTheDocument();
+      expect(
+        await screen.findByText(/Bắt đầu phiên dịch cho 2 truyện đang tick \(13 chương còn chờ\) bằng API · Gemini/),
+      ).toBeInTheDocument();
       expect(screen.getByRole("status")).toHaveTextContent(
-        "Còn 1 truyện chưa xong không được bắt đầu lần này: giới hạn 3 truyện dịch song song, đang chạy 1.",
+        "Chọn được tối đa 2 truyện lần này: giới hạn 3 truyện dịch song song, đang chạy 1.",
       );
+      // Mặc định tick các truyện đầu vừa đủ chỗ; truyện còn lại khoá tick tới khi bỏ bớt.
+      expect(screen.getByRole("checkbox", { name: /A · 8 chương/ })).toBeChecked();
+      expect(screen.getByRole("checkbox", { name: /B · 5 chương/ })).toBeChecked();
+      expect(screen.getByRole("checkbox", { name: /D · 1 chương/ })).toBeDisabled();
       expect(sessionStart).not.toHaveBeenCalled();
 
       await user.click(screen.getByRole("button", { name: "Bắt đầu dịch 2 truyện" }));
@@ -339,6 +345,33 @@ describe("StoryPicker · Thư viện", () => {
       expect(state.sessions["d:\\lib\\a"]).toEqual({ status: "running", sessionNo: 0 });
       expect(toast.success).toHaveBeenLastCalledWith("Đã bắt đầu dịch 2 truyện");
       expect(toast.error).not.toHaveBeenCalled();
+    });
+
+    it("bỏ tick truyện không muốn dịch, tick truyện khác thay vào", async () => {
+      const user = userEvent.setup();
+      render(<StoryPicker />);
+      await screen.findByText("A");
+      await user.click(screen.getByRole("button", { name: "Dịch tất cả truyện chưa xong (3)" }));
+      await user.click(await screen.findByRole("checkbox", { name: /A · 8 chương/ }));
+      expect(screen.getByRole("button", { name: "Bắt đầu dịch 1 truyện" })).toBeEnabled();
+      await user.click(screen.getByRole("checkbox", { name: /D · 1 chương/ }));
+      await user.click(screen.getByRole("button", { name: "Bắt đầu dịch 2 truyện" }));
+      await waitFor(() => expect(useStoryStore.getState().screen).toBe("workbench"));
+      expect(vi.mocked(sessionStart).mock.calls).toEqual([
+        ["D:\\lib\\b", undefined],
+        ["D:\\lib\\d", undefined],
+      ]);
+      expect(openStory).toHaveBeenCalledExactlyOnceWith("D:\\lib\\b");
+    });
+
+    it("bỏ tick hết thì không bắt đầu được", async () => {
+      const user = userEvent.setup();
+      render(<StoryPicker />);
+      await screen.findByText("A");
+      await user.click(screen.getByRole("button", { name: "Dịch tất cả truyện chưa xong (3)" }));
+      await user.click(await screen.findByRole("checkbox", { name: /A · 8 chương/ }));
+      await user.click(screen.getByRole("checkbox", { name: /B · 5 chương/ }));
+      expect(screen.getByRole("button", { name: "Bắt đầu dịch 0 truyện" })).toBeDisabled();
     });
 
     it("thiếu API key thì dừng cả lượt ngay truyện đầu, không vào truyện nào", async () => {

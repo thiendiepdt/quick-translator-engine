@@ -36,8 +36,6 @@ import { runningRoots, useStoryStore } from "@/store/story";
 
 /** Lỗi bắt đầu phiên mà truyện kế tiếp cũng sẽ gặp y hệt (hết chỗ, thiếu key, thiếu agy) — dừng cả lượt. */
 const BATCH_STOP_KINDS = ["session_limit", "api_key_missing", "agy_missing"];
-/** Số tên truyện liệt kê trong hộp xác nhận "Dịch tất cả". */
-const BATCH_NAMES = 8;
 
 const displayName = (item: { root: string; name: string | null }) => item.name?.trim() || storyLabel(item.root);
 
@@ -188,6 +186,8 @@ export function StoryPicker() {
   const [refreshing, setRefreshing] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [batchOpen, setBatchOpen] = useState(false);
+  // Truyện được tick trong hộp "Dịch tất cả" (pathKey), đặt lại mỗi lần mở hộp.
+  const [picked, setPicked] = useState<string[]>([]);
   // Thư viện dài: lọc theo tên/folder và vẽ theo khúc PAGE_SIZE dòng để không lag khi hàng trăm truyện.
   const [query, setQuery] = useState("");
   const [limit, setLimit] = useState(PAGE_SIZE);
@@ -410,7 +410,10 @@ export function StoryPicker() {
     [libraryRows, running],
   );
   const slots = Math.max(0, maxParallel - running.length);
-  const batch = unfinished.slice(0, slots);
+  // Mặc định tick các truyện đầu danh sách vừa đủ chỗ trống; người dùng bỏ tick truyện không muốn dịch, tick truyện
+  // khác thay vào, tối đa `slots`.
+  const defaultBatch = unfinished.slice(0, slots);
+  const batch = unfinished.filter((item) => picked.includes(pathKey(item.root)));
   const batchChapters = batch.reduce((sum, item) => sum + (item.pending ?? 0), 0);
   const engine = useStoryStore((s) => engineLabel(s.config));
   const recentRows: RecentSummary[] = recent
@@ -467,7 +470,7 @@ export function StoryPicker() {
             <Button
               size="lg"
               variant="outline"
-              disabled={busy || batch.length === 0}
+              disabled={busy || defaultBatch.length === 0}
               title={
                 unfinished.length === 0
                   ? "Thư viện không có truyện nào còn chương chờ dịch mà chưa chạy"
@@ -475,7 +478,10 @@ export function StoryPicker() {
                     ? `Đang chạy đủ ${maxParallel} truyện — dừng bớt hoặc nâng "Số truyện dịch song song" trong Cài đặt`
                     : "Bắt đầu phiên dịch cho mọi truyện còn chương chờ, rồi mở truyện đầu tiên"
               }
-              onClick={() => setBatchOpen(true)}
+              onClick={() => {
+                setPicked(defaultBatch.map((item) => pathKey(item.root)));
+                setBatchOpen(true);
+              }}
             >
               <Play /> Dịch tất cả truyện chưa xong{unfinished.length > 0 ? ` (${unfinished.length})` : ""}
             </Button>
@@ -623,25 +629,47 @@ export function StoryPicker() {
           <DialogHeader>
             <DialogTitle>Dịch tất cả truyện chưa xong?</DialogTitle>
             <DialogDescription>
-              Bắt đầu phiên dịch cho {batch.length} truyện ({batchChapters} chương còn chờ) bằng {engine}, rồi mở truyện
-              đầu tiên.
+              Bắt đầu phiên dịch cho {batch.length} truyện đang tick ({batchChapters} chương còn chờ) bằng {engine}, rồi mở
+              truyện đầu tiên. Bỏ tick truyện nào không muốn dịch.
             </DialogDescription>
           </DialogHeader>
-          <ul className="fine-scrollbar max-h-48 list-disc overflow-auto pl-5 text-sm">
-            {batch.slice(0, BATCH_NAMES).map((item) => (
-              <li key={item.root}>
-                {displayName(item)} <span className="text-muted-foreground tabular-nums">· {item.pending} chương</span>
-              </li>
-            ))}
-            {batch.length > BATCH_NAMES && (
-              <li className="text-muted-foreground">… và {batch.length - BATCH_NAMES} truyện nữa</li>
-            )}
+          <ul className="fine-scrollbar -mx-1 flex max-h-72 flex-col overflow-auto px-1 text-sm">
+            {unfinished.map((item) => {
+              const key = pathKey(item.root);
+              const checked = picked.includes(key);
+              const full = !checked && batch.length >= slots;
+              return (
+                <li key={item.root}>
+                  <label
+                    className={cn(
+                      "flex cursor-pointer items-start gap-2 rounded-md px-1.5 py-1 hover:bg-accent",
+                      full && "cursor-not-allowed opacity-50 hover:bg-transparent",
+                    )}
+                    title={full ? `Đã chọn đủ ${slots} truyện — bỏ tick một truyện khác trước` : undefined}
+                  >
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 size-4 shrink-0 accent-primary"
+                      checked={checked}
+                      disabled={full}
+                      onChange={(e) =>
+                        setPicked((current) =>
+                          e.target.checked ? [...current, key] : current.filter((value) => value !== key),
+                        )
+                      }
+                    />
+                    <span>
+                      {displayName(item)} <span className="text-muted-foreground tabular-nums">· {item.pending} chương</span>
+                    </span>
+                  </label>
+                </li>
+              );
+            })}
           </ul>
-          {unfinished.length > batch.length && (
+          {unfinished.length > slots && (
             <p role="status" className="text-sm text-status-warning">
-              Còn {unfinished.length - batch.length} truyện chưa xong không được bắt đầu lần này: giới hạn {maxParallel}{" "}
-              truyện dịch song song, đang chạy {running.length}. Bấm lại khi có truyện xong, hoặc nâng giới hạn trong Cài
-              đặt.
+              Chọn được tối đa {slots} truyện lần này: giới hạn {maxParallel} truyện dịch song song, đang chạy{" "}
+              {running.length}. Bấm lại khi có truyện xong, hoặc nâng giới hạn trong Cài đặt.
             </p>
           )}
           <DialogFooter>
