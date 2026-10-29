@@ -516,7 +516,9 @@ export function SettingsPage() {
                 </label>
                 <p className="text-xs text-muted-foreground">
                   Hết quota agy thì phiên không dừng mà chờ tới giờ quota mở lại rồi tự chạy tiếp (app phải mở, máy không
-                  ngủ). Tắt thì phiên dừng và báo giờ quota mở lại. Chỉ áp dụng cho động cơ agy; mặc định tắt.
+                  ngủ). Bật cũng là chế độ treo qua đêm: agy lỗi, lượt không chốt được chương hay file truyện bị khoá thì
+                  phiên chờ 5 phút → 15 phút → 30 phút → 1 giờ rồi thử lại (tối đa 6 lần) thay vì dừng. Tắt thì phiên dừng
+                  ngay và báo lý do. Chỉ áp dụng cho động cơ agy; mặc định tắt.
                 </p>
               </div>
             </Card>

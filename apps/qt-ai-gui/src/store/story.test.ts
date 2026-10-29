@@ -75,7 +75,10 @@ describe("applySessionEvent theo truyện", () => {
     store.applySessionEvent(B, { type: "stopped", kind: "agy_failed", code: 3 });
     const state = useStoryStore.getState();
     expect(sessionOf(state, A)).toEqual({ status: "running", sessionNo: 2 });
-    expect(sessionOf(state, "D:\\LIB\\B")).toEqual({ status: "stopped", reason: { kind: "agy_failed", code: 3 } });
+    expect(sessionOf(state, "D:\\LIB\\B")).toMatchObject({
+      status: "stopped",
+      reason: { kind: "agy_failed", code: 3 },
+    });
     expect(state.progress["d:\\lib\\a"]?.current).toBe("0005");
     expect(state.progress["d:\\lib\\b"]).toBeUndefined();
     expect(isRunning(state, A) && !isRunning(state, B)).toBe(true);
@@ -92,10 +95,30 @@ describe("applySessionEvent theo truyện", () => {
     expect(sessionOf(useStoryStore.getState(), A)).toEqual({ status: "running", sessionNo: 3 });
     // Hết quota mà không bật tự chạy lại: dừng với lý do riêng.
     store.applySessionEvent(A, { type: "stopped", kind: "quota_exhausted", reset_at: 1_791_229_482_000 });
-    expect(sessionOf(useStoryStore.getState(), A)).toEqual({
+    expect(sessionOf(useStoryStore.getState(), A)).toMatchObject({
       status: "stopped",
       reason: { kind: "quota_exhausted", reset_at: 1_791_229_482_000 },
     });
+  });
+
+  it("retry_wait: lỗi tạm lúc treo qua đêm — vẫn running, kèm giờ thử lại và lần thử; started lượt kế xoá", () => {
+    const store = useStoryStore.getState();
+    store.applySessionEvent(A, { type: "started", session_no: 4 });
+    store.applySessionEvent(A, {
+      type: "retry_wait",
+      until: 1_791_229_542_000,
+      attempt: 2,
+      max: 6,
+      reason: { kind: "agy_failed", code: 1 },
+    });
+    expect(sessionOf(useStoryStore.getState(), A)).toEqual({
+      status: "running",
+      sessionNo: 4,
+      waitUntil: 1_791_229_542_000,
+      retry: { attempt: 2, max: 6, reason: { kind: "agy_failed", code: 1 } },
+    });
+    store.applySessionEvent(A, { type: "started", session_no: 4 });
+    expect(sessionOf(useStoryStore.getState(), A)).toEqual({ status: "running", sessionNo: 4 });
   });
 
   it("agy_log nối vào ring buffer 2000 dòng riêng từng truyện; clearLogs chỉ xoá truyện đó", () => {

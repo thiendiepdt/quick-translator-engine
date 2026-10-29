@@ -6,7 +6,7 @@ use qt_ai_core::agy::find_agy;
 use qt_ai_core::api::{ApiConfig, HttpModel, TextModel};
 use qt_ai_core::api_fill::{fill_story, sample_chapters, SAMPLE_CHAPTERS};
 use qt_ai_core::api_session::{start_api_session, ApiSessionConfig};
-use qt_ai_core::session::{run_once, start_session, SessionConfig, SessionEvent, SessionHandle, Sink};
+use qt_ai_core::session::{run_once, start_session, SessionConfig, SessionEvent, SessionHandle, Sink, TRANSIENT_RETRY_WAITS};
 use qt_ai_core::story::StoryConfig;
 use qt_ai_core::story_fs::{load_story_config, save_story_config, story_paths};
 use serde::Serialize;
@@ -57,6 +57,8 @@ pub fn session_config(
         extra_path: qt_ai_dir(),
         agy_data_dir: qt_ai_core::agy_data::default_data_dir(),
         resume_on_quota,
+        // Bật tự dịch tiếp = treo qua đêm: lỗi thoáng qua thì chờ rồi thử lại thay vì dừng.
+        retry_waits: if resume_on_quota { TRANSIENT_RETRY_WAITS.to_vec() } else { vec![] },
     }
 }
 

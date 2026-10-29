@@ -1,6 +1,6 @@
 import { pathKey, samePath } from "@/lib/paths";
-import type { Progress } from "@/lib/types";
-import { runningRoots, type SessionState, type StoryIssues } from "@/store/story";
+import { isAbnormalStop, type Progress, type StopReason } from "@/lib/types";
+import { runningRoots, type RetryInfo, type SessionState, type StoryIssues } from "@/store/story";
 
 export interface DockEntry {
   root: string;
@@ -12,6 +12,10 @@ export interface DockEntry {
   currentChapter?: string | null;
   /** Hết quota agy: phiên đang chờ tới giờ này (ms epoch) rồi tự chạy tiếp. */
   waitUntil?: number;
+  /** Lỗi thoáng qua lúc treo qua đêm: `waitUntil` là giờ thử lại. */
+  retry?: RetryInfo;
+  /** Phiên dừng bất thường trong phiên app này (không phải xong / bấm Dừng): lý do hiện bền trên thẻ. */
+  stop?: { at?: number; reason: StopReason };
   /** Chương bỏ qua / lỗi biết được gần nhất — > 0 thì thẻ truyện hiện dòng nhắc. */
   skipped: number;
   error: number;
@@ -67,6 +71,9 @@ export function dockEntries(state: {
       percent: isRunning ? progressPercent(progress) : undefined,
       currentChapter: isRunning ? (progress?.current ?? null) : undefined,
       waitUntil: session?.status === "running" ? session.waitUntil : undefined,
+      retry: session?.status === "running" ? session.retry : undefined,
+      stop:
+        session?.status === "stopped" && isAbnormalStop(session.reason) ? { at: session.at, reason: session.reason } : undefined,
       skipped: state.issues[key]?.skipped ?? 0,
       error: state.issues[key]?.error ?? 0,
     };

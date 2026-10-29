@@ -213,6 +213,7 @@ fn phien_agy_tu_don_hoi_thoai_cua_truyen_sau_moi_luot() {
         extra_path: None,
         agy_data_dir: Some(data.clone()),
         resume_on_quota: false,
+        retry_waits: vec![],
     };
     let handle = start_session(config, Arc::new(move |event| sink_events.lock().unwrap().push(event))).unwrap();
     assert_eq!(handle.join(), StopReason::Finished);
@@ -245,6 +246,7 @@ fn quota_story(resets: &str, resume_on_quota: bool) -> (tempfile::TempDir, PathB
         extra_path: None,
         agy_data_dir: Some(data.clone()),
         resume_on_quota,
+        retry_waits: vec![],
     };
     (dir, data, root, config, Arc::new(Mutex::new(Vec::new())))
 }

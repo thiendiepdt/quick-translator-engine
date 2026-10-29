@@ -162,6 +162,29 @@ describe("StorySidebar", () => {
     expect(dockEntries(useStoryStore.getState())[0]).toMatchObject({ running: true, waitUntil: until.getTime() });
   });
 
+  it("lỗi tạm qua đêm: thẻ ghi giờ thử lại; dừng bất thường thì thẻ ghi lý do bền", () => {
+    const at = new Date();
+    at.setHours(3, 12, 0, 0);
+    const store = useStoryStore.getState();
+    store.applySessionEvent(B, {
+      type: "retry_wait",
+      until: at.getTime(),
+      attempt: 1,
+      max: 6,
+      reason: { kind: "no_progress" },
+    });
+    const { unmount } = ui();
+    expect(screen.getAllByRole("listitem")[0]).toHaveAccessibleName(
+      "Bravo — Lỗi tạm (không chốt được chương) · thử lại lúc 03:12 (lần 1/6)",
+    );
+    expect(screen.getAllByRole("listitem")[0]).toHaveTextContent("thử lại 03:12");
+    unmount();
+    store.applySessionEvent(B, { type: "stopped", kind: "agy_failed", code: 1 });
+    ui();
+    const card = screen.getAllByRole("listitem").find((item) => item.textContent?.includes("Bravo"));
+    expect(card).toHaveTextContent(/Dừng \d\d:\d\d: agy lỗi \(mã 1\)/);
+  });
+
   it("danh sách dài: hiện 12 ô rồi nút +N nạp thêm", async () => {
     const many = Array.from({ length: 30 }, (_, i) => `D:\\lib\\t${String(i).padStart(2, "0")}`);
     useStoryStore.setState({ opened: many, sessions: {}, roots: {}, names: {}, progress: {}, root: many[0] });

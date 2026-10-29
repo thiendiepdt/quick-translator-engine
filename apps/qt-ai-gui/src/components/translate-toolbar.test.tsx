@@ -51,6 +51,50 @@ describe("TranslateToolbar · chờ quota agy", () => {
   });
 });
 
+describe("TranslateToolbar · lý do dừng, thử lại qua đêm", () => {
+  const at = new Date();
+  at.setHours(3, 12, 0, 0);
+
+  it("lỗi tạm: hiện giờ thử lại và lần thử", () => {
+    useStoryStore.setState({
+      config,
+      root: ROOT,
+      snapshot: undefined,
+      roots: { [pathKey(ROOT)]: ROOT },
+      sessions: {
+        [pathKey(ROOT)]: {
+          status: "running",
+          sessionNo: 4,
+          waitUntil: at.getTime(),
+          retry: { attempt: 2, max: 6, reason: { kind: "agy_failed", code: 1 } },
+        },
+      },
+    });
+    render(<TranslateToolbar />);
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Lỗi tạm (agy lỗi (mã 1)) — thử lại lúc 03:12 (lần 2/6). Bấm Dừng nếu không muốn chờ.",
+    );
+  });
+
+  it("dừng bất thường trong phiên app hiện lý do bền; dịch xong hay bấm Dừng thì không", () => {
+    useStoryStore.setState({
+      config,
+      root: ROOT,
+      snapshot: undefined,
+      roots: { [pathKey(ROOT)]: ROOT },
+      sessions: { [pathKey(ROOT)]: { status: "stopped", reason: { kind: "no_progress" }, at: at.getTime() } },
+    });
+    const { unmount } = render(<TranslateToolbar />);
+    expect(screen.getByRole("status")).toHaveTextContent("Phiên trước dừng lúc 03:12: Phiên vừa rồi không chốt thêm chương nào");
+    unmount();
+    useStoryStore.setState({
+      sessions: { [pathKey(ROOT)]: { status: "stopped", reason: { kind: "user_cancelled" }, at: at.getTime() } },
+    });
+    render(<TranslateToolbar />);
+    expect(screen.queryByText(/Phiên trước dừng/)).not.toBeInTheDocument();
+  });
+});
+
 describe("TranslateToolbar · nút Dừng", () => {
   beforeEach(() => {
     useStoryStore.setState({

@@ -60,7 +60,7 @@ pub enum LogStream {
     Stderr,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum StopReason {
     Finished,
@@ -83,6 +83,9 @@ pub enum SessionEvent {
     AgyLog { line: String, stream: LogStream },
     /// Hết quota agy: phiên đang chờ tới `until` (ms epoch) rồi tự chạy tiếp. Lượt kế phát `Started` như thường.
     QuotaWait { until: u64 },
+    /// Lỗi thoáng qua (agy lỗi 2 lần, lượt không chốt được chương, không đọc được state.json) trong chế độ treo
+    /// qua đêm: chờ tới `until` rồi thử lại, lần `attempt`/`max`. `reason` là lý do lẽ ra đã dừng.
+    RetryWait { until: u64, attempt: u32, max: u32, reason: StopReason },
     Stopped(StopReason),
 }
 
@@ -102,7 +105,22 @@ pub struct SessionConfig {
     /// agy hết quota thì chờ tới giờ reset rồi tự chạy tiếp thay vì dừng phiên. Cần `agy_data_dir` để đọc giờ
     /// reset từ hội thoại agy vừa ghi.
     pub resume_on_quota: bool,
+    /// Lịch chờ trước mỗi lần thử lại khi phiên gặp lỗi thoáng qua; rỗng = dừng ngay như trước. App đặt
+    /// `TRANSIENT_RETRY_WAITS` khi bật tự dịch tiếp (treo qua đêm).
+    pub retry_waits: Vec<Duration>,
 }
+
+/// Treo qua đêm: agy lỗi, lượt không chốt được chương hay state.json bị khoá thường là sự cố thoáng qua (mạng chập,
+/// server Antigravity lỗi tạm, máy ngủ dậy, Google Drive / diệt virus khoá file). Chờ 5 → 15 → 30 → 60 → 60 → 60
+/// phút (tổng ~3,8 giờ) rồi mới dừng hẳn; mỗi lần thử tốn tối đa một lượt quota.
+pub const TRANSIENT_RETRY_WAITS: [Duration; 6] = [
+    Duration::from_secs(5 * 60),
+    Duration::from_secs(15 * 60),
+    Duration::from_secs(30 * 60),
+    Duration::from_secs(60 * 60),
+    Duration::from_secs(60 * 60),
+    Duration::from_secs(60 * 60),
+];
 
 /// PATH hiện tại với `dir` chèn lên đầu.
 pub fn path_with(dir: &Path) -> std::ffi::OsString {
@@ -407,18 +425,81 @@ fn wait_for_quota(config: &SessionConfig, sink: &Sink, cancel: &AtomicBool, rese
     true
 }
 
+/// Đọc tiến độ, hỏng thì thử lại sau 1 → 3 → 6 giây: state.json có thể đang bị Google Drive / diệt virus khoá
+/// trong chốc lát — một lần đọc hỏng không đáng dừng cả phiên.
+fn read_progress_patient(root: &Path, cancel: &AtomicBool) -> Result<Progress> {
+    let mut result = read_progress(root);
+    for wait in [1, 3, 6] {
+        if result.is_ok() || cancel.load(Ordering::SeqCst) {
+            break;
+        }
+        thread::sleep(Duration::from_secs(wait));
+        result = read_progress(root);
+    }
+    result
+}
+
+/// Chờ trước lần thử lại thứ `attempt` (đếm từ 1) theo `retry_waits`; hết lịch → None (dừng hẳn với `reason`).
+/// Trả `Some(false)` khi người dùng bấm Dừng trong lúc chờ.
+fn wait_for_retry(config: &SessionConfig, sink: &Sink, cancel: &AtomicBool, attempt: u32, reason: &StopReason) -> Option<bool> {
+    let wait = *config.retry_waits.get(attempt as usize - 1)?;
+    let max = config.retry_waits.len() as u32;
+    let until = now_ms() + wait.as_millis() as u64;
+    sink(SessionEvent::RetryWait { until, attempt, max, reason: reason.clone() });
+    let line = format!(
+        "[qt-ai] Lỗi tạm ({}) — chờ {} rồi thử lại (lần {attempt}/{max}).",
+        reason_brief(reason),
+        describe_wait(until - now_ms())
+    );
+    sink(SessionEvent::AgyLog { line, stream: LogStream::Stdout });
+    while now_ms() < until {
+        if cancel.load(Ordering::SeqCst) {
+            return Some(false);
+        }
+        thread::sleep(config.poll_interval.min(Duration::from_secs(1)));
+    }
+    Some(true)
+}
+
+fn reason_brief(reason: &StopReason) -> String {
+    match reason {
+        StopReason::AgyFailed { code } => format!("agy thoát lỗi mã {code} hai lần liền"),
+        StopReason::NoProgress => "lượt vừa rồi không chốt được chương nào".to_string(),
+        StopReason::Internal { message } => format!("không đọc được tiến độ: {message}"),
+        other => format!("{other:?}"),
+    }
+}
+
 fn session_loop(config: SessionConfig, sink: Sink, cancel: Arc<AtomicBool>) -> StopReason {
     let child_slot = Mutex::new(None);
     let mut consecutive_failures = 0;
     let mut session_no = 0;
+    // Số lần đã thử lại vì lỗi thoáng qua kể từ lượt chốt được chương gần nhất.
+    let mut retries = 0u32;
+    // Lỗi thoáng qua: còn lịch thử lại thì chờ rồi chạy lượt mới (không tính vào giới hạn số phiên), hết thì dừng.
+    macro_rules! transient {
+        ($reason:expr) => {{
+            let reason = $reason;
+            retries += 1;
+            match wait_for_retry(&config, &sink, &cancel, retries, &reason) {
+                None => return reason,
+                Some(false) => return StopReason::UserCancelled,
+                Some(true) => {
+                    session_no -= 1;
+                    consecutive_failures = 0;
+                    continue;
+                }
+            }
+        }};
+    }
     loop {
         if session_no >= config.max_sessions {
             return StopReason::MaxSessions;
         }
         session_no += 1;
-        let before = match read_progress(&config.root) {
+        let before = match read_progress_patient(&config.root, &cancel) {
             Ok(p) => p,
-            Err(e) => return StopReason::Internal { message: e.to_string() },
+            Err(e) => transient!(StopReason::Internal { message: e.to_string() }),
         };
         if before.queued == 0 && before.translating == 0 {
             return StopReason::Finished;
@@ -439,9 +520,9 @@ fn session_loop(config: SessionConfig, sink: Sink, cancel: Arc<AtomicBool>) -> S
             Ok(None) => return StopReason::UserCancelled,
             Err(e) => return StopReason::Internal { message: e.to_string() },
         };
-        let after = match read_progress(&config.root) {
+        let after = match read_progress_patient(&config.root, &cancel) {
             Ok(p) => p,
-            Err(e) => return StopReason::Internal { message: e.to_string() },
+            Err(e) => transient!(StopReason::Internal { message: e.to_string() }),
         };
         let progressed = after.settled() > before.settled();
         // Lượt hỏng (agy lỗi hoặc không chốt thêm chương nào) vì hết quota: không phải lỗi cần dừng để người
@@ -460,32 +541,123 @@ fn session_loop(config: SessionConfig, sink: Sink, cancel: Arc<AtomicBool>) -> S
         if code != 0 {
             consecutive_failures += 1;
             if consecutive_failures >= 2 {
-                return StopReason::AgyFailed { code };
+                transient!(StopReason::AgyFailed { code });
             }
             continue; // lần đầu lỗi (rate limit nhất thời?) → thử thêm một phiên
         }
         consecutive_failures = 0;
         if !progressed {
-            return StopReason::NoProgress;
+            transient!(StopReason::NoProgress);
         }
+        retries = 0;
     }
 }
 
+/// Nhật ký phiên `work/session-log.jsonl`: mỗi lần dừng và mỗi lần chờ thử lại vì lỗi thoáng qua một dòng, kèm
+/// đuôi log agy/API khi bất thường. Treo qua đêm thì toast lý do dừng đã biến mất từ lâu — file này là chỗ xem lại.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JournalEntry {
+    /// ms epoch.
+    pub at: u64,
+    /// `stopped` hoặc `retry`.
+    pub event: String,
+    pub reason: StopReason,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub attempt: Option<u32>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tail: Vec<String>,
+}
+
+const JOURNAL_TAIL: usize = 40;
+/// Quá cỡ này thì chỉ giữ `JOURNAL_KEEP` dòng cuối.
+const JOURNAL_MAX_BYTES: u64 = 512 * 1024;
+const JOURNAL_KEEP: usize = 200;
+
+fn journal_path(root: &Path) -> PathBuf {
+    root.join("work").join("session-log.jsonl")
+}
+
+/// Ghi hỏng thì thôi — nhật ký không phải lý do làm hỏng phiên.
+fn journal_append(root: &Path, entry: &JournalEntry) {
+    use std::io::Write;
+    let path = journal_path(root);
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    if std::fs::metadata(&path).is_ok_and(|m| m.len() > JOURNAL_MAX_BYTES) {
+        if let Ok(text) = std::fs::read_to_string(&path) {
+            let lines: Vec<&str> = text.lines().collect();
+            let kept = lines[lines.len().saturating_sub(JOURNAL_KEEP)..].join("
+");
+            let _ = std::fs::write(&path, kept + "
+");
+        }
+    }
+    let Ok(line) = serde_json::to_string(entry) else { return };
+    if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(&path) {
+        let _ = writeln!(file, "{line}");
+    }
+}
+
+/// Lần dừng gần nhất ghi trong nhật ký (để hiện lý do sau khi mở lại app).
+pub fn last_stop(root: &Path) -> Option<JournalEntry> {
+    let text = std::fs::read_to_string(journal_path(root)).ok()?;
+    text.lines()
+        .rev()
+        .filter_map(|line| serde_json::from_str::<JournalEntry>(line).ok())
+        .find(|entry| entry.event == "stopped")
+}
+
+fn abnormal(reason: &StopReason) -> bool {
+    !matches!(reason, StopReason::Finished | StopReason::UserCancelled)
+}
+
 /// Chạy `run` trên thread riêng dưới lock `work/.session.lock`; panic → Internal; luôn phát Stopped.
-/// Dùng chung cho vòng agy và vòng API.
+/// Dùng chung cho vòng agy và vòng API. `run` nhận sink đã bọc nhật ký phiên.
 pub fn spawn_runner(
     root: PathBuf,
     sink: Sink,
-    run: impl FnOnce(Arc<AtomicBool>) -> StopReason + Send + 'static,
+    run: impl FnOnce(Sink, Arc<AtomicBool>) -> StopReason + Send + 'static,
 ) -> Result<SessionHandle> {
     let lock_started = acquire_lock(&root)?;
     let cancel = Arc::new(AtomicBool::new(false));
     let running = Arc::new(AtomicBool::new(true));
     let thread_cancel = cancel.clone();
     let thread_running = running.clone();
+    let tail: Arc<Mutex<std::collections::VecDeque<String>>> = Arc::default();
+    let journaled: Sink = {
+        let (tail, root, inner) = (tail.clone(), root.clone(), sink.clone());
+        Arc::new(move |event: SessionEvent| {
+            match &event {
+                SessionEvent::AgyLog { line, .. } => {
+                    let mut tail = tail.lock().unwrap();
+                    tail.push_back(line.clone());
+                    if tail.len() > JOURNAL_TAIL {
+                        tail.pop_front();
+                    }
+                }
+                SessionEvent::RetryWait { attempt, reason, .. } => {
+                    let tail = tail.lock().unwrap().iter().cloned().collect();
+                    let entry = JournalEntry {
+                        at: now_ms(),
+                        event: "retry".to_string(),
+                        reason: reason.clone(),
+                        attempt: Some(*attempt),
+                        tail,
+                    };
+                    journal_append(&root, &entry);
+                }
+                _ => {}
+            }
+            inner(event)
+        })
+    };
     let thread = thread::spawn(move || {
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| run(thread_cancel)));
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| run(journaled, thread_cancel)));
         let reason = result.unwrap_or_else(|_| StopReason::Internal { message: "runner panic".to_string() });
+        let tail = if abnormal(&reason) { tail.lock().unwrap().iter().cloned().collect() } else { vec![] };
+        journal_append(&root, &JournalEntry { at: now_ms(), event: "stopped".to_string(), reason: reason.clone(), attempt: None, tail });
         release_lock(&root, lock_started);
         sink(SessionEvent::Stopped(reason.clone()));
         thread_running.store(false, Ordering::SeqCst);
@@ -497,8 +669,7 @@ pub fn spawn_runner(
 /// Bắt đầu vòng phiên agy trên thread riêng. Giữ lock `work/.session.lock` tới khi dừng.
 pub fn start_session(config: SessionConfig, sink: Sink) -> Result<SessionHandle> {
     let root = config.root.clone();
-    let loop_sink = sink.clone();
-    spawn_runner(root, sink, move |cancel| session_loop(config, loop_sink, cancel))
+    spawn_runner(root, sink, move |sink, cancel| session_loop(config, sink, cancel))
 }
 
 #[cfg(test)]

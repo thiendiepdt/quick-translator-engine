@@ -57,6 +57,15 @@ pub struct StorySnapshot {
     /// Độ lệch state.json ↔ out/ (Drive sync lệch). Chỉ tính lúc mở / quét lại truyện (`snapshot_with_drift`) vì
     /// phải đọc mọi out/; snapshot thường (polling trong phiên) để None.
     pub progress_drift: Option<DriftCounts>,
+    /// Lần dừng gần nhất trong `work/session-log.jsonl` — hiện lý do dừng sau khi mở lại app (toast đã mất).
+    pub last_stop: Option<LastStop>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LastStop {
+    pub at: u64,
+    pub reason: qt_ai_core::session::StopReason,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -192,6 +201,7 @@ pub fn snapshot(root: &Path, session_running: bool) -> CmdResult<StorySnapshot> 
             with_warnings: counts.with_warnings,
         },
         settings: state.settings,
+        last_stop: qt_ai_core::session::last_stop(root).map(|entry| LastStop { at: entry.at, reason: entry.reason }),
         story,
         session_running,
         progress_drift: None,

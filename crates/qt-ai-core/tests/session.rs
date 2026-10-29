@@ -27,6 +27,7 @@ fn config(root: &Path) -> SessionConfig {
         extra_path: None,
         agy_data_dir: None,
         resume_on_quota: false,
+        retry_waits: vec![],
     }
 }
 
@@ -178,4 +179,59 @@ fn find_agy_khong_co_thi_agy_missing_co_configured_thi_dung() {
     let models = qt_ai_core::agy::agy_models(&fake).unwrap();
     let pairs: Vec<(&str, &str)> = models.iter().map(|m| (m.id.as_str(), m.label.as_str())).collect();
     assert_eq!(pairs, vec![("fake-model-high", "Fake Model (High)"), ("fake-model-pro", "fake-model-pro")]);
+}
+
+#[test]
+fn treo_qua_dem_loi_thoang_qua_thi_cho_roi_thu_lai_het_lich_moi_dung_va_ghi_nhat_ky() {
+    let dir = story("noop", 2);
+    let (sink, events) = collect();
+    let mut cfg = config(dir.path());
+    cfg.retry_waits = vec![Duration::from_millis(10), Duration::from_millis(10)];
+    assert_eq!(start_session(cfg, sink).unwrap().join(), StopReason::NoProgress);
+    let events = events.lock().unwrap();
+    let waits: Vec<_> = events
+        .iter()
+        .filter_map(|e| match e {
+            SessionEvent::RetryWait { attempt, max, reason, .. } => Some((*attempt, *max, reason.clone())),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(waits, vec![(1, 2, StopReason::NoProgress), (2, 2, StopReason::NoProgress)]);
+    assert_eq!(events.iter().filter(|e| matches!(e, SessionEvent::Started { .. })).count(), 3);
+    // Nhật ký: 2 lần chờ thử lại + lần dừng, dừng bất thường thì kèm đuôi log.
+    let journal = fs::read_to_string(dir.path().join("work").join("session-log.jsonl")).unwrap();
+    assert_eq!(journal.lines().count(), 3);
+    let last = last_stop(dir.path()).unwrap();
+    assert_eq!((last.event.as_str(), last.reason), ("stopped", StopReason::NoProgress));
+    assert!(last.tail.iter().any(|line| line.contains("Lỗi tạm")), "{:?}", last.tail);
+}
+
+#[test]
+fn thu_lai_duoc_thi_dich_tiep_toi_xong() {
+    let dir = story("noop", 2);
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let (root, sink_events) = (dir.path().to_path_buf(), events.clone());
+    // agy hết lỗi đúng lúc phiên đang chờ thử lại.
+    let sink: Sink = Arc::new(move |event| {
+        if matches!(event, SessionEvent::RetryWait { .. }) {
+            fs::write(root.join("fake-agy-mode.txt"), "progress").unwrap();
+        }
+        sink_events.lock().unwrap().push(event);
+    });
+    let mut cfg = config(dir.path());
+    cfg.retry_waits = vec![Duration::from_millis(10); 3];
+    assert_eq!(start_session(cfg, sink).unwrap().join(), StopReason::Finished);
+    assert_eq!(events.lock().unwrap().iter().filter(|e| matches!(e, SessionEvent::RetryWait { .. })).count(), 1);
+    let last = last_stop(dir.path()).unwrap();
+    assert_eq!(last.reason, StopReason::Finished);
+    assert!(last.tail.is_empty(), "dừng bình thường không kèm log");
+}
+
+#[test]
+fn khong_bat_tu_dich_tiep_thi_dung_ngay_nhu_cu() {
+    let dir = story("fail", 1);
+    let (sink, events) = collect();
+    assert_eq!(start_session(config(dir.path()), sink).unwrap().join(), StopReason::AgyFailed { code: 3 });
+    assert!(!events.lock().unwrap().iter().any(|e| matches!(e, SessionEvent::RetryWait { .. })));
+    assert_eq!(last_stop(dir.path()).unwrap().reason, StopReason::AgyFailed { code: 3 });
 }

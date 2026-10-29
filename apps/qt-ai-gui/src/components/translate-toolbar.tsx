@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ZhStoryBanner, ZhStoryDialog } from "@/components/zh-story-dialog";
 import { chaptersRetryIds, rescanStory, sessionStart, sessionStop, storySnapshot } from "@/lib/api";
 import { chapterGaps, filterChapters } from "@/lib/chapters";
-import { clockLabel, engineLabel, STATUS_LABELS } from "@/lib/types";
+import { clockLabel, engineLabel, isAbnormalStop, STATUS_LABELS, stopReasonBrief, stopReasonLabel } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { selectCurrentProgress, selectCurrentSession, selectCurrentShort, useStoryStore } from "@/store/story";
 
@@ -116,6 +116,16 @@ export function TranslateToolbar() {
   const total = counts?.total ?? 0;
   const percent = total > 0 ? Math.round((done / total) * 100) : 0;
   const running = session.status === "running";
+  // Lý do lần dừng gần nhất: event trong phiên app này, hoặc nhật ký work/session-log.jsonl (mở lại app). Chỉ hiện
+  // khi dừng bất thường — xong hay bấm Dừng thì không cần nhắc.
+  const lastStop =
+    session.status === "stopped"
+      ? isAbnormalStop(session.reason)
+        ? { at: session.at, reason: session.reason }
+        : undefined
+      : session.status === "idle" && snapshot?.lastStop && isAbnormalStop(snapshot.lastStop.reason)
+        ? snapshot.lastStop
+        : undefined;
 
   async function toggle() {
     if (!root) return;
@@ -310,8 +320,26 @@ export function TranslateToolbar() {
             Đang dịch <span className="font-mono tabular-nums">#{translatingOrdinal}</span>
           </button>
         )}
+        {!running && lastStop && (
+          <span
+            role="status"
+            title={stopReasonLabel(lastStop.reason)}
+            className="ml-auto inline-flex min-w-0 items-center gap-2 text-xs font-medium text-status-error"
+          >
+            <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
+            <span className="truncate">
+              Phiên trước dừng{lastStop.at ? ` lúc ${clockLabel(lastStop.at)}` : ""}: {stopReasonLabel(lastStop.reason)}
+            </span>
+          </span>
+        )}
         {running &&
-          (session.waitUntil ? (
+          (session.retry && session.waitUntil ? (
+            <span role="status" className="ml-auto inline-flex items-center gap-2 text-xs font-medium text-status-warning">
+              <span className="size-2 rounded-full bg-status-warning" aria-hidden />
+              Lỗi tạm ({stopReasonBrief(session.retry.reason)}) — thử lại lúc {clockLabel(session.waitUntil)} (lần{" "}
+              {session.retry.attempt}/{session.retry.max}). Bấm Dừng nếu không muốn chờ.
+            </span>
+          ) : session.waitUntil ? (
             <span role="status" className="ml-auto inline-flex items-center gap-2 text-xs font-medium text-status-warning">
               <span className="size-2 rounded-full bg-status-warning" aria-hidden />
               Hết quota agy — tự dịch tiếp lúc {clockLabel(session.waitUntil)}. Bấm Dừng nếu không muốn chờ.

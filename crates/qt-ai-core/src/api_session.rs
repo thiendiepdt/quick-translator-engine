@@ -701,13 +701,22 @@ pub fn api_loop(config: &ApiSessionConfig, model: &dyn TextModel, sink: &Sink, c
         if cancel.load(Ordering::SeqCst) {
             return StopReason::UserCancelled;
         }
-        let id = match pick_chapter(root) {
+        // state.json có thể bị Google Drive / diệt virus khoá chốc lát: thử lại sau 1 → 3 → 6 giây rồi mới dừng.
+        let mut picked = pick_chapter(root);
+        for wait in [1, 3, 6] {
+            if picked.is_ok() || cancel.load(Ordering::SeqCst) {
+                break;
+            }
+            sleep_unless_cancelled(Duration::from_secs(wait), cancel);
+            picked = pick_chapter(root);
+        }
+        let id = match picked {
             Ok(Some(id)) => id,
             Ok(None) => return StopReason::Finished,
             Err(error) => return StopReason::Internal { message: error.to_string() },
         };
         emit_progress(root, sink);
-        let mut attempt = 0;
+        let mut attempt: u32 = 0;
         let outcome = loop {
             attempt += 1;
             match translate_chapter(config, &id, model, cancel, &log) {
@@ -734,6 +743,14 @@ pub fn api_loop(config: &ApiSessionConfig, model: &dyn TextModel, sink: &Sink, c
                         return StopReason::ApiFailed { message: error.to_string() };
                     }
                     break Err(format!("lỗi API: {error}"));
+                }
+                // Lỗi đọc/ghi file của chương (file bị khoá chốc lát): dịch lại chương sau vài giây, lần thứ ba mới dừng.
+                Err(ChapterFailure::Core(error)) if attempt < 3 => {
+                    log(format!("{id}: {error} — thử lại sau {} giây", config.retry_delay.as_secs() * u64::from(attempt)));
+                    sleep_unless_cancelled(config.retry_delay * attempt, cancel);
+                    if cancel.load(Ordering::SeqCst) {
+                        return StopReason::UserCancelled;
+                    }
                 }
                 Err(ChapterFailure::Core(error)) => return StopReason::Internal { message: error.to_string() },
             }
@@ -762,6 +779,5 @@ pub fn api_loop(config: &ApiSessionConfig, model: &dyn TextModel, sink: &Sink, c
 /// Bắt đầu vòng API trên thread riêng, cùng lock/handle/event với vòng agy.
 pub fn start_api_session(config: ApiSessionConfig, model: Arc<dyn TextModel>, sink: Sink) -> Result<SessionHandle> {
     let root = config.root.clone();
-    let loop_sink = sink.clone();
-    spawn_runner(root, sink, move |cancel| api_loop(&config, model.as_ref(), &loop_sink, &cancel))
+    spawn_runner(root, sink, move |sink, cancel| api_loop(&config, model.as_ref(), &sink, &cancel))
 }

@@ -48,6 +48,7 @@ function StoryRow({
   onForget,
   onStop,
   waitUntil,
+  retrying = false,
 }: {
   item: RecentSummary;
   busy: boolean;
@@ -59,8 +60,9 @@ function StoryRow({
   onForget?: () => void;
   /** Có = truyện đang dịch, hiện nhãn + nút Dừng. */
   onStop?: () => void;
-  /** Hết quota agy: phiên đang chờ tới giờ này (ms epoch) rồi tự chạy tiếp. */
+  /** Hết quota agy (hoặc lỗi tạm khi `retrying`): phiên đang chờ tới giờ này (ms epoch) rồi tự chạy tiếp. */
   waitUntil?: number;
+  retrying?: boolean;
 }) {
   const done = live?.done ?? item.done ?? 0;
   const percent = item.total ? Math.round((done / item.total) * 100) : 0;
@@ -97,7 +99,9 @@ function StoryRow({
                       waitUntil ? "bg-status-warning/15 text-status-warning" : "bg-status-translating/15 text-status-translating",
                     )}
                   >
-                    {waitUntil
+                    {waitUntil && retrying
+                      ? `Lỗi tạm · thử lại lúc ${clockLabel(waitUntil)}`
+                      : waitUntil
                       ? `Chờ quota · tự dịch tiếp lúc ${clockLabel(waitUntil)}`
                       : `Đang dịch${live?.current ? ` · ${live.current}` : ""}`}
                   </span>
@@ -378,6 +382,7 @@ export function StoryPicker() {
       live: progress[pathKey(item.root)],
       onStop: () => void stop(item.root),
       waitUntil: session?.status === "running" ? session.waitUntil : undefined,
+      retrying: session?.status === "running" && session.retry !== undefined,
     };
   };
 

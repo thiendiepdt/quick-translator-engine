@@ -156,6 +156,33 @@ export function clockLabel(ms: number, now: number = Date.now()): string {
   return at.toDateString() === new Date(now).toDateString() ? time : `${time} ngày ${pad(at.getDate())}/${pad(at.getMonth() + 1)}`;
 }
 
+/** Dừng không phải vì xong hay người dùng bấm Dừng — cần hiện lý do bền trên thẻ truyện / toolbar. */
+export function isAbnormalStop(reason: StopReason): boolean {
+  return reason.kind !== "finished" && reason.kind !== "user_cancelled";
+}
+
+/** Lý do dừng rút gọn cho thẻ truyện hẹp; đầy đủ ở `stopReasonLabel`. */
+export function stopReasonBrief(reason: StopReason): string {
+  switch (reason.kind) {
+    case "finished":
+      return "dịch xong";
+    case "no_progress":
+      return "không chốt được chương";
+    case "agy_failed":
+      return `agy lỗi (mã ${reason.code})`;
+    case "api_failed":
+      return "lỗi API";
+    case "user_cancelled":
+      return "đã dừng";
+    case "max_sessions":
+      return "đủ số phiên tối đa";
+    case "quota_exhausted":
+      return "hết quota agy";
+    case "internal":
+      return "lỗi đọc/ghi file";
+  }
+}
+
 export function stopReasonLabel(reason: StopReason): string {
   switch (reason.kind) {
     case "finished":
@@ -163,7 +190,7 @@ export function stopReasonLabel(reason: StopReason): string {
     case "no_progress":
       return "Phiên vừa rồi không chốt thêm chương nào — đã dừng để khỏi đốt quota. Xem log và trạng thái chương.";
     case "agy_failed":
-      return `agy thoát lỗi (mã ${reason.code}) hai lần liên tiếp — kiểm tra đăng nhập/quota.`;
+      return `agy thoát lỗi (mã ${reason.code}) hai lần liên tiếp — kiểm tra đăng nhập, quota, mạng.`;
     case "api_failed":
       return `Gọi API lỗi — đã dừng, chương đang dịch trả về hàng đợi. ${reason.message}`;
     case "user_cancelled":

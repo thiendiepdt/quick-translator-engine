@@ -35,7 +35,7 @@ describe("useSessionEvents", () => {
     await waitFor(() => expect(handler).toBeDefined());
     handler?.({ payload: { root: B, type: "started", session_no: 3 } });
     handler?.({ payload: { root: B, type: "stopped", kind: "finished" } });
-    expect(sessionOf(useStoryStore.getState(), B)).toEqual({ status: "stopped", reason: { kind: "finished" } });
+    expect(sessionOf(useStoryStore.getState(), B)).toMatchObject({ status: "stopped", reason: { kind: "finished" } });
     expect(sessionOf(useStoryStore.getState(), A)).toEqual({ status: "idle" });
     expect(storySnapshot).not.toHaveBeenCalled(); // truyện B không phải truyện đang mở
 
@@ -43,7 +43,10 @@ describe("useSessionEvents", () => {
     handler?.({ payload: { root: "d:/lib/a/", type: "started", session_no: 1 } });
     handler?.({ payload: { root: "d:/lib/a/", type: "stopped", kind: "user_cancelled" } });
     await waitFor(() => expect(storySnapshot).toHaveBeenCalledWith(A));
-    expect(sessionOf(useStoryStore.getState(), A)).toEqual({ status: "stopped", reason: { kind: "user_cancelled" } });
+    expect(sessionOf(useStoryStore.getState(), A)).toMatchObject({
+      status: "stopped",
+      reason: { kind: "user_cancelled" },
+    });
 
     handler?.({ payload: { type: "started", session_no: 9 } }); // thiếu root → bỏ qua
     expect(Object.keys(useStoryStore.getState().sessions)).toHaveLength(2);

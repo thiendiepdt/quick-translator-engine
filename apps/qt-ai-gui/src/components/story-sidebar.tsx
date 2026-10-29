@@ -8,7 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { openStory as openStoryApi } from "@/lib/api";
 import { dockEntries, initials, issuesLabel } from "@/lib/dock";
 import { samePath } from "@/lib/paths";
-import { clockLabel } from "@/lib/types";
+import { clockLabel, stopReasonBrief, stopReasonLabel } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useStoryStore } from "@/store/story";
 
@@ -94,8 +94,12 @@ export function StorySidebar() {
         {visible.map((item) => {
           const label = item.name || item.root;
           const folder = item.root.replace(/[\\/]+$/, "").split(/[\\/]/).pop() ?? item.root;
-          const detail = item.waitUntil
+          const detail = item.retry && item.waitUntil
+            ? `Lỗi tạm (${stopReasonBrief(item.retry.reason)}) · thử lại lúc ${clockLabel(item.waitUntil)} (lần ${item.retry.attempt}/${item.retry.max})`
+            : item.waitUntil
             ? `Chờ quota agy · tự dịch tiếp lúc ${clockLabel(item.waitUntil)}`
+            : item.stop
+              ? `Đã dừng${item.stop.at ? ` lúc ${clockLabel(item.stop.at)}` : ""}: ${stopReasonLabel(item.stop.reason)}`
             : item.running
               ? `Đang dịch${item.currentChapter ? ` · ${item.currentChapter}` : ""}${item.percent !== undefined ? ` · ${item.percent}%` : ""}`
               : item.current
@@ -146,7 +150,7 @@ export function StorySidebar() {
                         </span>
                         {item.waitUntil ? (
                           <span className="shrink-0 text-[10px] tabular-nums text-status-warning">
-                            chờ {clockLabel(item.waitUntil)}
+                            {item.retry ? "thử lại" : "chờ"} {clockLabel(item.waitUntil)}
                           </span>
                         ) : (
                           <span className="shrink-0 text-[10px] tabular-nums text-status-translating">
@@ -156,6 +160,14 @@ export function StorySidebar() {
                       </span>
                     ) : (
                       <span className="truncate font-mono text-[10px] text-muted-foreground">{folder}</span>
+                    )}
+                    {item.stop && (
+                      <span className="flex items-center gap-1 text-[10px] leading-none font-medium text-status-error">
+                        <TriangleAlert className="size-3 shrink-0" aria-hidden />
+                        <span className="truncate">
+                          Dừng{item.stop.at ? ` ${clockLabel(item.stop.at)}` : ""}: {stopReasonBrief(item.stop.reason)}
+                        </span>
+                      </span>
                     )}
                     {flagged && (
                       <span

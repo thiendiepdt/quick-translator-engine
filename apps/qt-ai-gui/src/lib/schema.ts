@@ -246,6 +246,18 @@ export const countsSchema = z.object({
   withWarnings: z.number(),
 });
 
+export const stopReasonSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("finished") }),
+  z.object({ kind: z.literal("no_progress") }),
+  z.object({ kind: z.literal("agy_failed"), code: z.number() }),
+  z.object({ kind: z.literal("api_failed"), message: z.string() }),
+  z.object({ kind: z.literal("user_cancelled") }),
+  z.object({ kind: z.literal("max_sessions") }),
+  /** agy hết quota và không bật tự chạy lại; `reset_at` là ms epoch lúc quota mở lại. */
+  z.object({ kind: z.literal("quota_exhausted"), reset_at: z.number() }),
+  z.object({ kind: z.literal("internal"), message: z.string() }),
+]);
+
 export const storySnapshotSchema = z.object({
   root: z.string(),
   chapters: z.array(chapterRowSchema),
@@ -255,6 +267,8 @@ export const storySnapshotSchema = z.object({
   sessionRunning: z.boolean(),
   /** Độ lệch state.json ↔ out/ (Drive sync lệch) — chỉ có khi mở / quét lại / vừa đồng bộ; snapshot thường là null. */
   progressDrift: z.object({ untracked: z.number(), missing: z.number() }).nullable().optional(),
+  /** Lần dừng gần nhất ghi trong work/session-log.jsonl (`at` ms epoch) — lý do dừng sau khi mở lại app. */
+  lastStop: z.object({ at: z.number(), reason: stopReasonSchema }).nullable().optional(),
 });
 
 /** Event `story-checked`: quét nền sau khi mở truyện xong (kiểm tra VN + độ lệch tiến độ). */
@@ -464,17 +478,6 @@ export const progressSchema = z.object({
   current: z.string().nullable(),
 });
 
-export const stopReasonSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("finished") }),
-  z.object({ kind: z.literal("no_progress") }),
-  z.object({ kind: z.literal("agy_failed"), code: z.number() }),
-  z.object({ kind: z.literal("api_failed"), message: z.string() }),
-  z.object({ kind: z.literal("user_cancelled") }),
-  z.object({ kind: z.literal("max_sessions") }),
-  /** agy hết quota và không bật tự chạy lại; `reset_at` là ms epoch lúc quota mở lại. */
-  z.object({ kind: z.literal("quota_exhausted"), reset_at: z.number() }),
-  z.object({ kind: z.literal("internal"), message: z.string() }),
-]);
 
 // `Stopped(StopReason)` bên Rust là newtype trong enum tagged `type` → serde flatten biến thể trong:
 // {type:"stopped", kind:"agy_failed", code:3}. Các biến thể stopped cùng giá trị `type` nên không
@@ -496,6 +499,14 @@ export const sessionEventSchema = z.union([
   z.object({ type: z.literal("agy_log"), line: z.string(), stream: z.enum(["stdout", "stderr"]) }),
   /** Hết quota agy: phiên chờ tới `until` (ms epoch) rồi tự chạy tiếp. */
   z.object({ type: z.literal("quota_wait"), until: z.number() }),
+  /** Treo qua đêm: lỗi thoáng qua, phiên chờ tới `until` rồi thử lại (lần `attempt`/`max`). */
+  z.object({
+    type: z.literal("retry_wait"),
+    until: z.number(),
+    attempt: z.number(),
+    max: z.number(),
+    reason: stopReasonSchema,
+  }),
   stoppedEventSchema,
 ]);
 

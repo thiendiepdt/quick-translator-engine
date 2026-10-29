@@ -9,9 +9,17 @@ export type Page = "translate" | "story" | "vn" | "replace" | "export" | "settin
 
 export type SessionState =
   | { status: "idle" }
-  /** `waitUntil` (ms epoch): agy hết quota, phiên đang chờ tới giờ đó rồi tự chạy tiếp. */
-  | { status: "running"; sessionNo: number; waitUntil?: number }
-  | { status: "stopped"; reason: StopReason };
+  /** `waitUntil` (ms epoch): phiên đang chờ tới giờ đó rồi tự chạy tiếp — vì hết quota agy, hoặc (`retry`) vì lỗi
+   * thoáng qua lúc treo qua đêm. */
+  | { status: "running"; sessionNo: number; waitUntil?: number; retry?: RetryInfo }
+  /** `at` (ms epoch): lúc nhận event dừng. */
+  | { status: "stopped"; reason: StopReason; at?: number };
+
+export interface RetryInfo {
+  attempt: number;
+  max: number;
+  reason: StopReason;
+}
 
 export interface LogLine {
   seq: number;
@@ -143,9 +151,15 @@ export function applySessionEventPure(state: PerStory, root: string, event: Sess
       const lines = [...(state.logs[key] ?? NO_LOGS), { seq: logSeq, line: event.line, stream: event.stream }];
       return { roots, logs: { ...state.logs, [key]: lines.length > MAX_LOGS ? lines.slice(lines.length - MAX_LOGS) : lines } };
     }
+    case "retry_wait": {
+      const current = state.sessions[key];
+      const sessionNo = current?.status === "running" ? current.sessionNo : 0;
+      const retry = { attempt: event.attempt, max: event.max, reason: event.reason };
+      return { roots, sessions: { ...state.sessions, [key]: { status: "running", sessionNo, waitUntil: event.until, retry } } };
+    }
     case "stopped": {
       const { type: _type, ...reason } = event;
-      return { roots, sessions: { ...state.sessions, [key]: { status: "stopped", reason } } };
+      return { roots, sessions: { ...state.sessions, [key]: { status: "stopped", reason, at: Date.now() } } };
     }
   }
 }
