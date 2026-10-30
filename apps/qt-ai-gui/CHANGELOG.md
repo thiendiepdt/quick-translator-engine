@@ -1,6 +1,6 @@
 # Có gì mới
 
-## Chưa phát hành
+## 1.0.29 — 2026-10-30
 - Cảnh báo chương ngắn cho nền tảng đăng truyện (không nhận chương dưới 500 chữ, không tính tên chương): chip **Ngắn** ở danh sách chương, báo ở trang Export và trong khung đọc chương, kèm nút **Chèn cho đủ 500 chữ**. Cài đặt → **Chương ngắn** cho phép tự chèn văn mẫu hài hước (sửa được) hoặc lặp lại nội dung chương lúc chốt chương, từng đoạn nguyên vẹn tới khi vừa đủ; mặc định tắt. Phần chèn nằm cuối chương, bọc giữa hai dòng ❖❖❖❖❖❖❖❖❖❖ để tool khác tách được (kể cả khi gộp chương), và không bị Tìm & thay, rà glossary hay kiểm tra VN đụng tới.
 - Sửa lỗi thỉnh thoảng bấm Dịch thì báo “Truyện đang có phiên khác chạy (PID …)” dù không có phiên nào: gặp ở truyện đang dịch dở lúc app bị tắt ngang (tắt máy, crash, End task), khi Windows cấp lại số PID cũ cho một chương trình khác. App giờ nhận ra khoá cũ này và tự gỡ.
 - Thêm bảng **Tiến trình** (nút trên thanh bên trái, ở màn chọn truyện, và trên thanh công cụ của truyện): xem từng truyện đang có phiên dịch nào, agy nào đang chạy (RAM, CPU, chạy bao lâu) và ai đang giữ khoá phiên. Bấm Dừng mà treo thì **Kill** giết agy ngay; truyện báo “đang có phiên khác chạy” mà không có phiên nào thì **Gỡ khoá**, nhiều truyện kẹt khoá mồ côi một lúc (vd sau khi app bị tắt ngang) thì gỡ hết bằng một nút. agy sót lại sau khi app bị tắt ngang cũng hiện ra để kill; agy bạn tự chạy trong Antigravity IDE không bị đụng tới.
