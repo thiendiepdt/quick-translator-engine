@@ -253,14 +253,14 @@ export function ChapterReader({ root, row, ordinal, hasPrev, hasNext, onPrev, on
     }
   }
 
-  /** Chèn văn mẫu (hoặc lặp nội dung, theo Cài đặt) sau dòng ❖❖❖ cho đủ ngưỡng chữ của nền tảng đăng truyện. */
+  /** Chèn văn mẫu (hoặc lặp nội dung, theo Cài đặt) giữa hai dòng ❖❖❖ cho đủ ngưỡng chữ của nền tảng đăng truyện. */
   async function pad() {
     setPadding(true);
     try {
       const changed = await chapterPad(root, row.id);
       setLoaded({ key: viewKey, view: await readChapter(root, row.id) });
       void refreshShort(root);
-      toast.success(changed ? `Đã chèn cho đủ ${threshold} chữ — phần chèn nằm sau dòng ❖❖❖` : "Chương đã đủ chữ, không chèn gì");
+      toast.success(changed ? `Đã chèn cho đủ ${threshold} chữ — phần chèn nằm giữa hai dòng ❖❖❖` : "Chương đã đủ chữ, không chèn gì");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Không chèn được");
     } finally {
@@ -416,7 +416,7 @@ export function ChapterReader({ root, row, ordinal, hasPrev, hasNext, onPrev, on
                         variant="outline"
                         size="sm"
                         disabled={padding}
-                        title="Chèn văn mẫu (hoặc lặp nội dung chương, theo Cài đặt) sau dòng ❖❖❖ cho đủ chữ"
+                        title="Chèn văn mẫu (hoặc lặp nội dung chương, theo Cài đặt) giữa hai dòng ❖❖❖ cho đủ chữ"
                         onClick={() => void pad()}
                       >
                         <ListPlus /> Chèn cho đủ {threshold} chữ

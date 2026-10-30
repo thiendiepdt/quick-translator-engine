@@ -1,6 +1,6 @@
 //! Bù chữ cho chương ngắn: nền tảng đăng truyện không nhận chương dưới N chữ (không tính dòng tên chương). Chương
-//! thiếu được chèn thêm văn mẫu (hoặc lặp lại nội dung chương) sau một dòng ngăn `PADDING_MARKER`, từng đoạn nguyên
-//! vẹn tới khi đủ, nên chỉ vượt ngưỡng một chút.
+//! thiếu được chèn thêm văn mẫu (hoặc lặp lại nội dung chương) bọc giữa hai dòng ngăn `PADDING_MARKER` (gộp chương
+//! về sau thì tách phần chèn ra được), từng đoạn nguyên vẹn tới khi đủ, nên chỉ vượt ngưỡng một chút.
 //!
 //! Phần chèn nằm luôn trong `out/` (đăng thẳng file được). Mọi chỗ ghép đoạn bản dịch với đoạn raw (Tìm & thay, rà
 //! glossary chương cũ, kiểm tra VN) chỉ xét phần trước dòng ngăn (`translation_part`, `content_lines`) — phần chèn
@@ -10,7 +10,8 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Dòng ngăn giữa bản dịch và phần chèn — ký tự gần như không có trong truyện để tool khác so nguyên dòng mà tách.
+/// Dòng ngăn mở và đóng phần chèn — ký tự gần như không có trong truyện để tool khác so nguyên dòng mà tách. File
+/// chèn từ bản cũ chỉ có dòng mở: phần chèn kéo tới hết chương.
 pub const PADDING_MARKER: &str = "❖❖❖❖❖❖❖❖❖❖";
 pub const DEFAULT_THRESHOLD: usize = 500;
 /// Văn mẫu mặc định (người dùng viết). Đoạn cuối là câu kết, luôn được chèn sau cùng.
@@ -166,7 +167,7 @@ pub fn pad_chapter(text: &str, mode: PaddingMode, settings: &PaddingSettings) ->
             taken
         }
     };
-    Some(format!("{base}\n\n{PADDING_MARKER}\n\n{}\n", added.join("\n\n")))
+    Some(format!("{base}\n\n{PADDING_MARKER}\n\n{}\n\n{PADDING_MARKER}\n", added.join("\n\n")))
 }
 
 #[cfg(test)]
@@ -190,12 +191,12 @@ mod tests {
         let filler = "một hai ba bốn năm\n\nsáu bảy tám chín mười\n\nmười một mười hai\n\nHết.";
         let text = "Chương 1\n\nTa đi.\n";
         let padded = pad_chapter(text, PaddingMode::Filler, &settings(10, filler)).unwrap();
-        assert_eq!(padded, format!("Chương 1\n\nTa đi.\n\n{PADDING_MARKER}\n\nmột hai ba bốn năm\n\nsáu bảy tám chín mười\n\nHết.\n"));
+        assert_eq!(padded, format!("Chương 1\n\nTa đi.\n\n{PADDING_MARKER}\n\nmột hai ba bốn năm\n\nsáu bảy tám chín mười\n\nHết.\n\n{PADDING_MARKER}\n"));
         assert!(chapter_words(&padded) == 2, "đếm chữ chương không tính phần chèn");
         assert_eq!(published_words(&padded), 13, "nền tảng đếm cả phần chèn");
         // Chèn lại (đổi văn mẫu) thì thay phần chèn cũ, không chèn chồng.
         let again = pad_chapter(&padded, PaddingMode::Filler, &settings(10, "a b c d e f g h\n\nKết.")).unwrap();
-        assert_eq!(again, format!("Chương 1\n\nTa đi.\n\n{PADDING_MARKER}\n\na b c d e f g h\n\nKết.\n"));
+        assert_eq!(again, format!("Chương 1\n\nTa đi.\n\n{PADDING_MARKER}\n\na b c d e f g h\n\nKết.\n\n{PADDING_MARKER}\n"));
         // Văn mẫu ngắn hơn ngưỡng thì vòng lại từ đầu.
         let looped = pad_chapter(text, PaddingMode::Filler, &settings(12, "a b c\n\nKết.")).unwrap();
         assert_eq!(looped.matches("a b c").count(), 3);
@@ -205,7 +206,7 @@ mod tests {
     fn lap_noi_dung_chuong_va_chuong_du_chu_thi_go_phan_chen() {
         let text = "Chương 1\n\nmột hai ba\n\nbốn năm\n";
         let padded = pad_chapter(text, PaddingMode::Repeat, &settings(9, "")).unwrap();
-        assert_eq!(padded, format!("Chương 1\n\nmột hai ba\n\nbốn năm\n\n{PADDING_MARKER}\n\nmột hai ba\n\nbốn năm\n"));
+        assert_eq!(padded, format!("Chương 1\n\nmột hai ba\n\nbốn năm\n\n{PADDING_MARKER}\n\nmột hai ba\n\nbốn năm\n\n{PADDING_MARKER}\n"));
         assert_eq!(pad_chapter(text, PaddingMode::Repeat, &settings(5, "")), None, "đủ chữ thì không đổi");
         assert_eq!(pad_chapter(text, PaddingMode::Off, &settings(9, "")), None);
         // Sửa tay cho đủ chữ rồi bấm lại: gỡ phần chèn.
@@ -231,6 +232,8 @@ một hai ba bốn năm")).unwrap();
 {PADDING_MARKER}
 
 một hai ba bốn năm
+
+{PADDING_MARKER}
 "));
         assert_eq!(published_words(&padded), 502);
     }

@@ -100,7 +100,7 @@ export function PaddingSettingsEditor() {
         />
         <p className="text-xs text-muted-foreground">
           Mỗi đoạn cách nhau một dòng trống. App chèn từng đoạn nguyên vẹn theo thứ tự tới khi đủ ngưỡng, đoạn cuối là câu
-          kết luôn chèn sau cùng. Phần chèn nằm cuối chương, sau dòng <code>❖❖❖❖❖❖❖❖❖❖</code>. Chữ đếm như nền tảng: không
+          kết luôn chèn sau cùng. Phần chèn nằm cuối chương, bọc giữa hai dòng <code>❖❖❖❖❖❖❖❖❖❖</code> (gộp chương thì tách ra được). Chữ đếm như nền tảng: không
           tính dòng tên chương.
         </p>
       </div>

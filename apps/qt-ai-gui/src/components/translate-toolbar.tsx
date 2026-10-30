@@ -62,7 +62,7 @@ export function TranslateToolbar() {
     const count = short.words.size;
     if (
       !window.confirm(
-        `Chèn cho đủ ${short.threshold} chữ cả ${count} chương ngắn? Phần chèn theo Cài đặt → Chương ngắn (đang tắt thì dùng văn mẫu), nằm cuối chương sau dòng ❖❖❖❖❖❖❖❖❖❖.`,
+        `Chèn cho đủ ${short.threshold} chữ cả ${count} chương ngắn? Phần chèn theo Cài đặt → Chương ngắn (đang tắt thì dùng văn mẫu), nằm cuối chương giữa hai dòng ❖❖❖❖❖❖❖❖❖❖.`,
       )
     )
       return;

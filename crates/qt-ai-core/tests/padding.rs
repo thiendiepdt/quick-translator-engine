@@ -40,7 +40,7 @@ fn accepted_story() -> tempfile::TempDir {
 fn chot_chuong_ngan_thi_chen_van_mau_sau_dong_ngan() {
     let dir = accepted_story();
     let out = fs::read_to_string(dir.path().join("out").join("0001.txt")).unwrap();
-    assert_eq!(out, format!("Chương 1\n\nHắn đi rồi.\n\n{PADDING_MARKER}\n\nHắn chèn thêm năm chữ.\n\nHắn chèn thêm năm chữ.\n\nKết.\n"));
+    assert_eq!(out, format!("Chương 1\n\nHắn đi rồi.\n\n{PADDING_MARKER}\n\nHắn chèn thêm năm chữ.\n\nHắn chèn thêm năm chữ.\n\nKết.\n\n{PADDING_MARKER}\n"));
     assert_eq!(chapter_words(&out), 3);
 }
 
