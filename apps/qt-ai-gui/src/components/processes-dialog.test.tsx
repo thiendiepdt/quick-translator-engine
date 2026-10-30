@@ -78,6 +78,17 @@ describe("ProcessesDialog", () => {
     expect(lockRemove).toHaveBeenCalledWith(B);
   });
 
+  it("Gỡ hết chỉ gỡ khoá không còn ai dùng, chừa khoá tiến trình khác còn sống giữ", async () => {
+    const user = userEvent.setup();
+    const stale = (root: string) => ({ root, name: root, running: false, agy: [], lock: { pid: 24908, startedAt: 1, holder: "stale" as const, holderName: null } });
+    vi.mocked(processOverview).mockResolvedValue({ ...overview, stories: [...overview.stories, stale("D:\\lib\\c"), stale("D:\\lib\\d")] });
+    vi.mocked(lockRemove).mockResolvedValue(overview);
+    vi.spyOn(window, "confirm").mockReturnValueOnce(true);
+    render(<ProcessesDialog />);
+    await user.click(await screen.findByRole("button", { name: /Gỡ 2 khoá không dùng/ }));
+    expect(vi.mocked(lockRemove).mock.calls).toEqual([["D:\\lib\\c"], ["D:\\lib\\d"]]);
+  });
+
   it("mở từ truyện không kẹt gì thì nói rõ", async () => {
     useStoryStore.setState({ processes: { focus: "D:\\lib\\khac" } });
     render(<ProcessesDialog />);

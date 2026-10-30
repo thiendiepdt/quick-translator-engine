@@ -184,6 +184,26 @@ function ProcessesContent({ focus, onClose }: { focus: string | null; onClose: (
     void act(story.root, () => lockRemove(story.root), "Đã gỡ khoá");
   };
 
+  /** Khoá không còn ai dùng: mồ côi hoặc app này giữ sau khi phiên đã dừng. Khoá do tiến trình khác còn sống giữ
+   * phải gỡ từng cái (có cảnh báo riêng). */
+  const freeable = (overview?.stories ?? []).filter(
+    (story) => !story.running && (story.lock?.holder === "stale" || story.lock?.holder === "app"),
+  );
+
+  const unlockAll = () => {
+    if (!window.confirm(`Gỡ khoá phiên của ${freeable.length} truyện không còn phiên nào chạy?`)) return;
+    const roots = freeable.map((story) => story.root);
+    void act(
+      "all",
+      async () => {
+        let next: ProcessOverview | undefined;
+        for (const root of roots) next = await lockRemove(root);
+        return next ?? processOverview();
+      },
+      `Đã gỡ ${roots.length} khoá`,
+    );
+  };
+
   function title(story: StoryProcesses): string {
     return names[pathKey(story.root)] || story.name;
   }
@@ -201,6 +221,13 @@ function ProcessesContent({ focus, onClose }: { focus: string | null; onClose: (
             khi truyện báo “đang có phiên khác chạy” mà không có phiên nào.
           </DialogDescription>
         </DialogHeader>
+        {freeable.length > 1 && (
+          <div className="flex justify-end">
+            <Button size="sm" variant="outline" disabled={busy.all} onClick={unlockAll}>
+              {busy.all ? <LoaderCircle className="animate-spin" /> : <LockOpen />} Gỡ {freeable.length} khoá không dùng
+            </Button>
+          </div>
+        )}
         <div className="-mx-6 min-h-0 flex-1 overflow-y-auto px-6 fine-scrollbar">
           {error && <p className="mb-2 text-sm text-destructive">{error}</p>}
           {!overview && !error && (
