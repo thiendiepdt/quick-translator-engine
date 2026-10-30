@@ -48,11 +48,14 @@ pub struct ShortChapter {
 #[serde(rename_all = "camelCase")]
 pub struct ShortChapters {
     pub threshold: usize,
+    /// Cách tự bù lúc chốt chương — đang tắt thì toolbar gợi ý bật.
+    pub mode: PaddingMode,
     pub chapters: Vec<ShortChapter>,
 }
 
 /// Chương đã dịch dưới ngưỡng tính như nền tảng đếm (cả phần chèn, không tính tên chương), theo thứ tự chương.
-pub fn short_chapters_inner(root: &Path, threshold: usize) -> ShortChapters {
+pub fn short_chapters_inner(root: &Path, settings: &PaddingSettings) -> ShortChapters {
+    let threshold = settings.threshold;
     let chapters = translated_chapters(&story_paths(root))
         .into_iter()
         .filter_map(|(id, path)| {
@@ -60,13 +63,13 @@ pub fn short_chapters_inner(root: &Path, threshold: usize) -> ShortChapters {
             (words < threshold).then_some(ShortChapter { id, words })
         })
         .collect();
-    ShortChapters { threshold, chapters }
+    ShortChapters { threshold, mode: settings.mode, chapters }
 }
 
 /// Đọc mọi out/ của truyện (truyện 2.500 chương ~0,1–0,2 s) — chạy ngoài luồng IPC.
 #[tauri::command]
 pub async fn short_chapters(root: String) -> CmdResult<ShortChapters> {
-    blocking(move || Ok(short_chapters_inner(Path::new(&root), BaseStore::from_env().padding().threshold))).await
+    blocking(move || Ok(short_chapters_inner(Path::new(&root), &BaseStore::from_env().padding()))).await
 }
 
 /// Chèn cho đủ ngưỡng một chương theo cách bù trong cài đặt (đang tắt thì dùng văn mẫu). false khi chương đã đủ,
@@ -94,7 +97,7 @@ pub async fn chapter_pad(root: String, id: String) -> CmdResult<bool> {
 /// Chèn cho mọi chương ngắn của truyện (nút "Chèn cho cả N chương" trên toolbar). Trả số chương đã chèn.
 pub fn chapters_pad_all_inner(root: &Path, settings: &PaddingSettings) -> CmdResult<usize> {
     let mut padded = 0;
-    for chapter in short_chapters_inner(root, settings.threshold).chapters {
+    for chapter in short_chapters_inner(root, settings).chapters {
         if chapter_pad_inner(root, &chapter.id, settings)? {
             padded += 1;
         }
@@ -120,11 +123,12 @@ mod tests {
         fs::create_dir_all(&out).unwrap();
         fs::write(out.join("0001.txt"), "Chương 1\n\nmột hai ba bốn năm sáu\n").unwrap();
         fs::write(out.join("0002.txt"), "Chương 2\n\nmột hai\n").unwrap();
-        assert_eq!(short_chapters_inner(dir.path(), 5).chapters, vec![ShortChapter { id: "0002".into(), words: 2 }]);
         let settings = PaddingSettings { mode: PaddingMode::Off, threshold: 5, filler: "a b c d\n\nKết.".into() };
+        let found = short_chapters_inner(dir.path(), &settings);
+        assert_eq!((found.mode, found.chapters), (PaddingMode::Off, vec![ShortChapter { id: "0002".into(), words: 2 }]));
         assert!(chapter_pad_inner(dir.path(), "0002", &settings).unwrap());
         assert!(fs::read_to_string(out.join("0002.txt")).unwrap().contains(PADDING_MARKER), "tắt thì nút thủ công dùng văn mẫu");
-        assert!(short_chapters_inner(dir.path(), 5).chapters.is_empty());
+        assert!(short_chapters_inner(dir.path(), &settings).chapters.is_empty());
         assert!(!chapter_pad_inner(dir.path(), "0001", &settings).unwrap(), "đủ chữ thì không đổi");
         assert!(chapter_pad_inner(dir.path(), "0009", &settings).is_err());
     }
@@ -154,7 +158,7 @@ Kết.".into() };
 
 một hai ba bốn năm sáu
 ");
-        assert!(short_chapters_inner(dir.path(), 5).chapters.is_empty());
+        assert!(short_chapters_inner(dir.path(), &settings).chapters.is_empty());
         assert_eq!(chapters_pad_all_inner(dir.path(), &settings).unwrap(), 0);
     }
 }

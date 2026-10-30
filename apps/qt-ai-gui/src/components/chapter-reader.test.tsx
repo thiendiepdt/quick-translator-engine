@@ -38,7 +38,7 @@ describe("ChapterReader", () => {
   it("chương ngắn: báo số chữ và nút chèn cho đủ; chèn xong đọc lại chương", async () => {
     const user = userEvent.setup();
     const { chapterPad } = await import("@/lib/api");
-    const short = { threshold: 500, words: new Map([["0002", 17]]) };
+    const short = { threshold: 500, auto: false, words: new Map([["0002", 17]]) };
     useStoryStore.setState({ root: ROOT, short: { [pathKey(ROOT)]: short } });
     const view = { id: "0002", status: "done" as const, raw: "原文", rawMissing: false, output: "Chương 2\n\nNghỉ một ngày.", draft: null, review: null, warnings: [], reason: null };
     vi.mocked(readChapter).mockResolvedValueOnce({ ...view, outputWords: 17 }).mockResolvedValueOnce({ ...view, outputWords: 535 });

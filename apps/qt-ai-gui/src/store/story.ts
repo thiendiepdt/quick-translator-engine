@@ -49,6 +49,8 @@ export interface StoryIssues {
 /** Chương ngắn của một truyện: ngưỡng chữ đang đặt + số chữ từng chương dưới ngưỡng (ngưỡng 0 = chưa đọc). */
 export interface ShortInfo {
   threshold: number;
+  /** Cài đặt đang bật tự chèn lúc chốt chương. */
+  auto: boolean;
   words: Map<string, number>;
 }
 
@@ -182,7 +184,7 @@ export function runningRoots(state: Pick<PerStory, "sessions" | "roots">): strin
 }
 
 export const selectCurrentSession = (s: StoryState): SessionState => sessionOf(s, s.root);
-const NO_SHORT: ShortInfo = { threshold: 0, words: new Map() };
+const NO_SHORT: ShortInfo = { threshold: 0, auto: false, words: new Map() };
 export const selectCurrentShort = (s: StoryState): ShortInfo => (s.root ? (s.short[pathKey(s.root)] ?? NO_SHORT) : NO_SHORT);
 export const selectCurrentRunning = (s: StoryState): boolean => isRunning(s, s.root);
 export const selectCurrentProgress = (s: StoryState): Progress | undefined =>
@@ -294,7 +296,7 @@ export const useStoryStore = create<StoryState>()((set, get) => ({
     try {
       const found = await shortChapters(root);
       const words = new Map(found.chapters.map((item) => [item.id, item.words]));
-      set((state) => ({ short: { ...state.short, [pathKey(root)]: { threshold: found.threshold, words } } }));
+      set((state) => ({ short: { ...state.short, [pathKey(root)]: { threshold: found.threshold, auto: found.mode !== "off", words } } }));
     } catch {
       // Không đọc được thì giữ danh sách cũ; chip Ngắn chỉ là nhắc.
     }

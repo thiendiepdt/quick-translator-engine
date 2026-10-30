@@ -102,14 +102,14 @@ describe("TranslateToolbar · chương ngắn", () => {
     const user = userEvent.setup();
     vi.spyOn(window, "confirm").mockReturnValueOnce(true);
     vi.mocked(chaptersPadAll).mockReset().mockResolvedValue(2);
-    vi.mocked(shortChapters).mockReset().mockResolvedValue({ threshold: 500, chapters: [] });
+    vi.mocked(shortChapters).mockReset().mockResolvedValue({ threshold: 500, mode: "off", chapters: [] });
     useStoryStore.setState({
       config,
       root: ROOT,
       snapshot: undefined,
       statusFilter: "all",
       sessions: {},
-      short: { [pathKey(ROOT)]: { threshold: 500, words: new Map([["c1", 120], ["c2", 480]]) } },
+      short: { [pathKey(ROOT)]: { threshold: 500, auto: false, words: new Map([["c1", 120], ["c2", 480]]) } },
     });
     render(<TranslateToolbar />);
     await user.click(screen.getByRole("button", { name: "Lọc 2 chương ngắn" }));
@@ -118,6 +118,19 @@ describe("TranslateToolbar · chương ngắn", () => {
     expect(chaptersPadAll).toHaveBeenCalledWith(ROOT);
     await waitFor(() => expect(shortChapters).toHaveBeenCalledWith(ROOT));
     await waitFor(() => expect(screen.queryByRole("button", { name: /chương ngắn/ })).not.toBeInTheDocument());
+  });
+
+  it("tự chèn đang tắt thì gợi ý bật, bấm sang Cài đặt; đang bật thì không gợi ý", async () => {
+    const user = userEvent.setup();
+    const words = new Map([["c1", 120]]);
+    useStoryStore.setState({ config, root: ROOT, snapshot: undefined, sessions: {}, page: "translate", short: { [pathKey(ROOT)]: { threshold: 500, auto: false, words } } });
+    const { unmount } = render(<TranslateToolbar />);
+    await user.click(screen.getByRole("button", { name: "Bật tự chèn khi dịch" }));
+    expect(useStoryStore.getState().page).toBe("settings");
+    unmount();
+    useStoryStore.setState({ short: { [pathKey(ROOT)]: { threshold: 500, auto: true, words } } });
+    render(<TranslateToolbar />);
+    expect(screen.queryByRole("button", { name: "Bật tự chèn khi dịch" })).not.toBeInTheDocument();
   });
 });
 

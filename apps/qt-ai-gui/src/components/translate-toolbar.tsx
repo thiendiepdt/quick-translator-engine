@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { DeleteRangeDialog } from "@/components/delete-range-dialog";
+import { PADDING_CARD_ID } from "@/components/padding-settings-editor";
 import { RetryRangeDialog } from "@/components/retry-range-dialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -76,6 +77,12 @@ export function TranslateToolbar() {
     } finally {
       setPadding(false);
     }
+  }
+
+  /** Sang Cài đặt và cuộn tới thẻ Chương ngắn (trang mới render ở frame sau). */
+  function openPaddingSettings() {
+    setPage("settings");
+    requestAnimationFrame(() => document.getElementById(PADDING_CARD_ID)?.scrollIntoView({ block: "start" }));
   }
 
   function jumpTo(id: string) {
@@ -354,6 +361,16 @@ export function TranslateToolbar() {
             >
               {padding ? <LoaderCircle className="animate-spin" /> : <ListPlus />} Chèn cho cả {short.words.size} chương
             </Button>
+            {!short.auto && (
+              <button
+                type="button"
+                title="Cài đặt → Chương ngắn: bật tự chèn văn mẫu (hoặc lặp nội dung) lúc chốt chương, chương dịch sau không bị ngắn nữa"
+                onClick={openPaddingSettings}
+                className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+              >
+                Bật tự chèn khi dịch
+              </button>
+            )}
           </span>
         )}
         {translatingId && translatingOrdinal > 0 && (

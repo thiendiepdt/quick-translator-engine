@@ -14,7 +14,7 @@ import { PalettePicker } from "@/components/palette-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PaddingSettingsEditor } from "@/components/padding-settings-editor";
+import { PADDING_CARD_ID, PaddingSettingsEditor } from "@/components/padding-settings-editor";
 import { VnSettingsEditor } from "@/components/vn-settings-editor";
 import { ChangelogList } from "@/components/whats-new";
 import { useReadingWidth } from "@/hooks/use-reading-width";
@@ -64,9 +64,9 @@ const NUMERIC = new Set<keyof SettingsForm>([
   "minLengthRatio",
 ]);
 
-function Card({ title, description, children }: { title: string; description: string; children: ReactNode }) {
+function Card({ id, title, description, children }: { id?: string; title: string; description: string; children: ReactNode }) {
   return (
-    <section className="rounded-lg border bg-card p-5">
+    <section id={id} className="scroll-mt-4 rounded-lg border bg-card p-5">
       <h2 className="text-base font-semibold">{title}</h2>
       <p className="mb-4 text-sm text-muted-foreground">{description}</p>
       <div className="flex flex-col gap-4">{children}</div>
@@ -477,6 +477,7 @@ export function SettingsPage() {
             <VnSettingsEditor />
           </Card>
           <Card
+            id={PADDING_CARD_ID}
             title="Chương ngắn"
             description="Nền tảng đăng truyện không nhận chương dưới ngưỡng chữ. Chương ngắn được nhắc ở danh sách chương (chip Ngắn) và trang Export; có thể tự chèn văn mẫu hoặc lặp nội dung khi chốt chương. Dùng chung mọi truyện."
           >

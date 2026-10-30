@@ -20,6 +20,9 @@ const MODE_LABELS: Record<PaddingSettings["mode"], string> = {
  * Chương ngắn cho nền tảng đăng truyện: ngưỡng chữ, cách bù tự động lúc chốt chương, văn mẫu. Lưu base/padding.json
  * nên áp mọi truyện, cả phiên agy. Nút thủ công trong khung đọc chương dùng văn mẫu khi đang tắt.
  */
+/** id thẻ Chương ngắn trong Cài đặt — toolbar cuộn tới khi gợi ý bật tự chèn. */
+export const PADDING_CARD_ID = "padding-settings";
+
 export function PaddingSettingsEditor() {
   const [saved, setSaved] = useState<PaddingSettings>();
   const [draft, setDraft] = useState<PaddingSettings>();

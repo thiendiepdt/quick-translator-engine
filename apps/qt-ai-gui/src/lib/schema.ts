@@ -184,6 +184,7 @@ export const paddingSettingsSchema = z.object({
 /** Chương đã dịch dưới ngưỡng, số chữ tính như nền tảng đếm. */
 export const shortChaptersSchema = z.object({
   threshold: z.number(),
+  mode: z.enum(PADDING_MODES),
   chapters: z.array(z.object({ id: z.string(), words: z.number() })),
 });
 /** Bảng Tiến trình (Rust process_cmds): agy của app, khoá phiên theo truyện. */
