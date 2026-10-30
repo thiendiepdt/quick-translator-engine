@@ -1,4 +1,4 @@
-import { Activity, FileType, KeyRound, ListPlus, LoaderCircle, Play, RefreshCw, RotateCcw, Square, Trash2, TriangleAlert } from "lucide-react";
+import { Activity, ArrowRight, FileType, KeyRound, Lightbulb, ListPlus, LoaderCircle, Play, RefreshCw, RotateCcw, Square, Trash2, TriangleAlert } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -362,14 +362,19 @@ export function TranslateToolbar() {
               {padding ? <LoaderCircle className="animate-spin" /> : <ListPlus />} Chèn cho cả {short.words.size} chương
             </Button>
             {!short.auto && (
-              <button
-                type="button"
-                title="Cài đặt → Chương ngắn: bật tự chèn văn mẫu (hoặc lặp nội dung) lúc chốt chương, chương dịch sau không bị ngắn nữa"
-                onClick={openPaddingSettings}
-                className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-              >
-                Bật tự chèn khi dịch
-              </button>
+              // Lời nhắc là chữ thường, chỉ phần link (gạch chân, màu nhấn, mũi tên) bấm được.
+              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                <Lightbulb className="size-3" aria-hidden />
+                Tự chèn khi dịch đang tắt ·
+                <button
+                  type="button"
+                  title="Cài đặt → Chương ngắn: bật tự chèn văn mẫu (hoặc lặp nội dung) lúc chốt chương, chương dịch sau không bị ngắn nữa"
+                  onClick={openPaddingSettings}
+                  className="inline-flex items-center gap-0.5 font-medium text-primary underline underline-offset-2 hover:text-primary/80"
+                >
+                  Bật trong Cài đặt <ArrowRight className="size-3" aria-hidden />
+                </button>
+              </span>
             )}
           </span>
         )}

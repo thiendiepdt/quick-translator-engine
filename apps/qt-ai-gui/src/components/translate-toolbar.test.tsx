@@ -125,12 +125,12 @@ describe("TranslateToolbar · chương ngắn", () => {
     const words = new Map([["c1", 120]]);
     useStoryStore.setState({ config, root: ROOT, snapshot: undefined, sessions: {}, page: "translate", short: { [pathKey(ROOT)]: { threshold: 500, auto: false, words } } });
     const { unmount } = render(<TranslateToolbar />);
-    await user.click(screen.getByRole("button", { name: "Bật tự chèn khi dịch" }));
+    await user.click(screen.getByRole("button", { name: "Bật trong Cài đặt" }));
     expect(useStoryStore.getState().page).toBe("settings");
     unmount();
     useStoryStore.setState({ short: { [pathKey(ROOT)]: { threshold: 500, auto: true, words } } });
     render(<TranslateToolbar />);
-    expect(screen.queryByRole("button", { name: "Bật tự chèn khi dịch" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Bật trong Cài đặt" })).not.toBeInTheDocument();
   });
 });
 
