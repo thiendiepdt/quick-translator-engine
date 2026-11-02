@@ -22,7 +22,7 @@ quick-translator-engine/
 ├── crates/
 │   ├── qt-core/   # thư viện dịch đồng bộ
 │   ├── qt-cli/    # binary qt, stdin -> stdout
-│   ├── qt-api/    # binary qt-server, Axum HTTP API
+│   ├── qt-api/    # binary qt-server + qt-lite-server, Axum HTTP API
 │   ├── qt-lambda/ # native AWS Lambda entrypoint đầy đủ
 ├── deploy/
 │   ├── aws-lambda/       # SAM template, event và hướng dẫn deploy
@@ -112,6 +112,14 @@ dictionary custom được parse thành state riêng cho request. Mỗi lần d�
 
 Batch giữ thứ tự và xử lý lần lượt từng item để không làm đầy blocking pool trong một
 request. Xem schema tại [api.md](api.md).
+
+Binary thứ hai `qt-lite-server` dùng `qt_core::LiteEngine` và router
+`build_lite_router`: chỉ `vietphrase-one`, chỉ có `/health`, `/modes`, `/translate`,
+`/translate/batch`. Hai router dùng chung handler `/translate`, khác nhau ở backend
+(trait `TranslateBackend`). Trong qt-core, đường dịch có override được tách thành
+`LayeredBase`. `Engine` đi qua nó khi request có override; `LiteEngine` đi qua nó cho
+mọi request, với VietPhrase/Names nghĩa đầu lưu trong `CompactDict` (arena). Vì cùng
+một đường code, output hai engine trùng nhau.
 
 `/names/filter` thuần rules — server không gọi AI và không nhận API key nào. Tính năng
 AI của lọc tên chạy ở client: qt-web gọi thẳng DeepSeek/Gemini (hoặc proxy người dùng

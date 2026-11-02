@@ -23,6 +23,40 @@ QT_DATA_DIR=QT2025 QT_PORT=3000 cargo run -q -p qt-api --bin qt-server
 Server bind trên `0.0.0.0`. JSON body được giới hạn 5 MiB. Bản hiện tại không có TLS,
 authentication hay rate limit; không nên expose trực tiếp ra Internet.
 
+Cả hai binary server dùng allocator mimalloc. Lý do: glibc malloc giữ lại phần bộ nhớ
+đã free, nên RSS trên Linux chỉ tăng chứ không giảm. Bench trên Linux, 3 đợt × 16
+request đồng thời 190k ký tự rồi để server rảnh 15s: glibc giữ 1359 MB, mimalloc còn
+735 MB. Tốc độ dịch và lọc tên ngang hoặc nhanh hơn glibc.
+
+## `qt-lite-server` — quick convert
+
+Binary thứ hai, dành cho người tự host chỉ cần convert nhanh. Nó chỉ dịch
+`vietphrase-one` và có `/health`, `/modes`, `/translate`, `/translate/batch`, với
+request y hệt `qt-server`: vẫn nhận `dictionaries` (names, names2, luatNhan, pronouns…)
+và `dictionaryPatches`. Không có `/names/filter`, `/meanings` và
+`/dictionaries/defaults`: tên đã lọc thì client gửi kèm qua `dictionaries.names`, không
+gửi thì dùng Names.txt + Names2 mặc định. Gửi mode khác `vietphrase-one` sẽ nhận
+`400` `mode … is not supported by this server`.
+
+```bash
+QT_DATA_DIR=QT2025 QT_PORT=3000 cargo run -q --release -p qt-api --bin qt-lite-server
+```
+
+VietPhrase và Names chỉ giữ một bản nghĩa đầu, lưu dạng arena (mọi key/value nằm trong
+một chuỗi, bảng băm 8 byte/entry). Không nạp Lạc Việt và jieba. Output trùng từng byte
+với `vietphrase-one` của `qt-server`: đã so trên 2490 chương thật, cả có lẫn không có
+names/patch gửi kèm.
+
+| Đo trên Linux, QT2025 | `qt-server` | `qt-lite-server` |
+|---|---:|---:|
+| RSS lúc idle | 384 MB | 95 MB |
+| RSS sau 8 lần dịch + 5 lần lọc tên/dịch 190k ký tự | 505 MB | 147 MB |
+| RSS sau 3 × 16 request đồng thời, rảnh 15s | 735 MB | 338 MB |
+| Dịch 190k ký tự | ~700 ms | ~830 ms |
+
+Lite chậm hơn khoảng 8–20% vì phải tra Names và VietPhrase qua view thay vì một map gộp
+sẵn. Đây cũng là đường mà `qt-server` đi khi request gửi kèm names.
+
 ## Mode và option dùng chung
 
 | Field | Kiểu | Mặc định | Giá trị |

@@ -11,12 +11,18 @@ default = []
 name = "qt-server"
 path = "src/main.rs"
 
+[[bin]]
+name = "qt-lite-server"
+path = "src/bin/qt-lite-server.rs"
+
 [dependencies]
 qt-core = { path = "../qt-core" }
 axum = "0.7"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "sync", "time"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# Global allocator của hai binary server (khai báo trong từng main).
+mimalloc = { version = "0.1.52", default-features = false }
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }

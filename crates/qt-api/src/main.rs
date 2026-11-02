@@ -1,19 +1,19 @@
-use std::net::SocketAddr;
 use std::path::Path;
 use std::process::ExitCode;
 use std::sync::Arc;
 
-use qt_api::{build_router, AppState};
+use qt_api::{build_router, data_dir_from_env, serve, AppState};
 use qt_core::{Dictionaries, Engine};
+
+// mimalloc thay glibc malloc: glibc giữ lại bộ nhớ đã free theo từng arena
+// của thread nên RSS chỉ tăng (bench Linux: sau tải đồng thời 1383 MB so với
+// 696 MB), mà tốc độ dịch / lọc tên ngang hoặc nhanh hơn.
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 #[tokio::main]
 async fn main() -> ExitCode {
-    let data_dir = std::env::var("QT_DATA_DIR").unwrap_or_else(|_| "data".to_string());
-    let port: u16 = std::env::var("QT_PORT")
-        .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(3000);
-
+    let data_dir = data_dir_from_env();
     let (dicts, dictionary_defaults) = match Dictionaries::load_with_defaults(Path::new(&data_dir))
     {
         Ok(loaded) => loaded,
@@ -26,20 +26,5 @@ async fn main() -> ExitCode {
         engine: Arc::new(Engine::from_dicts(dicts)),
         dictionary_defaults: Arc::new(dictionary_defaults),
     });
-    let app = build_router(state);
-
-    let addr = SocketAddr::from(([0, 0, 0, 0], port));
-    let listener = match tokio::net::TcpListener::bind(addr).await {
-        Ok(l) => l,
-        Err(e) => {
-            eprintln!("error: failed to bind {addr}: {e}");
-            return ExitCode::FAILURE;
-        }
-    };
-    println!("qt-server listening on http://{addr} (data-dir: {data_dir})");
-    if let Err(e) = axum::serve(listener, app).await {
-        eprintln!("error: server failed: {e}");
-        return ExitCode::FAILURE;
-    }
-    ExitCode::SUCCESS
+    serve(build_router(state), "qt-server", &data_dir).await
 }

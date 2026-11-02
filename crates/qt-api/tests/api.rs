@@ -5,20 +5,17 @@ use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
 use tower::ServiceExt; // for `oneshot`
 
-use qt_api::{build_router, AppState};
-use qt_core::{Dictionaries, DictionaryDefaults, Engine};
+use qt_api::{build_lite_router, build_router, AppState, LiteAppState};
+use qt_core::{Dictionaries, DictionaryDefaults, Engine, LiteEngine};
+
+const TEST_HAN_VIET: &str = "他=tha\n很=ngận\n好=hảo\n红=hồng\n中=trung\n人=nhân\n甲=giáp\n乙=ất\n丙=bính\n丁=đinh\n格=cách\n尔=nhĩ\n斯=tư\n泰=thái\n特=đặc\n在=tại\n身=thân\n后=hậu\n张=trương\n先=tiên\n生=sinh";
+const TEST_NAMES: &str = "丁格尔斯泰特=Dingelstedt\n中人=trung nhân";
+const TEST_VIETPHRASE: &str = "很好=rất tốt/rất ổn\n红中人=cả cụm\n甲乙=A\n乙丙丁=B";
 
 fn test_state() -> Arc<AppState> {
     // Tiny engine: enough for routing/handler tests.
-    let d = Dictionaries::build(
-        "他=tha\n很=ngận\n好=hảo\n红=hồng\n中=trung\n人=nhân\n甲=giáp\n乙=ất\n丙=bính\n丁=đinh\n格=cách\n尔=nhĩ\n斯=tư\n泰=thái\n特=đặc\n在=tại\n身=thân\n后=hậu\n张=trương\n先=tiên\n生=sinh",
-        "丁格尔斯泰特=Dingelstedt\n中人=trung nhân",
-        "",
-        "很好=rất tốt/rất ổn\n红中人=cả cụm\n甲乙=A\n乙丙丁=B",
-    )
-    .with_lac_viet(
-        "金=✚[jīn] Hán Việt: KIM\\n\\t1. vàng\n美=✚[měi] Hán Việt: MĨ\\n\\t1. đẹp",
-    );
+    let d = Dictionaries::build(TEST_HAN_VIET, TEST_NAMES, "", TEST_VIETPHRASE)
+        .with_lac_viet("金=✚[jīn] Hán Việt: KIM\\n\\t1. vàng\n美=✚[měi] Hán Việt: MĨ\\n\\t1. đẹp");
     Arc::new(AppState {
         engine: Arc::new(Engine::from_dicts(d)),
         dictionary_defaults: Arc::new(DictionaryDefaults {
@@ -918,4 +915,152 @@ async fn name_filter_rejects_out_of_range_options() {
     assert!(body_string(resp)
         .await
         .contains("maxCandidates must be between 1 and 1000"));
+}
+
+// ---- qt-lite-server ----
+
+fn lite_state() -> Arc<LiteAppState> {
+    // Cùng dữ liệu với `test_state` để so output hai server.
+    let engine = LiteEngine::build(
+        TEST_HAN_VIET,
+        TEST_NAMES,
+        "",
+        TEST_VIETPHRASE,
+        "",
+        "",
+        "",
+        "",
+        "",
+    )
+    .unwrap();
+    Arc::new(LiteAppState {
+        engine: Arc::new(engine),
+    })
+}
+
+async fn get_path(app: axum::Router, uri: &str) -> axum::response::Response {
+    app.oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
+        .await
+        .unwrap()
+}
+
+#[tokio::test]
+async fn lite_translate_matches_full_server_one_meaning() {
+    let requests = [
+        serde_json::json!({ "text": "他很好" }),
+        serde_json::json!({ "text": "丁格尔斯泰特很好，红中人", "pretty": false, "ranges": true }),
+        serde_json::json!({ "text": "甲乙丙丁", "mode": "vietphrase-one", "wrap": true }),
+        serde_json::json!({
+            "text": "张先生在他身后很好",
+            "ranges": true,
+            "dictionaries": {
+                "names": "张先生=Trương tiên sinh/ông Trương",
+                "luatNhan": "在{n}身后=sau lưng {n}",
+                "pronouns": "他=hắn"
+            },
+            "dictionaryPatches": {
+                "vietPhrase": { "很好": "ổn lắm/rất ổn" },
+                "chinesePhienAmWords": { "好": "HẢO" }
+            }
+        }),
+    ];
+    for request in requests {
+        let full = post_json(build_router(test_state()), "/translate", request.clone()).await;
+        let lite = post_json(
+            build_lite_router(lite_state()),
+            "/translate",
+            request.clone(),
+        )
+        .await;
+        assert_eq!(full.status(), StatusCode::OK);
+        assert_eq!(lite.status(), StatusCode::OK);
+        assert_eq!(
+            body_string(lite).await,
+            body_string(full).await,
+            "{request}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn lite_batch_applies_names_and_patches_to_every_text() {
+    let resp = post_json(
+        build_lite_router(lite_state()),
+        "/translate/batch",
+        serde_json::json!({
+            "texts": ["张先生很好", "很好"],
+            "pretty": false,
+            "dictionaries": { "names": "张先生=Trương tiên sinh" },
+            "dictionaryPatches": { "vietPhrase": { "很好": "ổn lắm/rất ổn" } }
+        }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(
+        body_string(resp).await,
+        r#"{"translated":[" Trương tiên sinh ổn lắm"," ổn lắm"]}"#
+    );
+}
+
+#[tokio::test]
+async fn lite_rejects_modes_other_than_vietphrase_one() {
+    for mode in ["vietphrase", "hanviet"] {
+        let resp = post_json(
+            build_lite_router(lite_state()),
+            "/translate",
+            serde_json::json!({ "text": "他", "mode": mode }),
+        )
+        .await;
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+        assert!(body_string(resp)
+            .await
+            .contains(&format!("mode {mode} is not supported by this server")));
+    }
+    let resp = post_json(
+        build_lite_router(lite_state()),
+        "/translate/batch",
+        serde_json::json!({ "texts": ["他"], "mode": "hanviet" }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    let resp = post_json(
+        build_lite_router(lite_state()),
+        "/translate",
+        serde_json::json!({ "text": "他", "mode": "bogus" }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    assert!(body_string(resp).await.contains("invalid mode: bogus"));
+}
+
+#[tokio::test]
+async fn lite_lists_one_mode_and_has_no_heavy_routes() {
+    let resp = get_path(build_lite_router(lite_state()), "/modes").await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(body_string(resp).await, r#"{"modes":["vietphrase-one"]}"#);
+    let resp = get_path(build_lite_router(lite_state()), "/health").await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    let resp = get_path(build_lite_router(lite_state()), "/dictionaries/defaults").await;
+    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    for uri in ["/names/filter", "/meanings"] {
+        let resp = post_json(
+            build_lite_router(lite_state()),
+            uri,
+            serde_json::json!({ "text": "张先生" }),
+        )
+        .await;
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND, "{uri}");
+    }
+}
+
+#[tokio::test]
+async fn lite_rejects_invalid_request_luat_nhan() {
+    let resp = post_json(
+        build_lite_router(lite_state()),
+        "/translate",
+        serde_json::json!({ "text": "他", "dictionaries": { "luatNhan": "([{n}=invalid" } }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    assert!(body_string(resp).await.contains("invalid LuatNhan rule"));
 }

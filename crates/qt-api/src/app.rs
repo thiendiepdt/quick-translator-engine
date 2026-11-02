@@ -13,9 +13,9 @@ use serde_json::json;
 
 use qt_core::{
     CharRange, DictionaryDefaults, DictionaryOverrides, DictionaryPatches,
-    DictionarySourceOverrides, Engine, Mode, NameCandidate, NameCandidateSource, NameEntityType,
-    NameFilterDocument, NameFilterMemory, NameFilterMode, NameFilterOptions, Options,
-    TranslationResult,
+    DictionarySourceOverrides, Engine, LiteEngine, Mode, NameCandidate, NameCandidateSource,
+    NameEntityType, NameFilterDocument, NameFilterMemory, NameFilterMode, NameFilterOptions,
+    Options, TranslationResult,
 };
 
 use crate::name_entities::{entity_type_name, parse_entity_type, AiExtractedEntity};
@@ -44,11 +44,84 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/modes", get(modes))
         .route("/dictionaries/defaults", get(dictionary_defaults))
         .route("/meanings", post(meanings))
-        .route("/translate", post(translate))
-        .route("/translate/batch", post(translate_batch))
+        .route("/translate", post(translate::<AppState>))
+        .route("/translate/batch", post(translate_batch::<AppState>))
         .route("/names/filter", post(filter_names))
         .with_state(state)
         .layer(DefaultBodyLimit::max(MAX_REQUEST_BODY_BYTES))
+}
+
+/// State of `qt-lite-server`: VietPhrase-one-meaning only, compact storage.
+pub struct LiteAppState {
+    pub engine: Arc<LiteEngine>,
+}
+
+/// Router of `qt-lite-server`: the same `/translate` and `/translate/batch`
+/// contract as [`build_router`] (dictionary overrides and patches included),
+/// restricted to `vietphrase-one`. No name filter, Lạc Việt meanings, or raw
+/// dictionary defaults.
+pub fn build_lite_router(state: Arc<LiteAppState>) -> Router {
+    Router::new()
+        .route("/health", get(health))
+        .route("/modes", get(lite_modes))
+        .route("/translate", post(translate::<LiteAppState>))
+        .route("/translate/batch", post(translate_batch::<LiteAppState>))
+        .with_state(state)
+        .layer(DefaultBodyLimit::max(MAX_REQUEST_BODY_BYTES))
+}
+
+/// The engine behind `/translate` and `/translate/batch`.
+trait TranslateBackend: Send + Sync + 'static {
+    fn supports(&self, mode: Mode) -> bool;
+
+    fn translate(
+        &self,
+        text: &str,
+        mode: Mode,
+        opts: &Options,
+        overrides: Option<&DictionaryOverrides>,
+    ) -> Result<TranslationResult, String>;
+}
+
+impl TranslateBackend for AppState {
+    fn supports(&self, _mode: Mode) -> bool {
+        true
+    }
+
+    fn translate(
+        &self,
+        text: &str,
+        mode: Mode,
+        opts: &Options,
+        overrides: Option<&DictionaryOverrides>,
+    ) -> Result<TranslationResult, String> {
+        match overrides {
+            Some(overrides) => self
+                .engine
+                .translate_with_ranges_and_overrides(text, mode, opts, overrides)
+                .map_err(|error| error.to_string()),
+            None => Ok(self.engine.translate_with_ranges(text, mode, opts)),
+        }
+    }
+}
+
+impl TranslateBackend for LiteAppState {
+    fn supports(&self, mode: Mode) -> bool {
+        mode == Mode::VietPhraseOneMeaning
+    }
+
+    fn translate(
+        &self,
+        text: &str,
+        _mode: Mode,
+        opts: &Options,
+        overrides: Option<&DictionaryOverrides>,
+    ) -> Result<TranslationResult, String> {
+        let defaults = DictionaryOverrides::default();
+        self.engine
+            .translate_with_ranges(text, opts, overrides.unwrap_or(&defaults))
+            .map_err(|error| error.to_string())
+    }
 }
 
 async fn health() -> Json<serde_json::Value> {
@@ -405,6 +478,19 @@ fn requested_mode(mode: Option<&str>) -> Result<Mode, ApiError> {
     parse_mode(mode).ok_or_else(|| ApiError::bad_request(format!("invalid mode: {mode}")))
 }
 
+/// [`requested_mode`] plus the backend's own restriction (lite: one mode).
+fn supported_mode(backend: &impl TranslateBackend, mode: Option<&str>) -> Result<Mode, ApiError> {
+    let parsed = requested_mode(mode)?;
+    if backend.supports(parsed) {
+        Ok(parsed)
+    } else {
+        let mode = mode.unwrap_or(DEFAULT_TRANSLATE_MODE);
+        Err(ApiError::bad_request(format!(
+            "mode {mode} is not supported by this server"
+        )))
+    }
+}
+
 /// Presentation-only normalization: trim leading whitespace, uppercase first char.
 fn prettify(s: &str) -> String {
     let t = s.trim_start();
@@ -454,8 +540,8 @@ fn prettify_result(mut result: TranslationResult) -> TranslationResult {
 }
 
 /// Run one translation off the async runtime (engine is synchronous/CPU-bound).
-async fn run_translate(
-    engine: Arc<Engine>,
+async fn run_translate<B: TranslateBackend>(
+    backend: Arc<B>,
     text: String,
     mode: Mode,
     opts: Options,
@@ -463,12 +549,7 @@ async fn run_translate(
     dictionaries: Option<Arc<DictionaryOverrides>>,
 ) -> Result<TranslationResult, ApiError> {
     tokio::task::spawn_blocking(move || {
-        let out = match dictionaries {
-            Some(dictionaries) => engine
-                .translate_with_ranges_and_overrides(&text, mode, &opts, &dictionaries)
-                .map_err(|error| error.to_string()),
-            None => Ok(engine.translate_with_ranges(&text, mode, &opts)),
-        }?;
+        let out = backend.translate(&text, mode, &opts, dictionaries.as_deref())?;
         Ok(if pretty { prettify_result(out) } else { out })
     })
     .await
@@ -532,6 +613,10 @@ fn request_options(
 
 async fn modes() -> Json<serde_json::Value> {
     Json(json!({ "modes": ["hanviet", "vietphrase", "vietphrase-one"] }))
+}
+
+async fn lite_modes() -> Json<serde_json::Value> {
+    Json(json!({ "modes": [DEFAULT_TRANSLATE_MODE] }))
 }
 
 async fn filter_names(
@@ -927,11 +1012,11 @@ fn utf16_range_to_bytes(text: &str, range: CharRange) -> Option<(usize, usize)> 
     Some((byte_start?, byte_end?))
 }
 
-async fn translate_batch(
-    State(state): State<Arc<AppState>>,
+async fn translate_batch<B: TranslateBackend>(
+    State(state): State<Arc<B>>,
     Json(req): Json<BatchReq>,
 ) -> Result<Json<BatchResp>, ApiError> {
-    let mode = requested_mode(req.mode.as_deref())?;
+    let mode = supported_mode(state.as_ref(), req.mode.as_deref())?;
     let options = request_options(
         req.wrap,
         req.scan_range,
@@ -944,7 +1029,7 @@ async fn translate_batch(
     let mut target_ranges = req.ranges.then(|| Vec::with_capacity(req.texts.len()));
     for text in req.texts {
         let out = run_translate(
-            state.engine.clone(),
+            state.clone(),
             text,
             mode,
             options,
@@ -967,11 +1052,11 @@ async fn translate_batch(
     }))
 }
 
-async fn translate(
-    State(state): State<Arc<AppState>>,
+async fn translate<B: TranslateBackend>(
+    State(state): State<Arc<B>>,
     Json(req): Json<TranslateReq>,
 ) -> Result<Json<TranslateResp>, ApiError> {
-    let mode = requested_mode(req.mode.as_deref())?;
+    let mode = supported_mode(state.as_ref(), req.mode.as_deref())?;
     let options = request_options(
         req.wrap,
         req.scan_range,
@@ -980,7 +1065,7 @@ async fn translate(
     )?;
     let dictionaries = prepare_dictionaries(req.dictionaries, req.dictionary_patches).await?;
     let out = run_translate(
-        state.engine.clone(),
+        state.clone(),
         req.text,
         mode,
         options,

@@ -128,6 +128,14 @@ curl -X POST http://localhost:3000/translate \
   -d '{"text":"萧炎看着她。","mode":"vietphrase-one","dictionaries":{"names":"萧炎=Tiêu Viêm","pronouns":"她=nàng"}}'
 ```
 
+Tự host mà chỉ cần convert nhanh thì dùng `qt-lite-server`. Nó chỉ dịch `vietphrase-one`,
+không có lọc tên, tên gửi kèm request; RAM idle khoảng 95 MB so với 384 MB của
+`qt-server`. Xem [docs/api.md](docs/api.md#qt-lite-server--quick-convert).
+
+```bash
+QT_DATA_DIR=QT2025 QT_PORT=3000 cargo run -q --release -p qt-api --bin qt-lite-server
+```
+
 Server hiện bind `0.0.0.0`, giới hạn JSON body ở 5 MiB nhưng không có authentication hay
 rate limit. Chỉ nên dùng trong mạng tin cậy hoặc đặt sau reverse proxy có các lớp bảo vệ
 phù hợp; xem [SECURITY.md](SECURITY.md).
@@ -191,7 +199,7 @@ cargo run --release -p qt-core --example name_filter_bench -- \
 ```text
 crates/qt-core/   Engine và public Rust API
 crates/qt-cli/    Binary qt
-crates/qt-api/    Binary qt-server và HTTP handlers
+crates/qt-api/    Binary qt-server, qt-lite-server và HTTP handlers
 crates/qt-lambda/ Native AWS Lambda entrypoint
 apps/qt-web/      React web app dịch và đối chiếu theo range
 apps/qt-gui/      Tauri desktop app chạy qt-core trực tiếp, không qua HTTP

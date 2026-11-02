@@ -170,6 +170,10 @@ pub(crate) struct KeyLenIndex(FxHashMap<char, u8>);
 
 impl KeyLenIndex {
     pub(crate) fn from_keys<'a>(keys: impl IntoIterator<Item = &'a String>) -> Self {
+        Self::from_str_keys(keys.into_iter().map(String::as_str))
+    }
+
+    pub(crate) fn from_str_keys<'a>(keys: impl IntoIterator<Item = &'a str>) -> Self {
         let mut index: FxHashMap<char, u8> = FxHashMap::default();
         for key in keys {
             let mut chars = key.chars();
@@ -244,19 +248,39 @@ pub struct Dictionaries {
 /// it must not skip '#'. The LuatNhan loader applies its own '#'-skipping.
 /// See docs/engine/dictionaries.md §2.
 pub fn parse_dict(content: &str) -> Vec<(String, String)> {
-    let mut out = Vec::new();
-    for (i, raw) in content.lines().enumerate() {
+    parse_dict_borrowed(content)
+        .map(|(key, value)| (key.to_string(), value.to_string()))
+        .collect()
+}
+
+/// [`parse_dict`] without allocating: yields slices of `content`. Loaders
+/// that copy entries into their own storage use this to avoid a transient
+/// `Vec<(String, String)>` of the whole file.
+pub(crate) fn parse_dict_borrowed(content: &str) -> impl Iterator<Item = (&str, &str)> {
+    content.lines().enumerate().filter_map(|(i, raw)| {
         let line = if i == 0 {
             raw.trim_start_matches('\u{feff}')
         } else {
             raw
         };
-        let parts: Vec<&str> = line.split('=').collect();
-        if parts.len() == 2 {
-            out.push((parts[0].to_string(), parts[1].to_string()));
+        let mut parts = line.split('=');
+        match (parts.next(), parts.next(), parts.next()) {
+            (Some(key), Some(value), None) => Some((key, value)),
+            _ => None,
+        }
+    })
+}
+
+/// ChinesePhienAmWords: single-character keys only, first-wins.
+pub(crate) fn parse_han_viet(source: &str) -> HanVietMap {
+    let mut han_viet = HanVietMap::default();
+    for (key, value) in parse_dict_borrowed(source) {
+        let mut chars = key.chars();
+        if let (Some(ch), None) = (chars.next(), chars.next()) {
+            han_viet.entry(ch).or_insert_with(|| value.to_string());
         }
     }
-    out
+    han_viet
 }
 
 impl Dictionaries {
@@ -268,13 +292,7 @@ impl Dictionaries {
         names2_src: &str,
         vietphrase_src: &str,
     ) -> Dictionaries {
-        let mut han_viet = HanVietMap::default();
-        for (k, v) in parse_dict(han_viet_src) {
-            let mut it = k.chars();
-            if let (Some(c), None) = (it.next(), it.next()) {
-                han_viet.entry(c).or_insert(v); // first-wins
-            }
-        }
+        let han_viet = parse_han_viet(han_viet_src);
 
         // Names: first-wins into only_name; Names2: OVERRIDE (indexer assignment),
         // but within Names2 itself the FIRST occurrence of a duplicate key wins
@@ -391,7 +409,7 @@ impl Dictionaries {
     }
 }
 
-fn first_wins_map(source: &str) -> FxHashMap<String, String> {
+pub(crate) fn first_wins_map(source: &str) -> FxHashMap<String, String> {
     let mut dictionary = FxHashMap::default();
     for (key, value) in parse_dict(source) {
         dictionary.entry(key).or_insert(value);
@@ -418,11 +436,11 @@ fn first_wins_scan_map(source: &str) -> FxHashMap<String, String> {
 /// Longest dictionary key the translation scan will ever probe.
 pub const MAX_TRANSLATE_KEY_CHARACTERS: usize = 15;
 
-fn within_scan_window(key: &str) -> bool {
+pub(crate) fn within_scan_window(key: &str) -> bool {
     key.chars().count() <= MAX_TRANSLATE_KEY_CHARACTERS
 }
 
-fn parse_ignored_chinese_phrases(source: &str) -> Vec<String> {
+pub(crate) fn parse_ignored_chinese_phrases(source: &str) -> Vec<String> {
     source
         .lines()
         .enumerate()
@@ -437,7 +455,7 @@ fn parse_ignored_chinese_phrases(source: &str) -> Vec<String> {
         .collect()
 }
 
-fn parse_luat_nhan(source: &str) -> Vec<(String, String)> {
+pub(crate) fn parse_luat_nhan(source: &str) -> Vec<(String, String)> {
     let mut seen = HashSet::new();
     let mut rules = Vec::new();
     for (index, raw) in source.lines().enumerate() {
