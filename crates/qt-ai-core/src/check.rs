@@ -431,6 +431,11 @@ pub const RAW_PAIR_RULES: &[RawPairRule] = &[
     pair("藏着掖着", None, "giấu đầu lòi đuôi", "藏着掖着 → giấu giấu giếm giếm, không giấu đầu lòi đuôi"),
     pair("(?<![巨鱼矮兽半蛇狼羽魔亚])人族", None, r"(?<!\p{L})người tộc(?!\p{L})", "人族 → Nhân tộc, không dịch người tộc"),
     RawPairRule { advisory: true, ..pair("呵", Some("哼|呵斥"), r"(?<!\p{L})hừ(?!\p{L})", "呵 là cười khẩy / cười nhạt → Ha / Hà / Hề hề, không Hừ") },
+    pair("不过", None, r"(?<!\p{L})bất quá(?!\p{L})", "不过 → nhưng / có điều / chẳng qua (不过三天 → không quá ba ngày), không bất quá"),
+    pair("气场", None, r"(?<!\p{L})khí tràng(?!\p{L})", "气场 → khí thế / khí chất / uy thế, không khí tràng"),
+    pair("委屈", None, r"(?<!\p{L})(?:ủy|uỷ) khuất(?!\p{L})", "委屈 → ấm ức / tủi thân / oan ức / thiệt thòi theo cảnh, không ủy khuất"),
+    pair("为什么", Some("为了什么"), r"(?<!\p{L})vì cái gì(?!\p{L})", "为什么 → tại sao / vì sao, không vì cái gì"),
+    RawPairRule { advisory: true, ..pair("[我他她]叫|名叫", None, r"(?<!\p{L})(?:ta|tôi|hắn|nàng|cô|y) gọi là(?!\p{L})", "我叫 X (tự giới thiệu) → tên là X, không gọi là X") },
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]

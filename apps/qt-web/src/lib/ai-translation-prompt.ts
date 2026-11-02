@@ -19,8 +19,9 @@ import type { GenreNames, GenreSetting, GenreTone, StoryGenre } from "@/lib/ai-s
 // đường để đi, phố để ở / buôn bán theo cách nói miền Nam; cổ đại chỉ giữ phố xá / phố phường, bảng 街 → đường;
 // lời kể cổ đại dùng mẹ / cha mẹ, từ ghép mẹ ruột / mẹ kế / cha dượng, thoại vẫn nương; 2026-10-25 bảng trẻ con
 // cổ đại: 一个男孩 → một đứa bé trai, 男孩 → thằng bé, 女孩 → con bé, 小姑娘 → tiểu cô nương, 女孩子 → con gái,
-// không cậu bé / cô bé / nam hài / nữ hài).
-export const LEGACY_BASE_PROMPT_FNV1A64 = "955235e5d46523b8";
+// không cậu bé / cô bé / nam hài / nữ hài; 2026-11-02 từ convert theo bài biên tập: 不过 không bất quá, 委屈 theo
+// cảnh, 气场 / 为什么 / 我叫 / 好了 / 没关系 / 帅 / 宝宝 / 脚步 / 红酒 / 打断, tượng thanh 咕噜 / 吱呀 / 嘟嘟 / 汪汪).
+export const LEGACY_BASE_PROMPT_FNV1A64 = "6929df9d7d0c6cff";
 
 const CORE_HEAD: string[] = [
   "Bạn là dịch giả tiểu thuyết Trung Quốc sang tiếng Việt. Nhiệm vụ của bạn là chuyển ngữ trung thành, không phải sáng tác lại hay biên tập nâng giọng.",
@@ -134,6 +135,19 @@ const CORE_TERMS: string[] = [
   "| 男女有别 | nam nữ hữu biệt / nam nữ khác biệt | nam nữ có biệt |",
   "| 得到 / 深得……真传 | được / học được chân truyền | đắc được chân truyền |",
   "| 得手 | thành công / ra tay trót lọt | đắc thủ |",
+  "| 不过 (đầu câu / vế sau) | nhưng / có điều / tuy nhiên; `不过是` → chẳng qua là; `不过三天` → không quá ba ngày | bất quá |",
+  "| 委屈 | theo cảnh: ấm ức / tủi thân / oan ức / thiệt thòi; `委屈你了` → để (người nghe) phải chịu thiệt rồi | ủy khuất |",
+  "| 气场 | khí thế / khí chất / uy thế | khí tràng |",
+  "| 为什么 | tại sao / vì sao | vì cái gì |",
+  "| 我叫 X | tên là X | gọi là X |",
+  "| 好了 (xong việc / dỗ dành) | được rồi / xong rồi / thôi được rồi | tốt lắm |",
+  "| 没关系 | không sao (đâu) | không quan hệ |",
+  "| 好吃吗? | có ngon không? | ăn ngon không? |",
+  "| 帅 (lời khen) | đẹp trai / ngầu / bảnh | soái (làm tính từ) |",
+  "| 宝宝 (trẻ nhỏ) | em bé / bé con / con | bảo bảo |",
+  "| 脚步 | bước chân | cước bộ |",
+  "| 红酒 | rượu vang đỏ / vang đỏ | rượu đỏ |",
+  "| 打断…的话 | ngắt lời / cắt ngang | đánh gãy lời |",
   "",
   "Động từ Hán-Việt không được dán trợ từ Việt lên (`đắc được`, `đắc thủ`, `có biệt`): hoặc giữ trọn cụm Hán-Việt đã ổn định (`hữu biệt`), hoặc dịch nghĩa bằng động từ Việt.",
   "",
@@ -308,7 +322,7 @@ const CORE_VOCAB: string[] = [
   "",
   "### Từ tượng thanh",
   "",
-  "Tiếng động dùng tượng thanh tiếng Việt, không phiên âm Hán-Việt: `轰` → ầm / rầm, `砰` → bịch / bốp, `嗖` → vút / vèo, `哗啦` → rào rào / xoảng, `咔嚓` → rắc / cạch, `噗` → phụt / phì, `嘶` → rít / xì, `叮` → keng / ting. KHÔNG dùng `oanh`, `phanh`, `hoa lạp`, `ca sát`.",
+  "Tiếng động dùng tượng thanh tiếng Việt, không phiên âm Hán-Việt: `轰` → ầm / rầm, `砰` → bịch / bốp, `嗖` → vút / vèo, `哗啦` → rào rào / xoảng, `咔嚓` → rắc / cạch, `噗` → phụt / phì, `嘶` → rít / xì (xé vải: xoẹt / roẹt), `叮` → keng / ting, `咕噜` → ùng ục (bụng réo) / ừng ực (uống) / lộc cộc (lăn), `吱呀` → cót két / kẽo kẹt, `嘟嘟` → tút tút (điện thoại) / bíp bíp (còi), `汪汪` → gâu gâu. KHÔNG dùng `oanh`, `phanh`, `hoa lạp`, `ca sát`, `cô lỗ`, `chi nha`, `đô đô`, `uông uông`.",
   "",
   "### Thán từ & tiếng cười",
   "",

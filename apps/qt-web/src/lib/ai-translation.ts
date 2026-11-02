@@ -206,6 +206,13 @@ export const RAW_PAIR_RULES: RawPairRule[] = [
   // Hải Cự Nhân) — chỉ sai khi raw là 人族 đứng riêng.
   { raw: /(?<![巨鱼矮兽半蛇狼羽魔亚])人族/u, out: /(?<!\p{L})người tộc(?!\p{L})/iu, message: "人族 → Nhân tộc, không dịch người tộc" },
   { raw: /呵/u, unless: /哼|呵斥/u, out: /(?<!\p{L})hừ(?!\p{L})/iu, message: "呵 là cười khẩy / cười nhạt → Ha / Hà / Hề hề, không Hừ", advisory: true },
+  // Từ convert trong bài "cách để biên tập truyện mượt hơn"; thư viện 50 nghìn chương: bất quá 1.030 chương, khí tràng
+  // 257, ủy khuất 91, vì cái gì 50, gọi là (tự giới thiệu) 55. "gọi là" chỉ cảnh báo: 我叫你 (ta gọi ngươi) cũng khớp raw.
+  { raw: /不过/u, out: /(?<!\p{L})bất quá(?!\p{L})/iu, message: "不过 → nhưng / có điều / chẳng qua (不过三天 → không quá ba ngày), không bất quá" },
+  { raw: /气场/u, out: /(?<!\p{L})khí tràng(?!\p{L})/iu, message: "气场 → khí thế / khí chất / uy thế, không khí tràng" },
+  { raw: /委屈/u, out: /(?<!\p{L})(?:ủy|uỷ) khuất(?!\p{L})/iu, message: "委屈 → ấm ức / tủi thân / oan ức / thiệt thòi theo cảnh, không ủy khuất" },
+  { raw: /为什么/u, unless: /为了什么/u, out: /(?<!\p{L})vì cái gì(?!\p{L})/iu, message: "为什么 → tại sao / vì sao, không vì cái gì" },
+  { raw: /[我他她]叫|名叫/u, out: /(?<!\p{L})(?:ta|tôi|hắn|nàng|cô|y) gọi là(?!\p{L})/iu, message: "我叫 X (tự giới thiệu) → tên là X, không gọi là X", advisory: true },
 ];
 
 export type RawPairIssue = { paragraph: number; message: string; advisory: boolean };

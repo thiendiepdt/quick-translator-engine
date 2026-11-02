@@ -209,6 +209,10 @@ const RAW_PAIR_INPUTS: Array<[string[], Array<string | null>]> = [
     ["墙上挂着骷髅头颅。", "呵，好得很！", "他冷哼一声：“呵。”", "呵斥一声。", "她呵呵一笑。", "权力与拳力。", "你放肆！", "我族之人多有修行之姿。", "四名海巨人族同时出手。"],
     ["Trên tường treo đầu lâu.", "Hừ, tốt lắm!", "Hắn hừ lạnh: “Hừ.”", "Hừ một tiếng quát.", "Nàng cười hừ hừ.", "Quyền lực và quyền lực.", null, "Người tộc ta phần nhiều có tư chất tu hành.", "Bốn người tộc Hải Cự Nhân đồng thời ra tay."],
   ],
+  [
+    ["不过，她很快就定了定神。", "这种无敌的气场。", "你受委屈了。", "你为什么要走？", "我叫林凡。", "不过三天，他就回来了。", "他们为了什么拼命？", "我叫你一声师兄。"],
+    ["Bất quá, nàng rất nhanh đã định thần.", "Khí tràng vô địch bực này.", "Ngươi chịu uỷ khuất rồi.", "Ngươi vì cái gì phải đi?", "Ta gọi là Lâm Phàm.", "Không quá ba ngày, hắn đã trở về.", "Bọn họ liều mạng vì cái gì?", "Ta gọi ngươi một tiếng sư huynh."],
+  ],
 ];
 const check = {
   defaultRules: {

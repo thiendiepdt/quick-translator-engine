@@ -1140,6 +1140,56 @@
       "outFlags": "iu",
       "message": "呵 là cười khẩy / cười nhạt → Ha / Hà / Hề hề, không Hừ",
       "advisory": true
+    },
+    {
+      "raw": "不过",
+      "rawFlags": "u",
+      "unless": null,
+      "unlessFlags": null,
+      "out": "(?<!\\p{L})bất quá(?!\\p{L})",
+      "outFlags": "iu",
+      "message": "不过 → nhưng / có điều / chẳng qua (不过三天 → không quá ba ngày), không bất quá",
+      "advisory": false
+    },
+    {
+      "raw": "气场",
+      "rawFlags": "u",
+      "unless": null,
+      "unlessFlags": null,
+      "out": "(?<!\\p{L})khí tràng(?!\\p{L})",
+      "outFlags": "iu",
+      "message": "气场 → khí thế / khí chất / uy thế, không khí tràng",
+      "advisory": false
+    },
+    {
+      "raw": "委屈",
+      "rawFlags": "u",
+      "unless": null,
+      "unlessFlags": null,
+      "out": "(?<!\\p{L})(?:ủy|uỷ) khuất(?!\\p{L})",
+      "outFlags": "iu",
+      "message": "委屈 → ấm ức / tủi thân / oan ức / thiệt thòi theo cảnh, không ủy khuất",
+      "advisory": false
+    },
+    {
+      "raw": "为什么",
+      "rawFlags": "u",
+      "unless": "为了什么",
+      "unlessFlags": "u",
+      "out": "(?<!\\p{L})vì cái gì(?!\\p{L})",
+      "outFlags": "iu",
+      "message": "为什么 → tại sao / vì sao, không vì cái gì",
+      "advisory": false
+    },
+    {
+      "raw": "[我他她]叫|名叫",
+      "rawFlags": "u",
+      "unless": null,
+      "unlessFlags": null,
+      "out": "(?<!\\p{L})(?:ta|tôi|hắn|nàng|cô|y) gọi là(?!\\p{L})",
+      "outFlags": "iu",
+      "message": "我叫 X (tự giới thiệu) → tên là X, không gọi là X",
+      "advisory": true
     }
   ],
   "rawPairCases": [
@@ -1246,6 +1296,55 @@
         {
           "paragraph": 4,
           "message": "呵 là cười khẩy / cười nhạt → Ha / Hà / Hề hề, không Hừ",
+          "advisory": true
+        }
+      ]
+    },
+    {
+      "raw": [
+        "不过，她很快就定了定神。",
+        "这种无敌的气场。",
+        "你受委屈了。",
+        "你为什么要走？",
+        "我叫林凡。",
+        "不过三天，他就回来了。",
+        "他们为了什么拼命？",
+        "我叫你一声师兄。"
+      ],
+      "translated": [
+        "Bất quá, nàng rất nhanh đã định thần.",
+        "Khí tràng vô địch bực này.",
+        "Ngươi chịu uỷ khuất rồi.",
+        "Ngươi vì cái gì phải đi?",
+        "Ta gọi là Lâm Phàm.",
+        "Không quá ba ngày, hắn đã trở về.",
+        "Bọn họ liều mạng vì cái gì?",
+        "Ta gọi ngươi một tiếng sư huynh."
+      ],
+      "issues": [
+        {
+          "paragraph": 0,
+          "message": "不过 → nhưng / có điều / chẳng qua (不过三天 → không quá ba ngày), không bất quá",
+          "advisory": false
+        },
+        {
+          "paragraph": 1,
+          "message": "气场 → khí thế / khí chất / uy thế, không khí tràng",
+          "advisory": false
+        },
+        {
+          "paragraph": 2,
+          "message": "委屈 → ấm ức / tủi thân / oan ức / thiệt thòi theo cảnh, không ủy khuất",
+          "advisory": false
+        },
+        {
+          "paragraph": 3,
+          "message": "为什么 → tại sao / vì sao, không vì cái gì",
+          "advisory": false
+        },
+        {
+          "paragraph": 4,
+          "message": "我叫 X (tự giới thiệu) → tên là X, không gọi là X",
           "advisory": true
         }
       ]
