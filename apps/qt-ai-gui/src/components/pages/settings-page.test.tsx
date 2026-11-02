@@ -12,6 +12,9 @@ vi.mock("@tauri-apps/api/app", () => ({ getVersion: vi.fn(() => Promise.resolve(
 vi.mock("sonner", () => ({ toast: { message: vi.fn(), success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/lib/api", () => ({
   paddingGet: vi.fn(() => Promise.resolve({ mode: "off", threshold: 500, filler: "Văn mẫu." })),
+  idiomsGet: vi.fn(() => Promise.resolve({ remote: {}, source: "builtin", fetchedAt: null, error: null, user: {}, url: "" })),
+  idiomsRefresh: vi.fn(),
+  idiomsSaveUser: vi.fn(),
   paddingSave: vi.fn(),
   paddingReset: vi.fn(),
   agyDataClean: vi.fn(),

@@ -1,5 +1,9 @@
 # Có gì mới
 
+## Chưa phát hành
+- Thêm **bảng thành ngữ** (Cài đặt → **Thành ngữ**): chương có thành ngữ nào trong bảng thì AI bắt buộc dịch đúng cách đã ghi, ví dụ 三十年河东，三十年河西 → “ba mươi năm hà đông, ba mươi năm hà tây” (trước đây phần lớn ra “sông Đông”), 打草惊蛇 → “đánh rắn động cỏ”. Bản dịch không theo bảng thì chương vẫn chốt nhưng có cảnh báo. Bảng chung được cập nhật trên GitHub, app tự tải bản mới mỗi lần mở; bạn thêm câu riêng, sửa hoặc tắt câu của bảng chung trong bảng của mình, và bảng của bạn luôn được ưu tiên.
+- Bớt văn convert: AI không còn dịch 不过 thành “bất quá”, 气场 thành “khí tràng”, 委屈 thành “ủy khuất”, 为什么 thành “vì cái gì”, 我叫 thành “ta gọi là”. Tiếng động như 咕噜, 吱呀, 嘟嘟, 汪汪 ra “ùng ục”, “cót két”, “tút tút”, “gâu gâu”. Chương còn sót “bất quá”, “khí tràng”, “ủy khuất”, “vì cái gì” sẽ được AI soát lại trước khi chốt; “ta gọi là” chỉ cảnh báo.
+
 ## 1.0.29 — 2026-10-30
 - Cảnh báo chương ngắn cho nền tảng đăng truyện (không nhận chương dưới 500 chữ, không tính tên chương): chip **Ngắn** ở danh sách chương, báo ở trang Export và trong khung đọc chương, kèm nút **Chèn cho đủ 500 chữ**. Cài đặt → **Chương ngắn** cho phép tự chèn văn mẫu hài hước (sửa được) hoặc lặp lại nội dung chương lúc chốt chương, từng đoạn nguyên vẹn tới khi vừa đủ; mặc định tắt. Phần chèn nằm cuối chương, bọc giữa hai dòng ❖❖❖❖❖❖❖❖❖❖ để tool khác tách được (kể cả khi gộp chương), và không bị Tìm & thay, rà glossary hay kiểm tra VN đụng tới.
 - Sửa lỗi thỉnh thoảng bấm Dịch thì báo “Truyện đang có phiên khác chạy (PID …)” dù không có phiên nào: gặp ở truyện đang dịch dở lúc app bị tắt ngang (tắt máy, crash, End task), khi Windows cấp lại số PID cũ cho một chương trình khác. App giờ nhận ra khoá cũ này và tự gỡ.

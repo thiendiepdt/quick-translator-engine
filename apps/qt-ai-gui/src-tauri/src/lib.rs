@@ -16,6 +16,7 @@ mod title_cmds;
 mod vn_cmds;
 mod vn_library_cmds;
 mod zh_cmds;
+mod idiom_cmds;
 mod padding_cmds;
 mod process_cmds;
 
@@ -117,6 +118,7 @@ pub fn run() {
             migrate_legacy_config(&config_path);
             let base_dir = config_path.parent().map(|dir| dir.join("base")).unwrap_or_else(|| PathBuf::from("base"));
             std::env::set_var(qt_ai_core::base::BASE_DIR_ENV, &base_dir);
+            idiom_cmds::refresh_in_background();
             let config = AppConfig::load(&config_path);
             app.manage(AppState {
                 config_path,
@@ -207,6 +209,9 @@ pub fn run() {
             zh_cmds::zh_story_undo,
             zh_cmds::zh_convert_text,
             zh_cmds::zh_convert_files,
+            idiom_cmds::idioms_get,
+            idiom_cmds::idioms_refresh,
+            idiom_cmds::idioms_save_user,
             padding_cmds::padding_get,
             padding_cmds::padding_save,
             padding_cmds::padding_reset,
@@ -272,6 +277,7 @@ mod tests {
             include_str!("vn_cmds.rs"),
             include_str!("zh_cmds.rs"),
             include_str!("padding_cmds.rs"),
+            include_str!("idiom_cmds.rs"),
             include_str!("process_cmds.rs"),
         ]
         .join("\n");
@@ -320,6 +326,9 @@ mod tests {
             "vn_settings_save",
             "vn_replace",
             "progress_drift",
+            "idioms_get",
+            "idioms_refresh",
+            "idioms_save_user",
             "sync_progress",
             "requeue_untracked",
             "story_snapshot",

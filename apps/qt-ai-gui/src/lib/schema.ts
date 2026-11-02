@@ -187,6 +187,15 @@ export const shortChaptersSchema = z.object({
   mode: z.enum(PADDING_MODES),
   chapters: z.array(z.object({ id: z.string(), words: z.number() })),
 });
+/** Bảng thành ngữ (Rust idiom_cmds): bảng chung + bảng người dùng đè theo khoá, giá trị rỗng = tắt mục chung. */
+export const idiomsInfoSchema = z.object({
+  remote: z.record(z.string(), z.string()),
+  source: z.enum(["cache", "builtin"]),
+  fetchedAt: z.number().nullable(),
+  error: z.string().nullable(),
+  user: z.record(z.string(), z.string()),
+  url: z.string(),
+});
 /** Bảng Tiến trình (Rust process_cmds): agy của app, khoá phiên theo truyện. */
 const agyProcessSchema = z.object({
   pid: z.number(),

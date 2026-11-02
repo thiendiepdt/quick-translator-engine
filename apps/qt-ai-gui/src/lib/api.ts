@@ -29,6 +29,7 @@ import {
   replaceUndoOutcomeSchema,
   paddingSettingsSchema,
   shortChaptersSchema,
+  idiomsInfoSchema,
   processOverviewSchema,
   zhConvertReportSchema,
   zhStoryOutcomeSchema,
@@ -189,6 +190,14 @@ export const shortChapters = (root: string) => call("short_chapters", { root }, 
 export const chapterPad = (root: string, id: string) => call("chapter_pad", { root, id }, (v) => z.boolean().parse(v));
 /** Chèn cho mọi chương ngắn của truyện; trả số chương đã chèn. */
 export const chaptersPadAll = (root: string) => call("chapters_pad_all", { root }, (v) => z.number().parse(v));
+export type IdiomTable = Record<string, string>;
+export type IdiomsInfo = z.infer<typeof idiomsInfoSchema>;
+/** Bảng thành ngữ: bảng chung (đã tải / đóng sẵn) + bảng của người dùng. */
+export const idiomsGet = () => call("idioms_get", undefined, (v) => idiomsInfoSchema.parse(v));
+/** Tải lại bảng chung từ GitHub; lỗi thì trạng thái trả kèm `error`, bản cũ giữ nguyên. */
+export const idiomsRefresh = () => call("idioms_refresh", undefined, (v) => idiomsInfoSchema.parse(v));
+export const idiomsSaveUser = (table: IdiomTable) =>
+  call("idioms_save_user", { table }, (v) => idiomsInfoSchema.parse(v));
 export type ProcessOverview = z.infer<typeof processOverviewSchema>;
 export type StoryProcesses = ProcessOverview["stories"][number];
 export type AgyProcess = ProcessOverview["stray"][number];

@@ -14,6 +14,7 @@ import { PalettePicker } from "@/components/palette-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { IdiomSettingsEditor } from "@/components/idiom-settings-editor";
 import { PADDING_CARD_ID, PaddingSettingsEditor } from "@/components/padding-settings-editor";
 import { VnSettingsEditor } from "@/components/vn-settings-editor";
 import { ChangelogList } from "@/components/whats-new";
@@ -482,6 +483,12 @@ export function SettingsPage() {
             description="Nền tảng đăng truyện không nhận chương dưới ngưỡng chữ. Chương ngắn được nhắc ở danh sách chương (chip Ngắn) và trang Export; có thể tự chèn văn mẫu hoặc lặp nội dung khi chốt chương. Dùng chung mọi truyện."
           >
             <PaddingSettingsEditor />
+          </Card>
+          <Card
+            title="Thành ngữ"
+            description="Chương có thành ngữ nào trong bảng thì AI bắt buộc dịch đúng cách ghi (nhiều cách ngăn bằng /), bản dịch không theo thì cảnh báo khi chốt chương. Bảng chung cập nhật trên GitHub, app tải lại mỗi lần mở; bảng của bạn đè lên: thêm câu mới, sửa hoặc tắt câu của bảng chung. Dùng chung mọi truyện."
+          >
+            <IdiomSettingsEditor />
           </Card>
           <AgyDataCard />
           <form id={FORM_ID} onSubmit={(e) => void submit(e)} className="flex flex-col gap-6">
