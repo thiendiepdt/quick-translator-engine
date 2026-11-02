@@ -141,7 +141,7 @@ impl BaseStore {
         path.ok_or_else(|| CoreError::Internal("Không xác định được thư mục bản mặc định của app".to_string()))
     }
 
-    fn write(&self, path: Option<PathBuf>, content: &str) -> Result<()> {
+    pub(crate) fn write(&self, path: Option<PathBuf>, content: &str) -> Result<()> {
         let path = self.require(path)?;
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).map_err(CoreError::io(parent))?;

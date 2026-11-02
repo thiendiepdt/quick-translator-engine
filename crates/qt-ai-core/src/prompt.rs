@@ -201,7 +201,8 @@ pub fn build_system_prompt(
 
 /// Prompt dịch một chương của qt-ai, xếp phần TĨNH trước phần ĐỘNG để đoạn đầu giống hệt nhau giữa các
 /// chương của một truyện (nhà cung cấp cache được): base + thông tin truyện + style + luật xưng hô, rồi mới
-/// tới từ điển lọc theo chương, nhân vật có mặt và cặp xưng hô hiệu lực (theo mốc trong cast.json), cuối cùng
+/// tới từ điển lọc theo chương, thành ngữ có trong chương (bảng thành ngữ, `idioms`), nhân vật có mặt và cặp xưng
+/// hô hiệu lực (theo mốc trong cast.json), cuối cùng
 /// là suffix. `build_system_prompt` (port web) không đổi: gọi nó với từ điển rỗng để lấy phần tĩnh.
 pub fn build_chapter_prompt(
     workspace: &TranslationGlossary,
@@ -228,6 +229,9 @@ pub fn build_chapter_prompt(
     let since = crate::cast::addressing_since(&pairs, cast, &story.auto_glossary_log, chapter_id);
 
     merged.shift_remove("addressing");
+    let glossary_keys: Vec<&str> = merged.values().flat_map(|entries| entries.keys().map(String::as_str)).collect();
+    let idioms = crate::idioms::idioms_for_source(&crate::base::BaseStore::from_env().idioms(), source_text, &glossary_keys);
+    let idiom_section = crate::idioms::prompt_section(&idioms);
     let mut glossary = filter_glossary_for_source(&merged, source_text);
     glossary.retain(|_, entries| !entries.is_empty());
     let glossary_section = if glossary.is_empty() {
@@ -244,7 +248,7 @@ pub fn build_chapter_prompt(
     let fixed = build_system_prompt(&TranslationGlossary::new(), Some(&bare), Some(source_text));
     let fixed = fixed.strip_suffix(prompt_suffix()).unwrap_or(&fixed);
     format!(
-        "{fixed}{}{glossary_section}{}{}",
+        "{fixed}{}{glossary_section}{idiom_section}{}{}",
         crate::cast::addressing_rules_section(setting),
         crate::cast::chapter_addressing_section(&present, &pairs, &since, &reviews, setting, chapter_id),
         prompt_suffix()

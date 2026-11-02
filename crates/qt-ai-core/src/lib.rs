@@ -34,5 +34,6 @@ pub mod self_ref;
 pub mod zh_convert;
 pub mod zh_story;
 pub mod padding;
+pub mod idioms;
 
 pub use error::{CoreError, Result};

@@ -183,7 +183,13 @@ fn check_chapter(root: &Path, id: &str, record: bool) -> Result<CheckResult> {
             violations.push(violation);
         }
     }
-    let base_glossary = crate::base::BaseStore::from_env().glossary(story.genre.setting);
+    let base = crate::base::BaseStore::from_env();
+    // Thành ngữ trong bảng mà bản dịch không theo: chỉ cảnh báo (model có thể đúng khi raw dùng nghĩa đen).
+    for issue in crate::idioms::idiom_issues(&paragraphs, &parsed, &base.idioms()) {
+        let violation = paragraph_violation(&parsed, issue.paragraph, issue.message);
+        advisories.push(format!("[[{}]] {} — \"{}\"", issue.paragraph + 1, violation.message, violation.text));
+    }
+    let base_glossary = base.glossary(story.genre.setting);
     let glossary = crate::prompt::merge_story_glossary(&base_glossary, Some(&story));
     // Tên lệch dấu so với glossary (Đoạn Phong ↔ Đoàn Phong) không tính là vi phạm: accept tự sửa theo glossary.
     // Tên viết gần đúng nhưng sai hơn dấu (Mao Thiên Dực ↔ Mao Thiên Dịch) thì soát, bắt buộc sửa.
