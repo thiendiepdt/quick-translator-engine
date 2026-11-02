@@ -1,4 +1,6 @@
 //! State machine trên tempdir — tương đương bộ vitest của apps/qt-ai-cli.
+mod common;
+
 use qt_ai_core::commands::accept::{run_accept, run_accept_with};
 use qt_ai_core::commands::check::run_check;
 use qt_ai_core::commands::delete::run_delete;
@@ -19,6 +21,7 @@ use tempfile::TempDir;
 
 /// Dựng folder truyện tạm với raw/ cho trước (như helpers.ts).
 pub fn make_story_dir(chapters: &[(&str, &str)]) -> TempDir {
+    common::isolate_base();
     let dir = tempfile::Builder::new().prefix("qt-ai-test-").tempdir().unwrap();
     fs::create_dir_all(dir.path().join("raw")).unwrap();
     for (id, text) in chapters {

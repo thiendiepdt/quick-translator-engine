@@ -1,4 +1,6 @@
 //! Vòng dịch API trên tempdir với model giả (không HTTP).
+mod common;
+
 use qt_ai_core::api::{fix_encoding, ApiError, ApiStep, Generated, TextModel, Usage};
 use qt_ai_core::api_session::*;
 use qt_ai_core::commands::init::run_init;
@@ -20,6 +22,7 @@ fn good() -> String {
 }
 
 fn story(chapters: usize) -> tempfile::TempDir {
+    common::isolate_base();
     let dir = tempfile::Builder::new().prefix("qt-ai-api-").tempdir().unwrap();
     fs::create_dir_all(dir.path().join("raw")).unwrap();
     for i in 1..=chapters {

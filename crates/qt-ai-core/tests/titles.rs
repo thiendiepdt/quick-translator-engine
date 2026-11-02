@@ -1,4 +1,6 @@
 //! Tiêu đề chương lặp: chốt lúc accept, khảo sát + chuẩn hoá truyện đã dịch.
+mod common;
+
 use std::collections::HashMap;
 use qt_ai_core::commands::accept::run_accept;
 use qt_ai_core::commands::init::run_init;
@@ -19,6 +21,7 @@ const RAW: [(&str, &str); 6] = [
 ];
 
 fn story() -> tempfile::TempDir {
+    common::isolate_base();
     let dir = tempfile::Builder::new().prefix("qt-ai-titles-").tempdir().unwrap();
     fs::create_dir_all(dir.path().join("raw")).unwrap();
     for (id, title) in RAW {
