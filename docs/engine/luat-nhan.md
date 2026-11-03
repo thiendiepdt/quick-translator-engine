@@ -185,6 +185,15 @@ Chi tiết chuyển số: [number-conversion.md](number-conversion.md).
 
 - Regex .NET và Rust `regex` crate khác nhau ở vài điểm. Implementation dùng `fancy-regex`
   cho lookahead của `{n}` và `{s}两`, còn `regex` dùng cho các bước không cần lookaround.
+- **Lọc trước bằng regex nới.** Với luật `{n}` có suffix, implementation dựng thêm một
+  bản nới `prefix([^,\. ?]{1,10}?)suffix`, tức là bỏ lookahead `(?!suffix)`. Bản này chạy
+  bằng crate `regex` (DFA, không backtrack). Nó khớp một tập chuỗi rộng hơn bản gốc, nên
+  bản nới không khớp thì bản gốc chắc chắn không khớp. Vì vậy fancy-regex chỉ chạy khi bản
+  nới khớp, và output không đổi. Lý do cần làm: trên bookshelf, 87% lần chạy regex `{n}`
+  không khớp gì, mỗi lần backtracker tốn khoảng 6,8 µs (gần nửa thời gian dịch). Có lọc
+  trước thì engine nhanh hơn khoảng 48%, đã so trên 2490 chương: output trùng từng byte.
+- Luật neo được (có literal prefix) chỉ giữ bản regex `^(?:…)` để thử tại các lần xuất hiện
+  của prefix. Bản quét cả cửa sổ chỉ giữ cho luật không neo được.
 - Thứ tự ưu tiên `{n}` > `{h}{t}` > `{s}` theo vị trí index nhỏ nhất — phải giữ đúng.
 - `{h}{t}` lấy nghĩa trực tiếp từ hai từ điển Họ người/Hậu tố, không fallback Hán Việt.
 - Regression tests bao phủ các nhánh chính; golden corpus lấy trực tiếp từ ứng dụng QT nên

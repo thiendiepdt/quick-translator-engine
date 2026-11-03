@@ -111,11 +111,13 @@ dictionary custom được parse thành state riêng cho request. Mỗi lần d�
 - `POST /names/filter`
 
 Batch giữ thứ tự và xử lý lần lượt từng item để không làm đầy blocking pool trong một
-request. Xem schema tại [api.md](api.md).
+request. Xem schema tại [api.md](api.md). Request không xin `ranges` thì đi đường chỉ
+trả text của engine (`Engine::translate` / `translate_with_overrides`), không dựng hai
+mảng range.
 
 Binary thứ hai `qt-lite-server` dùng `qt_core::LiteEngine` và router
-`build_lite_router`: chỉ `vietphrase-one`, chỉ có `/health`, `/modes`, `/translate`,
-`/translate/batch`. Hai router dùng chung handler `/translate`, khác nhau ở backend
+`build_lite_router`: chỉ `vietphrase-one`, không có range, chỉ có `/health`, `/modes`,
+`/translate`, `/translate/batch`. Hai router dùng chung handler `/translate`, khác nhau ở backend
 (trait `TranslateBackend`). Trong qt-core, đường dịch có override được tách thành
 `LayeredBase`. `Engine` đi qua nó khi request có override; `LiteEngine` đi qua nó cho
 mọi request, với VietPhrase/Names nghĩa đầu lưu trong `CompactDict` (arena). Vì cùng

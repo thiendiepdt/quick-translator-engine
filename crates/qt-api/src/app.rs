@@ -21,7 +21,10 @@ use qt_core::{
 use crate::name_entities::{entity_type_name, parse_entity_type, AiExtractedEntity};
 
 const MAX_REQUEST_SCAN_RANGE: usize = 100;
-const MAX_REQUEST_BODY_BYTES: usize = 5 * 1024 * 1024;
+/// JSON body limit for self-hosted servers: room for a whole ~30 MB novel file
+/// (≈10M characters, ~280 MB peak to translate as text). Lambda passes its
+/// own smaller limit through [`build_router_with_body_limit`].
+pub const DEFAULT_MAX_BODY_BYTES: usize = 32 * 1024 * 1024;
 const MAX_NAME_FILTER_CHARACTERS: usize = 200_000;
 const MAX_MEANING_LOOKUP_CHARACTERS: usize = 100;
 /// Hard caps for caller-supplied AI entities: enough for the largest chapter,
@@ -36,9 +39,15 @@ pub struct AppState {
     pub dictionary_defaults: Arc<DictionaryDefaults>,
 }
 
-/// Build the router from shared state. Kept separate from socket binding so
-/// tests can exercise handlers in-process via `oneshot`.
+/// Build the router from shared state with [`DEFAULT_MAX_BODY_BYTES`]. Kept
+/// separate from socket binding so tests can exercise handlers in-process via
+/// `oneshot`.
 pub fn build_router(state: Arc<AppState>) -> Router {
+    build_router_with_body_limit(state, DEFAULT_MAX_BODY_BYTES)
+}
+
+/// [`build_router`] with an explicit JSON body limit in bytes.
+pub fn build_router_with_body_limit(state: Arc<AppState>, max_body_bytes: usize) -> Router {
     Router::new()
         .route("/health", get(health))
         .route("/modes", get(modes))
@@ -48,7 +57,7 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/translate/batch", post(translate_batch::<AppState>))
         .route("/names/filter", post(filter_names))
         .with_state(state)
-        .layer(DefaultBodyLimit::max(MAX_REQUEST_BODY_BYTES))
+        .layer(DefaultBodyLimit::max(max_body_bytes))
 }
 
 /// State of `qt-lite-server`: VietPhrase-one-meaning only, compact storage.
@@ -58,33 +67,59 @@ pub struct LiteAppState {
 
 /// Router of `qt-lite-server`: the same `/translate` and `/translate/batch`
 /// contract as [`build_router`] (dictionary overrides and patches included),
-/// restricted to `vietphrase-one`. No name filter, Lạc Việt meanings, or raw
-/// dictionary defaults.
+/// restricted to `vietphrase-one` without `ranges`. No name filter, Lạc Việt
+/// meanings, or raw dictionary defaults. Body limit: [`DEFAULT_MAX_BODY_BYTES`].
 pub fn build_lite_router(state: Arc<LiteAppState>) -> Router {
+    build_lite_router_with_body_limit(state, DEFAULT_MAX_BODY_BYTES)
+}
+
+/// [`build_lite_router`] with an explicit JSON body limit in bytes.
+pub fn build_lite_router_with_body_limit(
+    state: Arc<LiteAppState>,
+    max_body_bytes: usize,
+) -> Router {
     Router::new()
         .route("/health", get(health))
         .route("/modes", get(lite_modes))
         .route("/translate", post(translate::<LiteAppState>))
         .route("/translate/batch", post(translate_batch::<LiteAppState>))
         .with_state(state)
-        .layer(DefaultBodyLimit::max(MAX_REQUEST_BODY_BYTES))
+        .layer(DefaultBodyLimit::max(max_body_bytes))
 }
 
 /// The engine behind `/translate` and `/translate/batch`.
 trait TranslateBackend: Send + Sync + 'static {
     fn supports(&self, mode: Mode) -> bool;
 
+    /// Whether `"ranges": true` can be served.
+    fn supports_ranges(&self) -> bool;
+
+    /// `ranges = false` skips range tracking entirely (the result carries
+    /// empty range vectors): about half the per-request peak memory.
     fn translate(
         &self,
         text: &str,
         mode: Mode,
         opts: &Options,
         overrides: Option<&DictionaryOverrides>,
+        ranges: bool,
     ) -> Result<TranslationResult, String>;
+}
+
+fn text_only(translated_text: String) -> TranslationResult {
+    TranslationResult {
+        translated_text,
+        source_ranges: Vec::new(),
+        target_ranges: Vec::new(),
+    }
 }
 
 impl TranslateBackend for AppState {
     fn supports(&self, _mode: Mode) -> bool {
+        true
+    }
+
+    fn supports_ranges(&self) -> bool {
         true
     }
 
@@ -94,13 +129,19 @@ impl TranslateBackend for AppState {
         mode: Mode,
         opts: &Options,
         overrides: Option<&DictionaryOverrides>,
+        ranges: bool,
     ) -> Result<TranslationResult, String> {
-        match overrides {
-            Some(overrides) => self
-                .engine
+        let engine = &self.engine;
+        match (overrides, ranges) {
+            (Some(overrides), true) => engine
                 .translate_with_ranges_and_overrides(text, mode, opts, overrides)
                 .map_err(|error| error.to_string()),
-            None => Ok(self.engine.translate_with_ranges(text, mode, opts)),
+            (Some(overrides), false) => engine
+                .translate_with_overrides(text, mode, opts, overrides)
+                .map(text_only)
+                .map_err(|error| error.to_string()),
+            (None, true) => Ok(engine.translate_with_ranges(text, mode, opts)),
+            (None, false) => Ok(text_only(engine.translate(text, mode, opts))),
         }
     }
 }
@@ -110,16 +151,22 @@ impl TranslateBackend for LiteAppState {
         mode == Mode::VietPhraseOneMeaning
     }
 
+    fn supports_ranges(&self) -> bool {
+        false
+    }
+
     fn translate(
         &self,
         text: &str,
         _mode: Mode,
         opts: &Options,
         overrides: Option<&DictionaryOverrides>,
+        _ranges: bool,
     ) -> Result<TranslationResult, String> {
         let defaults = DictionaryOverrides::default();
         self.engine
-            .translate_with_ranges(text, opts, overrides.unwrap_or(&defaults))
+            .translate(text, opts, overrides.unwrap_or(&defaults))
+            .map(text_only)
             .map_err(|error| error.to_string())
     }
 }
@@ -491,6 +538,15 @@ fn supported_mode(backend: &impl TranslateBackend, mode: Option<&str>) -> Result
     }
 }
 
+fn check_ranges_supported(backend: &impl TranslateBackend, ranges: bool) -> Result<(), ApiError> {
+    if ranges && !backend.supports_ranges() {
+        return Err(ApiError::bad_request(
+            "ranges is not supported by this server",
+        ));
+    }
+    Ok(())
+}
+
 /// Presentation-only normalization: trim leading whitespace, uppercase first char.
 fn prettify(s: &str) -> String {
     let t = s.trim_start();
@@ -540,16 +596,18 @@ fn prettify_result(mut result: TranslationResult) -> TranslationResult {
 }
 
 /// Run one translation off the async runtime (engine is synchronous/CPU-bound).
+#[allow(clippy::too_many_arguments)]
 async fn run_translate<B: TranslateBackend>(
     backend: Arc<B>,
     text: String,
     mode: Mode,
     opts: Options,
     pretty: bool,
+    ranges: bool,
     dictionaries: Option<Arc<DictionaryOverrides>>,
 ) -> Result<TranslationResult, ApiError> {
     tokio::task::spawn_blocking(move || {
-        let out = backend.translate(&text, mode, &opts, dictionaries.as_deref())?;
+        let out = backend.translate(&text, mode, &opts, dictionaries.as_deref(), ranges)?;
         Ok(if pretty { prettify_result(out) } else { out })
     })
     .await
@@ -1017,6 +1075,7 @@ async fn translate_batch<B: TranslateBackend>(
     Json(req): Json<BatchReq>,
 ) -> Result<Json<BatchResp>, ApiError> {
     let mode = supported_mode(state.as_ref(), req.mode.as_deref())?;
+    check_ranges_supported(state.as_ref(), req.ranges)?;
     let options = request_options(
         req.wrap,
         req.scan_range,
@@ -1034,6 +1093,7 @@ async fn translate_batch<B: TranslateBackend>(
             mode,
             options,
             req.pretty,
+            req.ranges,
             dictionaries.clone(),
         )
         .await?;
@@ -1057,6 +1117,7 @@ async fn translate<B: TranslateBackend>(
     Json(req): Json<TranslateReq>,
 ) -> Result<Json<TranslateResp>, ApiError> {
     let mode = supported_mode(state.as_ref(), req.mode.as_deref())?;
+    check_ranges_supported(state.as_ref(), req.ranges)?;
     let options = request_options(
         req.wrap,
         req.scan_range,
@@ -1070,6 +1131,7 @@ async fn translate<B: TranslateBackend>(
         mode,
         options,
         req.pretty,
+        req.ranges,
         dictionaries,
     )
     .await?;

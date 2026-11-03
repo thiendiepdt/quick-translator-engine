@@ -27,15 +27,26 @@ pub(crate) fn fill_window(
     }
 }
 
+/// Buffer tái dùng cho [`is_longest_phrase_in_sentence`] và [`contains_name`].
+/// Cả hai chạy cho mọi cụm trúng từ điển (~0,4 lần mỗi ký tự); trước đây mỗi
+/// lần cấp phát 2–3 String/Vec mới — bỏ được ~7% thời gian dịch.
+#[derive(Default)]
+pub(crate) struct PhraseScratch {
+    key: String,
+    buffer: String,
+    offsets: Vec<usize>,
+}
+
 /// Mirrors isLongestPhraseInSentence (docs/engine/translation-algorithm.md §4).
 /// Ngữ nghĩa quét n=20→threshold giữ nguyên; chỉ bỏ những n mà từ điển chắc
 /// chắn không có key (theo chặn trên `max_key_len` — miss kiểu gì cũng miss).
-pub fn is_longest_phrase_in_sentence(
+pub(crate) fn is_longest_phrase_in_sentence(
     chars: &[char],
     start: usize,
     phrase_len: usize,
     dict: &dyn DictionaryLookup,
     algo: i32,
+    scratch: &mut PhraseScratch,
 ) -> bool {
     if phrase_len < 2 {
         return true;
@@ -46,8 +57,9 @@ pub fn is_longest_phrase_in_sentence(
         phrase_len.max(3)
     };
     let end = start + phrase_len - 1; // inclusive
-    let mut buffer = String::new();
-    let mut offsets: Vec<usize> = Vec::new();
+    let PhraseScratch {
+        buffer, offsets, ..
+    } = scratch;
     for i in (start + 1)..=end {
         let cap = 20usize
             .min(chars.len().saturating_sub(i))
@@ -55,7 +67,7 @@ pub fn is_longest_phrase_in_sentence(
         if cap <= threshold {
             continue;
         }
-        fill_window(chars, i, cap, &mut buffer, &mut offsets);
+        fill_window(chars, i, cap, buffer, offsets);
         let mut n = cap;
         while n > threshold {
             if dict.contains_key(&buffer[..offsets[n]]) {
@@ -68,18 +80,27 @@ pub fn is_longest_phrase_in_sentence(
 }
 
 /// Mirrors containsName (docs/engine/translation-algorithm.md §5).
-pub fn contains_name(
+pub(crate) fn contains_name(
     chars: &[char],
     start: usize,
     phrase_len: usize,
     only_name: &dyn DictionaryLookup,
+    scratch: &mut PhraseScratch,
 ) -> bool {
-    if phrase_len < 2 || only_name.contains_key(&substr(chars, start, phrase_len)) {
+    if phrase_len < 2 {
+        return false;
+    }
+    let PhraseScratch {
+        key,
+        buffer,
+        offsets,
+    } = scratch;
+    key.clear();
+    key.extend(&chars[start..start + phrase_len]);
+    if only_name.contains_key(key) {
         return false;
     }
     let end = start + phrase_len - 1; // inclusive
-    let mut buffer = String::new();
-    let mut offsets: Vec<usize> = Vec::new();
     for i in (start + 1)..=end {
         let cap = 20usize
             .min(chars.len().saturating_sub(i))
@@ -87,7 +108,7 @@ pub fn contains_name(
         if cap < 2 {
             continue;
         }
-        fill_window(chars, i, cap, &mut buffer, &mut offsets);
+        fill_window(chars, i, cap, buffer, offsets);
         let mut n = cap;
         while n >= 2 {
             if only_name.contains_key(&buffer[..offsets[n]]) {
@@ -144,24 +165,33 @@ impl TranslationOutput {
     }
 }
 
+/// Ghi cụm `chars[start..start + length]` đã dịch thành `translation`.
+/// `source_ranges` là `None` khi caller không cần range (đường chỉ trả
+/// text): khỏi tính và giữ hai mảng range cho cả văn bản.
+#[allow(clippy::too_many_arguments)]
 fn process_translation(
     chars: &[char],
     translation: &str,
-    source_range: CharRange,
-    source_end: usize,
+    source_ranges: Option<&[CharRange]>,
+    start: usize,
+    length: usize,
     opts: &Options,
     output: &mut TranslationOutput,
     han_viet: &HanVietMap,
 ) {
     let text = wrap_translation(translation, opts.wrap_type);
-    let text_length = utf16_len(&text);
     output.append_word(&text);
-    output.source_ranges.push(source_range);
-    output.target_ranges.push(CharRange {
-        start: output.target_length.saturating_sub(text_length),
-        length: text_length,
-    });
-    if next_char_is_chinese(chars, source_end, han_viet) {
+    if let Some(source_ranges) = source_ranges {
+        let text_length = utf16_len(&text);
+        output
+            .source_ranges
+            .push(merged_source_range(source_ranges, start, length));
+        output.target_ranges.push(CharRange {
+            start: output.target_length.saturating_sub(text_length),
+            length: text_length,
+        });
+    }
+    if next_char_is_chinese(chars, start + length - 1, han_viet) {
         output.append_space();
     }
 }
@@ -172,7 +202,7 @@ fn process_han_viet(
     num2: &mut usize,
     output: &mut TranslationOutput,
     han_viet: &HanVietMap,
-    source_ranges: &[CharRange],
+    source_ranges: Option<&[CharRange]>,
 ) {
     let c = chars[*num2];
     let target_start = output.target_length;
@@ -204,11 +234,13 @@ fn process_han_viet(
             output.append_space();
         }
     }
-    output.source_ranges.push(source_ranges[*num2]);
-    output.target_ranges.push(CharRange {
-        start: target_start,
-        length: target_length,
-    });
+    if let Some(source_ranges) = source_ranges {
+        output.source_ranges.push(source_ranges[*num2]);
+        output.target_ranges.push(CharRange {
+            start: target_start,
+            length: target_length,
+        });
+    }
     *num2 += 1;
 }
 
@@ -255,7 +287,7 @@ pub fn translate_all(
     let source_ranges = source_ranges(chars);
     translate_all_mapped(
         chars,
-        &source_ranges,
+        Some(&source_ranges),
         opts,
         dict,
         only_name,
@@ -269,10 +301,12 @@ pub fn translate_all(
     )
 }
 
+/// `source_ranges`: range nguồn của từng ký tự; `None` = không dựng range
+/// (kết quả có `source_ranges`/`target_ranges` rỗng, text giữ nguyên).
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn translate_all_mapped(
     chars: &[char],
-    source_ranges: &[CharRange],
+    source_ranges: Option<&[CharRange]>,
     opts: &Options,
     dict: &dyn DictionaryLookup,
     only_name: &dyn DictionaryLookup,
@@ -284,7 +318,7 @@ pub(crate) fn translate_all_mapped(
     ho_nguoi: Option<&dyn DictionaryLookup>,
     hau_tu: Option<&dyn DictionaryLookup>,
 ) -> TranslationResult {
-    debug_assert_eq!(chars.len(), source_ranges.len());
+    debug_assert!(source_ranges.is_none_or(|ranges| ranges.len() == chars.len()));
     let numbers = prescan_numbers(chars, only_vietphrase);
     let chars = number_modifier(chars);
     let chars = chars.as_slice();
@@ -302,6 +336,7 @@ pub(crate) fn translate_all_mapped(
     let mut window = String::new();
     let mut window_offsets: Vec<usize> = Vec::new();
     let mut luat_nhan_scratch = LuatNhanScratch::default();
+    let mut phrase_scratch = PhraseScratch::default();
     while num2 < len {
         let mut flag = false;
         let mut flag2 = true;
@@ -328,25 +363,29 @@ pub(crate) fn translate_all_mapped(
                 };
                 if let Some(value2) = hit {
                     let text = &window[..window_offsets[num6]];
-                    let is_longest = is_longest_phrase_in_sentence(
-                        chars,
-                        num2,
-                        num6,
-                        dict,
-                        opts.translation_algorithm,
-                    );
-                    let name_ok =
-                        !opts.prioritized_name || !contains_name(chars, num2, num6, only_name);
-                    let algo_ok = (opts.translation_algorithm != 0
-                        && opts.translation_algorithm != 2)
-                        || is_longest
-                        || (opts.prioritized_name && only_name.contains_key(text));
-                    if name_ok && algo_ok {
+                    // Hai điều kiện đều là hàm thuần nên tính lười: thuật toán
+                    // 1 (mặc định) không cần is_longest — trước đây vẫn tính
+                    // cho mọi cụm trúng, tốn ~8% thời gian dịch.
+                    let name_ok = !opts.prioritized_name
+                        || !contains_name(chars, num2, num6, only_name, &mut phrase_scratch);
+                    let accepted = name_ok
+                        && ((opts.translation_algorithm != 0 && opts.translation_algorithm != 2)
+                            || is_longest_phrase_in_sentence(
+                                chars,
+                                num2,
+                                num6,
+                                dict,
+                                opts.translation_algorithm,
+                                &mut phrase_scratch,
+                            )
+                            || (opts.prioritized_name && only_name.contains_key(text)));
+                    if accepted {
                         process_translation(
                             chars,
                             value2,
-                            merged_source_range(source_ranges, num2, num6),
-                            num2 + num6 - 1,
+                            source_ranges,
+                            num2,
+                            num6,
                             opts,
                             &mut output,
                             han_viet,
@@ -375,7 +414,13 @@ pub(crate) fn translate_all_mapped(
                             num5 = num4 + matched.length as isize;
                             if matched.index == 0
                                 && (matched.key.contains("{n}")
-                                    || !contains_name(chars, num2, matched.length, only_name))
+                                    || !contains_name(
+                                        chars,
+                                        num2,
+                                        matched.length,
+                                        only_name,
+                                        &mut phrase_scratch,
+                                    ))
                             {
                                 let chinese = substr(chars, num2, matched.length);
                                 if let Some(translation) = luat_nhan.translate(
@@ -388,8 +433,9 @@ pub(crate) fn translate_all_mapped(
                                     process_translation(
                                         chars,
                                         translation.trim(),
-                                        merged_source_range(source_ranges, num2, matched.length),
-                                        num2 + matched.length - 1,
+                                        source_ranges,
+                                        num2,
+                                        matched.length,
                                         opts,
                                         &mut output,
                                         han_viet,
@@ -444,8 +490,9 @@ pub(crate) fn translate_all_mapped(
                 process_translation(
                     chars,
                     &translation,
-                    merged_source_range(source_ranges, num2, number.length),
-                    num2 + number.length - 1,
+                    source_ranges,
+                    num2,
+                    number.length,
                     opts,
                     &mut output,
                     han_viet,
@@ -479,20 +526,54 @@ mod tests {
         let chars: Vec<char> = "ABCD".chars().collect();
         // "AB" at 0 len 2; but "BCD" (len 3) exists overlapping at index 1 → not longest for algo 0
         let d = dict(&[("AB", "x"), ("BCD", "y")]);
-        assert!(!is_longest_phrase_in_sentence(&chars, 0, 2, &d, 0));
+        let scratch = &mut PhraseScratch::default();
+        assert!(!is_longest_phrase_in_sentence(&chars, 0, 2, &d, 0, scratch));
         // algo 1: threshold = max(2,3)=3, so only len>3 overlaps reject; BCD is len 3 → not > 3 → longest
-        assert!(is_longest_phrase_in_sentence(&chars, 0, 2, &d, 1));
+        assert!(is_longest_phrase_in_sentence(&chars, 0, 2, &d, 1, scratch));
     }
 
     #[test]
     fn contains_name_detects_inner_name() {
         let chars: Vec<char> = "ABCD".chars().collect();
         let names = dict(&[("BC", "Name")]);
+        let scratch = &mut PhraseScratch::default();
         // phrase "ABCD" (len 4) is not itself a name, but "BC" name starts inside → true
-        assert!(contains_name(&chars, 0, 4, &names));
+        assert!(contains_name(&chars, 0, 4, &names, scratch));
         // if the phrase itself is a name, returns false
         let names2 = dict(&[("ABCD", "Name"), ("BC", "Name")]);
-        assert!(!contains_name(&chars, 0, 4, &names2));
+        assert!(!contains_name(&chars, 0, 4, &names2, scratch));
+    }
+
+    /// Scratch dùng chung qua nhiều lần gọi: nội dung cũ (cụm dài hơn, vị trí
+    /// khác) không được ảnh hưởng kết quả lần sau.
+    #[test]
+    fn phrase_scratch_reuse_matches_fresh_scratch() {
+        let chars: Vec<char> = "ABCDEFGH".chars().collect();
+        let names = dict(&[("CD", "Name"), ("FG", "Name"), ("ABCDEFG", "Name")]);
+        let shared = &mut PhraseScratch::default();
+        for (start, len) in [(0, 7), (0, 8), (4, 2), (1, 4), (5, 3), (0, 2), (2, 2)] {
+            let fresh = contains_name(&chars, start, len, &names, &mut PhraseScratch::default());
+            assert_eq!(
+                contains_name(&chars, start, len, &names, shared),
+                fresh,
+                "contains_name({start}, {len})"
+            );
+            for algo in [0, 1] {
+                let fresh = is_longest_phrase_in_sentence(
+                    &chars,
+                    start,
+                    len,
+                    &names,
+                    algo,
+                    &mut PhraseScratch::default(),
+                );
+                assert_eq!(
+                    is_longest_phrase_in_sentence(&chars, start, len, &names, algo, shared),
+                    fresh,
+                    "is_longest({start}, {len}, {algo})"
+                );
+            }
+        }
     }
 
     #[test]

@@ -45,13 +45,22 @@ impl CompactDict {
     /// Dựng từ các cặp (key, value) theo thứ tự nguồn; key trùng thì bản đầu
     /// thắng (first-wins như các loader QT). Cặp vượt giới hạn độ dài bị bỏ
     /// qua và được đếm vào giá trị trả về thứ hai.
-    pub(crate) fn first_wins<'a>(
-        entries: impl IntoIterator<Item = (&'a str, &'a str)>,
-        arena_capacity_hint: usize,
-    ) -> (Self, usize) {
+    ///
+    /// Duyệt nguồn hai lượt: lượt đầu chỉ đếm để cấp phát arena và bảng băm
+    /// đúng một lần. Để chúng tự phình (nhân đôi rồi chép) thì các bản cũ đã
+    /// free vẫn bị allocator giữ trong RSS sau khi nạp.
+    pub(crate) fn first_wins<'a, I>(entries: I) -> (Self, usize)
+    where
+        I: Iterator<Item = (&'a str, &'a str)> + Clone,
+    {
+        let (count, bytes) = entries
+            .clone()
+            .fold((0usize, 0usize), |(count, bytes), (key, value)| {
+                (count + 1, bytes + key.len() + value.len())
+            });
         let hasher = FxBuildHasher;
-        let mut arena = String::with_capacity(arena_capacity_hint);
-        let mut table: HashTable<Entry> = HashTable::new();
+        let mut arena = String::with_capacity(bytes);
+        let mut table: HashTable<Entry> = HashTable::with_capacity(count);
         let mut skipped = 0usize;
         for (key, value) in entries {
             if key.len() > MAX_KEY_BYTES || value.len() > MAX_VALUE_BYTES {
@@ -136,8 +145,8 @@ mod tests {
                 ("很", "rất"),
                 ("很好", "LOST"),
                 ("一二三", ""),
-            ],
-            0,
+            ]
+            .into_iter(),
         );
         assert_eq!(skipped, 0);
         assert_eq!(dict.len(), 3);
@@ -156,7 +165,8 @@ mod tests {
     #[test]
     fn oversized_entries_are_skipped_and_counted() {
         let long_key = "k".repeat(MAX_KEY_BYTES + 1);
-        let (dict, skipped) = CompactDict::first_wins([(long_key.as_str(), "x"), ("a", "b")], 0);
+        let (dict, skipped) =
+            CompactDict::first_wins([(long_key.as_str(), "x"), ("a", "b")].into_iter());
         assert_eq!(skipped, 1);
         assert_eq!(dict.get("a"), Some("b"));
         assert_eq!(dict.get(&long_key), None);

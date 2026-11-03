@@ -166,8 +166,11 @@ impl Engine {
         }
     }
 
+    /// Chỉ trả text: không dựng range nguồn/đích, nên mỗi request đỡ hai mảng
+    /// range (~45% đỉnh RAM của một request) mà text giữ nguyên.
     pub fn translate(&self, text: &str, mode: Mode, opts: &Options) -> String {
-        self.translate_with_ranges(text, mode, opts).translated_text
+        self.translate_mapped(text, mode, opts, false)
+            .translated_text
     }
 
     pub fn lookup_lac_viet(&self, text: &str) -> Vec<LacVietMeaning> {
@@ -180,9 +183,23 @@ impl Engine {
         mode: Mode,
         opts: &Options,
     ) -> TranslationResult {
-        let standardized = self.standardizer.standardize(text);
+        self.translate_mapped(text, mode, opts, true)
+    }
+
+    fn translate_mapped(
+        &self,
+        text: &str,
+        mode: Mode,
+        opts: &Options,
+        with_ranges: bool,
+    ) -> TranslationResult {
+        // HanViet dựng range trong cùng một lượt, luôn cần range nguồn.
+        let standardized =
+            self.standardizer
+                .standardize_input(text, None, with_ranges || mode == Mode::HanViet);
         let chars = standardized.chars;
         let source_ranges = standardized.source_ranges;
+        let tracked_ranges = with_ranges.then_some(source_ranges.as_slice());
         let vietphrase = IndexedLookup {
             inner: &self.dicts.vietphrase,
             index: &self.vietphrase_index,
@@ -205,7 +222,7 @@ impl Engine {
             }
             Mode::VietPhrase => translate::translate_all_mapped(
                 &chars,
-                &source_ranges,
+                tracked_ranges,
                 opts,
                 &vietphrase,
                 &only_name,
@@ -219,7 +236,7 @@ impl Engine {
             ),
             Mode::VietPhraseOneMeaning => translate::translate_all_mapped(
                 &chars,
-                &source_ranges,
+                tracked_ranges,
                 opts,
                 &vietphrase_one_meaning,
                 &only_name,
@@ -244,7 +261,7 @@ impl Engine {
         overrides: &DictionaryOverrides,
     ) -> Result<String, DictionaryOverrideError> {
         Ok(self
-            .translate_with_ranges_and_overrides(text, mode, opts, overrides)?
+            .translate_mapped_with_overrides(text, mode, opts, overrides, false)?
             .translated_text)
     }
 
@@ -255,8 +272,19 @@ impl Engine {
         opts: &Options,
         overrides: &DictionaryOverrides,
     ) -> Result<TranslationResult, DictionaryOverrideError> {
+        self.translate_mapped_with_overrides(text, mode, opts, overrides, true)
+    }
+
+    fn translate_mapped_with_overrides(
+        &self,
+        text: &str,
+        mode: Mode,
+        opts: &Options,
+        overrides: &DictionaryOverrides,
+        with_ranges: bool,
+    ) -> Result<TranslationResult, DictionaryOverrideError> {
         if overrides.is_empty() {
-            return Ok(self.translate_with_ranges(text, mode, opts));
+            return Ok(self.translate_mapped(text, mode, opts, with_ranges));
         }
 
         // Map gốc dùng index only_name có sẵn cho primary/secondary — cả hai
@@ -297,7 +325,7 @@ impl Engine {
             ho_nguoi: &ho_nguoi,
             hau_tu: &hau_tu,
         }
-        .translate(text, mode, opts, overrides)
+        .translate(text, mode, opts, overrides, with_ranges)
     }
 }
 
@@ -324,19 +352,20 @@ struct LayeredBase<'a> {
 }
 
 impl LayeredBase<'_> {
+    /// `with_ranges = false`: kết quả có range rỗng, text giữ nguyên.
     fn translate(
         &self,
         text: &str,
         mode: Mode,
         opts: &Options,
         overrides: &DictionaryOverrides,
+        with_ranges: bool,
     ) -> Result<TranslationResult, DictionaryOverrideError> {
-        let standardized = match &overrides.ignored_chinese_phrases {
-            Some(ignored) => self
-                .standardizer
-                .standardize_with_ignored_source(text, ignored),
-            None => self.standardizer.standardize(text),
-        };
+        let standardized = self.standardizer.standardize_input(
+            text,
+            overrides.ignored_chinese_phrases.as_deref(),
+            with_ranges || mode == Mode::HanViet,
+        );
         let chars = standardized.chars;
         let source_ranges = standardized.source_ranges;
         let custom_han_viet = (!overrides.chinese_phien_am_words_patches.is_empty()).then(|| {
@@ -469,7 +498,7 @@ impl LayeredBase<'_> {
 
         Ok(translate::translate_all_mapped(
             &chars,
-            &source_ranges,
+            with_ranges.then_some(source_ranges.as_slice()),
             opts,
             dictionary,
             names,
@@ -502,6 +531,60 @@ mod tests {
             ..Default::default()
         };
         Engine::from_dicts(d)
+    }
+
+    /// Đường chỉ trả text (không dựng range) phải ra đúng text của đường có
+    /// range, ở mọi mode, có và không có override.
+    #[test]
+    fn text_only_translation_matches_ranged_text() {
+        let defaults = DictionaryDefaults {
+            names: "张三=Trương Tam/Trương Ba".into(),
+            luat_nhan: "在{n}身后=sau lưng {n}".into(),
+            pronouns: "他=hắn".into(),
+            ignored_chinese_phrases: "广告".into(),
+            ..Default::default()
+        };
+        let engine = Engine::from_dicts(defaults.build_dictionaries(
+            "他=tha\n很=ngận\n好=hảo\n在=tại\n身=thân\n后=hậu\n张=trương\n三=tam\n一=nhất\n百=bách\n广=quảng\n告=cáo",
+            "很好=rất tốt/rất ổn\n身后=sau lưng",
+        ));
+        let overrides = DictionaryOverrides::from_sources(DictionarySourceOverrides {
+            names: Some("李四=Lý Tứ"),
+            ignored_chinese_phrases: Some("很好"),
+            ..Default::default()
+        })
+        .with_patches(DictionaryPatches {
+            vietphrase: [("身后".to_string(), "đằng sau".to_string())]
+                .into_iter()
+                .collect(),
+            ..Default::default()
+        });
+        let options = Options {
+            wrap_type: 1,
+            ..Options::default()
+        };
+        for text in [
+            "张三在他身后很好。广告一百",
+            "李四很好，“他”在张三身后！",
+            "",
+        ] {
+            for mode in [Mode::HanViet, Mode::VietPhrase, Mode::VietPhraseOneMeaning] {
+                for opts in [Options::default(), options] {
+                    let ranged = engine.translate_with_ranges(text, mode, &opts);
+                    assert_eq!(engine.translate(text, mode, &opts), ranged.translated_text);
+                    let ranged = engine
+                        .translate_with_ranges_and_overrides(text, mode, &opts, &overrides)
+                        .unwrap();
+                    assert_eq!(
+                        engine
+                            .translate_with_overrides(text, mode, &opts, &overrides)
+                            .unwrap(),
+                        ranged.translated_text,
+                        "{text} {mode:?}"
+                    );
+                }
+            }
+        }
     }
 
     #[test]

@@ -133,7 +133,8 @@ Một chương là một `POST /translate`:
 }
 ```
 
-Giới hạn JSON body của router là 5 MiB. Names riêng của một truyện nên giữ nhỏ và gửi
+`qt-lambda` giới hạn JSON body ở 5 MiB, vì payload Lambda trần 6 MB; server tự host mặc
+định 32 MiB (`QT_MAX_BODY_MB`). Names riêng của một truyện nên giữ nhỏ và gửi
 inline. Nếu một bộ dictionary cỡ nhiều MiB được tái sử dụng qua hàng nghìn chương, nên bổ
 sung `dictionaryId` cùng storage/cache thay vì gửi và parse lại ở mọi request.
 

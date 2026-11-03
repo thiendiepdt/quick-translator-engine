@@ -112,6 +112,9 @@ isLongestPhraseInSentence(chinese, startIndex, phraseLength, dictionary, transla
 - `translationAlgorithm == 1` hoặc `2`: nới lỏng — chỉ loại nếu có cụm chồng lấn **dài hơn max(phraseLength,3)**.
 - Trong (A), điều kiện `algoOk` khiến: với algo `1`, cụm luôn được nhận (không cần `isLongest`);
   với algo `0`/`2`, cụm chỉ được nhận nếu `isLongest` true (hoặc là Name khi `prioritizedName`).
+- Bản Rust tính `isLongest` lười: chỉ khi `nameOk` đúng và algo là `0`/`2`. QT luôn tính nó
+  trước, nhưng hàm không có side effect nên kết quả như nhau. Với algo mặc định `1`, việc này
+  bớt khoảng 8% thời gian dịch.
 
 ## 5. <a name="contains-name"></a>`containsName` (name-priority)
 

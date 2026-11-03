@@ -20,7 +20,9 @@ Server hiện:
 - bind `0.0.0.0`;
 - không có TLS hoặc authentication;
 - không có rate limit;
-- giới hạn JSON body ở 5 MiB nhưng chưa giới hạn số phần tử batch hay số entry dictionary;
+- giới hạn JSON body mặc định 32 MiB (`QT_MAX_BODY_MB`; `qt-lambda` 5 MiB) nhưng chưa giới
+  hạn số phần tử batch hay số entry dictionary. Một request 30 MB tốn vài trăm MB RAM, nên
+  khi expose ra ngoài cần hạ giới hạn này hoặc giới hạn ở reverse proxy;
 - xử lý dịch bằng blocking worker.
 
 Vì vậy không expose trực tiếp ra Internet. Khi triển khai ngoài máy cá nhân hoặc mạng tin

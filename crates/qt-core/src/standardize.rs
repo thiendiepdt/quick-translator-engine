@@ -9,7 +9,25 @@ use unicode_general_category::{get_general_category, GeneralCategory};
 #[derive(Clone)]
 struct MappedChar {
     ch: char,
-    source: CharRange,
+    source: SourceSpan,
+}
+
+/// Nguồn của một ký tự đã chuẩn hoá: offset/độ dài UTF-16 trong input gốc.
+/// Dùng u32 thay cho `CharRange` (2 × usize) để `MappedChar` còn 12 byte
+/// thay vì 24 — mỗi lượt chuẩn hoá đỡ một nửa bộ nhớ.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct SourceSpan {
+    start: u32,
+    length: u32,
+}
+
+impl From<SourceSpan> for CharRange {
+    fn from(span: SourceSpan) -> Self {
+        CharRange {
+            start: span.start as usize,
+            length: span.length as usize,
+        }
+    }
 }
 
 pub(crate) struct StandardizedInput {
@@ -70,16 +88,25 @@ impl Standardizer {
     }
 
     pub fn standardize(&self, original: &str) -> StandardizedInput {
-        self.standardize_with_ignored(original, &self.ignored)
+        self.standardize_input(original, None, true)
     }
 
-    pub fn standardize_with_ignored_source(
+    /// `ignored_source = None` dùng danh sách IgnoredChinesePhrases mặc định.
+    /// `with_ranges = false` để trống `source_ranges` — đường dịch chỉ trả
+    /// text không cần chúng (đỡ 16 byte/ký tự).
+    pub fn standardize_input(
         &self,
         original: &str,
-        ignored_source: &[String],
+        ignored_source: Option<&[String]>,
+        with_ranges: bool,
     ) -> StandardizedInput {
-        let ignored = self.normalize_ignored(ignored_source);
-        self.standardize_with_ignored(original, &ignored)
+        match ignored_source {
+            Some(source) => {
+                let ignored = self.normalize_ignored(source);
+                self.standardize_with_ignored(original, &ignored, with_ranges)
+            }
+            None => self.standardize_with_ignored(original, &self.ignored, with_ranges),
+        }
     }
 
     pub fn standardize_for_name_scan(&self, original: &str) -> NameScanInput {
@@ -114,7 +141,7 @@ impl Standardizer {
         let ignored_ranges = normalized
             .iter()
             .filter(|item| item.blocked)
-            .map(|item| item.mapped.source)
+            .map(|item| CharRange::from(item.mapped.source))
             .collect();
         mask_original_ranges(original, ignored_ranges)
     }
@@ -123,15 +150,20 @@ impl Standardizer {
         &self,
         original: &str,
         ignored_phrases: &[Vec<char>],
+        with_ranges: bool,
     ) -> StandardizedInput {
         let mut mapped = self.standardize_without_ignored(original);
         for ignored in ignored_phrases {
-            mapped = replace_all(&mapped, ignored, &[]);
+            mapped = replace_all(mapped, ignored, &[]);
         }
-        mapped = replace_all(&mapped, &['\t', '\n', '\n'], &[]);
+        mapped = replace_all(mapped, &['\t', '\n', '\n'], &[]);
         StandardizedInput {
             chars: mapped.iter().map(|item| item.ch).collect(),
-            source_ranges: mapped.iter().map(|item| item.source).collect(),
+            source_ranges: if with_ranges {
+                mapped.iter().map(|item| item.source.into()).collect()
+            } else {
+                Vec::new()
+            },
         }
     }
 
@@ -140,26 +172,30 @@ impl Standardizer {
             return Vec::new();
         }
 
-        let mut source_start = 0usize;
-        let initial: Vec<MappedChar> = original
-            .chars()
-            .map(|ch| {
-                let source = CharRange {
+        // Số đơn vị UTF-16 không vượt số byte UTF-8, nên offset vừa u32.
+        assert!(u32::try_from(original.len()).is_ok(), "input exceeds 4 GiB");
+        // Dựng thẳng bản đã chuyển phồn → giản, đúng sức chứa (trước đây là
+        // hai Vec, Vec đầu còn sống tới cuối hàm).
+        let mut mapped = Vec::with_capacity(original.chars().count());
+        let mut source_start = 0u32;
+        for ch in original.chars() {
+            let length = ch.len_utf16() as u32;
+            mapped.push(MappedChar {
+                ch: self.simplified.get(&ch).copied().unwrap_or(ch),
+                source: SourceSpan {
                     start: source_start,
-                    length: ch.len_utf16(),
-                };
-                source_start += ch.len_utf16();
-                MappedChar { ch, source }
-            })
-            .collect();
+                    length,
+                },
+            });
+            source_start += length;
+        }
 
-        let mut mapped = self.to_simplified(&initial);
-        mapped = decode_html_entities(&mapped, &self.html_entities);
-        mapped = replace_punctuation(&mapped);
-        mapped = replace_all(&mapped, &[' ', ' '], &[' ']);
-        mapped = replace_all(&mapped, &[' ', '\r', '\n'], &['\n']);
-        mapped = replace_all(&mapped, &[' ', '\n'], &['\n']);
-        mapped = replace_all(&mapped, &[' ', ','], &[',']);
+        mapped = decode_html_entities(mapped, &self.html_entities);
+        mapped = replace_punctuation(mapped);
+        mapped = replace_all(mapped, &[' ', ' '], &[' ']);
+        mapped = replace_all(mapped, &[' ', '\r', '\n'], &['\n']);
+        mapped = replace_all(mapped, &[' ', '\n'], &['\n']);
+        mapped = replace_all(mapped, &[' ', ','], &[',']);
 
         for item in &mut mapped {
             if ('\u{FF01}'..='\u{FF5E}').contains(&item.ch) {
@@ -167,91 +203,72 @@ impl Standardizer {
             }
         }
 
-        self.insert_qt_spacing(&mapped)
+        self.insert_qt_spacing(mapped)
     }
 
-    fn to_simplified(&self, input: &[MappedChar]) -> Vec<MappedChar> {
-        input
-            .iter()
-            .map(|item| MappedChar {
-                ch: self.simplified.get(&item.ch).copied().unwrap_or(item.ch),
-                source: item.source,
-            })
-            .collect()
-    }
-
-    fn insert_qt_spacing(&self, input: &[MappedChar]) -> Vec<MappedChar> {
-        if input.len() <= 1 {
-            return input.to_vec();
+    /// Quyết định của QT cho ký tự `index` (trừ ký tự cuối): `None` = bỏ ký
+    /// tự (control), `Some(space)` = giữ, kèm một dấu cách sau nó hay không.
+    fn spacing_at(&self, input: &[MappedChar], index: usize) -> Option<bool> {
+        let current = input[index].ch;
+        let next = input[index + 1].ch;
+        if current.is_control() && !matches!(current, '\t' | '\n' | '\r') {
+            return None;
         }
-        let mut output = Vec::with_capacity(input.len() + input.len() / 8);
-        for index in 0..input.len() - 1 {
-            let item = &input[index];
-            let current = item.ch;
-            let next = input[index + 1].ch;
-            if current.is_control() && !matches!(current, '\t' | '\n' | '\r') {
-                continue;
-            }
-            if is_decimal_digit(current) && next == '》' {
-                output.push(item.clone());
+        if is_decimal_digit(current) && next == '》' {
+            return Some(true);
+        }
+        if current == '.'
+            && index > 0
+            && is_decimal_digit(input[index - 1].ch)
+            && is_decimal_digit(next)
+        {
+            return Some(false);
+        }
+        if self.chinese.contains(&current) {
+            return Some(
+                !self.chinese.contains(&next)
+                    && !matches!(
+                        next,
+                        ',' | '.' | ':' | ';' | '"' | '\'' | '?' | ' ' | '!' | ')' | '\n'
+                    ),
+            );
+        }
+        Some(match current {
+            '\t' | '\n' | ' ' | '"' | '\'' | '(' => false,
+            '!' | '.' | '?' => !matches!(next, '"' | ' ' | '\''),
+            _ => self.chinese.contains(&next),
+        })
+    }
+
+    fn insert_qt_spacing(&self, input: Vec<MappedChar>) -> Vec<MappedChar> {
+        if input.len() <= 1 {
+            return input;
+        }
+        // Hai lượt: quyết định trước (1 byte/ký tự) để cấp phát output đúng
+        // sức chứa — để Vec tự phình thì nó nhân đôi khi vượt.
+        let decisions: Vec<Option<bool>> = (0..input.len() - 1)
+            .map(|index| self.spacing_at(&input, index))
+            .collect();
+        let kept = decisions.iter().flatten().count();
+        let spaces = decisions.iter().flatten().filter(|space| **space).count();
+        let mut output = Vec::with_capacity(kept + spaces + 1);
+        for (item, decision) in input.iter().zip(&decisions) {
+            let Some(space) = *decision else { continue };
+            output.push(item.clone());
+            if space {
                 output.push(MappedChar {
                     ch: ' ',
                     source: item.source,
                 });
-                continue;
-            }
-            if current == '.'
-                && index > 0
-                && is_decimal_digit(input[index - 1].ch)
-                && is_decimal_digit(next)
-            {
-                output.push(item.clone());
-                continue;
-            }
-            if self.chinese.contains(&current) {
-                output.push(item.clone());
-                if !self.chinese.contains(&next)
-                    && !matches!(
-                        next,
-                        ',' | '.' | ':' | ';' | '"' | '\'' | '?' | ' ' | '!' | ')' | '\n'
-                    )
-                {
-                    output.push(MappedChar {
-                        ch: ' ',
-                        source: item.source,
-                    });
-                }
-                continue;
-            }
-
-            match current {
-                '\t' | '\n' | ' ' | '"' | '\'' | '(' => output.push(item.clone()),
-                '!' | '.' | '?' => {
-                    output.push(item.clone());
-                    if !matches!(next, '"' | ' ' | '\'') {
-                        output.push(MappedChar {
-                            ch: ' ',
-                            source: item.source,
-                        });
-                    }
-                }
-                _ => {
-                    output.push(item.clone());
-                    if self.chinese.contains(&next) {
-                        output.push(MappedChar {
-                            ch: ' ',
-                            source: item.source,
-                        });
-                    }
-                }
             }
         }
         // The original method appends the final character without applying
         // any of the loop's filtering or spacing rules.
         output.push(input[input.len() - 1].clone());
+        drop(input);
 
         let six_dots: Vec<char> = ". . . . . .".chars().collect();
-        replace_all(&output, &six_dots, &['.', '.', '.'])
+        replace_all(output, &six_dots, &['.', '.', '.'])
     }
 }
 
@@ -293,40 +310,63 @@ fn load_webutility_entities() -> FxHashMap<String, Vec<char>> {
         .collect()
 }
 
-fn replace_punctuation(input: &[MappedChar]) -> Vec<MappedChar> {
-    let mut output = Vec::with_capacity(input.len());
-    for item in input {
-        let replacement: &[char] = match item.ch {
-            '，' => &[',', ' '],
-            '。' | '．' => &['.'],
-            '：' => &[':', ' '],
-            '“' | '「' => &['"'],
-            '”' | '」' => &['"', ' '],
-            '‘' => &['\''],
-            '’' => &['\'', ' '],
-            '？' => &['?'],
-            '！' => &['!'],
-            '、' => &[',', ' '],
-            '\u{3000}' => &[' '],
-            '…' => &['.', '.', '.'],
-            '\0' => &[],
-            _ => {
-                output.push(item.clone());
-                continue;
+fn punctuation_replacement(ch: char) -> Option<&'static [char]> {
+    Some(match ch {
+        '，' => &[',', ' '],
+        '。' | '．' => &['.'],
+        '：' => &[':', ' '],
+        '“' | '「' => &['"'],
+        '”' | '」' => &['"', ' '],
+        '‘' => &['\''],
+        '’' => &['\'', ' '],
+        '？' => &['?'],
+        '！' => &['!'],
+        '、' => &[',', ' '],
+        '\u{3000}' => &[' '],
+        '…' => &['.', '.', '.'],
+        '\0' => &[],
+        _ => return None,
+    })
+}
+
+fn replace_punctuation(input: Vec<MappedChar>) -> Vec<MappedChar> {
+    // Đếm trước độ dài output: `，` → `, `, `…` → `...` làm Vec vượt sức chứa
+    // và nhân đôi nếu cấp theo `input.len()`.
+    let mut replaced = false;
+    let mut output_len = 0usize;
+    for item in &input {
+        match punctuation_replacement(item.ch) {
+            Some(replacement) => {
+                replaced = true;
+                output_len += replacement.len();
             }
-        };
-        output.extend(replacement.iter().map(|ch| MappedChar {
-            ch: *ch,
-            source: item.source,
-        }));
+            None => output_len += 1,
+        }
+    }
+    if !replaced {
+        return input;
+    }
+    let mut output = Vec::with_capacity(output_len);
+    for item in &input {
+        match punctuation_replacement(item.ch) {
+            Some(replacement) => output.extend(replacement.iter().map(|ch| MappedChar {
+                ch: *ch,
+                source: item.source,
+            })),
+            None => output.push(item.clone()),
+        }
     }
     output
 }
 
 fn decode_html_entities(
-    input: &[MappedChar],
+    input: Vec<MappedChar>,
     named_entities: &FxHashMap<String, Vec<char>>,
 ) -> Vec<MappedChar> {
+    // Đa số văn bản không có `&`: trả nguyên Vec, khỏi chép.
+    if !input.iter().any(|item| item.ch == '&') {
+        return input;
+    }
     let mut output = Vec::with_capacity(input.len());
     let mut index = 0usize;
     while index < input.len() {
@@ -338,7 +378,7 @@ fn decode_html_entities(
             if let Some(end) = end {
                 let encoded: String = input[index..=end].iter().map(|item| item.ch).collect();
                 if let Some(decoded) = decode_html_entity(&encoded, named_entities) {
-                    let source = merged_range(input, index, end - index + 1);
+                    let source = merged_range(&input, index, end - index + 1);
                     output.extend(decoded.into_iter().map(|ch| MappedChar { ch, source }));
                     index = end + 1;
                     continue;
@@ -367,12 +407,24 @@ fn decode_html_entity(
     named_entities.get(body).cloned()
 }
 
-fn replace_all(input: &[MappedChar], needle: &[char], replacement: &[char]) -> Vec<MappedChar> {
+fn replace_all(input: Vec<MappedChar>, needle: &[char], replacement: &[char]) -> Vec<MappedChar> {
     if needle.is_empty() || input.len() < needle.len() {
-        return input.to_vec();
+        return input;
     }
+    let matches_at = |index: usize| {
+        input[index..index + needle.len()]
+            .iter()
+            .map(|item| item.ch)
+            .eq(needle.iter().copied())
+    };
+    // Đa số needle không xuất hiện (50 cụm IgnoredChinesePhrases, các cặp
+    // khoảng trắng): trả nguyên Vec thay vì chép lại cả văn bản.
+    let Some(first) = (0..=input.len() - needle.len()).find(|&index| matches_at(index)) else {
+        return input;
+    };
     let mut output = Vec::with_capacity(input.len());
-    let mut index = 0usize;
+    output.extend_from_slice(&input[..first]);
+    let mut index = first;
     while index < input.len() {
         let matches = index + needle.len() <= input.len()
             && input[index..index + needle.len()]
@@ -380,7 +432,7 @@ fn replace_all(input: &[MappedChar], needle: &[char], replacement: &[char]) -> V
                 .map(|item| item.ch)
                 .eq(needle.iter().copied());
         if matches {
-            let source = merged_range(input, index, needle.len());
+            let source = merged_range(&input, index, needle.len());
             output.extend(replacement.iter().map(|ch| MappedChar { ch: *ch, source }));
             index += needle.len();
         } else {
@@ -471,7 +523,7 @@ fn replace_all_with_blocked_separator(
             output.push(TaggedMappedChar {
                 mapped: MappedChar {
                     ch: '\n',
-                    source: CharRange {
+                    source: SourceSpan {
                         start: source_start,
                         length: source_end - source_start,
                     },
@@ -487,7 +539,7 @@ fn replace_all_with_blocked_separator(
     output
 }
 
-fn merged_range(input: &[MappedChar], start: usize, length: usize) -> CharRange {
+fn merged_range(input: &[MappedChar], start: usize, length: usize) -> SourceSpan {
     let slice = &input[start..start + length];
     let source_start = slice
         .iter()
@@ -499,7 +551,7 @@ fn merged_range(input: &[MappedChar], start: usize, length: usize) -> CharRange 
         .map(|item| item.source.start + item.source.length)
         .max()
         .unwrap_or(source_start);
-    CharRange {
+    SourceSpan {
         start: source_start,
         length: source_end - source_start,
     }
@@ -633,6 +685,48 @@ mod tests {
                 start: 0,
                 length: 9
             }
+        );
+    }
+
+    fn mapped(text: &str) -> Vec<MappedChar> {
+        text.chars()
+            .enumerate()
+            .map(|(index, ch)| MappedChar {
+                ch,
+                source: SourceSpan {
+                    start: index as u32,
+                    length: 1,
+                },
+            })
+            .collect()
+    }
+
+    #[test]
+    fn replace_all_returns_the_input_untouched_when_the_needle_is_absent() {
+        let input = mapped("ab cd");
+        let pointer = input.as_ptr();
+        let output = replace_all(input, &[' ', ' '], &[' ']);
+        assert_eq!(output.as_ptr(), pointer, "no copy when nothing to replace");
+        assert_eq!(
+            output.iter().map(|item| item.ch).collect::<String>(),
+            "ab cd"
+        );
+    }
+
+    #[test]
+    fn replace_all_keeps_the_prefix_and_merges_replaced_ranges() {
+        let output = replace_all(mapped("ab  c  d"), &[' ', ' '], &['_']);
+        assert_eq!(
+            output.iter().map(|item| item.ch).collect::<String>(),
+            "ab_c_d"
+        );
+        assert_eq!(
+            output
+                .iter()
+                .map(|item| CharRange::from(item.source))
+                .collect::<Vec<_>>(),
+            [(0, 1), (1, 1), (2, 2), (4, 1), (5, 2), (7, 1)]
+                .map(|(start, length)| CharRange { start, length })
         );
     }
 }

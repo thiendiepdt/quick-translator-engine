@@ -129,15 +129,15 @@ curl -X POST http://localhost:3000/translate \
 ```
 
 Tự host mà chỉ cần convert nhanh thì dùng `qt-lite-server`. Nó chỉ dịch `vietphrase-one`,
-không có lọc tên, tên gửi kèm request; RAM idle khoảng 95 MB so với 384 MB của
-`qt-server`. Xem [docs/api.md](docs/api.md#qt-lite-server--quick-convert).
+không có lọc tên và không trả range, tên gửi kèm request; RAM idle khoảng 72 MB so với
+348 MB của `qt-server`. Xem [docs/api.md](docs/api.md#qt-lite-server--quick-convert).
 
 ```bash
 QT_DATA_DIR=QT2025 QT_PORT=3000 cargo run -q --release -p qt-api --bin qt-lite-server
 ```
 
-Server hiện bind `0.0.0.0`, giới hạn JSON body ở 5 MiB nhưng không có authentication hay
-rate limit. Chỉ nên dùng trong mạng tin cậy hoặc đặt sau reverse proxy có các lớp bảo vệ
+Server hiện bind `0.0.0.0`, giới hạn JSON body mặc định 32 MiB (chỉnh bằng
+`QT_MAX_BODY_MB`) nhưng không có authentication hay rate limit. Chỉ nên dùng trong mạng tin cậy hoặc đặt sau reverse proxy có các lớp bảo vệ
 phù hợp; xem [SECURITY.md](SECURITY.md).
 
 API contract đầy đủ nằm tại [docs/api.md](docs/api.md).

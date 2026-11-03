@@ -256,7 +256,7 @@ pub fn parse_dict(content: &str) -> Vec<(String, String)> {
 /// [`parse_dict`] without allocating: yields slices of `content`. Loaders
 /// that copy entries into their own storage use this to avoid a transient
 /// `Vec<(String, String)>` of the whole file.
-pub(crate) fn parse_dict_borrowed(content: &str) -> impl Iterator<Item = (&str, &str)> {
+pub(crate) fn parse_dict_borrowed(content: &str) -> impl Iterator<Item = (&str, &str)> + Clone {
     content.lines().enumerate().filter_map(|(i, raw)| {
         let line = if i == 0 {
             raw.trim_start_matches('\u{feff}')

@@ -12,20 +12,35 @@ use rustc_hash::{FxHashMap, FxHashSet};
 struct CompiledRule {
     key: String,
     value: String,
-    regex: FancyRegex,
     /// Mọi ký tự literal BẮT BUỘC trong key: mỗi match đều phải chứa đủ,
     /// nên cửa sổ thiếu bất kỳ ký tự nào thì khỏi chạy regex.
     literals: Vec<char>,
-    /// Neo vị trí: mọi match phải bắt đầu bằng literal prefix của key, nên
-    /// chỉ cần thử bản regex `^(?:…)` tại các lần xuất hiện của prefix thay
-    /// vì để backtracker tự quét từng vị trí cửa sổ. `None` = không neo
-    /// được, giữ đường quét cũ.
-    anchor: Option<RuleAnchor>,
+    matcher: RuleMatcher,
 }
 
-struct RuleAnchor {
-    literal: String,
-    regex: FancyRegex,
+/// Cách chạy regex của một luật.
+///
+/// `relaxed` là bản nới của regex luật `{n}`: bỏ lookahead `(?!suffix)` nên
+/// chạy được bằng crate `regex` (DFA, không backtrack) và khớp tập CHA của
+/// bản gốc. Nới không khớp thì bản gốc chắc chắn không khớp, nên chỉ chạy
+/// fancy-regex khi bản nới khớp — output không đổi. Đo trên bookshelf: 87%
+/// lần chạy regex `{n}` không khớp, mỗi lần backtracker tốn ~6,8 µs; lọc
+/// trước cắt ~35% thời gian dịch. `None` khi pattern không có lookahead
+/// (fancy-regex đã tự chạy bằng crate `regex`) hoặc bản nới không compile.
+enum RuleMatcher {
+    /// Mọi match phải bắt đầu bằng literal prefix của key: chỉ thử bản regex
+    /// `^(?:…)` tại các lần xuất hiện của prefix thay vì để backtracker tự
+    /// quét từng vị trí cửa sổ.
+    Anchored {
+        literal: String,
+        regex: FancyRegex,
+        relaxed: Option<Regex>,
+    },
+    /// Không neo được: quét cả cửa sổ.
+    Unanchored {
+        regex: FancyRegex,
+        relaxed: Option<Regex>,
+    },
 }
 
 /// Literal prefix của key mà mọi match buộc phải bắt đầu bằng nó. Trả về
@@ -74,14 +89,30 @@ fn rule_anchor_literal(key: &str) -> String {
     anchor
 }
 
-fn compile_anchor(key: &str, pattern: &str) -> Option<RuleAnchor> {
+/// `regex` là bản compile của `pattern` (đã kiểm tra hợp lệ); `relaxed` là
+/// bản nới, chỉ luật `{n}` có lookahead mới có. Luật neo được chỉ giữ bản
+/// `^(?:…)` — bản quét cả cửa sổ của nó không bao giờ được dùng.
+fn compile_matcher(
+    key: &str,
+    pattern: &str,
+    regex: FancyRegex,
+    relaxed: Option<&str>,
+) -> RuleMatcher {
     let literal = rule_anchor_literal(key);
-    if literal.is_empty() {
-        return None;
+    if !literal.is_empty() {
+        // Bọc `(?:…)` để chỉ số nhóm bên trong giữ nguyên (nhóm 1 vẫn là nhóm 1).
+        if let Ok(anchored) = FancyRegex::new(&format!("^(?:{pattern})")) {
+            return RuleMatcher::Anchored {
+                literal,
+                regex: anchored,
+                relaxed: relaxed.and_then(|relaxed| Regex::new(&format!("^(?:{relaxed})")).ok()),
+            };
+        }
     }
-    // Bọc `(?:…)` để chỉ số nhóm bên trong giữ nguyên (nhóm 1 vẫn là nhóm 1).
-    let regex = FancyRegex::new(&format!("^(?:{pattern})")).ok()?;
-    Some(RuleAnchor { literal, regex })
+    RuleMatcher::Unanchored {
+        regex,
+        relaxed: relaxed.and_then(|relaxed| Regex::new(relaxed).ok()),
+    }
 }
 
 /// Tập ký tự literal BẮT BUỘC trong key: mọi match của rule đều phải chứa
@@ -211,13 +242,14 @@ impl LuatNhan {
                 let regex = FancyRegex::new(&pattern)
                     .map_err(|error| format!("invalid LuatNhan rule {key:?}: {error}"))?;
                 let literals = rule_literals(&key);
-                let anchor = compile_anchor(&key, &pattern);
+                let relaxed = compile_relaxed_n_pattern(&key);
+                let relaxed = (relaxed != pattern).then_some(relaxed.as_str());
+                let matcher = compile_matcher(&key, &pattern, regex, relaxed);
                 Ok(CompiledRule {
                     key,
                     value,
-                    regex,
                     literals,
-                    anchor,
+                    matcher,
                 })
             })
             .collect::<Result<Vec<_>, String>>()?;
@@ -231,13 +263,12 @@ impl LuatNhan {
                 let regex = FancyRegex::new(&pattern)
                     .map_err(|error| format!("invalid LuatNhan rule {key:?}: {error}"))?;
                 let literals = rule_literals(&key);
-                let anchor = compile_anchor(&key, &pattern);
+                let matcher = compile_matcher(&key, &pattern, regex, None);
                 Ok(CompiledRule {
                     key,
                     value,
-                    regex,
                     literals,
-                    anchor,
+                    matcher,
                 })
             })
             .collect::<Result<Vec<_>, String>>()?;
@@ -397,32 +428,54 @@ impl LuatNhan {
             {
                 continue;
             }
-            if let Some(anchor) = &rule.anchor {
-                // Mô phỏng đúng captures_iter: các match KHÔNG chồng lấn,
-                // trái sang phải; sau một match (kể cả khi resolve dictionary
-                // fail) match kế tiếp chỉ được bắt đầu từ CUỐI match đó.
-                let step = anchor.literal.chars().next().map_or(1, char::len_utf8);
-                let mut search_from = 0usize;
-                while let Some(relative) = chinese[search_from..].find(&anchor.literal) {
-                    let position = search_from + relative;
-                    match anchor.regex.captures(&chinese[position..]).ok().flatten() {
-                        Some(captures) => {
-                            let matched_len =
-                                captures.get(0).map_or(0, |whole| whole.as_str().len());
-                            if let Some(found) =
-                                resolve_n(rule, &captures, chinese, position, dictionary_n)
-                            {
-                                return Some(found);
-                            }
-                            search_from = position + matched_len.max(step);
+            match &rule.matcher {
+                RuleMatcher::Anchored {
+                    literal,
+                    regex,
+                    relaxed,
+                } => {
+                    // Mô phỏng đúng captures_iter: các match KHÔNG chồng lấn,
+                    // trái sang phải; sau một match (kể cả khi resolve
+                    // dictionary fail) match kế tiếp chỉ được bắt đầu từ CUỐI
+                    // match đó.
+                    let step = literal.chars().next().map_or(1, char::len_utf8);
+                    let mut search_from = 0usize;
+                    while let Some(relative) = chinese[search_from..].find(literal.as_str()) {
+                        let position = search_from + relative;
+                        let rest = &chinese[position..];
+                        if relaxed
+                            .as_ref()
+                            .is_some_and(|relaxed| !relaxed.is_match(rest))
+                        {
+                            search_from = position + step;
+                            continue;
                         }
-                        None => search_from = position + step,
+                        match regex.captures(rest).ok().flatten() {
+                            Some(captures) => {
+                                let matched_len =
+                                    captures.get(0).map_or(0, |whole| whole.as_str().len());
+                                if let Some(found) =
+                                    resolve_n(rule, &captures, chinese, position, dictionary_n)
+                                {
+                                    return Some(found);
+                                }
+                                search_from = position + matched_len.max(step);
+                            }
+                            None => search_from = position + step,
+                        }
                     }
                 }
-            } else {
-                for captures in rule.regex.captures_iter(chinese).flatten() {
-                    if let Some(found) = resolve_n(rule, &captures, chinese, 0, dictionary_n) {
-                        return Some(found);
+                RuleMatcher::Unanchored { regex, relaxed } => {
+                    if relaxed
+                        .as_ref()
+                        .is_some_and(|relaxed| !relaxed.is_match(chinese))
+                    {
+                        continue;
+                    }
+                    for captures in regex.captures_iter(chinese).flatten() {
+                        if let Some(found) = resolve_n(rule, &captures, chinese, 0, dictionary_n) {
+                            return Some(found);
+                        }
                     }
                 }
             }
@@ -446,27 +499,28 @@ impl LuatNhan {
             }
             // Chỉ cần match TRÁI NHẤT (captures cũ): với rule neo được, đó
             // là vị trí anchor đầu tiên mà bản regex `^…` khớp.
-            let found = if let Some(anchor) = &rule.anchor {
-                let step = anchor.literal.chars().next().map_or(1, char::len_utf8);
-                let mut search_from = 0usize;
-                let mut found = None;
-                while let Some(relative) = chinese[search_from..].find(&anchor.literal) {
-                    let position = search_from + relative;
-                    if let Some(captures) =
-                        anchor.regex.captures(&chinese[position..]).ok().flatten()
-                    {
-                        found = Some((position, captures));
-                        break;
+            // Luật {s} không có bản nới (`relaxed` luôn None).
+            let found = match &rule.matcher {
+                RuleMatcher::Anchored { literal, regex, .. } => {
+                    let step = literal.chars().next().map_or(1, char::len_utf8);
+                    let mut search_from = 0usize;
+                    let mut found = None;
+                    while let Some(relative) = chinese[search_from..].find(literal.as_str()) {
+                        let position = search_from + relative;
+                        if let Some(captures) = regex.captures(&chinese[position..]).ok().flatten()
+                        {
+                            found = Some((position, captures));
+                            break;
+                        }
+                        search_from = position + step;
                     }
-                    search_from = position + step;
+                    found
                 }
-                found
-            } else {
-                rule.regex
+                RuleMatcher::Unanchored { regex, .. } => regex
                     .captures(chinese)
                     .ok()
                     .flatten()
-                    .map(|captures| (0, captures))
+                    .map(|captures| (0, captures)),
             };
             let Some((byte_offset, captures)) = found else {
                 continue;
@@ -636,6 +690,23 @@ fn compile_n_pattern(key: &str) -> String {
             "{prefix}((?:(?!{})[^,\\. ?]){{1,10}}?){suffix}",
             regex::escape(suffix)
         )
+    } else {
+        pattern.replace("{n}", "([^,\\. ?]{1,10})")
+    }
+}
+
+/// [`compile_n_pattern`] bỏ lookahead `(?!suffix)`: chạy được bằng crate
+/// `regex` và khớp tập cha của bản gốc (xem [`RuleMatcher`]). Không có
+/// suffix thì trùng hẳn bản gốc.
+fn compile_relaxed_n_pattern(key: &str) -> String {
+    let pattern = key.replace('(', "(?:");
+    let Some(index) = pattern.find("{n}") else {
+        return pattern;
+    };
+    if index + 3 < pattern.len() {
+        let prefix = &pattern[..index];
+        let suffix = &pattern[index + 3..];
+        format!("{prefix}([^,\\. ?]{{1,10}}?){suffix}")
     } else {
         pattern.replace("{n}", "([^,\\. ?]{1,10})")
     }
@@ -866,7 +937,10 @@ mod tests {
             .luat_nhan
             .push(("在{n}身后".into(), "sau lưng {n}".into()));
         let rules = LuatNhan::new(&dicts);
-        assert!(rules.n_rules[0].anchor.is_some());
+        assert!(matches!(
+            rules.n_rules[0].matcher,
+            RuleMatcher::Anchored { .. }
+        ));
         let empty = HashMap::new();
         // Match đầu tại 0 ("在X身后") resolve fail vì X không có trong
         // dictionary_n; match kế tiếp phải bắt đầu sau cuối match đó và
@@ -897,5 +971,78 @@ mod tests {
             rules.translate("在他身后", &matched.key, &matched.value_n, None, None),
             Some("sau lưng hắn".into())
         );
+    }
+
+    #[test]
+    fn relaxed_pattern_only_drops_the_suffix_lookahead() {
+        assert_eq!(
+            compile_relaxed_n_pattern("在{n}身后"),
+            "在([^,\\. ?]{1,10}?)身后"
+        );
+        assert_eq!(
+            compile_relaxed_n_pattern("(超出了|超出){n}的预[料杵]"),
+            "(?:超出了|超出)([^,\\. ?]{1,10}?)的预[料杵]"
+        );
+        // Không có suffix thì không có lookahead: trùng bản gốc, khỏi lọc.
+        assert_eq!(
+            compile_relaxed_n_pattern("QQ号{n}"),
+            compile_n_pattern("QQ号{n}")
+        );
+        let dicts = Dictionaries {
+            luat_nhan: vec![("QQ号{n}".into(), "QQ {n}".into())],
+            ..Default::default()
+        };
+        let rules = LuatNhan::new(&dicts);
+        assert!(matches!(
+            rules.n_rules[0].matcher,
+            RuleMatcher::Anchored { relaxed: None, .. }
+        ));
+    }
+
+    /// Bản nới khớp nhưng bản gốc không (lookahead cấm nuốt ký tự mở đầu
+    /// suffix): kết quả phải theo bản gốc, cả với luật neo lẫn không neo.
+    #[test]
+    fn relaxed_prefilter_keeps_lookahead_semantics() {
+        let mut dicts = Dictionaries::default();
+        dicts.pronouns.insert("他".into(), "hắn".into());
+        // Nếu lookahead bị bỏ qua, "身后" / "无关" sẽ được bắt và resolve.
+        dicts.pronouns.insert("身后".into(), "SAI".into());
+        dicts.pronouns.insert("无关".into(), "SAI".into());
+        dicts.luat_nhan = vec![
+            ("在{n}身后".into(), "sau lưng {n}".into()),
+            ("[与和跟]{n}无关".into(), "không liên quan tới {n}".into()),
+        ];
+        let rules = LuatNhan::new(&dicts);
+        let empty = HashMap::new();
+        let contains = |text: &str| {
+            let chars: Vec<char> = text.chars().collect();
+            rules.contains(
+                &chars,
+                &empty,
+                &empty,
+                None,
+                None,
+                None,
+                &mut LuatNhanScratch::default(),
+            )
+        };
+
+        for rule in &rules.n_rules {
+            let (relaxed, haystack) = match &rule.matcher {
+                RuleMatcher::Anchored { relaxed, .. } => (relaxed, "在身后身后"),
+                RuleMatcher::Unanchored { relaxed, .. } => (relaxed, "与无关无关"),
+            };
+            let relaxed = relaxed
+                .as_ref()
+                .expect("rule with suffix has a relaxed regex");
+            assert!(relaxed.is_match(haystack), "{}", rule.key);
+        }
+        assert!(contains("在身后身后").is_none());
+        assert!(contains("与无关无关").is_none());
+
+        let matched = contains("在他身后").expect("anchored rule still matches");
+        assert_eq!(matched.value_n, "hắn");
+        let matched = contains("与他无关").expect("unanchored rule still matches");
+        assert_eq!(matched.value_n, "hắn");
     }
 }

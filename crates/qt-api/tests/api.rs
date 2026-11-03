@@ -5,7 +5,10 @@ use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
 use tower::ServiceExt; // for `oneshot`
 
-use qt_api::{build_lite_router, build_router, AppState, LiteAppState};
+use qt_api::{
+    build_lite_router, build_lite_router_with_body_limit, build_router,
+    build_router_with_body_limit, AppState, LiteAppState, DEFAULT_MAX_BODY_BYTES,
+};
 use qt_core::{Dictionaries, DictionaryDefaults, Engine, LiteEngine};
 
 const TEST_HAN_VIET: &str = "他=tha\n很=ngận\n好=hảo\n红=hồng\n中=trung\n人=nhân\n甲=giáp\n乙=ất\n丙=bính\n丁=đinh\n格=cách\n尔=nhĩ\n斯=tư\n泰=thái\n特=đặc\n在=tại\n身=thân\n后=hậu\n张=trương\n先=tiên\n生=sinh";
@@ -948,11 +951,10 @@ async fn get_path(app: axum::Router, uri: &str) -> axum::response::Response {
 async fn lite_translate_matches_full_server_one_meaning() {
     let requests = [
         serde_json::json!({ "text": "他很好" }),
-        serde_json::json!({ "text": "丁格尔斯泰特很好，红中人", "pretty": false, "ranges": true }),
+        serde_json::json!({ "text": "丁格尔斯泰特很好，红中人", "pretty": false, "ranges": false }),
         serde_json::json!({ "text": "甲乙丙丁", "mode": "vietphrase-one", "wrap": true }),
         serde_json::json!({
             "text": "张先生在他身后很好",
-            "ranges": true,
             "dictionaries": {
                 "names": "张先生=Trương tiên sinh/ông Trương",
                 "luatNhan": "在{n}身后=sau lưng {n}",
@@ -979,6 +981,53 @@ async fn lite_translate_matches_full_server_one_meaning() {
             body_string(full).await,
             "{request}"
         );
+    }
+}
+
+#[tokio::test]
+async fn lite_rejects_ranges_requests() {
+    let resp = post_json(
+        build_lite_router(lite_state()),
+        "/translate",
+        serde_json::json!({ "text": "他很好", "ranges": true }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    assert!(body_string(resp)
+        .await
+        .contains("ranges is not supported by this server"));
+    let resp = post_json(
+        build_lite_router(lite_state()),
+        "/translate/batch",
+        serde_json::json!({ "texts": ["他很好"], "ranges": true }),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+}
+
+/// Không xin range thì server đi đường không dựng range: text phải trùng
+/// với khi xin range, kể cả có override và wrap.
+#[tokio::test]
+async fn translate_text_is_identical_with_and_without_ranges() {
+    for mut request in [
+        serde_json::json!({ "text": "丁格尔斯泰特很好，红中人甲乙丙丁", "pretty": false }),
+        serde_json::json!({ "text": "他很好。", "mode": "vietphrase", "wrap": true }),
+        serde_json::json!({ "text": "他很好", "mode": "hanviet" }),
+        serde_json::json!({
+            "text": "张先生在他身后很好",
+            "dictionaries": { "names": "张先生=Trương tiên sinh", "pronouns": "他=hắn" },
+            "dictionaryPatches": { "vietPhrase": { "很好": "ổn lắm" } }
+        }),
+    ] {
+        let without = post_json(build_router(test_state()), "/translate", request.clone()).await;
+        assert_eq!(without.status(), StatusCode::OK);
+        let without: serde_json::Value = serde_json::from_str(&body_string(without).await).unwrap();
+        request["ranges"] = serde_json::json!(true);
+        let with = post_json(build_router(test_state()), "/translate", request.clone()).await;
+        assert_eq!(with.status(), StatusCode::OK);
+        let with: serde_json::Value = serde_json::from_str(&body_string(with).await).unwrap();
+        assert_eq!(with["translated"], without["translated"], "{request}");
+        assert!(with["sourceRanges"].is_array() && without.get("sourceRanges").is_none());
     }
 }
 
@@ -1063,4 +1112,29 @@ async fn lite_rejects_invalid_request_luat_nhan() {
     .await;
     assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
     assert!(body_string(resp).await.contains("invalid LuatNhan rule"));
+}
+
+#[tokio::test]
+async fn body_limit_is_configurable_per_router() {
+    assert_eq!(DEFAULT_MAX_BODY_BYTES, 32 * 1024 * 1024);
+    let text = "很好".repeat(400); // ~2,4 KB JSON
+    let body = serde_json::json!({ "text": text });
+    let resp = post_json(
+        build_router_with_body_limit(test_state(), 1024),
+        "/translate",
+        body.clone(),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let resp = post_json(
+        build_lite_router_with_body_limit(lite_state(), 1024),
+        "/translate",
+        body.clone(),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let resp = post_json(build_router(test_state()), "/translate", body.clone()).await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    let resp = post_json(build_lite_router(lite_state()), "/translate", body).await;
+    assert_eq!(resp.status(), StatusCode::OK);
 }

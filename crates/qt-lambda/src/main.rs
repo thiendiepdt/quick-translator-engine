@@ -3,8 +3,12 @@
 use std::sync::Arc;
 
 use lambda_http::{run, tracing, Error};
-use qt_api::{build_router, AppState};
+use qt_api::{build_router_with_body_limit, AppState};
 use qt_core::{DictionaryDefaults, Engine};
+
+/// Payload Lambda trần 6 MB; giữ JSON body ≤ 5 MiB (server tự host mặc định
+/// 32 MiB).
+const LAMBDA_MAX_BODY_BYTES: usize = 5 * 1024 * 1024;
 
 // Lambda embeds the same QT2025 defaults used by the CLI and HTTP server.
 // Request-scoped overrides are parsed separately and never mutate this state.
@@ -48,7 +52,11 @@ fn build_state() -> Arc<AppState> {
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     tracing::init_default_subscriber();
-    run(build_router(build_state())).await
+    run(build_router_with_body_limit(
+        build_state(),
+        LAMBDA_MAX_BODY_BYTES,
+    ))
+    .await
 }
 
 #[cfg(test)]

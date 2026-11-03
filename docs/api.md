@@ -11,6 +11,7 @@ chung. Request và response dùng JSON UTF-8.
 |---|---:|---|
 | `QT_DATA_DIR` | `data` | Thư mục chứa bộ từ điển |
 | `QT_PORT` | `3000` | Cổng HTTP |
+| `QT_MAX_BODY_MB` | `32` | Giới hạn JSON body, tính bằng MiB, phải là số nguyên dương; giá trị sai thì server báo lỗi và không khởi động. Riêng `qt-lambda` cố định 5 MiB vì payload Lambda trần 6 MB |
 
 Server không gọi AI và không nhận API key AI nào: client tự gọi DeepSeek/Gemini (hoặc
 proxy của mình) rồi gửi kết quả dưới dạng dữ liệu trơ trong `aiEntities` (xem
@@ -20,13 +21,34 @@ proxy của mình) rồi gửi kết quả dưới dạng dữ liệu trơ trong
 QT_DATA_DIR=QT2025 QT_PORT=3000 cargo run -q -p qt-api --bin qt-server
 ```
 
-Server bind trên `0.0.0.0`. JSON body được giới hạn 5 MiB. Bản hiện tại không có TLS,
-authentication hay rate limit; không nên expose trực tiếp ra Internet.
+Server bind trên `0.0.0.0`. JSON body mặc định giới hạn 32 MiB (`QT_MAX_BODY_MB`), đủ
+cho một file truyện khoảng 30 MB. Bản hiện tại không có TLS, authentication hay rate
+limit; không nên expose trực tiếp ra Internet.
 
-Cả hai binary server dùng allocator mimalloc. Lý do: glibc malloc giữ lại phần bộ nhớ
-đã free, nên RSS trên Linux chỉ tăng chứ không giảm. Bench trên Linux, 3 đợt × 16
-request đồng thời 190k ký tự rồi để server rảnh 15s: glibc giữ 1359 MB, mimalloc còn
-735 MB. Tốc độ dịch và lọc tên ngang hoặc nhanh hơn glibc.
+### Bộ nhớ trên Linux
+
+Server dùng glibc malloc, nhưng lúc khởi động cố định ngưỡng mmap ở 4 MB
+(`mallopt(M_MMAP_THRESHOLD)`). Nhờ vậy:
+- Cấp phát nhỏ (request một chương) dùng arena chung giữa các thread: nhanh, không phình
+  theo số thread.
+- Buffer lớn của request file lớn đi thẳng mmap, nên được trả về OS ngay khi request xong.
+
+Mặc định glibc tự nâng ngưỡng này tới 32 MB sau lần free lớn đầu tiên; khi đó buffer của
+file lớn rơi vào arena và bị giữ lại. Muốn ngưỡng khác thì đặt `MALLOC_MMAP_THRESHOLD_`
+hoặc tunable `glibc.malloc.mmap_threshold`; server giữ giá trị đó. Đã thử thêm
+`malloc_trim(0)`, cả sau khi nạp từ điển lẫn sau request lớn, nhưng không bớt được RAM nên
+không dùng.
+
+Đã thử mimalloc rồi bỏ. Với kiểu dùng thật là nhiều request một chương chạy đồng thời,
+mimalloc giữ heap riêng cho từng thread nên RSS phình theo số thread. Bench Linux, 3 đợt
+× 100 chương (trung vị 2,3k ký tự, kèm names) chạy đồng thời: qt-server mimalloc 845 MB,
+glibc 466 MB; lite mimalloc 365 MB, glibc 121 MB. Tải trộn (chương + 4 file 1,5 triệu ký
+tự đồng thời), RSS sau tải: qt-server mimalloc 687 MB, glibc mặc định 769 MB, glibc với
+ngưỡng 4 MB 509 MB; lite lần lượt 424 / 472 / 143 MB. Với ngưỡng 4 MB, file lớn chậm
+khoảng 5%.
+
+Một request chỉ lấy text tốn khoảng 28–44 byte mỗi ký tự lúc dịch: một chương vài trăm KB,
+file 30 MB (10 triệu ký tự) khoảng 280 MB. Cộng thêm phần HTTP gồm body vào và JSON ra.
 
 ## `qt-lite-server` — quick convert
 
@@ -35,8 +57,9 @@ Binary thứ hai, dành cho người tự host chỉ cần convert nhanh. Nó ch
 request y hệt `qt-server`: vẫn nhận `dictionaries` (names, names2, luatNhan, pronouns…)
 và `dictionaryPatches`. Không có `/names/filter`, `/meanings` và
 `/dictionaries/defaults`: tên đã lọc thì client gửi kèm qua `dictionaries.names`, không
-gửi thì dùng Names.txt + Names2 mặc định. Gửi mode khác `vietphrase-one` sẽ nhận
-`400` `mode … is not supported by this server`.
+gửi thì dùng Names.txt + Names2 mặc định. Lite cũng không trả range. Gửi mode khác
+`vietphrase-one` sẽ nhận `400` `mode … is not supported by this server`, gửi
+`"ranges": true` sẽ nhận `400` `ranges is not supported by this server`.
 
 ```bash
 QT_DATA_DIR=QT2025 QT_PORT=3000 cargo run -q --release -p qt-api --bin qt-lite-server
@@ -49,12 +72,17 @@ names/patch gửi kèm.
 
 | Đo trên Linux, QT2025 | `qt-server` | `qt-lite-server` |
 |---|---:|---:|
-| RSS lúc idle | 384 MB | 95 MB |
-| RSS sau 8 lần dịch + 5 lần lọc tên/dịch 190k ký tự | 505 MB | 147 MB |
-| RSS sau 3 × 16 request đồng thời, rảnh 15s | 735 MB | 338 MB |
-| Dịch 190k ký tự | ~700 ms | ~830 ms |
+| RSS lúc idle | 348 MB | 72 MB |
+| RSS sau 8 lần dịch + 5 lần lọc tên/dịch 190k ký tự | 509 MB | 141 MB |
+| Đỉnh RSS khi 3 × 16 request đồng thời | 1421 MB | 560 MB |
+| RSS sau tải đó, rảnh 15s | 663 MB | 387 MB |
+| Dịch 190k ký tự | ~340 ms | ~350–370 ms |
 
-Lite chậm hơn khoảng 8–20% vì phải tra Names và VietPhrase qua view thay vì một map gộp
+Với qt-server, đỉnh RSS khi chạy đồng thời chủ yếu do `/names/filter`: mỗi request 190k ký
+tự tốn khoảng 68 MB cho bảng n-gram. Một request dịch 190k ký tự không xin range chỉ tốn
+khoảng 9 MB.
+
+Lite chậm hơn khoảng 5–15% vì phải tra Names và VietPhrase qua view thay vì một map gộp
 sẵn. Đây cũng là đường mà `qt-server` đi khi request gửi kèm names.
 
 ## Mode và option dùng chung
@@ -64,7 +92,7 @@ sẵn. Đây cũng là đường mà `qt-server` đi khi request gửi kèm name
 | `mode` | string | `vietphrase-one` | `hanviet`, `vietphrase`, `vietphrase-one` |
 | `wrap` | boolean | `false` | Bọc từng cụm dịch trong `[...]` |
 | `pretty` | boolean | `true` | Bỏ whitespace đầu output và viết hoa ký tự đầu; gửi `false` để giữ output QT nguyên bản |
-| `ranges` | boolean | `false` | Trả thêm `sourceRanges` và `targetRanges` |
+| `ranges` | boolean | `false` | Trả thêm `sourceRanges` và `targetRanges`. Không xin thì server không dựng range, nên đỉnh RAM mỗi request thấp hơn khoảng 40% (190k ký tự: 8,8 MB so với 14,9 MB) |
 | `scanRange` | integer | `30` | Độ dài quét tối đa, từ `1` đến `100` |
 | `translationAlgorithm` | integer | `1` | Thuật toán `0`, `1` hoặc `2` |
 | `prioritizedName` | boolean | `true` | Ưu tiên Name trước cụm VietPhrase chồng lấn |

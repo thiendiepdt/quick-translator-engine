@@ -22,7 +22,7 @@ use crate::luat_nhan::LuatNhan;
 use crate::standardize::Standardizer;
 use crate::{
     first_meaning, DictionaryOverrideError, DictionaryOverrides, HanVietMap, LayeredBase, Mode,
-    Options, PriorityDictionary, TranslationResult,
+    Options, PriorityDictionary,
 };
 use rustc_hash::FxHashMap;
 use std::path::Path;
@@ -154,15 +154,16 @@ impl LiteEngine {
         }
     }
 
-    /// Dịch VietPhrase một nghĩa. `overrides` rỗng nghĩa là dùng từ điển mặc
-    /// định; có override thì xếp lớp y như
-    /// [`crate::Engine::translate_with_ranges_and_overrides`].
-    pub fn translate_with_ranges(
+    /// Dịch VietPhrase một nghĩa, chỉ trả text (quick convert không cần
+    /// range — bỏ chúng đỡ ~45% đỉnh RAM mỗi request). `overrides` rỗng
+    /// nghĩa là dùng từ điển mặc định; có override thì xếp lớp y như
+    /// [`crate::Engine::translate_with_overrides`].
+    pub fn translate(
         &self,
         text: &str,
         opts: &Options,
         overrides: &DictionaryOverrides,
-    ) -> Result<TranslationResult, DictionaryOverrideError> {
+    ) -> Result<String, DictionaryOverrideError> {
         // Names2 đè lên Names.txt; chặn trên độ dài = max của hai index.
         let only_name = PriorityDictionary {
             primary: &self.secondary_names,
@@ -188,18 +189,8 @@ impl LiteEngine {
             ho_nguoi: &ho_nguoi,
             hau_tu: &hau_tu,
         }
-        .translate(text, Mode::VietPhraseOneMeaning, opts, overrides)
-    }
-
-    pub fn translate(
-        &self,
-        text: &str,
-        opts: &Options,
-        overrides: &DictionaryOverrides,
-    ) -> Result<String, DictionaryOverrideError> {
-        Ok(self
-            .translate_with_ranges(text, opts, overrides)?
-            .translated_text)
+        .translate(text, Mode::VietPhraseOneMeaning, opts, overrides, false)
+        .map(|result| result.translated_text)
     }
 }
 
@@ -210,7 +201,6 @@ fn scan_dictionary(source: &str) -> (CompactDict, usize) {
         parse_dict_borrowed(source)
             .filter(|(key, _)| within_scan_window(key))
             .map(|(key, value)| (key, first_meaning(value))),
-        source.len(),
     )
 }
 
@@ -251,10 +241,13 @@ mod tests {
         overrides: &DictionaryOverrides,
     ) {
         let opts = Options::default();
+        // So với đường CÓ range của Engine: text của đường không range phải
+        // trùng hẳn.
         let expected = engine
             .translate_with_ranges_and_overrides(text, Mode::VietPhraseOneMeaning, &opts, overrides)
-            .unwrap();
-        let got = lite.translate_with_ranges(text, &opts, overrides).unwrap();
+            .unwrap()
+            .translated_text;
+        let got = lite.translate(text, &opts, overrides).unwrap();
         assert_eq!(got, expected, "text: {text}");
     }
 
