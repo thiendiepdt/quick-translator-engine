@@ -49,7 +49,7 @@ pub fn merge(remote: &IdiomTable, user: &IdiomTable) -> IdiomTable {
 
 /// Chỉ giữ chữ Hán: so khớp không phụ thuộc dấu câu / khoảng trắng (三十年河东三十年河西 = 三十年河东，三十年河西).
 fn han_only(text: &str) -> String {
-    text.chars().filter(|c| crate::check::contains_han(c.encode_utf8(&mut [0; 4]))).collect()
+    crate::check::han().find_iter(text).map(|found| found.as_str()).collect()
 }
 
 fn clauses(key: &str) -> Vec<String> {
@@ -102,14 +102,24 @@ pub struct IdiomIssue {
 /// Đoạn raw có nguyên câu thành ngữ mà đoạn dịch cùng nhãn không có cách dịch nào trong bảng. Chỉ xét nguyên câu:
 /// raw dùng một vế thì bản dịch đúng cũng chỉ có một vế.
 pub fn idiom_issues(raw: &[String], translated: &[Option<String>], table: &IdiomTable) -> Vec<IdiomIssue> {
+    // Bảng cả nghìn câu, chương trăm đoạn: lọc khoá theo cả chương một lần rồi mới xét từng đoạn.
+    let chapter = han_only(&raw.concat());
+    let present: Vec<(String, &String, &String)> = table
+        .iter()
+        .filter(|(_, value)| !value.is_empty())
+        .map(|(key, value)| (han_only(key), key, value))
+        .filter(|(whole, _, _)| !whole.is_empty() && chapter.contains(whole))
+        .collect();
     let mut issues = Vec::new();
+    if present.is_empty() {
+        return issues;
+    }
     for (paragraph, source) in raw.iter().enumerate() {
         let Some(Some(text)) = translated.get(paragraph) else { continue };
         let han_raw = han_only(source);
         let text = plain(text);
-        for (key, value) in table {
-            let whole = han_only(key);
-            if value.is_empty() || whole.is_empty() || !han_raw.contains(&whole) {
+        for (whole, key, value) in &present {
+            if !han_raw.contains(whole) {
                 continue;
             }
             let options: Vec<&str> = value.split(" / ").map(str::trim).filter(|o| !o.is_empty()).collect();
@@ -267,6 +277,10 @@ mod tests {
         let issues = idiom_issues(&raw, &out, &all);
         assert_eq!(issues.iter().map(|i| i.paragraph).collect::<Vec<_>>(), vec![0], "{issues:?}");
         assert!(issues[0].message.starts_with(IDIOM_ISSUE));
+        // Hai vế nằm ở hai đoạn: lọc theo cả chương thì khớp nhưng không đoạn nào có nguyên câu.
+        let split = vec!["三十年河东！".to_string(), "三十年河西！".to_string()];
+        let split_out = vec![Some("Ba mươi năm sông Đông!".to_string()), Some("Ba mươi năm sông Tây!".to_string())];
+        assert!(idiom_issues(&split, &split_out, &all).is_empty());
     }
 
     #[test]

@@ -181,7 +181,7 @@ pub fn contains_han(text: &str) -> bool {
     han().is_match(text)
 }
 
-fn han() -> &'static regex::Regex {
+pub(crate) fn han() -> &'static regex::Regex {
     static HAN: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
     HAN.get_or_init(|| regex::Regex::new(r"\p{Han}").unwrap())
 }
