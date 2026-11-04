@@ -1,7 +1,7 @@
 # Có gì mới
 
 ## Chưa phát hành
-- Thêm **bảng thành ngữ** (Cài đặt → **Thành ngữ**): chương có thành ngữ nào trong bảng thì AI bắt buộc dịch đúng cách đã ghi, ví dụ 三十年河东，三十年河西 → “ba mươi năm hà đông, ba mươi năm hà tây” (trước đây phần lớn ra “sông Đông”), 打草惊蛇 → “đánh rắn động cỏ”. Bản dịch không theo bảng thì chương vẫn chốt nhưng có cảnh báo. Bảng chung được cập nhật trên GitHub, app tự tải bản mới mỗi lần mở; bạn thêm câu riêng, sửa hoặc tắt câu của bảng chung trong bảng của mình, và bảng của bạn luôn được ưu tiên.
+- Thêm **bảng thành ngữ** (Cài đặt → **Thành ngữ**): chương có thành ngữ nào trong bảng thì AI bắt buộc dịch đúng cách đã ghi, ví dụ 三十年河东，三十年河西 → “ba mươi năm hà đông, ba mươi năm hà tây” (trước đây gần một nửa số lần ra “sông Đông”), 打草惊蛇 → “đánh rắn động cỏ”. Bản dịch không theo bảng thì chương vẫn chốt nhưng có cảnh báo. Bảng chung được cập nhật trên GitHub, app tự tải bản mới mỗi lần mở; bạn thêm câu riêng, sửa hoặc tắt câu của bảng chung trong bảng của mình, và bảng của bạn luôn được ưu tiên.
 - Bớt văn convert: AI không còn dịch 不过 thành “bất quá”, 气场 thành “khí tràng”, 委屈 thành “ủy khuất”, 为什么 thành “vì cái gì”, 我叫 thành “ta gọi là”. Tiếng động như 咕噜, 吱呀, 嘟嘟, 汪汪 ra “ùng ục”, “cót két”, “tút tút”, “gâu gâu”. Chương còn sót “bất quá”, “khí tràng”, “ủy khuất”, “vì cái gì” sẽ được AI soát lại trước khi chốt; “ta gọi là” chỉ cảnh báo.
 
 ## 1.0.29 — 2026-10-30
