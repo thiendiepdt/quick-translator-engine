@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useBookInfo } from "@/hooks/use-book-info";
 import { exportChapters, exportEpub, pickSaveFile, revealFolder } from "@/lib/api";
-import { resolveChapterRef } from "@/lib/chapters";
+import { hasHanLeft, resolveChapterRef } from "@/lib/chapters";
 import { splitStoryName } from "@/lib/epub-cover";
 import { previewRange } from "@/lib/export-range";
 import type { ChapterRow, ExportOutcome } from "@/lib/types";
@@ -59,6 +59,8 @@ export function ExportPage() {
   const canRun = !busy && preview.valid && preview.included.length > 0;
   // Chương dưới ngưỡng chữ của nền tảng đăng truyện trong khoảng sẽ export.
   const shortIncluded = preview.valid ? preview.included.map((row) => row.id).filter((id) => short.words.has(id)) : [];
+  // Chương Lỗi không vào file export (đã báo ở dòng Hổng); ở đây chỉ còn chương đã chốt mà bản dịch còn chữ Hán.
+  const hanIncluded = preview.valid ? preview.included.filter(hasHanLeft) : [];
   const ordinalOf = new Map(chapters.map((row, index) => [row.id, index + 1]));
 
   async function run(pickPath: boolean) {
@@ -173,6 +175,18 @@ export function ExportPage() {
                     Sẽ {format === "epub" ? "đưa vào sách" : "gộp"}{" "}
                     <strong className="tabular-nums">{preview.included.length}</strong> chương done.
                   </p>
+                  {hanIncluded.length > 0 && (
+                    <p className="mt-1 text-status-error">
+                      {hanIncluded.length} chương còn chữ Hán trong bản dịch, nên sửa ở khung đọc chương trước khi đăng:{" "}
+                      <span className="font-mono text-xs">
+                        {hanIncluded
+                          .slice(0, 20)
+                          .map((row) => `#${ordinalOf.get(row.id)}`)
+                          .join(", ")}
+                        {hanIncluded.length > 20 ? "…" : ""}
+                      </span>
+                    </p>
+                  )}
                   {shortIncluded.length > 0 && (
                     <p className="mt-1 text-status-warning">
                       {shortIncluded.length} chương dưới {short.threshold} chữ, nền tảng đăng truyện có thể không nhận

@@ -1,6 +1,9 @@
 # Có gì mới
 
 ## Chưa phát hành
+- Chương báo **Lỗi** có bản nháp giờ bấm được **Chốt --force** (trước đây nút này chỉ bật khi chương đang dịch). Dùng khi AI dịch đúng mà bản kiểm tra vẫn chặn, ví dụ truyện bàn về chính con chữ nên bản dịch phải giữ chữ Hán: “chữ 攜 trong 攜帶”. Chương chốt theo cách này vẫn ghi cảnh báo.
+- Chương còn chữ Hán giờ được báo rõ: chip **Còn Hán** ở danh sách chương và trên thanh công cụ màn Dịch (bấm để lọc), nhãn **Hán** trên từng dòng chương, và dòng báo ở trang Export liệt kê số thứ tự các chương sắp xuất mà bản dịch vẫn còn chữ Hán.
+- Dòng còn chữ Hán ở tab **Bản dịch** giờ có sẵn nút thay bằng phiên âm Hán-Việt ngay dưới dòng, ví dụ `攜帶 → Huề Đái`; bấm là ghi vào bản dịch, dòng nhiều cụm có thêm nút **Thay cả dòng**. Chữ trong ngoặc viết hoa từng âm, chữ trần viết thường. Thay hoặc sửa tay xong, cảnh báo chữ Hán và chip **Còn Hán** tự cập nhật theo bản mới.
 - Thêm **bảng thành ngữ** (Cài đặt → **Thành ngữ**): chương có thành ngữ nào trong bảng thì AI bắt buộc dịch đúng cách đã ghi, ví dụ 三十年河东，三十年河西 → “ba mươi năm hà đông, ba mươi năm hà tây” (trước đây gần một nửa số lần ra “sông Đông”), 打草惊蛇 → “đánh rắn động cỏ”. Bản dịch không theo bảng thì chương vẫn chốt nhưng có cảnh báo. Bảng chung được cập nhật trên GitHub, app tự tải bản mới mỗi lần mở; bạn thêm câu riêng, sửa hoặc tắt câu của bảng chung trong bảng của mình, và bảng của bạn luôn được ưu tiên.
 - Bớt văn convert: AI không còn dịch 不过 thành “bất quá”, 气场 thành “khí tràng”, 委屈 thành “ủy khuất”, 为什么 thành “vì cái gì”, 我叫 thành “ta gọi là”. Tiếng động như 咕噜, 吱呀, 嘟嘟, 汪汪 ra “ùng ục”, “cót két”, “tút tút”, “gâu gâu”. Chương còn sót “bất quá”, “khí tràng”, “ủy khuất”, “vì cái gì” sẽ được AI soát lại trước khi chốt; “ta gọi là” chỉ cảnh báo.
 

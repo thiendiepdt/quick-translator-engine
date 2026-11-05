@@ -211,6 +211,23 @@ describe("TranslateToolbar · cảnh báo hổng chương", () => {
     expect(dialog).toHaveTextContent("cả 4 chương, trong đó 2 chương đã dịch xong");
   });
 
+  it("chip Còn Hán đếm chương Lỗi do chữ Hán và chương đã chốt còn chữ Hán; bấm thì lọc", async () => {
+    const chapters = [
+      { id: "c1", status: "done" as const, reviewRound: 3, reason: null, warnings: ['[[8]] CJK còn sót (chưa dịch hết!) — "“攜”"'] },
+      { id: "c2", status: "error" as const, reviewRound: 3, reason: "Quá 3 vòng review vẫn chưa đạt (thiếu 0 đoạn, 1 vi phạm, ratio 2.64; còn chữ Hán ở [[4]]).", warnings: [] },
+      { id: "c3", status: "done" as const, reviewRound: 0, reason: null, warnings: [] },
+    ];
+    useStoryStore.setState({ snapshot: { ...useStoryStore.getState().snapshot!, chapters }, statusFilter: "all" });
+    render(<TranslateToolbar />);
+    await userEvent.click(screen.getByRole("button", { name: "Lọc 2 chương còn chữ Hán" }));
+    expect(useStoryStore.getState().statusFilter).toBe("han");
+  });
+
+  it("không chương nào còn chữ Hán thì không hiện chip Còn Hán", () => {
+    render(<TranslateToolbar />);
+    expect(screen.queryByRole("button", { name: /còn chữ Hán/ })).not.toBeInTheDocument();
+  });
+
   it("báo chương chưa dịch đứng trước chương done cuối; bấm số thứ tự thì chọn chương đó", async () => {
     render(<TranslateToolbar />);
     const alert = screen.getByRole("status", { name: /hổng/i });

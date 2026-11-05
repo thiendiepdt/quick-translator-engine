@@ -48,6 +48,56 @@ export function splitHan(text: string): { text: string; han: boolean }[] {
   return parts;
 }
 
+export interface HanRun {
+  text: string;
+  start: number;
+  end: number;
+  /** Cụm nằm trọn trong một cặp ngoặc: tác giả đang nói về chính con chữ, như 'chữ “攜”'. */
+  quoted: boolean;
+}
+
+const OPENING_QUOTES = "“‘\"'「『《〈";
+const CLOSING_QUOTES = "”’\"'」』》〉";
+
+export function hanRuns(line: string): HanRun[] {
+  return [...line.matchAll(HAN_RUN)].map((match) => {
+    const start = match.index;
+    const end = start + match[0].length;
+    const quoted = OPENING_QUOTES.includes(line[start - 1] ?? " ") && CLOSING_QUOTES.includes(line[end] ?? " ");
+    return { text: match[0], start, end, quoted };
+  });
+}
+
+/** Âm đưa vào câu: cụm trong ngoặc giữ viết hoa từng âm như tên chữ, cụm trần viết thường như chữ bình thường trong câu. */
+export function spokenReading(run: HanRun, reading: string): string {
+  return run.quoted ? reading : reading.toLocaleLowerCase("vi");
+}
+
+/**
+ * Thay các cụm chữ Hán bằng âm trong `readings` (viết hoa từng âm, đúng dạng `han_viet_name` trả về); cụm không có âm
+ * giữ nguyên. `only`: chỉ thay cụm này, mọi chỗ nó lặp trong dòng. Cụm dính liền chữ Việt thì thêm dấu cách ở phía đó.
+ */
+export function replaceHan(line: string, readings: ReadonlyMap<string, string>, only?: string): string {
+  let result = "";
+  let last = 0;
+  for (const run of hanRuns(line)) {
+    const reading = readings.get(run.text);
+    if (reading === undefined || (only !== undefined && run.text !== only)) continue;
+    const before = /[\p{L}\p{N}]$/u.test(line.slice(0, run.start)) ? " " : "";
+    const after = /^[\p{L}\p{N}]/u.test(line.slice(run.end)) ? " " : "";
+    result += line.slice(last, run.start) + before + spokenReading(run, reading) + after;
+    last = run.end;
+  }
+  return result + line.slice(last);
+}
+
+/** Đổi dòng thứ `index` (đếm như `numberLines`, tính cả dòng trống), giữ nguyên kiểu xuống dòng của cả văn bản. */
+export function withLine(text: string, index: number, line: string): string {
+  const parts = text.split(/(\r?\n)/);
+  parts[index * 2] = line;
+  return parts.join("");
+}
+
 /** Số ký tự không tính khoảng trắng — đúng cách harness đo độ dài khi tính tỉ lệ dịch/gốc. */
 export function countChars(text: string): number {
   return [...text.replace(/\s+/gu, "")].length;

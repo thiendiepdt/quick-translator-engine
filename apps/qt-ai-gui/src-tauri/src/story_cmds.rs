@@ -2,7 +2,7 @@ use crate::error::{blocking, CmdResult, CommandError};
 use crate::sidecar::qt_ai_command;
 use crate::summary_cache::SummaryCache;
 use crate::AppState;
-use qt_ai_core::commands::accept::run_accept;
+use qt_ai_core::commands::accept::{run_accept, sync_han_warnings};
 use qt_ai_core::commands::delete::run_delete;
 use qt_ai_core::commands::export::{run_export, ExportOptions};
 use qt_ai_core::commands::init::run_init;
@@ -248,14 +248,16 @@ pub fn chapter_view(root: &Path, id: &str) -> CmdResult<ChapterView> {
 }
 
 /// Người dùng sửa tay bản dịch: ghi đè out/<id>.txt. Chỉ khi file đã có (chương chưa chốt thì không có
-/// gì để sửa — nháp là của runner). Không đụng state.json.
-pub fn save_chapter_output_inner(root: &Path, id: &str, text: &str) -> CmdResult<()> {
+/// gì để sửa — nháp là của runner). Cảnh báo chữ Hán tính lại theo bản mới; trả true nếu state đổi. Bản dịch đã ghi
+/// xong thì lỗi ở bước đó không tính là lưu hỏng: cảnh báo cũ còn đó, lần lưu sau tính lại.
+pub fn save_chapter_output_inner(root: &Path, id: &str, text: &str) -> CmdResult<bool> {
     let paths = story_paths(root);
     let out = paths.out_dir.join(format!("{id}.txt"));
     if !out.is_file() {
         return Err(CommandError::new("invalid_state", format!("Chương {id} chưa có bản dịch trong out/ để sửa.")));
     }
-    Ok(write_atomic(&out, text)?)
+    write_atomic(&out, text)?;
+    Ok(sync_han_warnings(root, id, text).unwrap_or(false))
 }
 
 pub fn save_story_inner(root: &Path, story: Value) -> CmdResult<StoryConfig> {
@@ -382,7 +384,7 @@ pub fn save_story(root: String, story: Value) -> CmdResult<StoryConfig> {
 }
 
 #[tauri::command]
-pub fn save_chapter_output(root: String, id: String, text: String) -> CmdResult<()> {
+pub fn save_chapter_output(root: String, id: String, text: String) -> CmdResult<bool> {
     save_chapter_output_inner(Path::new(&root), &id, &text)
 }
 

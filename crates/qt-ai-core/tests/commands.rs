@@ -1,7 +1,7 @@
 //! State machine trên tempdir — tương đương bộ vitest của apps/qt-ai-cli.
 mod common;
 
-use qt_ai_core::commands::accept::{run_accept, run_accept_with};
+use qt_ai_core::commands::accept::{run_accept, run_accept_with, sync_han_warnings};
 use qt_ai_core::commands::check::run_check;
 use qt_ai_core::commands::delete::run_delete;
 use qt_ai_core::commands::export::{run_export, run_export_epub, ExportOptions};
@@ -594,6 +594,62 @@ fn accept_khong_force_tu_choi_khi_con_han_tu() {
     let err = run_accept(dir.path(), "0001", false).unwrap_err();
     assert!(matches!(err, CoreError::InvalidState(ref m) if m.contains("chưa qua check")), "{err:?}");
     assert!(!story_paths(dir.path()).out_dir.join("0001.txt").exists());
+}
+
+/// Chương đã Chốt --force với chữ Hán cố ý giữ ở đoạn [[2]].
+fn story_chot_con_han() -> TempDir {
+    let dir = story_with_draft(
+        "[[1]] Triệu Tĩnh Văn ngẩng đầu nhìn tòa tháp cao nơi xa.\n\n[[2]] Nàng viết chữ “攜” trong “攜帶” rồi im lặng hồi lâu.",
+        None,
+    );
+    run_accept(dir.path(), "0001", true).unwrap();
+    dir
+}
+
+fn han_warnings_of(paths: &StoryPaths) -> Vec<String> {
+    let warnings = load_state(paths).unwrap().chapters["0001"].warnings.clone().unwrap_or_default();
+    warnings.into_iter().filter(|w| w.contains("CJK còn sót")).collect()
+}
+
+#[test]
+fn sync_han_warnings_het_chu_han_thi_go_canh_bao() {
+    let dir = story_chot_con_han();
+    let paths = story_paths(dir.path());
+    assert_eq!(han_warnings_of(&paths).len(), 1);
+    assert!(sync_han_warnings(dir.path(), "0001", "Chương 1\n\nNàng viết chữ “Huề” trong “Huề Đái”.\n").unwrap());
+    assert!(han_warnings_of(&paths).is_empty());
+}
+
+#[test]
+fn sync_han_warnings_con_chu_han_thi_canh_bao_theo_dong_cua_ban_moi() {
+    let dir = story_chot_con_han();
+    let paths = story_paths(dir.path());
+    let text = "Dòng một.\n\nDòng hai.\r\n\r\nNàng viết chữ “攜”.\n";
+    assert!(sync_han_warnings(dir.path(), "0001", text).unwrap());
+    assert_eq!(han_warnings_of(&paths), vec!["[[3]] CJK còn sót (chưa dịch hết!) — \"Nàng viết chữ “攜”.\"".to_string()]);
+}
+
+#[test]
+fn sync_han_warnings_giu_canh_bao_khac_va_khong_ghi_khi_khong_doi() {
+    let dir = story_with_draft(GOOD_DRAFT, None);
+    run_accept(dir.path(), "0001", true).unwrap();
+    let paths = story_paths(dir.path());
+    let mut state = load_state(&paths).unwrap();
+    state.chapters.get_mut("0001").unwrap().warnings = Some(vec!["[[1]] Từ cấm — \"câu\"".to_string()]);
+    save_state(&paths, &state).unwrap();
+    let before = fs::read_to_string(&paths.state_json).unwrap();
+    assert!(!sync_han_warnings(dir.path(), "0001", "Bản sạch.\n").unwrap());
+    assert_eq!(fs::read_to_string(&paths.state_json).unwrap(), before);
+    assert_eq!(load_state(&paths).unwrap().chapters["0001"].warnings.as_ref().unwrap().len(), 1);
+}
+
+#[test]
+fn sync_han_warnings_bo_qua_chuong_chua_chot() {
+    let dir = story_with_draft(GOOD_DRAFT, None);
+    let paths = story_paths(dir.path());
+    assert!(!sync_han_warnings(dir.path(), "0001", "Chữ “攜”.\n").unwrap());
+    assert_eq!(load_state(&paths).unwrap().chapters["0001"].warnings, None);
+    assert!(!sync_han_warnings(dir.path(), "9999", "Chữ “攜”.\n").unwrap());
 }
 
 /// Đoạn [[2]] của GOOD_DRAFT bị hub đọc nhầm Windows-1252 (mojibake).

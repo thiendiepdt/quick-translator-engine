@@ -26,6 +26,19 @@ describe("chapters", () => {
     expect(countByFilter(rows).short).toBe(0);
   });
 
+  it("lọc Còn Hán: chương đã chốt có cảnh báo CJK, chương Lỗi do chữ Hán; lỗi và cảnh báo khác thì không", () => {
+    const mixed: ChapterRow[] = [
+      { id: "a", status: "done", reviewRound: 3, reason: null, warnings: ['[[8]] CJK còn sót (chưa dịch hết!) — "“携”"'] },
+      { id: "b", status: "done", reviewRound: 0, reason: null, warnings: ["[[2]] Từ cấm"] },
+      { id: "c", status: "error", reviewRound: 3, reason: "Quá 3 vòng review vẫn chưa đạt (thiếu 0 đoạn, 3 vi phạm, ratio 2.54; còn chữ Hán ở [[8]]).", warnings: [] },
+      { id: "d", status: "error", reviewRound: 3, reason: "Quá 3 vòng review vẫn chưa đạt (thiếu 2 đoạn, 0 vi phạm, ratio 1.10).", warnings: [] },
+      { id: "e", status: "queued", reviewRound: 0, reason: null, warnings: [] },
+    ];
+    expect(filterChapters(mixed, "han", "").map((r) => r.id)).toEqual(["a", "c"]);
+    expect(countByFilter(mixed).han).toBe(2);
+    expect(countByFilter(rows).han).toBe(0);
+  });
+
   it("tìm theo số thứ tự: '3' khớp chương thứ 3 lẫn mã chứa 3, '#3' chỉ chương thứ 3", () => {
     expect(filterChapters(rows, "all", "#3").map((r) => r.id)).toEqual(["chuong-0003"]);
     expect(filterChapters(rows, "all", "4").map((r) => r.id)).toEqual(["chuong-0010"]); // thứ 4, mã không chứa 4

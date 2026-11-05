@@ -16,6 +16,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { HanLineActions } from "@/components/han-line-actions";
 import { LogPanel } from "@/components/log-panel";
 import { Button } from "@/components/ui/button";
 import {
@@ -53,6 +54,7 @@ import {
   READING_WIDTH_LABELS,
   READING_WIDTHS,
   splitHan,
+  withLine,
 } from "@/lib/reading";
 import { STATUS_LABELS, type ChapterRow, type ChapterStatus, type ChapterView } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -94,9 +96,21 @@ function LengthStats({ raw, output }: { raw: string; output: string | null | und
  * Văn bản vẽ theo từng dòng. `numbers`: đánh số đoạn ở lề trái — số nằm ngoài vùng chọn (không dính vào khi bôi
  * đen chép) và trùng nhãn [[n]] của harness, nên cảnh báo "[[12]] …" chỉ đúng dòng số 12 ở cả Bản dịch lẫn Gốc.
  * `flagHan` (bản dịch): dòng còn sót chữ Hán được tô nền, riêng các chữ Hán tô đậm hơn, kèm thanh báo liệt kê
- * số dòng ở đầu để nhảy tới — chương dài không phải cuộn dò.
+ * số dòng ở đầu để nhảy tới — chương dài không phải cuộn dò. `onReplaceLine`: hiện nút thay bằng phiên âm dưới dòng đó.
  */
-function ReadingText({ text, numbers, flagHan }: { text: string; numbers: boolean; flagHan: boolean }) {
+function ReadingText({
+  text,
+  numbers,
+  flagHan,
+  replaceDisabled = false,
+  onReplaceLine,
+}: {
+  text: string;
+  numbers: boolean;
+  flagHan: boolean;
+  replaceDisabled?: boolean;
+  onReplaceLine?: (index: number, line: string) => void;
+}) {
   const lines = useMemo(() => numberLines(text), [text]);
   const body = useRef<HTMLDivElement>(null);
   const flagged = flagHan ? lines.filter((line) => line.n !== undefined && hasHan(line.text)) : [];
@@ -165,6 +179,17 @@ function ReadingText({ text, numbers, flagHan }: { text: string; numbers: boolea
                   line.text
                 )}
               </span>
+              {/* Nằm ngoài ô chữ để bôi đen và data-line chỉ có nội dung dòng. */}
+              {han && line.n !== undefined && onReplaceLine && (
+                <div className={cn(numbers && "col-start-2")}>
+                  <HanLineActions
+                    n={line.n}
+                    line={line.text}
+                    disabled={replaceDisabled}
+                    onReplace={(next) => onReplaceLine(index, next)}
+                  />
+                </div>
+              )}
             </div>
           );
         })}
@@ -217,6 +242,7 @@ export function ChapterReader({ root, row, ordinal, hasPrev, hasNext, onPrev, on
   const editing = edit?.key === viewKey ? edit : undefined;
   const editBox = useRef<HTMLTextAreaElement>(null);
   const [saving, setSaving] = useState(false);
+  const [replacing, setReplacing] = useState(false);
   const [reason, setReason] = useState("");
 
   useEffect(() => {
@@ -268,14 +294,31 @@ export function ChapterReader({ root, row, ordinal, hasPrev, hasNext, onPrev, on
     }
   }
 
+  /** Ghi out/ rồi đọc lại; cảnh báo chữ Hán đổi theo bản mới thì nạp lại snapshot cho chip và thanh cảnh báo. */
+  async function writeOutput(text: string) {
+    const warningsChanged = await saveChapterOutput(root, row.id, text);
+    setLoaded({ key: viewKey, view: await readChapter(root, row.id) });
+    if (warningsChanged) setSnapshot(await storySnapshot(root));
+  }
+
+  async function replaceLine(index: number, line: string) {
+    if (view?.output == null) return;
+    setReplacing(true);
+    try {
+      await writeOutput(withLine(view.output, index, line));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Không thay được chữ Hán");
+    } finally {
+      setReplacing(false);
+    }
+  }
+
   async function saveEdit() {
     const text = editBox.current?.value;
     if (!editing || text == null) return;
     setSaving(true);
     try {
-      await saveChapterOutput(root, row.id, text);
-      const fresh = await readChapter(root, row.id);
-      setLoaded({ key: viewKey, view: fresh });
+      await writeOutput(text);
       setEdit(undefined);
       toast.success("Đã lưu bản dịch");
     } catch (error) {
@@ -288,7 +331,8 @@ export function ChapterReader({ root, row, ordinal, hasPrev, hasNext, onPrev, on
   const canRetry = row.status !== "queued";
   const retry = () => void act("Đã đưa về hàng đợi", () => chapterRetry(root, row.id));
   const canSkip = row.status !== "done";
-  const canForce = row.status === "translating" && Boolean(view?.draft);
+  // Chương Lỗi cũng chốt tay được: chữ Hán cố ý giữ ("chữ “攜” trong “攜帶”") thì model dịch lại mấy lượt vẫn còn.
+  const canForce = (row.status === "translating" || row.status === "error") && Boolean(view?.draft);
   const defaultTab = view?.output ? "output" : view?.draft ? "draft" : "raw";
 
   return (
@@ -471,7 +515,13 @@ export function ChapterReader({ root, row, ordinal, hasPrev, hasNext, onPrev, on
                 />
               ) : view && key === "output" ? (
                 // Bản dịch luôn vẽ theo dòng để tô được dòng sót chữ Hán, bật hay tắt số dòng cũng vậy.
-                <ReadingText text={view.output ?? ""} numbers={lineNumbers} flagHan />
+                <ReadingText
+                  text={view.output ?? ""}
+                  numbers={lineNumbers}
+                  flagHan
+                  replaceDisabled={running || replacing}
+                  onReplaceLine={(index, line) => void replaceLine(index, line)}
+                />
               ) : view && key === "raw" && lineNumbers && !view.rawMissing ? (
                 <ReadingText text={view.raw} numbers flagHan={false} />
               ) : (

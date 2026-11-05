@@ -2,7 +2,7 @@ import { Search } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Input } from "@/components/ui/input";
-import { countByFilter, FILTER_LABELS, FILTER_ORDER, filterChapters, type ChapterFilter } from "@/lib/chapters";
+import { countByFilter, FILTER_LABELS, FILTER_ORDER, filterChapters, hasHanLeft, type ChapterFilter } from "@/lib/chapters";
 import type { ChapterRow, ChapterStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -140,6 +140,14 @@ export function ChapterList({ rows, filter, query, selectedId, onSelect, onFilte
               </span>
               <span className="min-w-0 flex-1 truncate font-mono text-xs">{row.id}</span>
               {row.reviewRound > 0 && <span className="text-[11px] text-muted-foreground">soát {row.reviewRound}</span>}
+              {hasHanLeft(row) && (
+                <span
+                  title="Chương này còn chữ Hán, mở ra xem từng chỗ"
+                  className="rounded-full bg-status-error/15 px-1.5 text-[11px] font-medium text-status-error"
+                >
+                  Hán
+                </span>
+              )}
               {row.warnings.length > 0 && (
                 <span className="rounded-full bg-status-warning/15 px-1.5 text-[11px] font-medium text-status-warning">
                   {row.warnings.length}

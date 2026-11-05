@@ -63,6 +63,22 @@ describe("ExportPage", () => {
     expect(await screen.findByText(/Đã ghi/)).toBeInTheDocument();
   });
 
+  it("khoảng export có chương còn chữ Hán thì báo số chương kèm số thứ tự", () => {
+    const withHan = chapters.map((chapter) =>
+      chapter.id === "c-0004" ? { ...chapter, warnings: ['[[8]] CJK còn sót (chưa dịch hết!) — "“攜”"'] } : chapter,
+    );
+    useStoryStore.setState({
+      snapshot: { root: "D:\\t", chapters: withHan, counts: {}, settings: {}, story: { name: "" }, sessionRunning: false } as never,
+    });
+    render(<ExportPage />);
+    expect(screen.getByText(/1 chương còn chữ Hán/)).toHaveTextContent("#4");
+  });
+
+  it("khoảng export không có chương còn chữ Hán thì không báo", () => {
+    render(<ExportPage />);
+    expect(screen.queryByText(/còn chữ Hán/)).not.toBeInTheDocument();
+  });
+
   it("bấm Từ/Đến trong danh sách đổi ô nhập và tô khoảng", async () => {
     const user = userEvent.setup();
     render(<ExportPage />);

@@ -1,5 +1,5 @@
 use crate::cast::{apply_address_changes, filter_new_pairs, learn_genders, load_cast, save_cast};
-use crate::check::fix_glossary_drifts;
+use crate::check::{fix_glossary_drifts, refresh_han_warnings};
 use crate::commands::check::{assemble_draft, run_check_readonly};
 use crate::error::{CoreError, Result};
 use crate::glossary::{
@@ -28,6 +28,25 @@ pub struct AcceptResult {
     pub glossary_fixes: Vec<String>,
     /// Số chỗ tự xưng `bản X` đã đổi thành `bổn X` (bổn cung, bổn tọa…).
     pub self_ref_fixes: usize,
+}
+
+/// Người dùng sửa tay out/<id>.txt: cảnh báo chữ Hán của chương đã chốt tính lại theo `text`. Trả true nếu
+/// state đổi, để giao diện nạp lại; không đổi thì không ghi state.json.
+pub fn sync_han_warnings(root: &Path, id: &str, text: &str) -> Result<bool> {
+    let paths = story_paths(&resolve_root(root));
+    let mut state = load_state(&paths)?;
+    let Some(chapter) = state.chapters.get_mut(id).filter(|chapter| chapter.status == ChapterStatus::Done) else {
+        return Ok(false);
+    };
+    let stored = chapter.warnings.clone().unwrap_or_default();
+    let fresh = refresh_han_warnings(&stored, text);
+    if fresh == stored {
+        return Ok(false);
+    }
+    chapter.warnings = (!fresh.is_empty()).then_some(fresh);
+    chapter.updated_at = now_ms();
+    save_state(&paths, &state)?;
+    Ok(true)
 }
 
 pub fn run_accept(root: &Path, id: &str, force: bool) -> Result<AcceptResult> {

@@ -380,7 +380,23 @@ pub fn fix_glossary_drifts(
 }
 
 /// Rule cứng chạy trong mọi trường hợp — sót Hán tự là lỗi tuyệt đối.
-const MANDATORY_RULES: &[(&str, &str, &str)] = &[(r"\p{Script=Han}", "u", "CJK còn sót (chưa dịch hết!)")];
+const HAN_ISSUE: &str = "CJK còn sót (chưa dịch hết!)";
+const MANDATORY_RULES: &[(&str, &str, &str)] = &[(r"\p{Script=Han}", "u", HAN_ISSUE)];
+
+/// Cảnh báo sau khi người dùng sửa out/: cảnh báo chữ Hán cũ bỏ hết, sinh lại theo đúng bản vừa lưu (nhãn [[n]] là
+/// dòng không rỗng thứ n, trùng số dòng ở trang đọc); cảnh báo khác giữ nguyên.
+pub fn refresh_han_warnings(stored: &[String], text: &str) -> Vec<String> {
+    let kept = stored.iter().filter(|warning| !warning.contains(HAN_ISSUE)).cloned();
+    let fresh = split_lines(text)
+        .filter(|line| !line.trim().is_empty())
+        .enumerate()
+        .filter(|(_, line)| contains_han(line))
+        .map(|(index, line)| {
+            let excerpt: String = line.trim().chars().take(120).collect();
+            format!("[[{}]] {HAN_ISSUE} — \"{excerpt}\"", index + 1)
+        });
+    kept.chain(fresh).collect()
+}
 
 pub fn default_rules_as_check_rules(setting: GenreSetting) -> Vec<CheckRule> {
     rules_for(setting).map(as_check_rule).collect()

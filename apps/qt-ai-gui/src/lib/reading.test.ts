@@ -1,6 +1,55 @@
 import { describe, expect, it } from "vitest";
 
-import { countChars, countWords, hasHan, numberLines, READING_WIDTHS, readingWidthOf, splitHan } from "@/lib/reading";
+import {
+  countChars,
+  countWords,
+  hanRuns,
+  hasHan,
+  numberLines,
+  READING_WIDTHS,
+  readingWidthOf,
+  replaceHan,
+  splitHan,
+  withLine,
+} from "@/lib/reading";
+
+describe("thay chữ Hán bằng phiên âm", () => {
+  const readings = new Map([
+    ["攜", "Huề"],
+    ["攜帶", "Huề Đái"],
+    ["得", "Đắc"],
+    ["濡目染", "Nhu Mục Nhiễm"],
+  ]);
+
+  it("hanRuns đánh dấu cụm nằm trọn trong ngoặc", () => {
+    expect(hanRuns("Chữ “攜” trong ‘攜帶’, chạy得 nhanh").map(({ text, quoted }) => [text, quoted])).toEqual([
+      ["攜", true],
+      ["攜帶", true],
+      ["得", false],
+    ]);
+  });
+
+  it("chữ trong ngoặc viết hoa từng âm, chữ trần viết thường", () => {
+    expect(replaceHan("Trên chữ “攜” trong “攜帶”, cô dừng bút.", readings)).toBe("Trên chữ “Huề” trong “Huề Đái”, cô dừng bút.");
+    expect(replaceHan("Chữ ‘攜’ có vết tẩy.", readings)).toBe("Chữ ‘Huề’ có vết tẩy.");
+    expect(replaceHan("Nàng chạy 得 nhanh.", readings)).toBe("Nàng chạy đắc nhanh.");
+  });
+
+  it("chữ Hán dính liền chữ Việt thì thêm dấu cách", () => {
+    expect(replaceHan("Nàng chạy得 nhanh.", readings)).toBe("Nàng chạy đắc nhanh.");
+    expect(replaceHan("tai濡目染 không nói", readings)).toBe("tai nhu mục nhiễm không nói");
+    expect(replaceHan("A得B", readings)).toBe("A đắc B");
+  });
+
+  it("chữ chưa có âm giữ nguyên; truyền only thì chỉ thay cụm đó, kể cả khi lặp trong dòng", () => {
+    expect(replaceHan("“攜” và “龘”", readings)).toBe("“Huề” và “龘”");
+    expect(replaceHan("“攜”, “得”, ‘攜’", readings, "攜")).toBe("“Huề”, “得”, ‘Huề’");
+  });
+
+  it("withLine đổi đúng dòng, giữ nguyên các dòng khác và kiểu xuống dòng", () => {
+    expect(withLine("Một\r\n\r\nHai\n\nBa\n", 2, "Mới")).toBe("Một\r\n\r\nMới\n\nBa\n");
+  });
+});
 
 describe("reading width", () => {
   it("nhận đúng 4 mức, giá trị lạ về normal", () => {

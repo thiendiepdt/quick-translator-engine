@@ -1,16 +1,32 @@
 import { STATUS_LABELS, type ChapterRow, type ChapterStatus } from "@/lib/types";
 
-export type ChapterFilter = ChapterStatus | "all" | "warning" | "short";
+export type ChapterFilter = ChapterStatus | "all" | "warning" | "short" | "han";
 
-export const FILTER_ORDER: ChapterFilter[] = ["all", "queued", "translating", "done", "warning", "short", "error", "skipped"];
+export const FILTER_ORDER: ChapterFilter[] = ["all", "queued", "translating", "done", "warning", "short", "han", "error", "skipped"];
 
-export const FILTER_LABELS: Record<ChapterFilter, string> = { ...STATUS_LABELS, all: "Tất cả", warning: "Cảnh báo", short: "Ngắn" };
+export const FILTER_LABELS: Record<ChapterFilter, string> = {
+  ...STATUS_LABELS,
+  all: "Tất cả",
+  warning: "Cảnh báo",
+  short: "Ngắn",
+  han: "Còn Hán",
+};
+
+/**
+ * Chương còn chữ Hán, đọc từ chữ harness ghi vào state nên không phải quét out/: đã chốt thì còn cảnh báo
+ * "CJK còn sót", đang Lỗi thì lý do có "còn chữ Hán" (chờ người xem rồi Chốt --force hoặc dịch lại).
+ */
+export function hasHanLeft(row: ChapterRow): boolean {
+  if (row.status === "done") return row.warnings.some((warning) => warning.includes("CJK còn sót"));
+  return row.status === "error" && (row.reason?.includes("còn chữ Hán") ?? false);
+}
 
 /** `short`: mã các chương đã dịch dưới ngưỡng chữ của nền tảng đăng truyện (chưa biết thì rỗng). */
 function matches(row: ChapterRow, filter: ChapterFilter, short?: ReadonlySet<string>): boolean {
   if (filter === "all") return true;
   if (filter === "warning") return row.status === "done" && row.warnings.length > 0;
   if (filter === "short") return short?.has(row.id) ?? false;
+  if (filter === "han") return hasHanLeft(row);
   return row.status === filter;
 }
 

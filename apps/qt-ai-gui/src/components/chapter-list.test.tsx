@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -40,6 +40,19 @@ describe("ChapterList", () => {
     expect(onSelect).toHaveBeenCalledWith("0003");
     await userEvent.type(screen.getByRole("searchbox"), "2");
     expect(onQuery).toHaveBeenLastCalledWith("2");
+  });
+
+  it("chương còn chữ Hán: có chip lọc Còn Hán và nhãn Hán trên dòng chương đó", async () => {
+    const onFilter = vi.fn();
+    const han: ChapterRow[] = [
+      ...rows,
+      { id: "0005", status: "done", reviewRound: 3, reason: null, warnings: ['[[8]] CJK còn sót (chưa dịch hết!) — "“攜”"'] },
+    ];
+    render(<ChapterList rows={han} filter="all" query="" onSelect={noop} onFilter={onFilter} onQuery={noop} />);
+    await userEvent.click(screen.getByRole("button", { name: /Còn Hán 1/ }));
+    expect(onFilter).toHaveBeenCalledWith("han");
+    expect(within(screen.getByRole("option", { name: /0005/ })).getByText("Hán")).toBeInTheDocument();
+    expect(within(screen.getByRole("option", { name: /0001/ })).queryByText("Hán")).not.toBeInTheDocument();
   });
 
   it("truyện nhiều chương chỉ vẽ dòng đang thấy, cuộn tới đâu vẽ tới đó", () => {

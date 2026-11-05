@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ZhStoryBanner, ZhStoryDialog } from "@/components/zh-story-dialog";
 import { chaptersPadAll, chaptersRetryIds, rescanStory, sessionStart, sessionStop, storySnapshot } from "@/lib/api";
-import { chapterGaps, filterChapters } from "@/lib/chapters";
+import { chapterGaps, filterChapters, hasHanLeft } from "@/lib/chapters";
 import { clockLabel, engineLabel, isAbnormalStop, STATUS_LABELS, stopReasonBrief, stopReasonLabel } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { selectCurrentProgress, selectCurrentSession, selectCurrentShort, useStoryStore } from "@/store/story";
@@ -51,6 +51,7 @@ export function TranslateToolbar() {
     () => (gapInfo?.gaps ?? []).filter(({ row }) => row.status !== "queued").map(({ row }) => row.id),
     [gapInfo],
   );
+  const hanCount = useMemo(() => snapshot?.chapters.filter(hasHanLeft).length ?? 0, [snapshot]);
   /** Chọn chương hổng; đang bị lọc/tìm che thì bỏ lọc để danh sách cuộn tới được. */
   // Chương đang dịch: phiên báo qua progress.current, chưa có thì lấy chương đang ở trạng thái translating.
   const translatingId =
@@ -338,6 +339,18 @@ export function TranslateToolbar() {
               tone="text-status-warning border-status-warning/30"
             />
           </>
+        )}
+        {hanCount > 0 && (
+          <button
+            type="button"
+            title={`${hanCount} chương còn chữ Hán. Chương Lỗi: xem nháp rồi Chốt --force hoặc Dịch lại. Chương đã chốt: chữ Hán đang nằm trong bản dịch. Bấm để lọc.`}
+            aria-label={`Lọc ${hanCount} chương còn chữ Hán`}
+            onClick={() => setStatusFilter("han")}
+            className="inline-flex items-center gap-1.5 rounded-full border border-status-error/60 bg-status-error/15 px-2 py-0.5 text-xs font-medium text-status-error hover:bg-status-error/25"
+          >
+            <TriangleAlert className="size-3" aria-hidden />
+            Còn Hán <span className="tabular-nums">{hanCount}</span>
+          </button>
         )}
         {short.words.size > 0 && (
           <span className="inline-flex items-center gap-1">

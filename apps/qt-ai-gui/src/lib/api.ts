@@ -215,7 +215,7 @@ export const saveSettings = (root: string, settings: HarnessSettings) =>
   call("save_settings", { root, settings }, (v) => harnessSettingsSchema.parse(v));
 export const chapterRetry = (root: string, id: string) => call("chapter_retry", { root, id }, noop);
 export const saveChapterOutput = (root: string, id: string, text: string) =>
-  call("save_chapter_output", { root, id, text }, noop);
+  call("save_chapter_output", { root, id, text }, (v) => v === true);
 export const chaptersRetry = (root: string, range: { from?: string; to?: string }) =>
   call("chapters_retry", { root, from: range.from ?? null, to: range.to ?? null }, (v) => retryRangeOutcomeSchema.parse(v));
 /** Dịch lại đúng các chương `ids` (chương hổng xen kẽ chương done): queued bỏ qua, done giữ .bak. */
