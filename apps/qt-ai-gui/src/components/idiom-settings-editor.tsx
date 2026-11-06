@@ -15,7 +15,7 @@ const MAX_ROWS = 200;
 
 /**
  * Bảng thành ngữ: bảng chung tải từ GitHub mỗi lần mở app (chỉ xem, sửa = đè), bảng của người dùng đè theo khoá.
- * Chương có câu nào thì AI bắt buộc dịch đúng cách ghi; bản dịch không theo thì cảnh báo khi chốt chương.
+ * Chương có câu nào thì AI dịch theo cách ghi, câu gượng mới được diễn đạt lại; bản dịch không theo thì cảnh báo khi chốt chương.
  */
 export function IdiomSettingsEditor() {
   const [info, setInfo] = useState<IdiomsInfo>();

@@ -81,7 +81,7 @@ pub fn prompt_section(idioms: &IdiomTable) -> String {
         return String::new();
     }
     format!(
-        "\n# Thành ngữ trong chương\n\nRaw có thành ngữ nào dưới đây thì BẮT BUỘC dịch đúng cách đã cho: được chỉnh hoa/thường, trợ từ cho xuôi câu; nhiều cách ngăn bằng ` / ` thì chọn một cách hợp câu; raw chỉ dùng một vế thì dịch đúng vế đó. Chỉ dịch khác khi raw dùng nghĩa đen của từng chữ, không phải thành ngữ.\n\n{}\n",
+        "\n# Thành ngữ trong chương\n\nRaw có thành ngữ nào dưới đây thì dịch đúng cách đã cho: được chỉnh hoa/thường, trợ từ cho xuôi câu; nhiều cách ngăn bằng ` / ` thì chọn một cách hợp câu; raw chỉ dùng một vế thì dịch đúng vế đó. Chỉ khi đặt vào câu bị gượng mới được diễn đạt lại cho xuôi, giữ đúng nghĩa thành ngữ, nhưng không dịch nghĩa đen từng chữ và không để âm Hán Việt kiểu convert. Raw dùng nghĩa đen của từng chữ, không phải thành ngữ, thì dịch theo nghĩa đen.\n\n{}\n",
         crate::prompt::json_pretty(idioms)
     )
 }
@@ -257,6 +257,7 @@ mod tests {
         assert!(idioms_for_source(&all, "九死一生之地", &["九死一生"]).is_empty(), "glossary thắng");
         assert!(prompt_section(&IdiomTable::new()).is_empty());
         assert!(prompt_section(&found).contains("\"三十年河东，三十年河西\": \"ba mươi năm hà đông, ba mươi năm hà tây\""));
+        assert!(prompt_section(&found).contains("không dịch nghĩa đen từng chữ"), "nới cho xuôi câu nhưng vẫn chặn kiểu sông Đông");
     }
 
     #[test]

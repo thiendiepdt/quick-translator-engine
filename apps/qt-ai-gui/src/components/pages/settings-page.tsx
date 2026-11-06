@@ -486,7 +486,7 @@ export function SettingsPage() {
           </Card>
           <Card
             title="Thành ngữ"
-            description="Chương có thành ngữ nào trong bảng thì AI bắt buộc dịch đúng cách ghi (nhiều cách ngăn bằng /), bản dịch không theo thì cảnh báo khi chốt chương. Bảng chung cập nhật trên GitHub, app tải lại mỗi lần mở; bảng của bạn đè lên: thêm câu mới, sửa hoặc tắt câu của bảng chung. Dùng chung mọi truyện."
+            description="Chương có thành ngữ nào trong bảng thì AI dịch theo cách ghi (nhiều cách ngăn bằng /), chỉ diễn đạt lại khi cách đó làm câu gượng; bản dịch không theo thì cảnh báo khi chốt chương. Bảng chung cập nhật trên GitHub, app tải lại mỗi lần mở; bảng của bạn đè lên: thêm câu mới, sửa hoặc tắt câu của bảng chung. Dùng chung mọi truyện."
           >
             <IdiomSettingsEditor />
           </Card>
