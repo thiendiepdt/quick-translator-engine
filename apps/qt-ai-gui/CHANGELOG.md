@@ -1,6 +1,6 @@
 # Có gì mới
 
-## Chưa phát hành
+## 1.0.30 — 2026-11-06
 - Chương báo **Lỗi** có bản nháp giờ bấm được **Chốt --force** (trước đây nút này chỉ bật khi chương đang dịch). Dùng khi AI dịch đúng mà bản kiểm tra vẫn chặn, ví dụ truyện bàn về chính con chữ nên bản dịch phải giữ chữ Hán: “chữ 攜 trong 攜帶”. Chương chốt theo cách này vẫn ghi cảnh báo.
 - Chương còn chữ Hán giờ được báo rõ: chip **Còn Hán** ở danh sách chương và trên thanh công cụ màn Dịch (bấm để lọc), nhãn **Hán** trên từng dòng chương, và dòng báo ở trang Export liệt kê số thứ tự các chương sắp xuất mà bản dịch vẫn còn chữ Hán.
 - Dòng còn chữ Hán ở tab **Bản dịch** giờ có sẵn nút thay bằng phiên âm Hán-Việt ngay dưới dòng, ví dụ `攜帶 → Huề Đái`; bấm là ghi vào bản dịch, dòng nhiều cụm có thêm nút **Thay cả dòng**. Chữ trong ngoặc viết hoa từng âm, chữ trần viết thường. Thay hoặc sửa tay xong, cảnh báo chữ Hán và chip **Còn Hán** tự cập nhật theo bản mới.
