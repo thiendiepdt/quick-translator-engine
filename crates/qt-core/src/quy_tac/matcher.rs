@@ -131,6 +131,8 @@ const TAG_S: u32 = 1 << 28;
 const TAG_PLACE: u32 = 1 << 27;
 const TAG_VERB: u32 = 1 << 26;
 const BUILTIN_BITS: u32 = (1 << Builtin::COUNT) - 1;
+// Cờ `TAG_*` chiếm bit 26–31: nhãn có sẵn thêm quá 26 thì đụng nhau.
+const _: () = assert!(Builtin::COUNT <= 26);
 
 /// Mọi vị từ chỉ tuỳ nhãn của `builtin_bits` trong một lần `match`: bit
 /// `Builtin` cho nhãn có sẵn chỉ tuỳ nhãn, cờ `TAG_*` cho phần còn lại.

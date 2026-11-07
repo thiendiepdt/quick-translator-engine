@@ -539,9 +539,7 @@ impl LayeredBase<'_> {
             Mode::VietPhraseOneMeaning => &one_meaning_vietphrase,
             Mode::HanViet => unreachable!("HanViet returned above"),
         };
-        // Mỗi cụm ít nhất một ký tự nguồn: cấp đủ một lần. Đường không Quy Tắc
-        // không ghi token nên không cấp gì.
-        let mut tokens = Vec::with_capacity(if use_quy_tac { chars.len() } else { 0 });
+        let mut tokens = Vec::new();
         let result = translate::translate_all_mapped(
             &chars,
             with_ranges.then_some(source_ranges.as_slice()),
@@ -566,14 +564,8 @@ impl LayeredBase<'_> {
                     names,
                     lexicon: &lexicon,
                 };
-                // Token chỉ vào chuỗi đã qua number_modifier, như vòng dịch. Hàm đó
-                // chỉ đảo 余/多 với chữ đơn vị liền sau: không có 余, 多 thì y nguyên.
-                let modified = if chars.iter().any(|&c| matches!(c, '余' | '多')) {
-                    std::borrow::Cow::Owned(number::number_modifier(&chars))
-                } else {
-                    debug_assert_eq!(number::number_modifier(&chars), chars);
-                    std::borrow::Cow::Borrowed(chars.as_slice())
-                };
+                // Token chỉ vào chuỗi đã qua number_modifier, như vòng dịch.
+                let modified = number::number_modifier_cow(&chars);
                 let text = quy_tac.apply(&modified, &result.translated_text, &tokens, &lookups);
                 Ok(TranslationResult {
                     translated_text: text,

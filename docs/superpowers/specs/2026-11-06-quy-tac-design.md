@@ -457,6 +457,9 @@ tự xen kẽ, cổng lấy tổng thời gian các lượt:
 - Cổng 70% dựa trên giả định các tầng quy tắc chỉ tốn nửa phần Luật Nhân. Thực tế, sau tối ưu, chúng
   vẫn tốn khoảng 84% phần đó, và phần vòng dịch dùng chung đã chiếm ~52% đường hiện tại. Không xuống
   70% được mà giữ nguyên output, nên user đổi cổng thành "không chậm hơn đường hiện tại" (2026-11-07).
+- RAM đo bằng allocator đếm byte của bộ đo đã commit. Số 9.273.388 byte ghi trước đây là từ một
+  công cụ đo riêng của bước tối ưu RAM; bộ đo đã commit cho 9.370.443 byte ở cùng code. Lượt ba
+  chỉ thêm 26.772 byte (hai bảng bit chữ đầu 8 KiB, mặt nạ lọc và bit khoá).
 - Đỉnh RAM mỗi request chưa đo, để bước 4 khi nối lite / Lambda. Riêng lúc nạp, bảng từ loại cấp phát
   đỉnh ~5,9 MB.
 - Số tuyệt đối dao động theo tải máy (cùng code từng đo 4.168 ns/ký tự cho đường hiện tại); tỉ lệ ổn

@@ -163,10 +163,7 @@ pub(crate) fn number_modifier(chars: &[char]) -> Vec<char> {
     let mut cursor = 0;
     while cursor < chars.len() {
         let c = chars[cursor];
-        if matches!(c, '余' | '多')
-            && cursor + 1 < chars.len()
-            && matches!(chars[cursor + 1], '百' | '千' | '万' | '亿')
-        {
+        if swaps_at(chars, cursor) {
             output.push(chars[cursor + 1]);
             output.push(c);
             cursor += 2;
@@ -176,6 +173,23 @@ pub(crate) fn number_modifier(chars: &[char]) -> Vec<char> {
         }
     }
     output
+}
+
+/// 余/多 đứng ngay trước chữ đơn vị: chỗ duy nhất `number_modifier` đảo hai chữ.
+#[inline]
+fn swaps_at(chars: &[char], cursor: usize) -> bool {
+    matches!(chars[cursor], '余' | '多')
+        && cursor + 1 < chars.len()
+        && matches!(chars[cursor + 1], '百' | '千' | '万' | '亿')
+}
+
+/// Như `number_modifier`, nhưng không chép khi không có chỗ nào phải đảo.
+pub(crate) fn number_modifier_cow(chars: &[char]) -> std::borrow::Cow<'_, [char]> {
+    if (0..chars.len()).any(|cursor| swaps_at(chars, cursor)) {
+        std::borrow::Cow::Owned(number_modifier(chars))
+    } else {
+        std::borrow::Cow::Borrowed(chars)
+    }
 }
 
 fn convert_under_ten_thousand(chars: &[char]) -> Option<i64> {
@@ -541,6 +555,17 @@ mod tests {
             number_modifier(&chars).iter().collect::<String>(),
             "三万余五百多"
         );
+    }
+
+    #[test]
+    fn modifier_cow_borrows_only_when_nothing_swaps() {
+        for text in ["三余万五多百", "多百", "余", "多人余年", "三千多", "", "abc余"] {
+            let chars: Vec<char> = text.chars().collect();
+            let cow = number_modifier_cow(&chars);
+            assert_eq!(*cow, number_modifier(&chars)[..], "{text}");
+            let swaps = number_modifier(&chars) != chars;
+            assert_eq!(matches!(cow, std::borrow::Cow::Owned(_)), swaps, "{text}");
+        }
     }
 
     #[test]
