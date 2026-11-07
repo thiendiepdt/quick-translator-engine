@@ -9,9 +9,11 @@ mod program;
 mod render;
 mod tags;
 
+use std::borrow::Cow;
 use std::path::Path;
 
 pub(crate) use prepare::Lookups;
+use prepare::Raw;
 
 use crate::translate::SourceToken;
 
@@ -132,16 +134,20 @@ impl QuyTac {
             .rev()
             .find(|t| !text_of(output, t).is_empty())
             .expect("có cụm đầu thì có cụm cuối");
-        let raw: Vec<(String, String)> = paragraph
-            .iter()
-            .map(|t| {
-                let source = &chars[t.start..t.start + t.len];
-                let mut zh = String::with_capacity(source.iter().map(|c| c.len_utf8()).sum());
-                zh.extend(source);
-                (zh, text_of(output, t).to_string())
+        // Chữ Hán cả đoạn một chuỗi; token mượn khúc của nó và nghĩa trong output.
+        let source = paragraph.iter().map(|t| &chars[t.start..t.start + t.len]);
+        let mut text = String::with_capacity(source.clone().map(<[char]>::len).sum::<usize>() * 3);
+        source.clone().for_each(|zh| text.extend(zh));
+        let mut at = 0;
+        let raw: Vec<Raw> = source
+            .zip(paragraph)
+            .map(|(zh, t)| {
+                let start = at;
+                at += zh.iter().map(|c| c.len_utf8()).sum::<usize>();
+                Raw::Plain(Cow::Borrowed(&text[start..at]), Cow::Borrowed(text_of(output, t)))
             })
             .collect();
-        let Some(rendered) = self.apply_paragraph(raw, lk) else {
+        let Some(rendered) = self.apply_paragraph(&text, raw, lk) else {
             return;
         };
         let head = &output[first.out_start..first.out_end];
@@ -156,9 +162,15 @@ impl QuyTac {
         *cursor = to;
     }
 
-    /// `None` khi không có quy tắc nào chạy.
-    fn apply_paragraph(&self, raw: Vec<(String, String)>, lk: &Lookups) -> Option<String> {
-        let (items, char_fired) = char_rules::apply_chars(&self.program, raw, lk);
+    /// `text` là chữ Hán cả đoạn, `raw` các token của nó. `None` khi không có
+    /// quy tắc nào chạy.
+    fn apply_paragraph<'a>(
+        &'a self,
+        text: &'a str,
+        raw: Vec<Raw<'a>>,
+        lk: &Lookups,
+    ) -> Option<String> {
+        let (items, char_fired) = char_rules::apply_chars(&self.program, text, raw, lk);
         let toks = prepare::prepare(items, &self.pos, lk, &self.program.classes);
         let (toks, fired) = matcher::apply_program(&self.program, toks);
         (char_fired + fired > 0).then(|| render::render(&toks))

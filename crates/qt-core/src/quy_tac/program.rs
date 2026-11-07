@@ -196,6 +196,33 @@ pub(crate) struct Rule {
     /// `Program::need_lits` (`LitTable::words` từ), đoạn phải có ít nhất một chữ
     /// của mỗi danh sách, không thì khỏi thử.
     pub(crate) needs: Vec<u64>,
+    /// Bit nhãn có sẵn (`Builtin`) và lớp từ (`SlotKind::Class(k)`, `k < 64`) của
+    /// các khoá mẫu bắt buộc phải khớp một token: khoá không tuỳ chọn và khoá
+    /// `{…}+` (`match_rule` trả `None` khi chúng không khớp, kể cả `{…}+?`).
+    /// Ngữ cảnh, `{vế}`… và khoá lớp từ thứ 64 trở đi không tính.
+    pub(crate) req_builtins: u32,
+    pub(crate) req_classes: u64,
+}
+
+impl Rule {
+    /// Điền `req_builtins`, `req_classes` sau khi khoá đã phân giải.
+    fn index_requirements(&mut self) {
+        let (mut builtins, mut classes) = (0u32, 0u64);
+        for el in &self.pat {
+            let slot = match &el.kind {
+                ElKind::Slot(slot) if !el.opt => slot,
+                ElKind::Many(slot) => slot,
+                _ => continue,
+            };
+            match slot.kind {
+                SlotKind::Builtin(builtin) => builtins |= 1 << builtin as u32,
+                SlotKind::Class(k) if k < 64 => classes |= 1 << k,
+                SlotKind::Class(_) | SlotKind::Unknown => {}
+            }
+        }
+        self.req_builtins = builtins;
+        self.req_classes = classes;
+    }
 }
 
 /// Chỉ mục quy tắc chung (`Section::generic`) theo khoá đầu, để chọn bằng bit
@@ -273,6 +300,8 @@ pub(crate) struct Section {
     pub(crate) heads: HeadIndex,
     /// Mọi khoá của `first` và `left`.
     pub(crate) key_chars: CharBloom,
+    /// Mọi quy tắc trong `first` và `left`, tăng dần, không trùng.
+    pub(crate) keyed: Vec<usize>,
     /// Có quy tắc không cần chữ cố định nào.
     pub(crate) always: bool,
     /// Mặt nạ mọi chữ cố định (trên `Program::need_lits`) mà quy tắc của nhóm cần.
@@ -289,6 +318,8 @@ pub(crate) struct CharRule {
     /// phải có ít nhất một chữ trong đoạn, không thì regex chắc chắn không khớp.
     /// `None`: mẫu có cú pháp lạ, luôn chạy regex.
     pub(crate) needs: Option<Box<[Box<[u32]>]>>,
+    /// `needs` dạng mặt nạ bit trên `char_lits`, mỗi danh sách `char_lits.words()` từ.
+    pub(crate) need_masks: Option<Box<[u64]>>,
     sort_key: usize,
 }
 
@@ -315,32 +346,53 @@ impl CharBloom {
 }
 
 /// Bảng chữ cố định cần dò trong đoạn: mỗi chữ một chỉ số, tra theo chữ đầu.
+/// Chỉ mục theo chữ đầu dựng một lần ở `finish`, sau khi đọc xong.
 #[derive(Debug, Default)]
 pub(crate) struct LitTable {
     lits: Vec<Box<str>>,
-    /// (chữ đầu, chỉ số chữ), xếp tăng dần để tìm nhị phân theo chữ đầu.
-    heads: Vec<(char, u32)>,
-    bloom: CharBloom,
+    /// Chữ đầu → khúc `ids[a..b]`: chỉ số các chữ mở đầu bằng nó, tăng dần.
+    by_head: FxHashMap<char, (u32, u32)>,
+    ids: Box<[u32]>,
+    /// Bit `c` của ký tự `c` trong BMP bật đúng khi nó là chữ đầu của một chữ
+    /// cố định, nên phần lớn ký tự khỏi tra `by_head`; ký tự ngoài BMP thì tra thẳng.
+    bmp_heads: Box<[u64]>,
 }
+
+/// Số ký tự của BMP (U+0000–U+FFFF), cỡ bảng bit `LitTable::bmp_heads`.
+const BMP: usize = 0x10000;
 
 impl LitTable {
     fn intern(&mut self, lit: &str) -> usize {
         if let Some(id) = self.lits.iter().position(|known| &**known == lit) {
             return id;
         }
-        let head = lit.chars().next().expect("chữ cố định không rỗng");
-        let id = u32::try_from(self.lits.len()).expect("quá nhiều chữ cố định");
-        let at = self.heads.partition_point(|&entry| entry < (head, id));
-        self.heads.insert(at, (head, id));
-        self.bloom.insert(head);
+        assert!(!lit.is_empty(), "chữ cố định không rỗng");
+        u32::try_from(self.lits.len()).expect("quá nhiều chữ cố định");
         self.lits.push(lit.into());
         self.lits.len() - 1
     }
 
-    /// Trả phần dư của các mảng sau khi đọc xong.
-    fn shrink(&mut self) {
+    /// Dựng chỉ mục theo chữ đầu, trả phần dư của các mảng.
+    fn finish(&mut self) {
         self.lits.shrink_to_fit();
-        self.heads.shrink_to_fit();
+        let mut heads: Vec<(char, u32)> = self
+            .lits
+            .iter()
+            .zip(0u32..)
+            .map(|(lit, id)| (lit.chars().next().expect("chữ cố định không rỗng"), id))
+            .collect();
+        heads.sort_unstable();
+        self.ids = heads.iter().map(|&(_, id)| id).collect();
+        let mut bmp_heads = vec![0u64; BMP / 64];
+        self.by_head.clear();
+        for (&(head, _), at) in heads.iter().zip(0u32..) {
+            self.by_head.entry(head).or_insert((at, at)).1 = at + 1;
+            if let Some(word) = bmp_heads.get_mut(head as usize / 64) {
+                *word |= 1 << (head as u32 % 64);
+            }
+        }
+        self.by_head.shrink_to_fit();
+        self.bmp_heads = bmp_heads.into_boxed_slice();
     }
 
     /// Số từ 64 bit của một tập chỉ số chữ (ít nhất 1).
@@ -353,11 +405,15 @@ impl LitTable {
         present.clear();
         present.resize(self.words(), 0);
         for (at, c) in text.char_indices() {
-            if !self.bloom.may_contain(c) {
+            let code = c as usize;
+            let bmp_word = self.bmp_heads.get(code / 64);
+            if code < BMP && bmp_word.is_none_or(|word| word & (1 << (code % 64)) == 0) {
                 continue;
             }
-            let from = self.heads.partition_point(|&(head, _)| head < c);
-            for &(_, id) in self.heads[from..].iter().take_while(|&&(head, _)| head == c) {
+            let Some(&(from, to)) = self.by_head.get(&c) else {
+                continue;
+            };
+            for &id in &self.ids[from as usize..to as usize] {
                 let id = id as usize;
                 let (word, bit) = (id / 64, 1 << (id % 64));
                 if present[word] & bit == 0 && text[at..].starts_with(&*self.lits[id]) {
@@ -369,6 +425,7 @@ impl LitTable {
 }
 
 /// Chữ thứ `id` có trong tập bit `present` của `LitTable::find`.
+#[cfg(test)]
 pub(crate) fn has_lit(present: &[u64], id: usize) -> bool {
     present[id / 64] & (1 << (id % 64)) != 0
 }
@@ -491,6 +548,19 @@ impl Program {
             .collect::<Result<Vec<_>, _>>()?;
         // Nhiều chữ cố định hơn đi trước; hoà thì giữ thứ tự file (sort ổn định).
         char_rules.sort_by_key(|rule| Reverse(rule.sort_key));
+        let words = char_lits.words();
+        for rule in &mut char_rules {
+            rule.need_masks = rule.needs.as_ref().map(|needs| {
+                let mut masks = vec![0u64; needs.len() * words];
+                for (list, ids) in needs.iter().enumerate() {
+                    for &id in ids.iter() {
+                        let id = id as usize;
+                        masks[list * words + id / 64] |= 1 << (id % 64);
+                    }
+                }
+                masks.into_boxed_slice()
+            });
+        }
         for section in &mut sections {
             section.finish();
         }
@@ -514,6 +584,7 @@ impl Program {
                     };
                 }
             }
+            rule.index_requirements();
             need_ids.push(
                 rule.pat
                     .iter()
@@ -550,8 +621,8 @@ impl Program {
             }
         }
         class_bits.shrink_to_fit();
-        need_lits.shrink();
-        char_lits.shrink();
+        need_lits.finish();
+        char_lits.finish();
         Ok(Program {
             classes,
             char_rules,
@@ -740,8 +811,10 @@ fn parse_rule(
         post,
         tmpl,
         result,
-        // Điền ở `Program::parse`, khi đã có bảng chữ cố định chung.
+        // Điền ở `Program::parse`, khi đã có bảng chữ cố định chung và khoá đã phân giải.
         needs: Vec::new(),
+        req_builtins: 0,
+        req_classes: 0,
     })
 }
 
@@ -915,6 +988,8 @@ fn compile_char_rule(
         tmpl,
         result,
         needs,
+        // Điền ở `Program::parse`, khi đã đủ bảng chữ cố định.
+        need_masks: None,
         sort_key,
     })
 }
@@ -940,6 +1015,7 @@ impl Section {
             generic: Vec::new(),
             heads: HeadIndex::default(),
             key_chars: CharBloom::default(),
+            keyed: Vec::new(),
             always: false,
             lits: Vec::new(),
         }
@@ -950,6 +1026,9 @@ impl Section {
         for &c in self.first.keys().chain(self.left.keys()) {
             self.key_chars.insert(c);
         }
+        self.keyed = self.first.values().chain(self.left.values()).flatten().copied().collect();
+        self.keyed.sort_unstable();
+        self.keyed.dedup();
         self.heads = HeadIndex::build(&self.rules, &self.generic);
         self.always = self.rules.iter().any(|rule| rule.needs.is_empty());
         self.lits = vec![0; words];
@@ -1049,6 +1128,46 @@ lượng-từ: 层=tầng 个=
         let caps = chapter.regex.captures("第 12 章").unwrap();
         assert_eq!(&caps[1], "12");
         assert!(program.char_rules[1].regex.is_match("三点半"));
+    }
+
+    /// `find` bật đúng bit của mọi chữ cố định có trong chuỗi, kể cả chữ ngoài BMP
+    /// và chữ chung chữ đầu.
+    #[test]
+    fn lit_table_finds_exactly_the_contained_literals() {
+        let alphabet: Vec<char> = "的时候一个a😀b上".chars().collect();
+        let mut seed: u64 = 3;
+        let mut next = || {
+            seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            (seed >> 33) as usize
+        };
+        for _ in 0..500 {
+            let mut table = LitTable::default();
+            let mut lits: Vec<String> = Vec::new();
+            for _ in 0..1 + next() % 70 {
+                let lit: String =
+                    (0..1 + next() % 3).map(|_| alphabet[next() % alphabet.len()]).collect();
+                let id = table.intern(&lit);
+                match lits.iter().position(|known| *known == lit) {
+                    Some(known) => assert_eq!(id, known),
+                    None => {
+                        assert_eq!(id, lits.len());
+                        lits.push(lit);
+                    }
+                }
+            }
+            table.finish();
+            let mut present = Vec::new();
+            for _ in 0..20 {
+                let text: String =
+                    (0..next() % 9).map(|_| alphabet[next() % alphabet.len()]).collect();
+                table.find(&text, &mut present);
+                assert_eq!(present.len(), table.words());
+                for (id, lit) in lits.iter().enumerate() {
+                    let contained = text.contains(lit.as_str());
+                    assert_eq!(has_lit(&present, id), contained, "{lit:?} {text:?}");
+                }
+            }
+        }
     }
 
     #[test]

@@ -3,6 +3,8 @@
 //! bằng nghĩa từng phần ghép theo thứ tự nguồn), gắn từ loại, tách số + lượng
 //! từ. Port từ `untie`, `unfreeze`, `prepare` của bản thử.
 
+use std::borrow::Cow;
+use std::ops::Range;
 use std::sync::LazyLock;
 
 use regex::Regex;
@@ -10,15 +12,17 @@ use rustc_hash::FxHashMap;
 use unicode_normalization::UnicodeNormalization;
 
 use super::matcher::SlotMemo;
-use super::numbers::{number_words, zh_value, NUM_CHARS};
+use super::numbers::{is_num_char, number_words, zh_value, NUM_CHARS};
 use super::program::Class;
 use super::tags::PosLexicon;
 use crate::dict::DictionaryLookup;
 
+/// `zh`, `vi` mượn từ đoạn nguồn, output của vòng dịch hay bộ luật khi không
+/// đổi; chuỗi mới dựng (khúc gộp, khuôn đã điền) thì là chuỗi riêng.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Token<'q> {
-    pub(crate) zh: String,
-    pub(crate) vi: String,
+    pub(crate) zh: Cow<'q, str>,
+    pub(crate) vi: Cow<'q, str>,
     pub(crate) tag: &'q str,
     /// Giá trị khi `tag == "số"`.
     pub(crate) val: Option<i64>,
@@ -29,7 +33,11 @@ pub(crate) struct Token<'q> {
 }
 
 impl<'q> Token<'q> {
-    pub(crate) fn new(zh: impl Into<String>, vi: impl Into<String>, tag: &'q str) -> Self {
+    pub(crate) fn new(
+        zh: impl Into<Cow<'q, str>>,
+        vi: impl Into<Cow<'q, str>>,
+        tag: &'q str,
+    ) -> Self {
         Token {
             zh: zh.into(),
             vi: vi.into(),
@@ -40,7 +48,12 @@ impl<'q> Token<'q> {
         }
     }
 
-    fn number(zh: impl Into<String>, vi: impl Into<String>, val: i64, digit: bool) -> Self {
+    fn number(
+        zh: impl Into<Cow<'q, str>>,
+        vi: impl Into<Cow<'q, str>>,
+        val: i64,
+        digit: bool,
+    ) -> Self {
         Token {
             zh: zh.into(),
             vi: vi.into(),
@@ -55,15 +68,23 @@ impl<'q> Token<'q> {
 /// Token thô: `(chữ Hán, nghĩa)` từ engine, hoặc khúc nhóm `[số]` đã dịch kèm nhãn.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Raw<'q> {
-    Plain(String, String),
-    Tagged(String, String, &'q str),
+    Plain(Cow<'q, str>, Cow<'q, str>),
+    Tagged(Cow<'q, str>, Cow<'q, str>, &'q str),
 }
 
 impl Raw<'_> {
-    fn zh(&self) -> &str {
+    pub(crate) fn zh(&self) -> &str {
         match self {
             Raw::Plain(zh, _) | Raw::Tagged(zh, _, _) => zh,
         }
+    }
+}
+
+/// Khúc `range` của `text`: vẫn mượn nếu `text` đang mượn, không thì chép.
+fn slice<'q>(text: &Cow<'q, str>, range: Range<usize>) -> Cow<'q, str> {
+    match text {
+        Cow::Borrowed(text) => Cow::Borrowed(&text[range]),
+        Cow::Owned(text) => Cow::Owned(text[range].to_string()),
     }
 }
 
@@ -106,6 +127,8 @@ const MEASURE_EXCLUDED: [&str; 26] = [
     "一道", "一天",
 ];
 
+/// Bản regex của `punct_tail` và `is_punct`, giữ để test so.
+#[cfg(test)]
 static PUNCT_TAIL: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"^(.*?[^，。！？、；：,.!?…])([，。！？、；：,.!?…]+)$").unwrap()
 });
@@ -131,7 +154,7 @@ fn is_punct(c: char) -> bool {
 /// `Some(là chữ số \d)` cho ký tự biết chắc, `None` thì phải hỏi regex. Ngoài
 /// chữ ASCII, các khối dấu câu dưới đây không có chữ số `\d` nào (test kiểm
 /// lại với regex); khối chữ rộng FF00–FFEF thì trừ các chữ số FF10–FF19.
-fn known_digit(c: char) -> Option<bool> {
+pub(crate) fn known_digit(c: char) -> Option<bool> {
     match c {
         '\0'..='\u{7f}' => Some(c.is_ascii_digit()),
         '\u{80}'..='\u{ff}'
@@ -141,6 +164,16 @@ fn known_digit(c: char) -> Option<bool> {
         | '\u{ff1a}'..='\u{ffef}' => Some(false),
         _ => None,
     }
+}
+
+/// Như `PUNCT_TAIL.captures(zh)` (`^(.*?[^P])([P]+)$`, `P` là `is_punct`): chỗ
+/// tách giữa nhóm 1 và nhóm 2, tức đầu khúc dấu câu cuối dài nhất. Khớp khi
+/// khúc đó khác rỗng, trước nó còn một ký tự (nhóm `[^P]`, kể cả `\n`), và
+/// trước ký tự đó không có `\n` (`.` không khớp `\n`, `^` chỉ là đầu chuỗi).
+fn punct_tail(zh: &str) -> Option<usize> {
+    let body = zh.trim_end_matches(is_punct);
+    let (last, _) = body.char_indices().next_back()?;
+    (body.len() < zh.len() && !body[..last].contains('\n')).then_some(body.len())
 }
 
 /// Như `HAN_OR_DIGIT.is_match(zh)`, hỏi regex chỉ khi gặp ký tự lạ.
@@ -169,13 +202,13 @@ fn measure_split(zh: &str) -> Option<(&str, &str, &str)> {
     };
     let (last, unit) = rest.char_indices().last()?;
     let number = &rest[..last];
-    let all_number = !number.is_empty() && number.chars().all(|c| NUM_CHARS.contains(c));
+    let all_number = !number.is_empty() && number.chars().all(is_num_char);
     (all_number && unit != '\n').then(|| (ordinal, number, &rest[last..]))
 }
 
 /// Chữ Hán khối cơ bản (U+4E00–U+9FFF): khớp `HAN_OR_DIGIT`, không bao giờ là `\d`.
 /// Dùng để trả lời nhanh trước khi gọi regex; kết quả y như regex.
-fn is_han(c: char) -> bool {
+pub(crate) fn is_han(c: char) -> bool {
     ('\u{4e00}'..='\u{9fff}').contains(&c)
 }
 
@@ -223,7 +256,10 @@ fn unfreeze(zh: &str, vi: &str, pos: &PosLexicon, lk: &Lookups) -> Option<Vec<(S
     // 的 nằm giữa cụm (không là chữ đầu, chữ cuối).
     let inner_de = n >= 3 && zh.contains('的') && zh.chars().skip(1).take(n - 2).any(|c| c == '的');
     let head_du = n > 2 && matches!(first, Some('都' | '也'));
-    let maybe_loc = zh.ends_with(LOC_TAILS) && LOCS.iter().any(|loc| zh.ends_with(loc));
+    // Đủ cả ba điều kiện của vòng `LOCS` bên dưới với ít nhất một chữ chỉ chỗ.
+    let maybe_loc = zh.ends_with(LOC_TAILS)
+        && LOCS.iter().any(|loc| n > loc.chars().count() && zh.ends_with(loc))
+        && WRONG_TAIL.is_match(vi);
     // Không nhánh nào chạy được thì kết quả vẫn là None: khỏi tra từ loại.
     if !inner_de && !head_du && !maybe_loc {
         return None;
@@ -263,18 +299,37 @@ fn unfreeze(zh: &str, vi: &str, pos: &PosLexicon, lk: &Lookups) -> Option<Vec<(S
     None
 }
 
-fn vi_punct(tail: &str) -> String {
-    tail.chars()
-        .map(|c| match c {
-            '，' | '、' => ',',
-            '。' => '.',
-            '！' => '!',
-            '？' => '?',
-            '；' => ';',
-            '：' => ':',
-            other => other,
-        })
-        .collect()
+fn vi_punct_char(c: char) -> char {
+    match c {
+        '，' | '、' => ',',
+        '。' => '.',
+        '！' => '!',
+        '？' => '?',
+        '；' => ';',
+        '：' => ':',
+        other => other,
+    }
+}
+
+/// Dấu câu tiếng Việt của khúc đuôi: không chữ nào đổi thì mượn lại chính nó,
+/// một dấu đổi thì dùng chuỗi tĩnh, còn lại dựng chuỗi mới.
+fn vi_punct<'q>(tail: &Cow<'q, str>) -> Cow<'q, str> {
+    if tail.chars().all(|c| vi_punct_char(c) == c) {
+        return tail.clone();
+    }
+    let mut chars = tail.chars();
+    if let (Some(c), None) = (chars.next(), chars.next()) {
+        let ascii = match vi_punct_char(c) {
+            ',' => ",",
+            '.' => ".",
+            '!' => "!",
+            '?' => "?",
+            ';' => ";",
+            _ => ":",
+        };
+        return Cow::Borrowed(ascii);
+    }
+    Cow::Owned(tail.chars().map(vi_punct_char).collect())
 }
 
 /// Tách dấu câu cuối, `的` đầu/cuối, cụm đóng băng. Nghĩa giữ ở phần chữ.
@@ -292,35 +347,28 @@ pub(crate) fn untie<'q>(raw: Vec<Raw<'q>>, pos: &PosLexicon, lk: &Lookups) -> Ve
         let next_de = items.peek().is_some_and(|next| next.zh().starts_with('的'));
         // Cụm động từ + danh từ đứng ngay trước 的: tách theo từ để 的 bám đúng định ngữ.
         if next_de && zh.chars().count() >= 3 && pos.get(&zh).is_none() && !lk.is_name(&zh) {
-            let words = pos.segment(&zh);
+            let words = pos.segment_missed(&zh);
             if words.len() >= 2 && words[0].1.starts_with('v') {
                 let pieces: Vec<(String, String)> = words
                     .iter()
                     .map(|(word, _)| (word.clone(), lk.word(word).unwrap_or(word).to_string()))
                     .collect();
                 if same_order(&pieces, &vi) {
-                    out.extend(pieces.into_iter().map(|(z, v)| Raw::Plain(z, v)));
+                    out.extend(pieces.into_iter().map(|(z, v)| Raw::Plain(z.into(), v.into())));
                     continue;
                 }
             }
         }
-        // Tính xong trong một câu lệnh để `Captures` (mượn `zh`) hết hạn trước khi `zh` bị move.
-        // `PUNCT_TAIL` chỉ khớp khi chữ cuối là dấu câu (`$` là cuối chuỗi): xét trước cho nhanh.
-        let split = (zh.ends_with(is_punct) && zh.chars().count() > 1)
-            .then(|| PUNCT_TAIL.captures(&zh))
-            .flatten()
-            .map(|caps| (caps[1].to_string(), caps[2].to_string()));
-        let (mut zh, vi, tail) = match split {
-            Some((body, tail)) => {
-                let vi = vi
-                    .trim_end_matches([' ', ',', '.', '!', '?', ';', ':', '…'])
-                    .to_string();
-                (body, vi, Some(tail))
+        // Dấu câu cuối cụm (`PUNCT_TAIL`): nhóm 1 là `zh[..at]`, nhóm 2 là `zh[at..]`.
+        let (mut zh, vi, tail) = match punct_tail(&zh) {
+            Some(at) => {
+                let keep = vi.trim_end_matches([' ', ',', '.', '!', '?', ';', ':', '…']).len();
+                (slice(&zh, 0..at), slice(&vi, 0..keep), Some(slice(&zh, at..zh.len())))
             }
             None => (zh, vi, None),
         };
         if let Some(frozen) = unfreeze(&zh, &vi, pos, lk) {
-            out.extend(frozen.into_iter().map(|(z, v)| Raw::Plain(z, v)));
+            out.extend(frozen.into_iter().map(|(z, v)| Raw::Plain(z.into(), v.into())));
             if let Some(tail) = tail {
                 let tail_vi = vi_punct(&tail);
                 out.push(Raw::Plain(tail, tail_vi));
@@ -329,22 +377,22 @@ pub(crate) fn untie<'q>(raw: Vec<Raw<'q>>, pos: &PosLexicon, lk: &Lookups) -> Ve
         }
         if zh.starts_with('的')
             && zh.chars().count() >= 2
-            && !KEEP_DE.contains(&zh.as_str())
+            && !KEEP_DE.contains(&&*zh)
             && pos.get(&zh['的'.len_utf8()..]).is_some()
         {
-            out.push(Raw::Plain("的".to_string(), String::new()));
-            zh = zh['的'.len_utf8()..].to_string();
+            out.push(Raw::Plain(Cow::Borrowed("的"), Cow::Borrowed("")));
+            zh = slice(&zh, '的'.len_utf8()..zh.len());
         }
         let split_tail = zh.ends_with('的')
             && zh.chars().count() >= 2
-            && !KEEP_TAIL_DE.contains(&zh.as_str())
+            && !KEEP_TAIL_DE.contains(&&*zh)
             && zh
                 .strip_suffix('的')
                 .is_some_and(|head| pos.get(head).is_some() || lk.has_word(head));
         if split_tail {
-            let head = zh[..zh.len() - '的'.len_utf8()].to_string();
+            let head = slice(&zh, 0..zh.len() - '的'.len_utf8());
             out.push(Raw::Plain(head, vi));
-            out.push(Raw::Plain("的".to_string(), String::new()));
+            out.push(Raw::Plain(Cow::Borrowed("的"), Cow::Borrowed("")));
         } else {
             out.push(Raw::Plain(zh, vi));
         }
@@ -358,10 +406,10 @@ pub(crate) fn untie<'q>(raw: Vec<Raw<'q>>, pos: &PosLexicon, lk: &Lookups) -> Ve
 
 /// Chuẩn hoá đầu vào của QT chèn dấu cách quanh 〇 ("一 〇 八"). Token toàn chữ số có 〇
 /// được trả về như văn bản gốc, để còn nhận ra là số.
-fn unspace_zero(zh: String) -> String {
-    let only_number = zh.chars().all(|c| c.is_whitespace() || NUM_CHARS.contains(c));
+fn unspace_zero(zh: Cow<'_, str>) -> Cow<'_, str> {
+    let only_number = zh.chars().all(|c| c.is_whitespace() || is_num_char(c));
     if only_number && zh.contains('〇') && zh.contains(char::is_whitespace) {
-        zh.chars().filter(|c| !c.is_whitespace()).collect()
+        Cow::Owned(zh.chars().filter(|c| !c.is_whitespace()).collect())
     } else {
         zh
     }
@@ -372,7 +420,7 @@ pub(crate) fn prepare<'q>(
     raw: Vec<Raw<'q>>,
     pos: &'q PosLexicon,
     lk: &Lookups,
-    classes: &FxHashMap<String, Class>,
+    classes: &'q FxHashMap<String, Class>,
 ) -> Vec<Token<'q>> {
     let measure = classes.get("lượng-từ");
     let raw = untie(raw, pos, lk);
@@ -391,10 +439,10 @@ pub(crate) fn prepare<'q>(
         }
         // Chữ đầu là chữ Hán ngoài bộ chữ số thì `NUM_TOKEN` không khớp được.
         let head = zh.chars().next();
-        let maybe_number = !head.is_some_and(|c| is_han(c) && !NUM_CHARS.contains(c));
+        let maybe_number = !head.is_some_and(|c| is_han(c) && !is_num_char(c));
         if maybe_number
             && NUM_TOKEN.is_match(&zh)
-            && !["一", "万", "千", "百", "十"].contains(&zh.as_str())
+            && !["一", "万", "千", "百", "十"].contains(&&*zh)
         {
             if DIGITS.is_match(&zh) {
                 // Như bản thử: int(float(zh)), phần thập phân bị cắt.
@@ -416,26 +464,28 @@ pub(crate) fn prepare<'q>(
         if let (Some(measure), Some((ordinal, number, unit))) = (measure, measure_split(&zh)) {
             if measure.contains_key(unit)
                 && !["万", "千", "百"].contains(&number)
-                && !MEASURE_EXCLUDED.contains(&zh.as_str())
+                && !MEASURE_EXCLUDED.contains(&&*zh)
             {
                 if let Some(value) = zh_value(number) {
-                    let unit_vi = measure
-                        .get(unit)
-                        .filter(|v| !v.is_empty())
-                        .cloned()
-                        .unwrap_or_else(|| vi.clone());
+                    let unit_vi = match measure.get(unit).filter(|v| !v.is_empty()) {
+                        Some(unit_vi) => Cow::Borrowed(unit_vi.as_str()),
+                        None => vi.clone(),
+                    };
+                    // `measure_split` cắt `zh` thành ba khúc liền nhau.
+                    let (number_at, unit_at) = (ordinal.len(), ordinal.len() + number.len());
                     if !ordinal.is_empty() {
                         out.push(Token::new("第", "thứ", "lit"));
                     }
+                    let number = slice(&zh, number_at..unit_at);
                     out.push(Token::number(number, number_words(value), value, false));
-                    out.push(Token::new(unit, unit_vi, "q"));
+                    out.push(Token::new(slice(&zh, unit_at..zh.len()), unit_vi, "q"));
                     continue;
                 }
             }
         }
         let tag = if lk.is_name(&zh) {
             "nr"
-        } else if matches!(zh.as_str(), "时候" | "时" | "时间点") {
+        } else if matches!(&*zh, "时候" | "时" | "时间点") {
             "khung"
         } else if zh.ends_with('是') {
             "hệ-từ"
@@ -456,7 +506,7 @@ mod tests {
     }
 
     fn plain(pairs: &[(&str, &str)]) -> Vec<Raw<'static>> {
-        pairs.iter().map(|(z, v)| Raw::Plain(z.to_string(), v.to_string())).collect()
+        pairs.iter().map(|(z, v)| Raw::Plain(z.to_string().into(), v.to_string().into())).collect()
     }
 
     #[test]
@@ -520,7 +570,7 @@ mod tests {
         );
         let view: Vec<(&str, &str, &str, Option<i64>)> = toks
             .iter()
-            .map(|t| (t.zh.as_str(), t.vi.as_str(), t.tag, t.val))
+            .map(|t| (&*t.zh, &*t.vi, t.tag, t.val))
             .collect();
         assert_eq!(
             view,
@@ -542,8 +592,9 @@ mod tests {
         let pos = PosLexicon::build("", "");
         let (names, lexicon) = (map(&[]), map(&[]));
         let lk = Lookups { names: &names, lexicon: &lexicon };
-        let toks = prepare(plain(&[("一 〇 八", "108")]), &pos, &lk, &FxHashMap::default());
-        let view: Vec<_> = toks.iter().map(|t| (t.zh.as_str(), t.tag, t.val)).collect();
+        let classes = FxHashMap::default();
+        let toks = prepare(plain(&[("一 〇 八", "108")]), &pos, &lk, &classes);
+        let view: Vec<_> = toks.iter().map(|t| (&*t.zh, t.tag, t.val)).collect();
         assert_eq!(view, vec![("一〇八", "số", Some(108))]);
     }
 
@@ -553,6 +604,21 @@ mod tests {
         // `PUNCT_TAIL` khớp "a" + c đúng khi c thuộc lớp dấu câu của nó (mọi dấu đều trong BMP).
         for c in (0..=0xffff).filter_map(char::from_u32) {
             assert_eq!(is_punct(c), PUNCT_TAIL.is_match(&format!("a{c}")), "{c:?}");
+        }
+    }
+
+    #[test]
+    fn punct_tail_matches_the_regex() {
+        let alphabet: Vec<char> = "，。！？、；：,.!?…a的\n “".chars().collect();
+        let mut seed: u64 = 17;
+        let mut next = || {
+            seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            (seed >> 33) as usize
+        };
+        for _ in 0..100_000 {
+            let zh: String = (0..next() % 7).map(|_| alphabet[next() % alphabet.len()]).collect();
+            let by_regex = PUNCT_TAIL.captures(&zh).map(|caps| caps.get(1).unwrap().end());
+            assert_eq!(punct_tail(&zh), by_regex, "{zh:?}");
         }
     }
 

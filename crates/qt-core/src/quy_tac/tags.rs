@@ -161,35 +161,50 @@ impl PosLexicon {
     }
 
     /// Tách tham lam theo cụm dài nhất có trong bảng; ký tự lạ mang nhãn `"?"`.
+    #[cfg(test)]
     pub(crate) fn segment(&self, text: &str) -> Vec<(String, &str)> {
-        let chars: Vec<char> = text.chars().collect();
-        self.spans(&chars)
-            .into_iter()
-            .map(|(start, length, tag)| (chars[start..start + length].iter().collect(), tag))
-            .collect()
+        let mut out = Vec::new();
+        self.spans(text, false, |piece, tag| out.push((piece.to_string(), tag)));
+        out
     }
 
-    /// Các khúc của `segment`: (vị trí ký tự đầu, số ký tự, nhãn), khỏi dựng chuỗi.
-    fn spans(&self, chars: &[char]) -> Vec<(usize, usize, &str)> {
+    /// Như `segment`, khi người gọi vừa tra `text` không thấy: khỏi tra lại cả chuỗi.
+    pub(crate) fn segment_missed(&self, text: &str) -> Vec<(String, &str)> {
+        debug_assert!(self.get(text).is_none(), "{text:?} có trong bảng");
         let mut out = Vec::new();
-        let mut buffer = String::new();
-        let mut i = 0;
-        while i < chars.len() {
-            let cap = self.max_key_len(chars[i]).min(chars.len() - i);
-            let mut found = None;
-            for length in (1..=cap).rev() {
-                buffer.clear();
-                buffer.extend(&chars[i..i + length]);
-                if let Some(tag) = self.get(&buffer) {
-                    found = Some((length, tag));
-                    break;
-                }
-            }
-            let (length, tag) = found.unwrap_or((1, "?"));
-            out.push((i, length, tag));
-            i += length;
-        }
+        self.spans(text, true, |piece, tag| out.push((piece.to_string(), tag)));
         out
+    }
+
+    /// Lần lượt các khúc của `segment` cùng nhãn, cắt thẳng trên `text`: tại mỗi
+    /// chỗ thử khúc dài nhất trước (tối đa `max_key_len` chữ), bớt dần từng chữ
+    /// cuối; khúc đầu tiên có trong bảng thắng, không có thì một chữ mang nhãn
+    /// `"?"`. `missed`: cả `text` đã biết là không có trong bảng, bỏ lần tra đó.
+    fn spans<'s, 't>(
+        &'s self,
+        text: &'t str,
+        missed: bool,
+        mut each: impl FnMut(&'t str, &'s str),
+    ) {
+        let mut at = 0;
+        while let Some(first) = text[at..].chars().next() {
+            let rest = &text[at..];
+            let cap = self.max_key_len(first);
+            let mut end = rest.char_indices().nth(cap).map_or(rest.len(), |(i, _)| i);
+            let mut found = None;
+            while end > 0 {
+                if !(missed && at == 0 && end == rest.len()) {
+                    if let Some(tag) = self.get(&rest[..end]) {
+                        found = Some((end, tag));
+                        break;
+                    }
+                }
+                end = rest[..end].char_indices().next_back().map_or(0, |(i, _)| i);
+            }
+            let (length, tag) = found.unwrap_or((first.len_utf8(), "?"));
+            each(&rest[..length], tag);
+            at += length;
+        }
     }
 
     /// Nhãn của một token: tra thẳng; bỏ trợ từ cuối rồi tra; không có thì suy
@@ -201,29 +216,38 @@ impl PosLexicon {
         }
         let core = zh.trim_end_matches(TRAILERS);
         let core = if core.is_empty() { zh } else { core };
-        if let Some(tag) = self.get(core) {
-            return tag;
+        // `core` bằng `zh` thì vừa tra không thấy, khỏi tra lại.
+        if core.len() != zh.len() {
+            if let Some(tag) = self.get(core) {
+                return tag;
+            }
         }
-        let chars: Vec<char> = core.chars().collect();
-        let tags: Vec<&str> = self
-            .spans(&chars)
-            .into_iter()
-            .map(|(_, _, tag)| tag)
-            .filter(|tag| *tag != "?")
-            .collect();
-        let Some(&last) = tags.last() else {
+        // `core` chắc chắn không có trong bảng. Trong các nhãn khác `"?"` của các
+        // khúc chỉ cần nhãn đầu, hai nhãn cuối, số nhãn và có động từ hay không.
+        let (mut first, mut last, mut before_last) = (None, None, None);
+        let (mut count, mut verb) = (0, false);
+        self.spans(core, true, |_, tag| {
+            if tag == "?" {
+                return;
+            }
+            first.get_or_insert(tag);
+            before_last = last.replace(tag);
+            count += 1;
+            verb |= tag.starts_with('v') && tag != "vn";
+        });
+        let (Some(first), Some(last)) = (first, last) else {
             return "?";
         };
-        if tags[0].starts_with('p') && tags.len() > 1 {
+        if first.starts_with('p') && count > 1 {
             return "pp";
         }
-        if tags.iter().any(|tag| tag.starts_with('v') && *tag != "vn") {
+        if verb {
             return "v";
         }
-        if last.starts_with('u') && tags.len() > 1 {
-            return tags[tags.len() - 2];
+        match before_last {
+            Some(before_last) if last.starts_with('u') && count > 1 => before_last,
+            _ => last,
         }
-        last
     }
 }
 
@@ -301,6 +325,86 @@ mod tests {
         assert_eq!(pos.phrase("在家"), "pp"); // giới từ + từ khác
         assert_eq!(pos.phrase("少女的"), "n"); // đuôi trợ từ: lấy từ trước
         assert_eq!(pos.phrase("们们"), "?");
+    }
+
+    /// Bản cũ của `segment` và `phrase` (mảng ký tự, dựng chuỗi từng lần tra),
+    /// để so với bản cắt thẳng trên chuỗi.
+    fn segment_slow<'s>(pos: &'s PosLexicon, text: &str) -> Vec<(String, &'s str)> {
+        let chars: Vec<char> = text.chars().collect();
+        let mut out = Vec::new();
+        let mut i = 0;
+        while i < chars.len() {
+            let cap = pos.max_key_len(chars[i]).min(chars.len() - i);
+            let found = (1..=cap).rev().find_map(|length| {
+                let piece: String = chars[i..i + length].iter().collect();
+                pos.get(&piece).map(|tag| (length, tag))
+            });
+            let (length, tag) = found.unwrap_or((1, "?"));
+            out.push((chars[i..i + length].iter().collect(), tag));
+            i += length;
+        }
+        out
+    }
+
+    fn phrase_slow<'s>(pos: &'s PosLexicon, zh: &str) -> &'s str {
+        if let Some(tag) = pos.get(zh) {
+            return tag;
+        }
+        let core = zh.trim_end_matches(TRAILERS);
+        let core = if core.is_empty() { zh } else { core };
+        if let Some(tag) = pos.get(core) {
+            return tag;
+        }
+        let tags: Vec<&str> = segment_slow(pos, core)
+            .into_iter()
+            .map(|(_, tag)| tag)
+            .filter(|tag| *tag != "?")
+            .collect();
+        let Some(&last) = tags.last() else {
+            return "?";
+        };
+        if tags[0].starts_with('p') && tags.len() > 1 {
+            return "pp";
+        }
+        if tags.iter().any(|tag| tag.starts_with('v') && *tag != "vn") {
+            return "v";
+        }
+        if last.starts_with('u') && tags.len() > 1 {
+            return tags[tags.len() - 2];
+        }
+        last
+    }
+
+    #[test]
+    fn string_spans_match_the_char_array_version() {
+        let alphabet: Vec<char> = "在家看着了的们少女美丽吗x1".chars().collect();
+        let tags = ["p", "v", "vn", "uj", "ul", "n", "ns", "a", "?", "d"];
+        let mut seed: u64 = 5;
+        let mut next = || {
+            seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            (seed >> 33) as usize
+        };
+        let word = |next: &mut dyn FnMut() -> usize, max: usize| -> String {
+            (0..next() % (max + 1)).map(|_| alphabet[next() % alphabet.len()]).collect()
+        };
+        for _ in 0..200 {
+            let mut dict = String::new();
+            for _ in 0..1 + next() % 40 {
+                let key = word(&mut next, 4);
+                if !key.is_empty() {
+                    dict.push_str(&format!("{key} 1 {}\n", tags[next() % tags.len()]));
+                }
+            }
+            let pos = PosLexicon::build(&dict, "");
+            for _ in 0..50 {
+                let text = word(&mut next, 7);
+                assert_eq!(pos.segment(&text), segment_slow(&pos, &text), "{dict:?} {text:?}");
+                if pos.get(&text).is_none() {
+                    assert_eq!(pos.segment_missed(&text), segment_slow(&pos, &text), "{text:?}");
+                }
+                assert_eq!(pos.phrase(&text), phrase_slow(&pos, &text), "{dict:?} {text:?}");
+            }
+        }
     }
 
     #[test]

@@ -5,19 +5,41 @@
 //! bằng từ điển cùng token kế tiếp (`分出|发` → `出发`). Khác bản thử một chỗ:
 //! phần tách lại không lấn sang khúc số kế tiếp.
 
+use std::borrow::Cow;
 use std::sync::LazyLock;
 
 use regex::Regex;
 
-use super::numbers::{num_text, zh_value, DIGIT_WORDS, NUM_CHARS};
-use super::prepare::{seg, Lookups, Raw};
-use super::program::{has_lit, CharRule, Part, Program, RefKey};
+use super::numbers::{is_num_char, num_text, zh_value, DIGIT_WORDS, NUM_CHARS};
+use super::prepare::{is_han, known_digit, seg, Lookups, Raw};
+use super::program::{CharRule, Part, Program, RefKey};
 
 static HAS_NUMBER: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(&format!(r"[{NUM_CHARS}\d]")).unwrap());
 static MIXED: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^(\d+(?:\.\d+)?)([十百千万亿]+)$").unwrap());
 static SPACES: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\s+").unwrap());
+
+/// Như `HAS_NUMBER.is_match(text)`: có chữ số Hán (`NUM_CHARS`) hay chữ số `\d`.
+/// Chữ Hán khối cơ bản không bao giờ là `\d`; chỉ hỏi regex khi gặp ký tự mà
+/// `known_digit` không biết chắc.
+fn has_number(text: &str) -> bool {
+    let mut unknown = false;
+    for c in text.chars() {
+        if is_num_char(c) {
+            return true;
+        }
+        if is_han(c) {
+            continue;
+        }
+        match known_digit(c) {
+            Some(true) => return true,
+            Some(false) => {}
+            None => unknown = true,
+        }
+    }
+    unknown && HAS_NUMBER.is_match(text)
+}
 
 struct Span<'q> {
     a: usize,
@@ -120,31 +142,28 @@ fn fill_char(program: &Program, rule: &CharRule, values: &[Option<&str>]) -> Str
     SPACES.replace_all(&out, " ").trim().to_string()
 }
 
+/// `raw` là các token `Raw::Plain` của đoạn, `text` là chữ Hán của chúng nối lại.
 pub(crate) fn apply_chars<'q>(
     program: &'q Program,
-    mut raw: Vec<(String, String)>,
+    text: &'q str,
+    mut raw: Vec<Raw<'q>>,
     lk: &Lookups,
 ) -> (Vec<Raw<'q>>, usize) {
-    let plain = |raw: Vec<(String, String)>| {
-        raw.into_iter()
-            .map(|(zh, vi)| Raw::Plain(zh, vi))
-            .collect::<Vec<_>>()
-    };
-    let mut text = String::with_capacity(raw.iter().map(|(zh, _)| zh.len()).sum());
-    raw.iter().for_each(|(zh, _)| text.push_str(zh));
-    if !HAS_NUMBER.is_match(&text) {
-        return (plain(raw), 0);
+    debug_assert_eq!(raw.iter().map(Raw::zh).collect::<String>(), text);
+    if !has_number(text) {
+        return (raw, 0);
     }
     // Chỉ chạy regex của luật có đủ chữ cố định bắt buộc trong đoạn; luật thiếu
     // chữ thì regex không khớp được, bỏ qua không đổi kết quả.
     let mut present = Vec::new();
-    program.char_lits.find(&text, &mut present);
+    program.char_lits.find(text, &mut present);
+    let words = present.len();
     let rules: Vec<&CharRule> = program
         .char_rules
         .iter()
         .filter(|rule| {
-            let has_one = |ids: &[u32]| ids.iter().any(|&id| has_lit(&present, id as usize));
-            rule.needs.as_ref().is_none_or(|needs| needs.iter().all(|ids| has_one(ids)))
+            let has_one = |mask: &[u64]| mask.iter().zip(&present).any(|(m, p)| m & p != 0);
+            rule.need_masks.as_ref().is_none_or(|masks| masks.chunks(words).all(has_one))
         })
         .collect();
     // Kiểm ở mọi bản debug, không chỉ lúc chạy test (server build debug cũng
@@ -157,30 +176,33 @@ pub(crate) fn apply_chars<'q>(
         for rule in &program.char_rules {
             let is_kept = kept.next_if(|kept| std::ptr::eq(**kept, rule)).is_some();
             assert!(
-                is_kept || !rule.regex.is_match(&text),
+                is_kept || !rule.regex.is_match(text),
                 "lọc trước bỏ nhầm luật [số] {:?} trên {text:?}",
                 rule.regex.as_str()
             );
         }
     }
     if rules.is_empty() {
-        return (plain(raw), 0);
+        return (raw, 0);
     }
     let chars: Vec<char> = text.chars().collect();
     let n = chars.len();
     let mut char_of_byte = vec![usize::MAX; text.len() + 1];
+    let mut byte_of_char = Vec::with_capacity(n + 1);
     for (char_index, (byte_index, _)) in text.char_indices().enumerate() {
         char_of_byte[byte_index] = char_index;
+        byte_of_char.push(byte_index);
     }
     char_of_byte[text.len()] = n;
+    byte_of_char.push(text.len());
     // bounds[vị trí ký tự] = chỉ số token bắt đầu ở đó.
     let mut bounds: Vec<Option<usize>> = vec![None; n + 1];
     let mut starts = Vec::with_capacity(raw.len() + 1);
     let mut position = 0;
-    for (index, (zh, _)) in raw.iter().enumerate() {
+    for (index, item) in raw.iter().enumerate() {
         bounds[position] = Some(index);
         starts.push(position);
-        position += zh.chars().count();
+        position += item.zh().chars().count();
     }
     bounds[n] = Some(raw.len());
     starts.push(n);
@@ -189,7 +211,7 @@ pub(crate) fn apply_chars<'q>(
     let mut spans: Vec<Span<'q>> = Vec::new();
     let mut buffer = String::new();
     for rule in rules {
-        for caps in rule.regex.captures_iter(&text) {
+        for caps in rule.regex.captures_iter(text) {
             let whole = caps.get(0).expect("nhóm 0 luôn có");
             let (a, b) = (char_of_byte[whole.start()], char_of_byte[whole.end()]);
             if a == b || bounds[a].is_none() || taken[a..b].iter().any(|&t| t) {
@@ -217,7 +239,7 @@ pub(crate) fn apply_chars<'q>(
         }
     }
     if spans.is_empty() {
-        return (plain(raw), 0);
+        return (raw, 0);
     }
     spans.sort_by_key(|span| span.a);
     let fired = spans.len();
@@ -227,13 +249,12 @@ pub(crate) fn apply_chars<'q>(
         let first = bounds[span.a].expect("khúc luôn bắt đầu ở ranh giới token");
         // Mỗi token gốc được đọc nhiều nhất một lần: chuyển hẳn sang thay vì chép.
         while index < first {
-            let (zh, vi) = std::mem::take(&mut raw[index]);
-            out.push(Raw::Plain(zh, vi));
+            out.push(std::mem::replace(&mut raw[index], empty()));
             index += 1;
         }
         out.push(Raw::Tagged(
-            chars[span.a..span.b].iter().collect(),
-            span.vi.clone(),
+            Cow::Borrowed(&text[byte_of_char[span.a]..byte_of_char[span.b]]),
+            Cow::Owned(span.vi.clone()),
             span.result,
         ));
         if let Some(next) = bounds[span.b] {
@@ -249,15 +270,19 @@ pub(crate) fn apply_chars<'q>(
             }
         }
         let rest: String = chars[span.b..end].iter().collect();
-        out.extend(seg(&rest, lk).into_iter().map(|(z, v)| Raw::Plain(z, v)));
+        out.extend(seg(&rest, lk).into_iter().map(|(z, v)| Raw::Plain(z.into(), v.into())));
         index = bounds[end].expect("end là ranh giới token");
     }
     while index < raw.len() {
-        let (zh, vi) = std::mem::take(&mut raw[index]);
-        out.push(Raw::Plain(zh, vi));
+        out.push(std::mem::replace(&mut raw[index], empty()));
         index += 1;
     }
     (out, fired)
+}
+
+/// Chỗ trống để lại khi chuyển một token sang mảng mới (không cấp phát).
+fn empty<'q>() -> Raw<'q> {
+    Raw::Plain(Cow::Borrowed(""), Cow::Borrowed(""))
 }
 
 #[cfg(test)]
@@ -282,6 +307,36 @@ buổi: 晚上=tối
 
     fn raw(pairs: &[(&str, &str)]) -> Vec<(String, String)> {
         pairs.iter().map(|(z, v)| (z.to_string(), v.to_string())).collect()
+    }
+
+    /// Như bước ghép: chữ Hán cả đoạn nối thành một chuỗi, token mượn từ đó.
+    fn apply_chars<'q>(
+        program: &'q Program,
+        raw: Vec<(String, String)>,
+        lk: &Lookups,
+    ) -> (Vec<Raw<'q>>, usize) {
+        let text: String = raw.iter().map(|(zh, _)| zh.as_str()).collect();
+        let text: &'q str = Box::leak(text.into_boxed_str());
+        let mut at = 0;
+        let items = raw
+            .into_iter()
+            .map(|(zh, vi)| {
+                at += zh.len();
+                Raw::Plain(Cow::Borrowed(&text[at - zh.len()..at]), Cow::Owned(vi))
+            })
+            .collect();
+        super::apply_chars(program, text, items, lk)
+    }
+
+    #[test]
+    fn has_number_matches_the_regex() {
+        for c in (0..=0x10ffff).filter_map(char::from_u32) {
+            let text = c.to_string();
+            assert_eq!(has_number(&text), HAS_NUMBER.is_match(&text), "{c:?}");
+        }
+        for text in ["", "他说", "第三章", "a٣", "ab", "，。", "１", "x𝟘y", "他٣"] {
+            assert_eq!(has_number(text), HAS_NUMBER.is_match(text), "{text:?}");
+        }
     }
 
     #[test]
@@ -315,7 +370,9 @@ buổi: 晚上=tối
         .unwrap();
         let (names, lexicon) = (map(&[]), map(&[]));
         let lk = Lookups { names: &names, lexicon: &lexicon };
-        let tagged = |zh: &str, vi: &str, tag| vec![Raw::Tagged(zh.into(), vi.into(), tag)];
+        let tagged = |zh: &str, vi: &str, tag| {
+            vec![Raw::Tagged(zh.to_string().into(), vi.to_string().into(), tag)]
+        };
         // 一〇八个: ba chữ số, tính cả 〇 ở giữa là một.
         let (out, _) = apply_chars(&program, raw(&[("一 〇 八", "x"), ("个", "cái")]), &lk);
         assert_eq!(out, tagged("一 〇 八个", "một trăm lẻ tám cái", "m"));
@@ -326,7 +383,7 @@ buổi: 晚上=tối
         let spaced = raw(&[("一 二", "x"), ("个", "cái")]);
         let (out, fired) = apply_chars(&program, spaced, &lk);
         assert_eq!(fired, 0);
-        let plain = |zh: &str, vi: &str| Raw::Plain(zh.into(), vi.into());
+        let plain = |zh: &str, vi: &str| Raw::Plain(zh.to_string().into(), vi.to_string().into());
         assert_eq!(out, vec![plain("一 二", "x"), plain("个", "cái")]);
     }
 
@@ -392,7 +449,7 @@ buổi: 晚上=tối
         let text: String = out
             .iter()
             .map(|item| match item {
-                Raw::Plain(zh, _) | Raw::Tagged(zh, _, _) => zh.as_str(),
+                Raw::Plain(zh, _) | Raw::Tagged(zh, _, _) => zh.as_ref(),
             })
             .collect();
         assert_eq!(text, "三点十五分出二〇一九年", "không mất, không lặp chữ nào");

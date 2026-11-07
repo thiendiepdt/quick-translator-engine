@@ -148,8 +148,15 @@ Bộ lọc số: `{1|số}` chữ số, `{1|thứ}` số thứ tự (nhất, hai
 Không lọc thì giữ kiểu chữ của nguồn (mục 8).
 
 Ưu tiên trong một nhóm: mẫu dài hơn, rồi nhiều chữ cố định hơn, rồi thứ tự trong file. `lặp=N`
-chạy lại nhóm tối đa N lần, để `A的B的C` và `这个美丽的女孩` gộp dần được. Nhóm có cờ `tắt`
+chạy lại nhóm tối đa N lần, để `A的B的C` và `这个美丽的女孩` gộp dần được. Số lượt tối đa là 20;
+lớn hơn là lỗi khi nạp file, kèm số dòng (mỗi lượt quét lại cả đoạn). Nhóm có cờ `tắt`
 (`[giọng-mượt tắt]`) không chạy, trừ khi request hoặc cấu hình bật tên nhóm đó.
+
+File quy tắc và file từ loại (`dict.txt`, `TuLoai.txt`) mở đầu bằng BOM UTF-8 thì BOM được bỏ.
+
+Dòng `mẫu = ` không có gì sau dấu `=` (dấu cách cuối bị cắt thành `mẫu =`) vẫn đọc được, như bản
+thử: cả dòng là mẫu, tức `mẫu` rồi chữ cố định `=`, và khuôn rỗng. Nó không xoá chữ `mẫu`; muốn
+bỏ một từ thì viết quy tắc cách khác.
 
 Ví dụ kiêm kiểm thử, viết ngay dưới quy tắc:
 
@@ -425,21 +432,28 @@ token. Số đo thật ở bước 1 nằm dưới bảng.
 
 **Số đo bước 1 (2026-11-07).** Đo bằng `cargo run --release -p qt-core --example quy_tac_eval -- QT2025
 <books/common>` trên bộ test bookshelf (12 chương mỗi truyện, từ chương thứ 8), dịch từng đoạn, có
-names riêng của truyện:
+names riêng của truyện. Tốc độ đo công bằng: mỗi đường một lượt riêng qua mọi đoạn, 8 lượt đổi thứ
+tự xen kẽ, cổng lấy tổng thời gian các lượt:
 
 | | Hiện tại (có Luật Nhân) | Quy Tắc | Cổng |
 |---|---|---|---|
-| Đoạn / ký tự | 103.803 / 2.798.883 | | |
-| Cụm 2 từ trùng bản biên tập | 721.960 | 752.437 (+4,22%) | |
-| Cụm 3 từ trùng bản biên tập | 338.562 | 374.805 (+10,70%) | ≥ +10,0%: đạt |
-| Đoạn đổi / tốt hơn / kém hơn | | 46.220 / 20.544 / 4.201, thắng 83,0% | ≥ 80%: đạt |
-| Thời gian | 2.677 ns/ký tự | 2.323 ns/ký tự (87%) | ≤ 100%: đạt |
-| RAM `QuyTac` giữ sau khi nạp | | 9.273.388 byte (8,9 MiB) | ≤ 10 MiB: đạt |
+| Đoạn / ký tự | 104.633 / 2.820.178 | | |
+| Cụm 2 từ trùng bản biên tập | 726.262 | 756.873 (+4,21%) | |
+| Cụm 3 từ trùng bản biên tập | 340.401 | 376.809 (+10,70%) | ≥ +10,0%: đạt |
+| Đoạn đổi / tốt hơn / kém hơn | | 46.555 / 20.652 / 4.228, thắng 83,0% | ≥ 80%: đạt |
+| Thời gian (tổng 8 lượt) | 2.566 ns/ký tự | 2.353 ns/ký tự (91,7%; trung vị 91,1%) | ≤ 100%: đạt |
+| RAM `QuyTac` giữ sau khi nạp | | 9.397.215 byte (9,0 MiB) | ≤ 10 MiB: đạt |
 
-- Bản đầu tiên tốn 206% thời gian và giữ 11,4 MiB. Sau hai lượt tối ưu (lọc chữ cố định một lần mỗi
-  nhóm, bit khoá trên token, lọc regex `[số]`, bảng từ loại tự dựng với nhãn gộp), các tầng quy tắc
-  từ 10,3 s xuống 2,7 s trên cả bộ test. Mỗi lượt so dump output của mọi đoạn với bản trước, giống
-  nhau từng byte.
+- Bookshelf đang được sửa nên số đoạn đổi theo ngày. Bản chụp cố định 103.803 đoạn (2.798.883 ký
+  tự) cho cụm 3 từ +10,70%, thắng 83,0%, và output y nguyên từng byte qua mọi lượt tối ưu.
+- Các số 87%, 91% (và 206% ở bản đầu) đo trước đây là bộ đo ghép đôi bị lệch: mỗi đoạn dịch đường
+  hiện tại rồi Quy Tắc ngay sau, nên Quy Tắc luôn chạy trên cache đã ấm; allocator đếm byte còn cộng
+  một lần trên mọi lần cấp phát, phạt đường cấp phát nhiều hơn. Đo công bằng, bản trước lượt tối
+  ưu thứ ba ra 104,6–106,5%, chưa qua cổng.
+- Bản đầu tiên giữ 11,4 MiB. Lượt tối ưu một và hai: lọc chữ cố định một lần mỗi nhóm, bit khoá
+  trên token, lọc regex `[số]`, bảng từ loại tự dựng với nhãn gộp. Lượt ba: token mượn chuỗi thay
+  vì chép, bỏ lượt nhóm mà không quy tắc nào đủ khoá bắt buộc, bớt tra bảng từ loại, ráp câu một
+  lượt quét. Mỗi bước so dump output của mọi đoạn với bản trước, giống nhau từng byte.
 - Cổng 70% dựa trên giả định các tầng quy tắc chỉ tốn nửa phần Luật Nhân. Thực tế, sau tối ưu, chúng
   vẫn tốn khoảng 84% phần đó, và phần vòng dịch dùng chung đã chiếm ~52% đường hiện tại. Không xuống
   70% được mà giữ nguyên output, nên user đổi cổng thành "không chậm hơn đường hiện tại" (2026-11-07).

@@ -7,6 +7,15 @@
 /// Ký tự được coi là chữ số Hán trong mẫu `[số]`.
 pub(crate) const NUM_CHARS: &str = "零〇一二三四五六七八九十百千万亿两";
 
+/// Như `NUM_CHARS.contains(c)`, khỏi quét chuỗi (test kiểm trên mọi ký tự).
+pub(crate) fn is_num_char(c: char) -> bool {
+    matches!(
+        c,
+        '零' | '〇' | '一' | '二' | '三' | '四' | '五' | '六' | '七' | '八' | '九' | '十' | '百'
+            | '千' | '万' | '亿' | '两'
+    )
+}
+
 const WORDS: [&str; 11] = [
     "không", "một", "hai", "ba", "bốn", "năm", "sáu", "bảy", "tám", "chín", "mười",
 ];
@@ -165,6 +174,13 @@ pub(crate) fn num_text(value: i64, digit: bool, how: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn num_char_set_matches_the_string() {
+        for c in (0..=0x10ffff).filter_map(char::from_u32) {
+            assert_eq!(is_num_char(c), NUM_CHARS.contains(c), "{c:?}");
+        }
+    }
 
     #[test]
     fn reads_chinese_numbers_like_the_prototype() {

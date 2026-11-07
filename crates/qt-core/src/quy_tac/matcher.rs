@@ -37,6 +37,8 @@ const AUX: &[&str] = &[
 ];
 const STOP_VERB: &[&str] = &["是", "说", "道", "问", "笑道", "说道", "喊道", "叫道"];
 const NOUN_TAGS: &[&str] = &["n", "ng", "nz", "vn", "an", "j", "cụm", "nrfg"];
+/// Nhãn tính từ; `tag_bits` viết sẵn trong `match`, test so với danh sách này.
+#[cfg(test)]
 const ADJ_TAGS: &[&str] = &["a", "ad", "ag", "z", "b"];
 
 static BO_TAI: LazyLock<Regex> =
@@ -116,42 +118,78 @@ impl PartialEq for SlotMemo {
 
 impl Eq for SlotMemo {}
 
-/// Mọi nhãn có sẵn của `t` trong một lượt, bit thứ `Builtin as u32`.
+const fn bit(builtin: Builtin) -> u32 {
+    1 << builtin as u32
+}
+
+/// Cờ của `tag_bits` cho các vị từ còn phải ghép với chữ Hán, đặt trên các bit
+/// `Builtin` (21 bit đầu).
+const TAG_NOUN: u32 = 1 << 31;
+const TAG_NAME: u32 = 1 << 30;
+const TAG_PERSON: u32 = 1 << 29;
+const TAG_S: u32 = 1 << 28;
+const TAG_PLACE: u32 = 1 << 27;
+const TAG_VERB: u32 = 1 << 26;
+const BUILTIN_BITS: u32 = (1 << Builtin::COUNT) - 1;
+
+/// Mọi vị từ chỉ tuỳ nhãn của `builtin_bits` trong một lần `match`: bit
+/// `Builtin` cho nhãn có sẵn chỉ tuỳ nhãn, cờ `TAG_*` cho phần còn lại.
+fn tag_bits(tag: &str) -> u32 {
+    let mut bits = match tag {
+        // NOUN_TAGS
+        "n" | "ng" | "nz" | "an" | "j" | "cụm" | "nrfg" => TAG_NOUN,
+        "vn" => TAG_NOUN | bit(Builtin::DanhDong),
+        "ns" | "nt" | "tên" => bit(Builtin::Ten) | TAG_NAME,
+        "người" => TAG_PERSON,
+        "hệ-từ" => bit(Builtin::HeTu),
+        // ADJ_TAGS và "tính-cụm"
+        "a" | "ad" | "ag" | "z" | "b" | "tính-cụm" => bit(Builtin::TinhTu),
+        "i" | "l" => bit(Builtin::ThanhNgu),
+        "số" => bit(Builtin::So),
+        "số-lượng" => bit(Builtin::SoLuong),
+        "t" | "tg" | "thời-gian" => bit(Builtin::ThoiGian),
+        "s" => bit(Builtin::Noi) | TAG_S | TAG_PLACE,
+        "nơi" => bit(Builtin::Noi),
+        "w" => bit(Builtin::Dau),
+        "nơi-cụm" => bit(Builtin::NoiCum) | TAG_PLACE,
+        "f" => TAG_PLACE,
+        _ => 0,
+    };
+    if tag.starts_with("nr") {
+        bits |= bit(Builtin::Ten) | TAG_NAME;
+    }
+    if tag.starts_with('v') {
+        bits |= bit(Builtin::DongTu) | TAG_VERB;
+    }
+    if tag.starts_with('d') && tag != "dấu" {
+        bits |= bit(Builtin::PhoTu);
+    }
+    bits
+}
+
+/// Mọi nhãn có sẵn của `t` trong một lượt, bit thứ `Builtin as u32`. Như các
+/// vị từ theo tên (`is_noun`, `is_person`, `has(ADJ_TAGS, …)`…), test so.
 fn builtin_bits(t: &Token) -> u32 {
-    let tag = t.tag;
+    let tag = tag_bits(t.tag);
     let pronoun = is_pronoun(&t.zh);
-    let person = pronoun || tag == "người";
-    let name = is_name(t);
-    let noun = has(NOUN_TAGS, tag) && !pronoun;
-    let verb = tag.starts_with('v');
+    let name = tag & TAG_NAME != 0;
+    let person = pronoun || tag & TAG_PERSON != 0;
+    let noun = tag & TAG_NOUN != 0 && !pronoun;
     let count = t.zh.chars().count();
     let tests = [
         (Builtin::DaiTu, pronoun),
-        (Builtin::Ten, name),
         (Builtin::Nguoi, person || name),
         (Builtin::DanhTu, noun),
-        (Builtin::Cum, noun || person || name || tag == "s"),
-        (Builtin::DongTu, verb),
-        (Builtin::DanhDong, tag == "vn"),
-        (Builtin::HeTu, tag == "hệ-từ"),
+        (Builtin::Cum, noun || person || name || tag & TAG_S != 0),
         (Builtin::CoDich, count >= 2 && t.zh.ends_with('的') && !t.vi.trim().is_empty()),
-        (Builtin::TinhTu, has(ADJ_TAGS, tag) || tag == "tính-cụm"),
-        (Builtin::ThanhNgu, matches!(tag, "i" | "l")),
-        (Builtin::So, tag == "số"),
-        (Builtin::SoLuong, tag == "số-lượng"),
-        (Builtin::ThoiGian, matches!(tag, "t" | "tg" | "thời-gian")),
-        (Builtin::Noi, matches!(tag, "s" | "nơi")),
-        (Builtin::PhoTu, tag.starts_with('d') && tag != "dấu"),
-        (Builtin::Dau, tag == "w"),
         (Builtin::ChiDinh, DEMONSTRATIVE_SET.contains(&t.zh)),
-        (Builtin::NoiCum, tag == "nơi-cụm"),
-        (Builtin::NoiTu, matches!(tag, "nơi-cụm" | "s" | "f") && count > 1),
-        (Builtin::DongTuTai, count >= 2 && t.zh.ends_with('在') && verb),
+        (Builtin::NoiTu, tag & TAG_PLACE != 0 && count > 1),
+        (Builtin::DongTuTai, count >= 2 && t.zh.ends_with('在') && tag & TAG_VERB != 0),
     ];
     tests
         .iter()
         .filter(|(_, hit)| *hit)
-        .fold(0, |bits, (builtin, _)| bits | (1 << *builtin as u32))
+        .fold(tag & BUILTIN_BITS, |bits, (builtin, _)| bits | bit(*builtin))
 }
 
 fn builtins_of(t: &Token) -> u32 {
@@ -164,7 +202,7 @@ fn builtins_of(t: &Token) -> u32 {
 
 fn classes_of(program: &Program, t: &Token) -> u64 {
     t.memo.classes.get().unwrap_or_else(|| {
-        let bits = program.class_bits.get(t.zh.as_str()).copied().unwrap_or(0);
+        let bits = program.class_bits.get(&*t.zh).copied().unwrap_or(0);
         t.memo.classes.set(Some(bits));
         bits
     })
@@ -177,7 +215,7 @@ fn slot_ok(program: &Program, slot: &Slot, t: &Token) -> bool {
         SlotKind::Class(_) => program
             .classes
             .get(&*slot.name)
-            .is_some_and(|class| class.contains_key(&t.zh)),
+            .is_some_and(|class| class.contains_key(&*t.zh)),
         SlotKind::Unknown => false,
     }
 }
@@ -260,7 +298,7 @@ fn lit_span(toks: &[Token], j: usize, lits: &[String]) -> usize {
 /// Bản gốc của `lit_span` (dựng chuỗi ghép), cho trường hợp hơn 64 chữ cố định.
 fn lit_span_slow(toks: &[Token], j: usize, lits: &[String]) -> usize {
     let Some(first) = toks.get(j) else { return 0 };
-    let mut acc = first.zh.clone();
+    let mut acc = first.zh.to_string();
     if lits.contains(&acc) {
         return 1;
     }
@@ -321,7 +359,7 @@ fn left_span(program: &Program, out: &[Token], kind: LeftKind) -> usize {
         if t.tag == "w" || has(CLAUSE_OPEN, &t.zh) {
             break;
         }
-        if t.tag == "hệ-từ" || matches!(t.zh.as_str(), "到" | "等" | "等到") {
+        if t.tag == "hệ-từ" || matches!(&*t.zh, "到" | "等" | "等到") {
             break;
         }
         i -= 1;
@@ -334,7 +372,7 @@ fn ctx_ok(program: &Program, el: &El, tok: Option<&Token>, at_edge: bool) -> boo
     let mut hit = match (&el.kind, tok) {
         (ElKind::Start | ElKind::End, _) => at_edge,
         (_, None) => caret,
-        (ElKind::Lit(lits), Some(t)) => lits.contains(&t.zh),
+        (ElKind::Lit(lits), Some(t)) => lits.iter().any(|lit| *lit == *t.zh),
         (ElKind::Slot(slot) | ElKind::Many(slot), Some(t)) => slot_ok(program, slot, t),
         (_, Some(_)) => false,
     };
@@ -476,7 +514,7 @@ fn value(program: &Program, hit: &Capture, out: &[Token], toks: &[Token]) -> Str
             if let Some(v) = program
                 .classes
                 .get(hit.name)
-                .and_then(|class| class.get(&t.zh))
+                .and_then(|class| class.get(&*t.zh))
                 .filter(|v| !v.is_empty())
             {
                 return v.clone();
@@ -547,8 +585,6 @@ fn squeeze_spaces(text: &str) -> String {
 struct Scratch<'q> {
     /// Lọc chữ cố định của từng quy tắc trong nhóm: 0 chưa tính, 1 không qua, 2 qua.
     active: Vec<u8>,
-    /// Mảng token của lượt trước, giữ lại cho lượt sau khỏi cấp phát.
-    spare: Vec<Token<'q>>,
     caps: Vec<Capture<'q>>,
     /// Bit `n`: quy tắc chung `generic[n]` qua lọc chữ cố định.
     generic: Vec<u64>,
@@ -567,109 +603,185 @@ fn is_active(rule: &Rule, state: &mut u8, present: &[u64]) -> bool {
     *state == 2
 }
 
-fn run_section<'q>(
+/// Bit khoá có trong một dãy token: hợp `builtins_of` và `classes_of`.
+#[derive(Debug, Clone, Copy)]
+struct Have {
+    builtins: u32,
+    classes: u64,
+}
+
+impl Have {
+    /// Không lọc: mọi bit coi như có.
+    #[cfg(debug_assertions)]
+    const ALL: Have = Have {
+        builtins: u32::MAX,
+        classes: u64::MAX,
+    };
+
+    fn of(program: &Program, toks: &[Token]) -> Have {
+        toks.iter().fold(Have { builtins: 0, classes: 0 }, |have, t| Have {
+            builtins: have.builtins | builtins_of(t),
+            classes: have.classes | classes_of(program, t),
+        })
+    }
+
+    /// Mỗi khoá bắt buộc của mẫu có ít nhất một token mang bit của nó.
+    fn allows(self, rule: &Rule) -> bool {
+        rule.req_builtins & !self.builtins == 0 && rule.req_classes & !self.classes == 0
+    }
+}
+
+/// Một lượt của nhóm; trả token mới và số lần có quy tắc chạy.
+///
+/// `have` là bit khoá của chính `toks` lúc vào lượt. Khoá bắt buộc của mẫu
+/// (`Rule::req_builtins`, `req_classes`) chỉ khớp phần chưa đọc `toks[i..]`,
+/// mà phần đó y nguyên từ đầu lượt; nên quy tắc đòi một bit mà không token nào
+/// có thì không khớp được trong lượt. Bỏ nó khỏi danh sách thử không đổi quy
+/// tắc đầu tiên khớp; không còn quy tắc nào thì lượt không đổi gì.
+fn run_round<'q>(
     program: &'q Program,
     section: &'q Section,
     mut toks: Vec<Token<'q>>,
     present: &[u64],
     scratch: &mut Scratch<'q>,
+    have: Have,
 ) -> (Vec<Token<'q>>, usize) {
-    scratch.active.clear();
-    scratch.active.resize(section.rules.len(), 0);
     let heads = &section.heads;
     scratch.generic.clear();
     scratch.generic.resize(heads.words, 0);
     // Hợp khoá đầu của các quy tắc chung qua lọc: chỉ tính bit khoá của token khi cần.
     let (mut any_builtins, mut any_classes) = (0u32, 0u64);
     for (n, &index) in section.generic.iter().enumerate() {
-        if is_active(&section.rules[index], &mut scratch.active[index], present) {
+        let rule = &section.rules[index];
+        if have.allows(rule) && is_active(rule, &mut scratch.active[index], present) {
             scratch.generic[n / 64] |= 1 << (n % 64);
             any_builtins |= heads.builtin_of[n];
             any_classes |= heads.class_of[n];
         }
     }
     let any_generic = scratch.generic.iter().any(|&word| word != 0);
+    let any_keyed = section.keyed.iter().any(|&index| {
+        let rule = &section.rules[index];
+        have.allows(rule) && is_active(rule, &mut scratch.active[index], present)
+    });
+    if !any_generic && !any_keyed {
+        return (toks, 0);
+    }
     let mut fired = 0;
-    for _ in 0..section.rounds {
-        let mut out = std::mem::take(&mut scratch.spare);
-        out.clear();
-        out.reserve(toks.len());
-        let mut i = 0;
-        let mut changed = false;
-        while i < toks.len() {
-            let head = toks[i].zh.chars().next().filter(|&c| section.key_chars.may_contain(c));
-            let left = head.and_then(|c| section.left.get(&c)).map_or(&[][..], Vec::as_slice);
-            let first = head.and_then(|c| section.first.get(&c)).map_or(&[][..], Vec::as_slice);
-            let caps = &mut scratch.caps;
-            // Thứ tự thử như cũ: mở đầu bằng `{vế}`…, bằng chữ cố định, rồi quy tắc
-            // chung. Hai nhóm đầu không mở đầu bằng khoá nên khỏi lọc khoá đầu.
-            let hit = 'find: {
-                for &index in left.iter().chain(first) {
-                    let rule = &section.rules[index];
-                    if !is_active(rule, &mut scratch.active[index], present) {
-                        continue;
-                    }
-                    if let Some((used, take)) = match_rule(program, rule, &out, &toks, i, caps) {
+    // Một mảng cho cả lượt: `toks[..w]` là phần đã ra (`out` của bản thử),
+    // `toks[i..]` là phần chưa đọc, `toks[w..i]` là token đã tiêu mà không gì
+    // đọc lại (mẫu và khuôn chỉ đọc `out` và từ `i` trở đi), bỏ khi hết lượt.
+    // Luôn có `w <= i`; chưa có quy tắc nào chạy thì `w == i`, khỏi chuyển token.
+    let mut w = 0;
+    let mut i = 0;
+    while i < toks.len() {
+        let out = &toks[..w];
+        let head = toks[i].zh.chars().next().filter(|&c| section.key_chars.may_contain(c));
+        let left = head.and_then(|c| section.left.get(&c)).map_or(&[][..], Vec::as_slice);
+        let first = head.and_then(|c| section.first.get(&c)).map_or(&[][..], Vec::as_slice);
+        let caps = &mut scratch.caps;
+        // Thứ tự thử như cũ: mở đầu bằng `{vế}`…, bằng chữ cố định, rồi quy tắc
+        // chung. Hai nhóm đầu không mở đầu bằng khoá nên khỏi lọc khoá đầu.
+        let hit = 'find: {
+            for &index in left.iter().chain(first) {
+                let rule = &section.rules[index];
+                if !have.allows(rule) || !is_active(rule, &mut scratch.active[index], present) {
+                    continue;
+                }
+                if let Some((used, take)) = match_rule(program, rule, out, &toks, i, caps) {
+                    break 'find Some((rule, used, take));
+                }
+            }
+            if !any_generic {
+                break 'find None;
+            }
+            // Ứng viên: quy tắc mà khoá đầu đòi một bit token có, cộng quy tắc
+            // không lọc được, trong số qua lọc chữ cố định. Duyệt bit tăng dần
+            // là đúng thứ tự `generic`.
+            let t = &toks[i];
+            let tb = if any_builtins != 0 { builtins_of(t) & any_builtins } else { 0 };
+            let tc = if any_classes != 0 { classes_of(program, t) & any_classes } else { 0 };
+            let words = heads.words;
+            for word in 0..words {
+                let mut cand = heads.open[word];
+                let mut bits = tb;
+                while bits != 0 {
+                    cand |= heads.by_builtin[bits.trailing_zeros() as usize * words + word];
+                    bits &= bits - 1;
+                }
+                let mut bits = tc;
+                while bits != 0 {
+                    cand |= heads.by_class[bits.trailing_zeros() as usize * words + word];
+                    bits &= bits - 1;
+                }
+                let mut bits = cand & scratch.generic[word];
+                while bits != 0 {
+                    let n = word * 64 + bits.trailing_zeros() as usize;
+                    bits &= bits - 1;
+                    let rule = &section.rules[section.generic[n]];
+                    if let Some((used, take)) = match_rule(program, rule, out, &toks, i, caps) {
                         break 'find Some((rule, used, take));
                     }
                 }
-                if !any_generic {
-                    break 'find None;
+            }
+            None
+        };
+        match hit {
+            Some((rule, used, take)) => {
+                let vi = fill(program, rule, caps, out, &toks);
+                let zh: String = toks[i..i + used].iter().map(|t| &*t.zh).collect();
+                // Bỏ `take` token cuối của phần đã ra rồi ghi token gộp vào chỗ đầu
+                // của chúng; chỗ đó là token đã tiêu, hoặc chính `toks[i]` khi
+                // `w == i` và không lấy gì bên trái.
+                w -= take;
+                toks[w] = Token::new(zh, vi, rule.result.as_str());
+                w += 1;
+                fired += 1;
+                i += used.max(1);
+            }
+            None => {
+                if w != i {
+                    toks.swap(w, i);
                 }
-                // Ứng viên: quy tắc mà khoá đầu đòi một bit token có, cộng quy tắc
-                // không lọc được, trong số qua lọc chữ cố định. Duyệt bit tăng dần
-                // là đúng thứ tự `generic`.
-                let t = &toks[i];
-                let tb = if any_builtins != 0 { builtins_of(t) & any_builtins } else { 0 };
-                let tc = if any_classes != 0 { classes_of(program, t) & any_classes } else { 0 };
-                let words = heads.words;
-                for word in 0..words {
-                    let mut cand = heads.open[word];
-                    let mut bits = tb;
-                    while bits != 0 {
-                        cand |= heads.by_builtin[bits.trailing_zeros() as usize * words + word];
-                        bits &= bits - 1;
-                    }
-                    let mut bits = tc;
-                    while bits != 0 {
-                        cand |= heads.by_class[bits.trailing_zeros() as usize * words + word];
-                        bits &= bits - 1;
-                    }
-                    let mut bits = cand & scratch.generic[word];
-                    while bits != 0 {
-                        let n = word * 64 + bits.trailing_zeros() as usize;
-                        bits &= bits - 1;
-                        let rule = &section.rules[section.generic[n]];
-                        if let Some((used, take)) =
-                            match_rule(program, rule, &out, &toks, i, caps)
-                        {
-                            break 'find Some((rule, used, take));
-                        }
-                    }
-                }
-                None
-            };
-            match hit {
-                Some((rule, used, take)) => {
-                    let vi = fill(program, rule, caps, &out, &toks);
-                    let zh: String = toks[i..i + used].iter().map(|t| t.zh.as_str()).collect();
-                    out.truncate(out.len() - take);
-                    out.push(Token::new(zh, vi, rule.result.as_str()));
-                    fired += 1;
-                    i += used.max(1);
-                    changed = true;
-                }
-                None => {
-                    // Không gì đọc lại `toks[..i]` (mẫu và khuôn chỉ đọc từ `i` trở
-                    // đi và `out`), nên chuyển hẳn token sang thay vì chép.
-                    let placeholder = Token::new(String::new(), String::new(), "");
-                    out.push(std::mem::replace(&mut toks[i], placeholder));
-                    i += 1;
-                }
+                w += 1;
+                i += 1;
             }
         }
-        scratch.spare = std::mem::replace(&mut toks, out);
-        if !changed {
+    }
+    toks.truncate(w);
+    (toks, fired)
+}
+
+/// Các lượt của một nhóm, dừng sau lượt không có quy tắc nào chạy. `have` là
+/// bit khoá của `toks` lúc vào nhóm.
+fn run_section<'q>(
+    program: &'q Program,
+    section: &'q Section,
+    mut toks: Vec<Token<'q>>,
+    present: &[u64],
+    scratch: &mut Scratch<'q>,
+    mut have: Have,
+) -> (Vec<Token<'q>>, usize) {
+    scratch.active.clear();
+    scratch.active.resize(section.rules.len(), 0);
+    let mut fired = 0;
+    for round in 0..section.rounds {
+        if round > 0 {
+            have = Have::of(program, &toks);
+        }
+        // Bản debug: lượt không lọc theo bit khoá phải ra y như lượt có lọc.
+        #[cfg(debug_assertions)]
+        let reference = run_round(program, section, toks.clone(), present, scratch, Have::ALL);
+        let (next, count) = run_round(program, section, toks, present, scratch, have);
+        #[cfg(debug_assertions)]
+        assert!(
+            reference.0 == next && reference.1 == count,
+            "lọc bit khoá đổi kết quả nhóm [{}]: {next:?}",
+            section.result
+        );
+        toks = next;
+        fired += count;
+        if count == 0 {
             break;
         }
     }
@@ -690,13 +802,15 @@ pub(crate) fn apply_program<'q>(
     let mut present = Vec::new();
     let mut scratch = Scratch {
         active: Vec::new(),
-        spare: Vec::new(),
         caps: Vec::new(),
         generic: Vec::new(),
     };
     let mut stale = true;
+    // Bit khoá của `toks`, tính khi có nhóm cần; đổi khi có quy tắc chạy.
+    let mut have = None;
     for section in &program.sections {
         if stale {
+            have = None;
             let mut text = String::with_capacity(toks.iter().map(|t| t.zh.len()).sum());
             toks.iter().for_each(|t| text.push_str(&t.zh));
             program.need_lits.find(&text, &mut present);
@@ -705,7 +819,8 @@ pub(crate) fn apply_program<'q>(
         if !section.always && !section.lits.iter().zip(&present).any(|(m, p)| m & p != 0) {
             continue;
         }
-        let (next, count) = run_section(program, section, toks, &present, &mut scratch);
+        let have = *have.get_or_insert_with(|| Have::of(program, &toks));
+        let (next, count) = run_section(program, section, toks, &present, &mut scratch, have);
         toks = next;
         fired += count;
         stale = count > 0;
@@ -719,7 +834,7 @@ mod tests {
     use crate::quy_tac::program::Program;
 
     fn tok(zh: &str, vi: &str, tag: &'static str) -> Token<'static> {
-        Token::new(zh, vi, tag)
+        Token::new(zh.to_string(), vi.to_string(), tag)
     }
 
     fn run(rules: &str, toks: Vec<Token<'static>>) -> (String, usize) {
@@ -810,7 +925,7 @@ mod tests {
         tags.extend([
             "nr", "nrfg", "ns", "nt", "tên", "người", "s", "t", "tg", "thời-gian", "nơi", "v",
             "vn", "vd", "hệ-từ", "tính-cụm", "i", "l", "số", "số-lượng", "d", "dấu", "w",
-            "nơi-cụm", "f", "m", "",
+            "nơi-cụm", "f", "m", "", "nrt", "nrx", "dg", "dấux", "vg", "uj", "pp", "?", "n ",
         ]);
         let mut words: Vec<&str> = PRONOUNS.iter().chain(DEMONSTRATIVE).copied().collect();
         words.extend(["", "的", "好的", "坐在", "在", "上面", "桌子", "我的", "这个人"]);
