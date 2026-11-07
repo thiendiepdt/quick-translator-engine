@@ -13,7 +13,12 @@
 //!
 //! Tốc độ: đo riêng, mỗi đường một lượt qua mọi đoạn, `ROUNDS` lượt đổi thứ tự
 //! xen kẽ (hiện tại trước, rồi Quy Tắc trước, …). Dịch cùng đoạn hai lần liền
-//! nhau thì lần sau được cache ấm, lệch số đo. Cổng dùng tổng thời gian.
+//! nhau thì lần sau được cache ấm, lệch số đo. Cổng dùng tổng thời gian; in
+//! thêm trung vị các lượt.
+//!
+//! RAM: allocator chỉ đếm byte lúc nạp `QuyTac`. Lúc đo tốc độ nó chỉ đọc một
+//! cờ rồi gọi thẳng allocator hệ thống, như bản chạy thật: đếm trên mọi lần
+//! cấp phát thì phạt đường cấp phát nhiều hơn.
 
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::collections::HashMap;
@@ -21,7 +26,7 @@ use std::hint::black_box;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
-use std::sync::atomic::{AtomicIsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicIsize, Ordering};
 use std::time::{Duration, Instant};
 
 use qt_core::{
@@ -30,23 +35,35 @@ use qt_core::{
 use regex::Regex;
 use unicode_normalization::UnicodeNormalization;
 
-/// Số lượt đo tốc độ; lượt thứ nhất chạy đường hiện tại trước, lượt sau đổi.
-const ROUNDS: usize = 4;
+/// Số lượt đo tốc độ; lượt lẻ chạy đường hiện tại trước, lượt chẵn đổi.
+const ROUNDS: usize = 8;
 
 struct Counting;
+/// Bật quanh `QuyTac::load` (một luồng): chỉ khi đó mới đếm.
+static COUNTING: AtomicBool = AtomicBool::new(false);
 static LIVE: AtomicIsize = AtomicIsize::new(0);
+
+fn count(delta: isize) {
+    if COUNTING.load(Ordering::Relaxed) {
+        LIVE.fetch_add(delta, Ordering::Relaxed);
+    }
+}
 
 unsafe impl GlobalAlloc for Counting {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        LIVE.fetch_add(layout.size() as isize, Ordering::Relaxed);
+        count(layout.size() as isize);
         System.alloc(layout)
     }
+    unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
+        count(layout.size() as isize);
+        System.alloc_zeroed(layout)
+    }
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        LIVE.fetch_sub(layout.size() as isize, Ordering::Relaxed);
+        count(-(layout.size() as isize));
         System.dealloc(ptr, layout)
     }
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
-        LIVE.fetch_add(new_size as isize - layout.size() as isize, Ordering::Relaxed);
+        count(new_size as isize - layout.size() as isize);
         System.realloc(ptr, layout, new_size)
     }
 }
@@ -183,9 +200,12 @@ fn main() -> ExitCode {
     let offset: usize = args.get(3).and_then(|v| v.parse().ok()).unwrap_or(7);
 
     let engine = Engine::from_dicts(Dictionaries::load(&data).expect("nạp QT2025"));
-    let before = LIVE.load(Ordering::Relaxed);
+    // Trong lúc nạp, mọi cấp phát và giải phóng đều được đếm; phần còn lại là
+    // byte `QuyTac` giữ. Tắt cờ trước mọi phép đo thời gian.
+    COUNTING.store(true, Ordering::SeqCst);
     let quy_tac = QuyTac::load(&data, false).expect("nạp Quy Tắc");
-    let quy_tac_bytes = LIVE.load(Ordering::Relaxed) - before;
+    COUNTING.store(false, Ordering::SeqCst);
+    let quy_tac_bytes = LIVE.load(Ordering::SeqCst);
     let engine = engine.with_quy_tac(quy_tac);
     let word = Regex::new(r"\w+").unwrap();
     let off = Options::default();
@@ -306,7 +326,7 @@ fn main() -> ExitCode {
         speed * 100.0,
         median * 100.0
     );
-    println!("RAM giữ của QuyTac: {mib:.1} MiB");
+    println!("RAM giữ của QuyTac: {mib:.1} MiB ({quy_tac_bytes} byte)");
     let gates = [
         ("chất lượng: cụm 3 từ >= +10,0%", gain(new3, cur3) >= 10.0),
         ("chất lượng: thắng >= 80%", win_rate >= 80.0),

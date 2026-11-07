@@ -113,8 +113,15 @@ impl QuyTac {
         cursor: &mut usize,
     ) {
         // Range hỏng (không được xảy ra, `record` giữ bất biến) thì coi như
-        // cụm rỗng chứ không panic ở bản release.
+        // cụm rỗng chứ không panic ở bản release; bản debug thì báo ngay.
         fn text_of<'o>(output: &'o str, t: &SourceToken) -> &'o str {
+            debug_assert!(
+                output.get(t.out_start..t.out_end).is_some(),
+                "range cụm hỏng {}..{} trên output {} byte",
+                t.out_start,
+                t.out_end,
+                output.len()
+            );
             output.get(t.out_start..t.out_end).unwrap_or("").trim()
         }
         let Some(first) = paragraph.iter().find(|t| !text_of(output, t).is_empty()) else {
