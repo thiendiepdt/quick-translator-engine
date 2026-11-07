@@ -24,6 +24,7 @@ pub use name_filter::{
     NameCandidate, NameCandidateSource, NameEntityType, NameFilterDocument, NameFilterMemory,
     NameFilterMode, NameFilterOptions, NameFilterResult,
 };
+pub use quy_tac::{QuyTac, QuyTacError};
 
 use dict::{DictionaryLookup, IndexedLookup, KeyLenIndex};
 
@@ -112,6 +113,9 @@ pub struct Options {
     pub translation_algorithm: i32, // 0/1/2, controls "longest phrase" rule
     pub prioritized_name: bool,
     pub scan_range: usize, // max phrase length scanned per position
+    /// Chạy Quy Tắc sau khi convert (chỉ `VietPhraseOneMeaning`, `wrap_type == 0`,
+    /// đường trả text, và engine có `QuyTac`). Mặc định tắt.
+    pub quy_tac: bool,
 }
 
 impl Default for Options {
@@ -128,6 +132,7 @@ impl Default for Options {
             translation_algorithm: 1,
             prioritized_name: true,
             scan_range: 30,
+            quy_tac: false,
         }
     }
 }
@@ -143,6 +148,7 @@ pub struct Engine {
     only_vietphrase_index: KeyLenIndex,
     ho_nguoi_index: KeyLenIndex,
     hau_tu_index: KeyLenIndex,
+    quy_tac: Option<QuyTac>,
 }
 
 impl Engine {
@@ -164,6 +170,7 @@ impl Engine {
             only_vietphrase_index,
             ho_nguoi_index,
             hau_tu_index,
+            quy_tac: None,
         }
     }
 
@@ -187,6 +194,19 @@ impl Engine {
         self.translate_mapped(text, mode, opts, true)
     }
 
+    /// Gắn bộ Quy Tắc; chỉ chạy khi `Options::quy_tac` bật.
+    pub fn with_quy_tac(mut self, quy_tac: QuyTac) -> Engine {
+        self.quy_tac = Some(quy_tac);
+        self
+    }
+
+    fn quy_tac_active(&self, mode: Mode, opts: &Options) -> bool {
+        opts.quy_tac
+            && opts.wrap_type == 0
+            && mode == Mode::VietPhraseOneMeaning
+            && self.quy_tac.is_some()
+    }
+
     fn translate_mapped(
         &self,
         text: &str,
@@ -194,6 +214,11 @@ impl Engine {
         opts: &Options,
         with_ranges: bool,
     ) -> TranslationResult {
+        if !with_ranges && self.quy_tac_active(mode, opts) {
+            return self
+                .translate_mapped_with_overrides(text, mode, opts, &DictionaryOverrides::default(), false)
+                .expect("không có override thì không lỗi");
+        }
         // HanViet dựng range trong cùng một lượt, luôn cần range nguồn.
         let standardized =
             self.standardizer
@@ -234,6 +259,7 @@ impl Engine {
                 None,
                 None,
                 None,
+                None,
             ),
             Mode::VietPhraseOneMeaning => translate::translate_all_mapped(
                 &chars,
@@ -245,6 +271,7 @@ impl Engine {
                 &vietphrase,
                 &self.dicts.han_viet,
                 &self.luat_nhan,
+                None,
                 None,
                 None,
                 None,
@@ -284,7 +311,7 @@ impl Engine {
         overrides: &DictionaryOverrides,
         with_ranges: bool,
     ) -> Result<TranslationResult, DictionaryOverrideError> {
-        if overrides.is_empty() {
+        if overrides.is_empty() && !(!with_ranges && self.quy_tac_active(mode, opts)) {
             return Ok(self.translate_mapped(text, mode, opts, with_ranges));
         }
 
@@ -325,6 +352,7 @@ impl Engine {
             pronouns: &self.dicts.pronouns,
             ho_nguoi: &ho_nguoi,
             hau_tu: &hau_tu,
+            quy_tac: self.quy_tac.as_ref(),
         }
         .translate(text, mode, opts, overrides, with_ranges)
     }
@@ -350,6 +378,7 @@ struct LayeredBase<'a> {
     pronouns: &'a dyn DictionaryLookup,
     ho_nguoi: &'a dyn DictionaryLookup,
     hau_tu: &'a dyn DictionaryLookup,
+    quy_tac: Option<&'a QuyTac>,
 }
 
 impl LayeredBase<'_> {
@@ -484,20 +513,32 @@ impl LayeredBase<'_> {
         // DanhTu is loaded by QT2025 and remains part of the public override
         // contract, although the ported translation paths do not consume it.
 
+        let use_quy_tac = !with_ranges
+            && opts.quy_tac
+            && opts.wrap_type == 0
+            && mode == Mode::VietPhraseOneMeaning
+            && self.quy_tac.is_some();
         let custom_luat_nhan = overrides
             .luat_nhan
             .as_ref()
             .map(|rules| luat_nhan::LuatNhan::try_from_rules(rules))
             .transpose()
             .map_err(|message| DictionaryOverrideError { message })?;
-        let luat_nhan = custom_luat_nhan.as_ref().unwrap_or(self.luat_nhan);
+        // Quy Tắc thay Luật Nhân: không luật nào, nhưng `{h}{t}` vẫn chạy nhờ
+        // Họ người / Hậu tố truyền vào bên dưới.
+        let no_rules = luat_nhan::LuatNhan::default();
+        let luat_nhan = if use_quy_tac {
+            &no_rules
+        } else {
+            custom_luat_nhan.as_ref().unwrap_or(self.luat_nhan)
+        };
         let dictionary: &dyn DictionaryLookup = match mode {
             Mode::VietPhrase => &vietphrase,
             Mode::VietPhraseOneMeaning => &one_meaning_vietphrase,
             Mode::HanViet => unreachable!("HanViet returned above"),
         };
-
-        Ok(translate::translate_all_mapped(
+        let mut tokens = Vec::new();
+        let result = translate::translate_all_mapped(
             &chars,
             with_ranges.then_some(source_ranges.as_slice()),
             opts,
@@ -510,7 +551,28 @@ impl LayeredBase<'_> {
             Some(&dictionary_n),
             Some(ho_nguoi),
             Some(hau_tu),
-        ))
+            use_quy_tac.then_some(&mut tokens),
+        );
+        match self.quy_tac {
+            Some(quy_tac) if use_quy_tac => {
+                let lexicon = OneMeaningDictionary {
+                    inner: only_vietphrase,
+                };
+                let lookups = quy_tac::Lookups {
+                    names,
+                    lexicon: &lexicon,
+                };
+                // Token chỉ vào chuỗi đã qua number_modifier, như vòng dịch.
+                let modified = number::number_modifier(&chars);
+                let text = quy_tac.apply(&modified, &result.translated_text, &tokens, &lookups);
+                Ok(TranslationResult {
+                    translated_text: text,
+                    source_ranges: Vec::new(),
+                    target_ranges: Vec::new(),
+                })
+            }
+            _ => Ok(result),
+        }
     }
 }
 

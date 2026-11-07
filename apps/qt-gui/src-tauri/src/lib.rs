@@ -436,6 +436,7 @@ fn request_options(request: &TranslationRequest) -> Result<Options, String> {
         translation_algorithm: request.translation_algorithm,
         prioritized_name: request.prioritized_name,
         scan_range: request.scan_range,
+        quy_tac: false,
     })
 }
 

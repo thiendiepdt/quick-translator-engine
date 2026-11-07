@@ -129,16 +129,28 @@ use crate::text::{
 };
 use crate::{CharRange, Options, TranslationResult};
 
+/// Một cụm đã ghi ra output: `start..start + len` là chỉ số ký tự nguồn (sau
+/// chuẩn hoá và `number_modifier`), `out_start..out_end` là byte trong
+/// `translated_text` (có thể dính dấu cách chèn trước). Quy Tắc đọc lại từ đây.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct SourceToken {
+    pub(crate) start: usize,
+    pub(crate) len: usize,
+    pub(crate) out_start: usize,
+    pub(crate) out_end: usize,
+}
+
 #[derive(Default)]
-struct TranslationOutput {
+struct TranslationOutput<'t> {
     result: String,
     last: String,
     source_ranges: Vec<CharRange>,
     target_ranges: Vec<CharRange>,
     target_length: usize,
+    tokens: Option<&'t mut Vec<SourceToken>>,
 }
 
-impl TranslationOutput {
+impl TranslationOutput<'_> {
     fn append_word(&mut self, text: &str) {
         let delta = append_translated_word(&mut self.result, text, &mut self.last);
         self.target_length = self.target_length.saturating_add_signed(delta);
@@ -154,6 +166,23 @@ impl TranslationOutput {
         self.result.push(' ');
         self.last.push(' ');
         self.target_length += 1;
+    }
+
+    /// Ghi cụm vừa nối (`out_start` tới cuối output). Dấu cách cuối của cụm
+    /// trước có thể đã bị `append_translated_word` bỏ, nên cắt lại cụm trước.
+    fn record(&mut self, start: usize, len: usize, out_start: usize) {
+        let out_end = self.result.len();
+        if let Some(tokens) = self.tokens.as_deref_mut() {
+            if let Some(previous) = tokens.last_mut() {
+                previous.out_end = previous.out_end.min(out_start);
+            }
+            tokens.push(SourceToken {
+                start,
+                len,
+                out_start,
+                out_end,
+            });
+        }
     }
 
     fn finish(self) -> TranslationResult {
@@ -181,6 +210,8 @@ fn process_translation(
 ) {
     let text = wrap_translation(translation, opts.wrap_type);
     output.append_word(&text);
+    let out_start = output.result.len() - output.last.len();
+    output.record(start, length, out_start);
     if let Some(source_ranges) = source_ranges {
         let text_length = utf16_len(&text);
         output
@@ -211,6 +242,8 @@ fn process_han_viet(
         let t = wrap_translation(&char_to_han_viet(c, han_viet), opts.wrap_type);
         target_length = utf16_len(&t);
         output.append_word(&t);
+        let out_start = output.result.len() - output.last.len();
+        output.record(*num2, 1, out_start);
         if next_char_is_chinese(chars, *num2, han_viet) {
             output.append_space();
         }
@@ -226,9 +259,11 @@ fn process_han_viet(
     {
         output.append_space();
         output.append_char(c);
+        output.record(*num2, 1, output.result.len() - c.len_utf8());
         target_length = c.len_utf16();
     } else {
         output.append_char(c);
+        output.record(*num2, 1, output.result.len() - c.len_utf8());
         target_length = c.len_utf16();
         if needs_space_after_sentence_punctuation(chars, *num2) {
             output.append_space();
@@ -298,6 +333,7 @@ pub fn translate_all(
         None,
         None,
         None,
+        None,
     )
 }
 
@@ -317,12 +353,16 @@ pub(crate) fn translate_all_mapped(
     dictionary_n: Option<&dyn DictionaryLookup>,
     ho_nguoi: Option<&dyn DictionaryLookup>,
     hau_tu: Option<&dyn DictionaryLookup>,
+    tokens: Option<&mut Vec<SourceToken>>,
 ) -> TranslationResult {
     debug_assert!(source_ranges.is_none_or(|ranges| ranges.len() == chars.len()));
     let numbers = prescan_numbers(chars, only_vietphrase);
     let chars = number_modifier(chars);
     let chars = chars.as_slice();
-    let mut output = TranslationOutput::default();
+    let mut output = TranslationOutput {
+        tokens,
+        ..TranslationOutput::default()
+    };
     let len = chars.len();
     if len == 0 {
         return output.finish();

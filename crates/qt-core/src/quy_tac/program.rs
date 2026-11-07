@@ -90,7 +90,6 @@ pub(crate) enum Part {
 
 #[derive(Debug)]
 pub(crate) struct Rule {
-    pub(crate) line: usize,
     pub(crate) pre: Vec<El>,
     pub(crate) pat: Vec<El>,
     pub(crate) post: Vec<El>,
@@ -102,7 +101,6 @@ pub(crate) struct Rule {
 
 #[derive(Debug)]
 pub(crate) struct Section {
-    pub(crate) name: String,
     pub(crate) rounds: usize,
     pub(crate) result: String,
     pub(crate) rules: Vec<Rule>,
@@ -115,7 +113,6 @@ pub(crate) struct Section {
 
 #[derive(Debug)]
 pub(crate) struct CharRule {
-    pub(crate) line: usize,
     pub(crate) regex: Regex,
     pub(crate) slots: Vec<String>,
     pub(crate) tmpl: Vec<Part>,
@@ -190,7 +187,7 @@ impl Program {
                             None => 1,
                         };
                         let result = header.get(2).copied().unwrap_or("cụm").to_string();
-                        sections.push(Section::new(name, rounds.max(1), result));
+                        sections.push(Section::new(rounds.max(1), result));
                         Mode::Rules
                     }
                 };
@@ -406,7 +403,6 @@ fn parse_rule(
         })
         .collect();
     Ok(Rule {
-        line: line_no,
         pre,
         pat,
         post,
@@ -486,7 +482,6 @@ fn compile_char_rule(
         .chars()
         .count();
     Ok(CharRule {
-        line: line_no,
         regex,
         slots,
         tmpl,
@@ -506,9 +501,8 @@ fn first_chars(lits: &[String]) -> Vec<char> {
 }
 
 impl Section {
-    fn new(name: &str, rounds: usize, result: String) -> Section {
+    fn new(rounds: usize, result: String) -> Section {
         Section {
-            name: name.to_string(),
             rounds,
             result,
             rules: Vec::new(),
@@ -586,7 +580,7 @@ lượng-từ: 层=tầng 个=
         assert_eq!(program.classes["lượng-từ"]["个"], "");
         assert_eq!(program.sections.len(), 2);
         let cua = &program.sections[0];
-        assert_eq!((cua.name.as_str(), cua.rounds), ("của", 3));
+        assert_eq!(cua.rounds, 3);
         assert_eq!(cua.generic, vec![0]);
         assert_eq!(cua.first[&'这'], vec![1]);
         assert_eq!(cua.left[&'的'], vec![2]);

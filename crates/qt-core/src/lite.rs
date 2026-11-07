@@ -22,7 +22,7 @@ use crate::luat_nhan::LuatNhan;
 use crate::standardize::Standardizer;
 use crate::{
     first_meaning, DictionaryOverrideError, DictionaryOverrides, HanVietMap, LayeredBase, Mode,
-    Options, PriorityDictionary,
+    Options, PriorityDictionary, QuyTac,
 };
 use rustc_hash::FxHashMap;
 use std::path::Path;
@@ -39,6 +39,7 @@ pub struct LiteEngine {
     ho_nguoi_index: KeyLenIndex,
     hau_tu: FxHashMap<String, String>,
     hau_tu_index: KeyLenIndex,
+    quy_tac: Option<QuyTac>,
 }
 
 /// Số entry đã nạp, để server in ra lúc khởi động.
@@ -139,7 +140,14 @@ impl LiteEngine {
             ho_nguoi_index,
             hau_tu,
             hau_tu_index,
+            quy_tac: None,
         })
+    }
+
+    /// Gắn bộ Quy Tắc; chỉ chạy khi `Options::quy_tac` bật.
+    pub fn with_quy_tac(mut self, quy_tac: QuyTac) -> Self {
+        self.quy_tac = Some(quy_tac);
+        self
     }
 
     pub fn stats(&self) -> LiteEngineStats {
@@ -188,6 +196,7 @@ impl LiteEngine {
             pronouns: &self.pronouns,
             ho_nguoi: &ho_nguoi,
             hau_tu: &hau_tu,
+            quy_tac: self.quy_tac.as_ref(),
         }
         .translate(text, Mode::VietPhraseOneMeaning, opts, overrides, false)
         .map(|result| result.translated_text)
