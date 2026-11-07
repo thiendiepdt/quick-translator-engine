@@ -45,7 +45,8 @@ pub struct QuyTac {
 impl QuyTac {
     /// Bộ luật mặc định (spec mục 3).
     pub const DEFAULT_RULES: &'static str = include_str!("../../data/QuyTac.txt");
-    /// Nhóm `[giọng-mượt]`: chọn nghĩa theo văn phong, chỉ chạy khi được bật.
+    /// Nhóm `[giọng-mượt]`: chọn nghĩa theo văn phong. Bật mặc định: nơi gọi
+    /// truyền `giong_muot = true` trừ khi người dùng tắt công tắc "Giọng mượt".
     pub const GIONG_MUOT_RULES: &'static str = include_str!("../../data/QuyTac-giong-muot.txt");
     /// Nhãn từ loại sửa lại, đè lên `Resources/dict.txt`.
     pub const DEFAULT_TU_LOAI: &'static str = include_str!("../../data/TuLoai.txt");

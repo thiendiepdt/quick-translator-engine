@@ -27,7 +27,7 @@
 //! - đoạn có từ viết hoa giữa câu ở đường hiện tại (`(?<=[\p{Ll},] )\p{Lu}\p{Ll}+`)
 //!   mà output Quy Tắc không có, chỉ có bản viết thường.
 //!
-//! `QT_EVAL_GIONG_MUOT=1`: đường Quy Tắc chạy thêm nhóm `[giọng-mượt]`.
+//! Đường Quy Tắc chạy cả nhóm `[giọng-mượt]` như mặc định; `QT_EVAL_GIONG_MUOT=0` bỏ nhóm đó.
 
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::collections::{HashMap, HashSet};
@@ -287,12 +287,12 @@ fn main() -> ExitCode {
     let engine = Engine::from_dicts(Dictionaries::load(&data).expect("nạp QT2025"));
     // Trong lúc nạp, mọi cấp phát và giải phóng đều được đếm; phần còn lại là
     // byte `QuyTac` giữ. Tắt cờ trước mọi phép đo thời gian.
-    let giong_muot = std::env::var_os("QT_EVAL_GIONG_MUOT").is_some_and(|value| value == "1");
+    let giong_muot = std::env::var_os("QT_EVAL_GIONG_MUOT").is_none_or(|value| value != "0");
     COUNTING.store(true, Ordering::SeqCst);
     let quy_tac = QuyTac::load(&data, giong_muot).expect("nạp Quy Tắc");
     COUNTING.store(false, Ordering::SeqCst);
-    if giong_muot {
-        println!("Quy Tắc có nhóm [giọng-mượt] (QT_EVAL_GIONG_MUOT=1)");
+    if !giong_muot {
+        println!("Quy Tắc không có nhóm [giọng-mượt] (QT_EVAL_GIONG_MUOT=0)");
     }
     let quy_tac_bytes = LIVE.load(Ordering::SeqCst);
     let engine = engine.with_quy_tac(quy_tac);

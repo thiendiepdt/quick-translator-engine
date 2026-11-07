@@ -913,13 +913,19 @@ mod tests {
     fn context_start_and_number_filter() {
         let rules = "[lớp]\nlượng-từ: 层=tầng\n\n\
             [lượng 1]\n第 {số} {lượng-từ} = {lượng-từ} thứ {số|thứ}\n\n\
-            [nghĩa 1]\n^ | 可是 | = Nhưng -> lit\n";
+            [nghĩa 1]\n^ | 可是 | = nhưng -> lit\n";
         let mut four = tok("四", "bốn", "số");
         four.val = Some(4);
         let (text, _) = run(rules, vec![tok("第", "thứ", "lit"), four, tok("层", "tầng", "q")]);
         assert_eq!(text, "Tầng thứ tư");
+        // Khuôn viết thường: đầu câu do bước ráp viết hoa, sau dấu phẩy (`^` là
+        // đầu vế) thì giữ thường.
         let (text, _) = run(rules, vec![tok("可是", "có thể là", "c"), tok("他", "hắn", "r")]);
         assert_eq!(text, "Nhưng hắn");
+        let after_comma =
+            vec![tok("他", "hắn", "r"), tok("，", ",", "w"), tok("可是", "có thể là", "c")];
+        let (text, fired) = run(rules, after_comma);
+        assert_eq!((text.as_str(), fired), ("Hắn, nhưng", 1));
         let (_, fired) = run(rules, vec![tok("他", "hắn", "r"), tok("可是", "có thể là", "c")]);
         assert_eq!(fired, 0);
     }

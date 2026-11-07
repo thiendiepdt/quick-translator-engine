@@ -246,8 +246,8 @@ nhìn-hướng: 看向= 望向= 看着= 望着= 盯着= 投向= 瞪着= 扫向=
 {động-từ} 出来 = {1} ra -> v-cụm
 在 {động-từ} = đang {động-từ} -> v-cụm
 将 {động-từ} = sẽ {động-từ} -> v-cụm
-^ | 可 | = Nhưng -> lit
-^ | 可是 | = Nhưng -> lit
+^ | 可 | = nhưng -> lit
+^ | 可是 | = nhưng -> lit
 最 {tính-từ} = {tính-từ} nhất -> tính-cụm
 什么 {danh-từ} = {danh-từ} gì
 没 {động-từ} = không {động-từ} -> v-cụm

@@ -10,8 +10,9 @@ không cần biết regex. Luật Nhân bị bỏ khỏi runtime; ai có luật 
 
 Giữ giọng convert: hệ này chỉ đổi trật tự từ và chọn nghĩa theo ngữ cảnh. Nghĩa chỉ được chọn
 trong các nghĩa VietPhrase đã có cho chính từ đó, không thêm từ mới (`事情` vẫn là "sự tình").
-Mặc định chỉ đổi khi nghĩa đầu sai nghĩa trong ngữ cảnh đó (`刚刚` "vừa vặn" → "vừa"). Đổi theo văn
-phong (`似乎` "tựa hồ" → "dường như") nằm trong nhóm `[giọng-mượt]`, tắt mặc định (mục 9).
+Bộ chính chỉ đổi khi nghĩa đầu sai nghĩa trong ngữ cảnh đó (`刚刚` "vừa vặn" → "vừa"). Đổi theo văn
+phong (`似乎` "tựa hồ" → "dường như") nằm trong nhóm `[giọng-mượt]`. Nhóm này bật mặc định từ
+2026-11-07 và tắt được bằng công tắc "Giọng mượt" (mục 9, 12).
 
 ## 2. Vì sao phải thay
 
@@ -118,7 +119,7 @@ buổi: 上午=sáng 下午=chiều 晚上=tối
 连 {đoạn} (都|也) = ngay cả {đoạn} cũng
 
 [nghĩa]
-^ | 可是 | = Nhưng -> lit
+^ | 可是 | = nhưng -> lit
 在 {động-từ} = đang {động-từ} -> v-cụm
 变得 = trở nên -> v
 
@@ -383,8 +384,10 @@ Luật chọn nghĩa nằm trong nhóm `[nghĩa]`, chỉ dùng nghĩa đã có t
 
 Đây là nhóm lời nhất sau `的`. Số trên test ở mục 3.
 
-**Văn phong `[giọng-mượt tắt]`**, file [QuyTac-giong-muot.txt](2026-11-06-quy-tac/QuyTac-giong-muot.txt).
-Số trên test khi bật ở mục 3.
+**Văn phong `[giọng-mượt]`**, file [QuyTac-giong-muot.txt](2026-11-06-quy-tac/QuyTac-giong-muot.txt).
+Số trên test khi bật ở mục 3. Bật mặc định từ 2026-11-07: `QuyTac::load(data_dir, giong_muot)`
+nối file này vào sau bộ luật khi `giong_muot` là `true`, nơi gọi truyền `true` trừ khi người dùng
+tắt công tắc.
 
 | Luật | Hiện tại → mới | Dev |
 |---|---|---|
@@ -412,7 +415,8 @@ nghĩa được chuẩn hoá NFC lúc nạp, cả từ điển gửi kèm reques
 byte đầu ra, nên kiểm thử đối chiếu QT phải so sau khi chuẩn hoá NFC.
 
 **Engine.** `Options` thêm `quy_tac: bool` (mặc định bật), `tat_nhom: Vec<String>` và
-`bat_nhom: Vec<String>` (bật nhóm có cờ `tắt`, ví dụ `giọng-mượt`).
+`bat_nhom: Vec<String>` (bật nhóm có cờ `tắt`). Nhóm `giọng-mượt` bật mặc định, tắt bằng
+`tat_nhom`.
 `vietphrase-one` chạy đủ. `vietphrase` nhiều nghĩa chỉ chạy `[số]` và `{h}{t}`. `hanviet` không chạy.
 `Engine` và `LiteEngine` dùng chung bộ máy.
 
@@ -432,7 +436,7 @@ dựng đoạn cho khung nguồn. Chữ trong khuôn lấy range của chữ c�
 có chữ cố định thì lấy cả khúc.
 
 **App.** Hộp thoại từ điển đổi tab Luật Nhân thành Quy Tắc. Dòng vẫn dạng `mẫu = khuôn` nên bảng
-sửa hiện có dùng lại được. Cài đặt có công tắc "Giọng mượt" bật nhóm `giọng-mượt`.
+sửa hiện có dùng lại được. Cài đặt có công tắc "Giọng mượt" cho nhóm `giọng-mượt`, mặc định bật.
 
 **Không đổi.** qt-ai-core không phụ thuộc qt-core, nên harness AI không bị ảnh hưởng.
 
@@ -487,6 +491,14 @@ tự xen kẽ, cổng lấy tổng thời gian các lượt:
   9.397.215 byte. Ba cổng lỗi nhìn thấy, đều trên bản chụp
   (dấu cách lạ trong ngoặc kép / chữ thường sau `Chương N:` / từ viết hoa bị hạ): Quy Tắc trước
   sửa 11.634 / 973 / 954, sau sửa 158 / 33 / 3, đường hiện tại 199 / 34. Cổng: Quy Tắc ≤ hiện tại, ≤ hiện tại, ≤ 100.
+- Bật `[giọng-mượt]` mặc định, khuôn của `^ | 可 |` và `^ | 可是 |` viết thường `nhưng` (2026-11-07).
+  Trên bản chụp: cụm 3 từ +11,46%, thắng 84,6% (đổi 44.665 đoạn), thời gian 92,1% (trung vị 92,6%), RAM
+  9.403.420 byte; ba cổng lỗi nhìn thấy vẫn 158 / 33 / 3. Khuôn viết hoa sẵn từng ra ", Nhưng"
+  ở 530 đoạn vì `^` là đầu vế, khớp cả sau dấu phẩy; giờ đầu câu do bước ráp viết hoa, còn 4 đoạn
+  (đều từ nghĩa từ điển hoặc sau `Chương N:`). So với bản giọng mượt trước đó, output chỉ đổi hoa
+  thường chữ "nhưng" ở 970 đoạn, không đổi gì khác: sau dấu phẩy, sau `【` / `——`, và ở chữ đầu
+  request (432 chỗ; engine không viết hoa chữ đầu request, đường hiện tại ở các đoạn đó cũng mở
+  đầu bằng chữ thường).
 - Bookshelf đang được sửa nên số đoạn đổi theo ngày. Bản chụp cố định 103.803 đoạn (2.798.883 ký
   tự) cho cụm 3 từ +10,70%, thắng 83,0%, và output y nguyên từng byte qua mọi lượt tối ưu.
 - Các số 87%, 91% (và 206% ở bản đầu) đo trước đây là bộ đo ghép đôi bị lệch: mỗi đoạn dịch đường

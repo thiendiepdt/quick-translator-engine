@@ -2,7 +2,8 @@
 //! trên các câu mẫu: QT2025 thật, bộ luật mặc định, không names riêng. Trừ chỗ
 //! khác cố ý (spec mục 5): chữ đầu của request không viết hoa (như engine,
 //! ngoài cửa sổ ráp lại output giữ nguyên), nghĩa viết hoa của từ điển giữ
-//! hoa khi bị dời, chữ sau `Chương N:` viết hoa; đáp án đã sửa theo đó.
+//! hoa khi bị dời, chữ sau `Chương N:` viết hoa, nhóm `[giọng-mượt]` bật như
+//! mặc định (bản thử không có nhóm đó); đáp án đã sửa theo đó.
 //! Nạp QT2025 nên chậm: chạy bằng
 //! `cargo test --release -p qt-core --test quy_tac_golden -- --ignored`.
 
@@ -18,7 +19,7 @@ use unicode_normalization::UnicodeNormalization;
 static ENGINE: LazyLock<Engine> = LazyLock::new(|| {
     let data = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../QT2025");
     Engine::from_dicts(Dictionaries::load(&data).unwrap())
-        .with_quy_tac(QuyTac::load(&data, false).unwrap())
+        .with_quy_tac(QuyTac::load(&data, true).unwrap())
 });
 
 #[test]
