@@ -107,8 +107,10 @@ impl Builtin {
     }
 }
 
-/// Loại khoá, phân giải một lần sau khi đọc hết file (lớp từ khai báo sau
-/// quy tắc vẫn được tính, và lớp từ đè nhãn có sẵn cùng tên).
+/// Loại khoá, phân giải một lần sau khi đọc hết file. Lớp từ phải khai báo
+/// trước dòng quy tắc dùng nó (`slot_name` báo lỗi), trừ tên trùng nhãn có
+/// sẵn; thành viên thêm vào lớp ở nhóm `[lớp]` sau vẫn được tính, và lớp từ
+/// đè nhãn có sẵn cùng tên kể cả khi khai báo sau quy tắc.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum SlotKind {
     /// Lớp từ thứ `k` trong các lớp dùng làm khoá (bit `k` của `Program::class_bits`).
@@ -394,6 +396,21 @@ static CHAR_SLOT: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\{([^{}]+)\}")
 static SORT_STRIP: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"\{[^{}]*\}|\[số\]| = .*|.\?").unwrap());
 
+/// Số lượt `[tên N]` lớn nhất (bộ luật mặc định dùng tới 3): mỗi lượt quét
+/// lại cả đoạn, số lớn tuỳ ý thì một file luật làm treo bản dịch.
+const MAX_ROUNDS: usize = 20;
+
+/// Tách `vế trái = khuôn`. Dòng `上 = ` đã bị cắt dấu cách cuối thành `上 =`;
+/// bản thử (`partition(" = ")`) vẫn nhận nó: cả dòng là vế trái (chữ `=` thành
+/// chữ cố định) và khuôn rỗng. Làm y như vậy; dòng thiếu hẳn ` = ` vẫn là lỗi.
+fn split_rule(line: &str, line_no: usize) -> Result<(&str, &str), QuyTacError> {
+    match line.split_once(" = ") {
+        Some(parts) => Ok(parts),
+        None if line.ends_with(" =") => Ok((line, "")),
+        None => Err(err(line_no, "thiếu ' = '")),
+    }
+}
+
 fn err(line: usize, message: impl Into<String>) -> QuyTacError {
     QuyTacError {
         line,
@@ -443,6 +460,12 @@ impl Program {
                             })?,
                             None => 1,
                         };
+                        if rounds > MAX_ROUNDS {
+                            return Err(err(
+                                line_no,
+                                format!("số lượt quá lớn: {rounds} (tối đa {MAX_ROUNDS})"),
+                            ));
+                        }
                         let result = header.get(2).copied().unwrap_or("cụm").to_string();
                         sections.push(Section::new(rounds.max(1), result));
                         Mode::Rules
@@ -666,9 +689,7 @@ fn parse_rule(
     default_result: &str,
     classes: &FxHashMap<String, Class>,
 ) -> Result<Rule, QuyTacError> {
-    let (lhs, rhs) = line
-        .split_once(" = ")
-        .ok_or_else(|| err(line_no, "thiếu ' = '"))?;
+    let (lhs, rhs) = split_rule(line, line_no)?;
     let (tmpl_src, result) = match rhs.split_once(" -> ") {
         Some((tmpl, result)) => (tmpl, result.trim().to_string()),
         None => (rhs, default_result.to_string()),
@@ -811,9 +832,7 @@ fn compile_char_rule(
     classes: &FxHashMap<String, Class>,
     char_lits: &mut LitTable,
 ) -> Result<CharRule, QuyTacError> {
-    let (lhs, rhs) = line
-        .split_once(" = ")
-        .ok_or_else(|| err(line_no, "thiếu ' = '"))?;
+    let (lhs, rhs) = split_rule(line, line_no)?;
     let (tmpl_src, result) = match rhs.split_once(" -> ") {
         Some((tmpl, result)) => (tmpl, result.trim().to_string()),
         None => (rhs, "số-cụm".to_string()),
@@ -1100,6 +1119,37 @@ lượng-từ: 层=tầng 个=
         assert_eq!(error.line, 1);
         let error = Program::parse("[số]\n{lạ}点 = x\n").unwrap_err();
         assert!(error.message.contains("khoá không có"), "{}", error.message);
+    }
+
+    #[test]
+    fn rounds_are_capped_with_a_line_number() {
+        let error = Program::parse("[của]\n{danh-từ} = x\n\n[mệnh 21]\n{danh-từ} = x\n")
+            .unwrap_err();
+        assert_eq!(error.line, 4);
+        assert!(error.message.contains("tối đa 20"), "{}", error.message);
+        let program = Program::parse("[của 20]\n{danh-từ} = x\n").unwrap();
+        assert_eq!(program.sections[0].rounds, 20);
+        // Cap phải trên mức bộ luật mặc định dùng.
+        let base = Program::parse(include_str!("../../data/QuyTac.txt")).unwrap();
+        let most = base.sections.iter().map(|section| section.rounds).max().unwrap();
+        assert!(most < MAX_ROUNDS, "{most}");
+    }
+
+    /// Như bản thử (`partition`): `上 = ` bị cắt thành `上 =`, đọc được với khuôn
+    /// rỗng, vế trái giữ chữ cố định `=`. Cả nhóm `[số]`.
+    #[test]
+    fn empty_template_parses_like_the_prototype() {
+        let program = Program::parse("[nghĩa]\n上 = \n\n[số]\n三 =\n").unwrap();
+        let rule = &program.sections[0].rules[0];
+        assert!(rule.tmpl.is_empty());
+        let lits: Vec<&ElKind> = rule.pat.iter().map(|el| &el.kind).collect();
+        assert_eq!(
+            lits,
+            [&ElKind::Lit(vec!["上".to_string()]), &ElKind::Lit(vec!["=".to_string()])]
+        );
+        let chars = &program.char_rules[0];
+        assert!(chars.tmpl.is_empty());
+        assert!(chars.regex.is_match("三 =") && !chars.regex.is_match("三"));
     }
 
     #[test]

@@ -261,7 +261,7 @@ fn lit_span(toks: &[Token], j: usize, lits: &[String]) -> usize {
 fn lit_span_slow(toks: &[Token], j: usize, lits: &[String]) -> usize {
     let Some(first) = toks.get(j) else { return 0 };
     let mut acc = first.zh.clone();
-    if lits.iter().any(|lit| *lit == acc) {
+    if lits.contains(&acc) {
         return 1;
     }
     let longest = lits.iter().map(|lit| lit.chars().count()).max().unwrap_or(0);
@@ -269,7 +269,7 @@ fn lit_span_slow(toks: &[Token], j: usize, lits: &[String]) -> usize {
     while k < toks.len() && acc.chars().count() < longest {
         acc.push_str(&toks[k].zh);
         k += 1;
-        if lits.iter().any(|lit| *lit == acc) {
+        if lits.contains(&acc) {
             return k - j;
         }
     }
@@ -334,7 +334,7 @@ fn ctx_ok(program: &Program, el: &El, tok: Option<&Token>, at_edge: bool) -> boo
     let mut hit = match (&el.kind, tok) {
         (ElKind::Start | ElKind::End, _) => at_edge,
         (_, None) => caret,
-        (ElKind::Lit(lits), Some(t)) => lits.iter().any(|lit| *lit == t.zh),
+        (ElKind::Lit(lits), Some(t)) => lits.contains(&t.zh),
         (ElKind::Slot(slot) | ElKind::Many(slot), Some(t)) => slot_ok(program, slot, t),
         (_, Some(_)) => false,
     };
@@ -747,7 +747,9 @@ mod tests {
 
     #[test]
     fn context_start_and_number_filter() {
-        let rules = "[lớp]\nlượng-từ: 层=tầng\n\n[lượng 1]\n第 {số} {lượng-từ} = {lượng-từ} thứ {số|thứ}\n\n[nghĩa 1]\n^ | 可是 | = Nhưng -> lit\n";
+        let rules = "[lớp]\nlượng-từ: 层=tầng\n\n\
+            [lượng 1]\n第 {số} {lượng-từ} = {lượng-từ} thứ {số|thứ}\n\n\
+            [nghĩa 1]\n^ | 可是 | = Nhưng -> lit\n";
         let mut four = tok("四", "bốn", "số");
         four.val = Some(4);
         let (text, _) = run(rules, vec![tok("第", "thứ", "lit"), four, tok("层", "tầng", "q")]);

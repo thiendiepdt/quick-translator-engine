@@ -114,7 +114,9 @@ pub struct Options {
     pub prioritized_name: bool,
     pub scan_range: usize, // max phrase length scanned per position
     /// Chạy Quy Tắc sau khi convert (chỉ `VietPhraseOneMeaning`, `wrap_type == 0`,
-    /// đường trả text, và engine có `QuyTac`). Mặc định tắt.
+    /// đường trả text, và engine có `QuyTac`). Mặc định tắt. Khi Quy Tắc chạy,
+    /// Luật Nhân riêng của request (`DictionarySourceOverrides::luat_nhan`) vẫn
+    /// được đọc, lỗi của nó vẫn trả về, nhưng không được áp: Quy Tắc thay Luật Nhân.
     pub quy_tac: bool,
 }
 
@@ -200,13 +202,6 @@ impl Engine {
         self
     }
 
-    fn quy_tac_active(&self, mode: Mode, opts: &Options) -> bool {
-        opts.quy_tac
-            && opts.wrap_type == 0
-            && mode == Mode::VietPhraseOneMeaning
-            && self.quy_tac.is_some()
-    }
-
     fn translate_mapped(
         &self,
         text: &str,
@@ -214,9 +209,10 @@ impl Engine {
         opts: &Options,
         with_ranges: bool,
     ) -> TranslationResult {
-        if !with_ranges && self.quy_tac_active(mode, opts) {
+        if quy_tac_runs(self.quy_tac.as_ref(), mode, opts, with_ranges) {
+            let overrides = DictionaryOverrides::default();
             return self
-                .translate_mapped_with_overrides(text, mode, opts, &DictionaryOverrides::default(), false)
+                .translate_mapped_with_overrides(text, mode, opts, &overrides, false)
                 .expect("không có override thì không lỗi");
         }
         // HanViet dựng range trong cùng một lượt, luôn cần range nguồn.
@@ -311,7 +307,7 @@ impl Engine {
         overrides: &DictionaryOverrides,
         with_ranges: bool,
     ) -> Result<TranslationResult, DictionaryOverrideError> {
-        if overrides.is_empty() && !(!with_ranges && self.quy_tac_active(mode, opts)) {
+        if overrides.is_empty() && !quy_tac_runs(self.quy_tac.as_ref(), mode, opts, with_ranges) {
             return Ok(self.translate_mapped(text, mode, opts, with_ranges));
         }
 
@@ -356,6 +352,16 @@ impl Engine {
         }
         .translate(text, mode, opts, overrides, with_ranges)
     }
+}
+
+/// Quy Tắc chạy khi engine có bộ luật, request bật `Options::quy_tac`, ở
+/// đường trả text (không range), `VietPhraseOneMeaning`, không bọc `[...]`.
+fn quy_tac_runs(quy_tac: Option<&QuyTac>, mode: Mode, opts: &Options, with_ranges: bool) -> bool {
+    quy_tac.is_some()
+        && opts.quy_tac
+        && !with_ranges
+        && opts.wrap_type == 0
+        && mode == Mode::VietPhraseOneMeaning
 }
 
 /// Từ điển gốc mà đường dịch có override đọc vào. Mỗi lookup tự mang chặn
@@ -513,11 +519,7 @@ impl LayeredBase<'_> {
         // DanhTu is loaded by QT2025 and remains part of the public override
         // contract, although the ported translation paths do not consume it.
 
-        let use_quy_tac = !with_ranges
-            && opts.quy_tac
-            && opts.wrap_type == 0
-            && mode == Mode::VietPhraseOneMeaning
-            && self.quy_tac.is_some();
+        let use_quy_tac = quy_tac_runs(self.quy_tac, mode, opts, with_ranges);
         let custom_luat_nhan = overrides
             .luat_nhan
             .as_ref()

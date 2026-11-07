@@ -16,7 +16,8 @@
 use crate::compact::CompactDict;
 use crate::dict::{
     first_wins_map, nfc_values, parse_dict_borrowed, parse_han_viet,
-    parse_ignored_chinese_phrases, parse_luat_nhan, within_scan_window, DictionaryLookup, IndexedLookup, KeyLenIndex,
+    parse_ignored_chinese_phrases, parse_luat_nhan, within_scan_window, DictionaryLookup,
+    IndexedLookup, KeyLenIndex,
 };
 use crate::luat_nhan::LuatNhan;
 use crate::standardize::Standardizer;

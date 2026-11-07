@@ -234,7 +234,7 @@ fn slot_of(hash: u64, count: usize) -> usize {
 
 /// Ô = `offset + 1` ở `offset_bits` bit thấp, dấu vân tay ở phần cao.
 fn pack(offset: usize, fingerprint: u32, offset_bits: u32) -> u32 {
-    (offset as u64 + 1 | (fingerprint as u64) << offset_bits) as u32
+    ((offset as u64 + 1) | ((fingerprint as u64) << offset_bits)) as u32
 }
 
 fn offset_of(value: u32, offset_bits: u32) -> usize {

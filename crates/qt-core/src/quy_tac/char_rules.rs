@@ -147,15 +147,21 @@ pub(crate) fn apply_chars<'q>(
             rule.needs.as_ref().is_none_or(|needs| needs.iter().all(|ids| has_one(ids)))
         })
         .collect();
-    // Bản debug (mọi lần chạy test): luật bị lọc bỏ thì regex đúng là không khớp.
+    // Kiểm ở mọi bản debug, không chỉ lúc chạy test (server build debug cũng
+    // chạy): luật bị lọc bỏ thì regex đúng là không khớp. Tốn thêm một lần
+    // regex cho mỗi luật bị bỏ trên mỗi đoạn có số. `rules` giữ thứ tự của
+    // `program.char_rules` nên dò song song một lượt.
     #[cfg(debug_assertions)]
-    for rule in &program.char_rules {
-        let kept = rules.iter().any(|kept| std::ptr::eq(*kept, rule));
-        assert!(
-            kept || !rule.regex.is_match(&text),
-            "lọc trước bỏ nhầm luật [số] {:?} trên {text:?}",
-            rule.regex.as_str()
-        );
+    {
+        let mut kept = rules.iter().peekable();
+        for rule in &program.char_rules {
+            let is_kept = kept.next_if(|kept| std::ptr::eq(**kept, rule)).is_some();
+            assert!(
+                is_kept || !rule.regex.is_match(&text),
+                "lọc trước bỏ nhầm luật [số] {:?} trên {text:?}",
+                rule.regex.as_str()
+            );
+        }
     }
     if rules.is_empty() {
         return (plain(raw), 0);

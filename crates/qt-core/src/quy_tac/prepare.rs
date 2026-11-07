@@ -110,9 +110,10 @@ static PUNCT_TAIL: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"^(.*?[^，。！？、；：,.!?…])([，。！？、；：,.!?…]+)$").unwrap()
 });
 static WRONG_TAIL: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(
-        r"(?i)\s*(bên trên|phía trên|bên trong|phía trong|bên dưới|phía dưới|bên ngoài|phía ngoài)\s*$",
-    )
+    Regex::new(concat!(
+        r"(?i)\s*(bên trên|phía trên|bên trong|phía trong|",
+        r"bên dưới|phía dưới|bên ngoài|phía ngoài)\s*$",
+    ))
     .unwrap()
 });
 static WORD: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\w+").unwrap());
@@ -505,7 +506,14 @@ mod tests {
         let mut classes: FxHashMap<String, Class> = FxHashMap::default();
         classes.insert("lượng-từ".to_string(), map(&[("个", "cái")]));
         let toks = prepare(
-            plain(&[("叶妩", "Diệp Vũ"), ("三个", "ba cái"), ("三百五十", "350"), ("12", "12"), ("桌子", "cái bàn"), ("，", ",")]),
+            plain(&[
+                ("叶妩", "Diệp Vũ"),
+                ("三个", "ba cái"),
+                ("三百五十", "350"),
+                ("12", "12"),
+                ("桌子", "cái bàn"),
+                ("，", ","),
+            ]),
             &pos,
             &lk,
             &classes,

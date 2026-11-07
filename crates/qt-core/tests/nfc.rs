@@ -42,7 +42,12 @@ fn request_names_are_normalized_too() {
     });
     assert_eq!(
         engine
-            .translate_with_overrides("也", Mode::VietPhraseOneMeaning, &Options::default(), &overrides)
+            .translate_with_overrides(
+                "也",
+                Mode::VietPhraseOneMeaning,
+                &Options::default(),
+                &overrides,
+            )
             .unwrap(),
         format!(" {NFC}")
     );

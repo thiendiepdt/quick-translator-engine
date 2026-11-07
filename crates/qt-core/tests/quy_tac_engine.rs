@@ -43,9 +43,13 @@ fn ranges_wrap_and_other_modes_are_untouched() {
     let ranged = engine.translate_with_ranges("桌子上", Mode::VietPhraseOneMeaning, &on());
     assert_eq!(ranged.translated_text, " cái bàn bên trên");
     let wrapped = Options { wrap_type: 1, ..on() };
+    let wrapped_off = Options {
+        wrap_type: 1,
+        ..Options::default()
+    };
     assert_eq!(
         engine.translate("桌子上", Mode::VietPhraseOneMeaning, &wrapped),
-        engine.translate("桌子上", Mode::VietPhraseOneMeaning, &Options { wrap_type: 1, ..Options::default() })
+        engine.translate("桌子上", Mode::VietPhraseOneMeaning, &wrapped_off)
     );
     assert_eq!(
         engine.translate("桌子上", Mode::VietPhrase, &on()),
