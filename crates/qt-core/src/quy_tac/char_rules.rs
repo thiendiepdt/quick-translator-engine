@@ -356,6 +356,42 @@ buổi: 晚上=tối
         );
     }
 
+    /// Chỗ khác bản thử: phần tách lại sau khúc 三点十五分 (cắt giữa token
+    /// 分出) không lấn sang khúc số kế tiếp 二〇一九年 dù token kế còn trong 6
+    /// ký tự. Bản thử tách lại tới hết token 二〇一九 rồi vẫn ghi khúc kế, nên
+    /// ra hai lần chữ 二〇一九.
+    #[test]
+    fn resegmenting_the_rest_stops_at_the_next_span() {
+        let program = Program::parse(RULES).unwrap();
+        let names = map(&[]);
+        let lexicon = map(&[("出发", "xuất phát")]);
+        let lk = Lookups { names: &names, lexicon: &lexicon };
+        let tokens = raw(&[
+            ("三点", "ba điểm"),
+            ("十五", "mười lăm"),
+            ("分出", "phân ra"),
+            ("二〇一九", "2019"),
+            ("年", "năm"),
+        ]);
+        let (out, fired) = apply_chars(&program, tokens, &lk);
+        assert_eq!(fired, 2);
+        assert_eq!(
+            out,
+            vec![
+                Raw::Tagged("三点十五分".into(), "ba giờ mười lăm phút".into(), "thời-gian"),
+                Raw::Plain("出".into(), "出".into()),
+                Raw::Tagged("二〇一九年".into(), "năm 2019".into(), "thời-gian"),
+            ]
+        );
+        let text: String = out
+            .iter()
+            .map(|item| match item {
+                Raw::Plain(zh, _) | Raw::Tagged(zh, _, _) => zh.as_str(),
+            })
+            .collect();
+        assert_eq!(text, "三点十五分出二〇一九年", "không mất, không lặp chữ nào");
+    }
+
     /// Luật mà bộ đọc mẫu không lọc trước được vẫn chạy như khi không lọc.
     #[test]
     fn flags_and_empty_classes_still_fire() {

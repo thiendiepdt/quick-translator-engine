@@ -2,8 +2,8 @@
 //! 11 nghìn dòng VietPhrase như vậy).
 
 use qt_core::{
-    Dictionaries, DictionaryOverrides, DictionarySourceOverrides, Engine, LiteEngine, Mode,
-    Options,
+    Dictionaries, DictionaryOverrides, DictionaryPatches, DictionarySourceOverrides, Engine,
+    LiteEngine, Mode, Options,
 };
 
 /// "cũng" với dấu ngã tách rời (u + U+0303).
@@ -44,6 +44,27 @@ fn request_names_are_normalized_too() {
         engine
             .translate_with_overrides("也", Mode::VietPhraseOneMeaning, &Options::default(), &overrides)
             .unwrap(),
+        format!(" {NFC}")
+    );
+}
+
+/// Patch gửi kèm request (`with_patches`, qua `nfc_string`) cũng ra NFC, cả
+/// VietPhrase lẫn Hán Việt.
+#[test]
+fn request_patches_are_normalized_too() {
+    let engine = Engine::from_dicts(Dictionaries::build("他=tha", "", "", "也=x"));
+    let overrides = DictionaryOverrides::default().with_patches(DictionaryPatches {
+        vietphrase: [("也".to_string(), NFD.to_string())].into_iter().collect(),
+        chinese_phien_am_words: [('他', NFD.to_string())].into_iter().collect(),
+    });
+    let mode = Mode::VietPhraseOneMeaning;
+    let options = Options::default();
+    assert_eq!(
+        engine.translate_with_overrides("也", mode, &options, &overrides).unwrap(),
+        format!(" {NFC}")
+    );
+    assert_eq!(
+        engine.translate_with_overrides("他", Mode::HanViet, &options, &overrides).unwrap(),
         format!(" {NFC}")
     );
 }
