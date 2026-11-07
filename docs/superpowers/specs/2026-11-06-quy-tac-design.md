@@ -80,6 +80,9 @@ Vòng dịch không ghi thẳng ra chuỗi nữa mà sinh `Vec<Token>`. `Token` 
 khoảng nguồn. Bước ráp phát lại token qua `TranslationOutput`, nên quy tắc viết hoa và khoảng
 trắng vẫn nằm một chỗ.
 
+Bản cài ở bước 1 giữ output của vòng dịch và chỉ ráp lại các khúc quy tắc đã đổi, theo đúng lối
+nối chữ của engine (mục 5, "Chỗ khác bản thử").
+
 Mỗi nhóm quy tắc là một tầng. Mẫu khớp được thì cả khúc gộp thành một token mang nhãn kết quả,
 tầng sau coi nó như một từ. Đây là chuỗi transducer hữu hạn nối tiếp: mỗi token chỉ tra bảng chỉ
 mục theo chữ đầu và nhãn, không chạy regex, không có cửa sổ trượt.
@@ -157,6 +160,41 @@ File quy tắc và file từ loại (`dict.txt`, `TuLoai.txt`) mở đầu bằn
 Dòng `mẫu = ` không có gì sau dấu `=` (dấu cách cuối bị cắt thành `mẫu =`) vẫn đọc được, như bản
 thử: cả dòng là mẫu, tức `mẫu` rồi chữ cố định `=`, và khuôn rỗng. Nó không xoá chữ `mẫu`; muốn
 bỏ một từ thì viết quy tắc cách khác.
+
+### Chỗ khác bản thử (cố ý)
+
+Bản Rust port nguyên ngữ nghĩa bản thử, kể cả chỗ kỳ quặc, trừ các chỗ sau.
+
+- **`[số]`, phần tách lại sau khúc số** không lấn sang khúc số kế tiếp (bản thử có thể ra hai lần
+  một chữ, mục 8).
+- **Ráp câu theo cửa sổ (2026-11-07).** Bản thử nối mọi token của đoạn bằng dấu cách rồi sửa
+  khoảng trắng theo ngoặc cong `“ ” ‘ ’`. Bước chuẩn hoá của QT đổi chúng thành ngoặc thẳng
+  (`“` → `"`, `”` → `" `) trước khi dịch, nên cả đoạn mất cách đặt dấu cách quanh `"` của engine
+  (`" Ngươi … ngơ ngác. "`), kể cả khúc không quy tắc nào đụng tới; chữ Latin rời ra (`F l o w e
+  r`). Bản Rust chỉ ráp lại *cửa sổ*: các token do quy tắc tạo, nới tới ranh giới chung gần nhất
+  của token engine và token Quy Tắc; cửa sổ chồng nhau hay chỉ cách nhau bởi token không có chữ
+  thì gộp. Ngoài cửa sổ, output của engine giữ nguyên từng byte. Trong cửa sổ, nối như engine
+  (`append_translated_word`): viết hoa khi output trước đó kết thúc câu theo engine (`. `, `? `,
+  `! `, `: `, `"`, xuống dòng…), không cách trước dấu đóng và sau ngoặc mở; ngoặc thẳng là ngoặc
+  đóng khi chữ nguồn sau nó là khoảng trắng, dấu đóng hay hết đoạn. Chữ ngay sau cửa sổ đổi chữ
+  đầu nếu cửa sổ đổi việc nó đứng đầu câu (`Chương 251:` của nhóm `[số]` rồi `Tương lai…`). Hệ quả:
+  chữ đầu của request không viết hoa, như engine (bản thử viết hoa đầu đoạn có quy tắc chạy).
+- **Ngoặc mở cuối cụm từ điển (đường Quy Tắc).** Cụm nguồn và nghĩa cùng kết thúc bằng ngoặc thẳng
+  mà ngay sau là chữ Hán (`道, "` = `nói, "`) thì không chèn dấu cách sau ngoặc, chữ kế viết hoa,
+  như ngoặc đứng riêng. Đường hiện tại giữ `nói, " đi`; ở đó Luật Nhân thường nuốt cụm trước
+  (`{s}道`), đường Quy Tắc thì không.
+- **Hoa thường.** Bản thử hạ chữ đầu mọi token bị dời mà không mang nhãn tên (`t.vi[:1].lower()`),
+  để gỡ chữ hoa đầu câu của engine, nên hạ luôn nghĩa viết hoa của từ điển ("Ma tộc", "Kiếm tông",
+  tên không gắn nhãn tên): "lực lượng của ma tộc". Bản Rust ghi lại chữ nào engine viết hoa vì
+  đứng đầu câu (`SourceToken::capital`), trả chữ đó về chữ gốc trước khi vào Quy Tắc, rồi không
+  hạ gì nữa; đầu câu do bước ráp viết hoa lại.
+- **Chuỗi tên riêng.** Token có nghĩa viết hoa (không phải dấu câu, số, hay token do quy tắc tạo)
+  nối với các danh từ hay tên có nghĩa viết hoa ngay sau nó (`沧溟` "Thương Minh" + `剑宗` "Kiếm
+  tông") được gộp thành một token mang nhãn của token cuối, trước các nhóm quy tắc. Không quy tắc
+  nào tách hay dời một phần chuỗi ("Thương Minh chưởng môn của kiếm tông" thành "chưởng môn của
+  Thương Minh Kiếm tông"). Nhãn tên thôi không mở chuỗi: names có cả chữ thường dùng (`连` =
+  "liền", `向` = "hướng"). Đã đo thêm cách không gộp mà bỏ quy tắc chạy cắt ngang chuỗi: giữ
+  được chuỗi nhưng không đảo được ("Thương Minh Kiếm tông chưởng môn"), cụm 3 từ thấp hơn.
 
 Ví dụ kiêm kiểm thử, viết ngay dưới quy tắc:
 
@@ -444,6 +482,11 @@ tự xen kẽ, cổng lấy tổng thời gian các lượt:
 | Thời gian (tổng 8 lượt) | 2.566 ns/ký tự | 2.353 ns/ký tự (91,7%; trung vị 91,1%) | ≤ 100%: đạt |
 | RAM `QuyTac` giữ sau khi nạp | | 9.397.215 byte (9,0 MiB) | ≤ 10 MiB: đạt |
 
+- Sau khi sửa ráp câu, hoa thường và chuỗi tên riêng (mục 5, "Chỗ khác bản thử"), cùng lệnh trên bộ
+  sống 104.742 đoạn: cụm 3 từ +10,78%, thắng 83,9%, thời gian 95,6% (trung vị 95,3%), RAM
+  9.397.215 byte. Ba cổng lỗi nhìn thấy, hiện tại / Quy Tắc: đoạn có dấu cách lạ trong ngoặc kép
+  200 / 159 (trước sửa Quy Tắc 11.634 trên bản chụp), chữ thường sau `Chương N:` 34 / 33 (973),
+  đoạn có từ viết hoa bị hạ 3 (954). Cổng: Quy Tắc ≤ hiện tại, ≤ hiện tại, ≤ 100.
 - Bookshelf đang được sửa nên số đoạn đổi theo ngày. Bản chụp cố định 103.803 đoạn (2.798.883 ký
   tự) cho cụm 3 từ +10,70%, thắng 83,0%, và output y nguyên từng byte qua mọi lượt tối ưu.
 - Các số 87%, 91% (và 206% ở bản đầu) đo trước đây là bộ đo ghép đôi bị lệch: mỗi đoạn dịch đường

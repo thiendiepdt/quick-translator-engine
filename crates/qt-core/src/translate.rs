@@ -124,7 +124,7 @@ use crate::han_viet::{char_to_han_viet, is_chinese, HanVietMap};
 use crate::luat_nhan::{LuatNhan, LuatNhanScratch};
 use crate::number::{number_modifier, prescan_numbers, translate_number};
 use crate::text::{
-    append_translated_word, needs_space_after_sentence_punctuation, next_char_is_chinese,
+    self, append_translated_word, needs_space_after_sentence_punctuation, next_char_is_chinese,
     utf16_len, wrap_translation,
 };
 use crate::{CharRange, Options, TranslationResult};
@@ -138,6 +138,9 @@ pub(crate) struct SourceToken {
     pub(crate) len: usize,
     pub(crate) out_start: usize,
     pub(crate) out_end: usize,
+    /// Chữ đầu gốc của nghĩa khi engine viết hoa nó vì đứng đầu câu
+    /// (`text::capitalized_char`); `None` khi chữ hoa (nếu có) là của nghĩa.
+    pub(crate) capital: Option<char>,
 }
 
 #[derive(Default)]
@@ -148,10 +151,16 @@ struct TranslationOutput<'t> {
     target_ranges: Vec<CharRange>,
     target_length: usize,
     tokens: Option<&'t mut Vec<SourceToken>>,
+    /// `capitalized_char` của chunk vừa nối, chờ `record` ghi vào cụm; chỉ tính
+    /// khi có ghi token (đường Quy Tắc).
+    capital: Option<char>,
 }
 
 impl TranslationOutput<'_> {
     fn append_word(&mut self, text: &str) {
+        if self.tokens.is_some() {
+            self.capital = text::capitalized_char(&self.last, text);
+        }
         let delta = append_translated_word(&mut self.result, text, &mut self.last);
         self.target_length = self.target_length.saturating_add_signed(delta);
     }
@@ -176,6 +185,7 @@ impl TranslationOutput<'_> {
     fn record(&mut self, start: usize, len: usize, out_start: usize) {
         let out_end = self.result.len();
         debug_assert!(out_start <= out_end, "range cụm bị đảo: {out_start}..{out_end}");
+        let capital = self.capital.take();
         if let Some(tokens) = self.tokens.as_deref_mut() {
             for token in tokens.iter_mut().rev() {
                 if token.out_end <= out_start {
@@ -189,6 +199,7 @@ impl TranslationOutput<'_> {
                 len,
                 out_start,
                 out_end,
+                capital,
             });
         }
     }
@@ -230,7 +241,14 @@ fn process_translation(
             length: text_length,
         });
     }
-    if next_char_is_chinese(chars, start + length - 1, han_viet) {
+    // Đường Quy Tắc (có ghi cụm): cụm nguồn và nghĩa cùng kết thúc bằng ngoặc
+    // thẳng mà ngay sau là chữ Hán (`道, "` = `nói, "`) thì ngoặc đó là ngoặc
+    // mở, như ngoặc đứng riêng ở `process_han_viet`: không chèn dấu cách sau
+    // nó, chữ kế viết hoa. Đường hiện tại giữ nguyên (`nói, " đi`); ở đó Luật
+    // Nhân thường nuốt cụm trước (`{s}道`), đường Quy Tắc thì không.
+    let quote = chars[start + length - 1];
+    let opens = output.tokens.is_some() && matches!(quote, '"' | '\'') && text.ends_with(quote);
+    if next_char_is_chinese(chars, start + length - 1, han_viet) && !opens {
         output.append_space();
     }
 }
@@ -784,6 +802,62 @@ mod tests {
             .map(|t| output[t.out_start..t.out_end].trim().to_string())
             .collect();
         (output, texts)
+    }
+
+    /// Vòng dịch ra `(output, cụm)`; `record` là `false` thì như đường hiện tại
+    /// (không ghi cụm).
+    fn translate_recorded(
+        text: &str,
+        dict: &HashMap<String, String>,
+        han_viet: &HanVietMap,
+        record: bool,
+    ) -> (String, Vec<SourceToken>) {
+        let chars: Vec<char> = text.chars().collect();
+        let mut tokens = Vec::new();
+        let result = translate_all_mapped(
+            &chars,
+            None,
+            &Options::default(),
+            dict,
+            &HashMap::new(),
+            dict,
+            dict,
+            han_viet,
+            &LuatNhan::default(),
+            None,
+            None,
+            None,
+            record.then_some(&mut tokens),
+        );
+        (result.translated_text, tokens)
+    }
+
+    /// Cụm ghi lại chữ đầu gốc khi engine viết hoa nó vì đứng đầu câu; nghĩa
+    /// vốn viết hoa (`Hảo Hán`) thì không ghi.
+    #[test]
+    fn record_notes_sentence_start_capitals() {
+        let d = dict(&[("很好", "rất tốt"), ("好汉", "Hảo Hán")]);
+        let han_viet = hv(&[('他', "tha")]);
+        let (output, tokens) = translate_recorded("他. 很好. 好汉", &d, &han_viet, true);
+        assert_eq!(output, " tha. Rất tốt. Hảo Hán");
+        let capitals: Vec<Option<char>> = tokens.iter().map(|t| t.capital).collect();
+        assert_eq!(capitals, [None, None, None, Some('r'), None, None, None]);
+    }
+
+    /// Đường Quy Tắc: nghĩa và cụm nguồn cùng kết thúc bằng ngoặc thẳng, ngay
+    /// sau là chữ Hán, thì ngoặc là ngoặc mở: không chèn dấu cách, chữ kế viết
+    /// hoa. Đường hiện tại (không ghi cụm) giữ nguyên như trước.
+    #[test]
+    fn dictionary_chunk_ending_in_an_opening_quote() {
+        let d = dict(&[("道, \"", "nói, \""), ("去", "đi"), ("杀字", "chữ \"giết\"")]);
+        let han_viet = hv(&[('去', "khứ"), ('就', "tựu")]);
+        let (output, _) = translate_recorded("道, \"去", &d, &han_viet, false);
+        assert_eq!(output, " nói, \" đi");
+        let (output, _) = translate_recorded("道, \"去", &d, &han_viet, true);
+        assert_eq!(output, " nói, \"Đi");
+        // Ngoặc trong nghĩa mà cụm nguồn không kết thúc bằng ngoặc: không đổi.
+        let (output, _) = translate_recorded("杀字就", &d, &han_viet, true);
+        assert_eq!(output, " chữ \"giết\" tựu");
     }
 
     /// Cụm mở đầu bằng dấu câu bỏ dấu cách cuối output; dấu đó là cụm ký tự

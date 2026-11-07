@@ -58,9 +58,27 @@ pub fn to_upper_case(text: &str) -> String {
     }
 }
 
-const SENTENCE_ENDERS: [&str; 11] = [
+pub(crate) const SENTENCE_ENDERS: [&str; 11] = [
     "\n", "\t", ". ", "\"", "'", "? ", "! ", ".\" ", "?\" ", "!\" ", ": ",
 ];
+
+/// Chunk mới nối sau `last` được viết hoa chữ đầu (đầu câu theo QT).
+pub(crate) fn ends_sentence(last: &str) -> bool {
+    SENTENCE_ENDERS.iter().any(|e| last.ends_with(e))
+}
+
+/// Chữ gốc mà `to_upper_case(translated)` đổi khi nối sau `last`: `Some(c)` khi
+/// chunk được viết hoa đầu câu và chữ đầu `c` đổi thật. Chunk mở đầu bằng `[`
+/// (viết hoa chữ thứ hai) không ghi, coi như không đổi.
+pub(crate) fn capitalized_char(last: &str, translated: &str) -> Option<char> {
+    let first = translated.chars().next()?;
+    if first == '[' || !ends_sentence(last) {
+        return None;
+    }
+    let mut upper = first.to_uppercase();
+    let same = upper.next() == Some(first) && upper.next().is_none();
+    (!same).then_some(first)
+}
 
 /// Append `translated` to `result`, tracking `last` (the previously appended chunk).
 /// - after a sentence-ender → capitalize first letter
@@ -69,7 +87,7 @@ const SENTENCE_ENDERS: [&str; 11] = [
 ///
 /// Then, if the new chunk starts with , . ? ! and result ends with a space, drop that space.
 pub fn append_translated_word(result: &mut String, translated: &str, last: &mut String) -> isize {
-    let new_last = if SENTENCE_ENDERS.iter().any(|e| last.ends_with(e)) {
+    let new_last = if ends_sentence(last) {
         to_upper_case(translated)
     } else if last.ends_with(' ') || last.ends_with('(') {
         translated.to_string()
@@ -127,6 +145,27 @@ mod tests {
             input.encode_utf16().count(),
             normalized.encode_utf16().count()
         );
+    }
+
+    /// `capitalized_char` báo đúng chữ mà `append_translated_word` viết hoa.
+    #[test]
+    fn capitalized_char_names_the_letter_the_join_capitalizes() {
+        for (last, word, want) in [
+            (". ", "hắn", Some('h')),
+            ("\"", "đi", Some('đ')),
+            ("x", "hắn", None),
+            (". ", "Hắn", None),
+            (". ", "[hắn", None),
+            (". ", "123", None),
+            (". ", "", None),
+        ] {
+            assert_eq!(capitalized_char(last, word), want, "{last:?} {word:?}");
+            let (mut result, mut seen) = (last.to_string(), last.to_string());
+            append_translated_word(&mut result, word, &mut seen);
+            let shown = seen.trim_start().chars().next();
+            let changed = word.chars().next() != shown && !word.starts_with('[');
+            assert_eq!(want.is_some(), changed, "{last:?} {word:?} -> {seen:?}");
+        }
     }
 
     #[test]

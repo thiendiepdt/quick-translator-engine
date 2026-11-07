@@ -28,6 +28,12 @@ pub(crate) struct Token<'q> {
     pub(crate) val: Option<i64>,
     /// Số viết bằng chữ số Ả Rập (giữ nguyên khi ra).
     pub(crate) digit: bool,
+    /// Byte trong chữ Hán cả đoạn mà token phủ. Token của một đoạn nối liền
+    /// nhau phủ trọn đoạn; token gộp phủ hợp các token nó thay (`zh` thì chỉ
+    /// giữ phần bên phải), để ráp lại biết khúc nào của output đã đổi.
+    pub(crate) src: Range<usize>,
+    /// Do quy tắc tạo ra (khúc `[số]`, token gộp): nằm trong khúc phải ráp lại.
+    pub(crate) fired: bool,
     /// Kết quả khớp khoá đã tính (bộ nhớ đệm của `matcher`).
     pub(crate) memo: SlotMemo,
 }
@@ -44,6 +50,8 @@ impl<'q> Token<'q> {
             tag,
             val: None,
             digit: false,
+            src: 0..0,
+            fired: false,
             memo: SlotMemo::default(),
         }
     }
@@ -60,8 +68,15 @@ impl<'q> Token<'q> {
             tag: "số",
             val: Some(val),
             digit,
+            src: 0..0,
+            fired: false,
             memo: SlotMemo::default(),
         }
+    }
+
+    pub(crate) fn at(mut self, src: Range<usize>) -> Self {
+        self.src = src;
+        self
     }
 }
 
@@ -415,7 +430,9 @@ fn unspace_zero(zh: Cow<'_, str>) -> Cow<'_, str> {
     }
 }
 
-/// Tách hư từ, gắn nhãn, nhận số và tách số + lượng từ.
+/// Tách hư từ, gắn nhãn, nhận số và tách số + lượng từ. `src` của token tính
+/// theo vị trí: `untie` giữ nguyên chữ Hán nối lại của `raw`, nên token thứ
+/// mấy phủ khúc thứ mấy của chữ Hán cả đoạn.
 pub(crate) fn prepare<'q>(
     raw: Vec<Raw<'q>>,
     pos: &'q PosLexicon,
@@ -423,18 +440,27 @@ pub(crate) fn prepare<'q>(
     classes: &'q FxHashMap<String, Class>,
 ) -> Vec<Token<'q>> {
     let measure = classes.get("lượng-từ");
+    #[cfg(debug_assertions)]
+    let source: String = raw.iter().map(Raw::zh).collect();
     let raw = untie(raw, pos, lk);
+    #[cfg(debug_assertions)]
+    debug_assert_eq!(raw.iter().map(Raw::zh).collect::<String>(), source, "untie đổi chữ Hán");
     let mut out = Vec::with_capacity(raw.len() + 4);
+    let mut at = 0;
     for item in raw {
+        let src = at..at + item.zh().len();
+        at = src.end;
         let (zh, vi) = match item {
             Raw::Tagged(zh, vi, tag) => {
-                out.push(Token::new(zh, vi, tag));
+                let mut token = Token::new(zh, vi, tag).at(src);
+                token.fired = true;
+                out.push(token);
                 continue;
             }
             Raw::Plain(zh, vi) => (unspace_zero(zh), vi),
         };
         if !han_or_digit(&zh) {
-            out.push(Token::new(zh, vi, "w"));
+            out.push(Token::new(zh, vi, "w").at(src));
             continue;
         }
         // Chữ đầu là chữ Hán ngoài bộ chữ số thì `NUM_TOKEN` không khớp được.
@@ -447,18 +473,18 @@ pub(crate) fn prepare<'q>(
             if DIGITS.is_match(&zh) {
                 // Như bản thử: int(float(zh)), phần thập phân bị cắt.
                 match zh.parse::<f64>() {
-                    Ok(value) => out.push(Token::number(zh, vi, value as i64, true)),
-                    Err(_) => out.push(Token::new(zh, vi, "m")),
+                    Ok(value) => out.push(Token::number(zh, vi, value as i64, true).at(src)),
+                    Err(_) => out.push(Token::new(zh, vi, "m").at(src)),
                 }
             } else if let Some(value) = zh_value(&zh) {
-                out.push(Token::number(zh, vi, value, false));
+                out.push(Token::number(zh, vi, value, false).at(src));
             } else {
-                out.push(Token::new(zh, vi, "m"));
+                out.push(Token::new(zh, vi, "m").at(src));
             }
             continue;
         }
         if zh == "一" {
-            out.push(Token::number(zh, vi, 1, false));
+            out.push(Token::number(zh, vi, 1, false).at(src));
             continue;
         }
         if let (Some(measure), Some((ordinal, number, unit))) = (measure, measure_split(&zh)) {
@@ -471,14 +497,27 @@ pub(crate) fn prepare<'q>(
                         Some(unit_vi) => Cow::Borrowed(unit_vi.as_str()),
                         None => vi.clone(),
                     };
-                    // `measure_split` cắt `zh` thành ba khúc liền nhau.
+                    // `measure_split` cắt `zh` thành ba khúc liền nhau. `zh` bị bỏ
+                    // dấu cách (`unspace_zero`) thì không cắt được `src`: cả ba
+                    // phủ cả khúc (không xảy ra: khi đó `zh` toàn chữ số).
                     let (number_at, unit_at) = (ordinal.len(), ordinal.len() + number.len());
+                    let exact = zh.len() == src.len();
+                    let part = |range: Range<usize>| {
+                        if exact {
+                            src.start + range.start..src.start + range.end
+                        } else {
+                            src.clone()
+                        }
+                    };
                     if !ordinal.is_empty() {
-                        out.push(Token::new("第", "thứ", "lit"));
+                        out.push(Token::new("第", "thứ", "lit").at(part(0..number_at)));
                     }
+                    let number_src = part(number_at..unit_at);
+                    let unit_src = part(unit_at..zh.len());
                     let number = slice(&zh, number_at..unit_at);
-                    out.push(Token::number(number, number_words(value), value, false));
-                    out.push(Token::new(slice(&zh, unit_at..zh.len()), unit_vi, "q"));
+                    let number = Token::number(number, number_words(value), value, false);
+                    out.push(number.at(number_src));
+                    out.push(Token::new(slice(&zh, unit_at..zh.len()), unit_vi, "q").at(unit_src));
                     continue;
                 }
             }
@@ -492,7 +531,7 @@ pub(crate) fn prepare<'q>(
         } else {
             pos.phrase(&zh)
         };
-        out.push(Token::new(zh, vi, tag));
+        out.push(Token::new(zh, vi, tag).at(src));
     }
     out
 }

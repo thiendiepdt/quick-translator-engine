@@ -235,22 +235,13 @@ struct Capture<'p> {
     cap: Cap,
 }
 
-/// Nghĩa của token khi đứng giữa câu: tên giữ hoa, còn lại hạ chữ đầu.
-fn low(t: &Token) -> String {
-    if is_name(t) || t.vi.is_empty() {
-        return t.vi.trim().to_string();
-    }
-    let mut chars = t.vi.chars();
-    let mut out = String::with_capacity(t.vi.len() + 4);
-    if let Some(first) = chars.next() {
-        out.extend(first.to_lowercase());
-    }
-    out.push_str(chars.as_str());
-    // Như `.trim().to_string()`, cắt ngay trên chuỗi vừa dựng.
-    out.truncate(out.trim_end().len());
-    let start = out.len() - out.trim_start().len();
-    out.drain(..start);
-    out
+/// Nghĩa của token khi điền vào khuôn. Khác bản thử (`low`: `t.vi[:1].lower()`
+/// cho mọi token không phải tên), cố ý: chữ hoa đầu câu do engine viết đã được
+/// trả về chữ gốc trước khi vào Quy Tắc (`QuyTac::splice`), nên nghĩa giữ
+/// nguyên hoa thường của từ điển ("Ma tộc", "Kiếm tông", tên không gắn nhãn
+/// tên); đầu câu do bước ráp lại viết hoa (`render`).
+fn filled(t: &Token) -> String {
+    t.vi.trim().to_string()
 }
 
 /// Số token liền nhau ghép đúng thành một chữ cố định; 0 nếu không khớp.
@@ -502,7 +493,7 @@ fn value(program: &Program, hit: &Capture, out: &[Token], toks: &[Token]) -> Str
     let join = |slice: &[Token]| {
         slice
             .iter()
-            .map(low)
+            .map(filled)
             .filter(|piece| !piece.is_empty())
             .collect::<Vec<_>>()
             .join(" ")
@@ -526,7 +517,7 @@ fn value(program: &Program, hit: &Capture, out: &[Token], toks: &[Token]) -> Str
                     return num_text(v, t.digit, "");
                 }
             }
-            low(t)
+            filled(t)
         }
     }
 }
@@ -547,7 +538,7 @@ fn fill(program: &Program, rule: &Rule, caps: &[Capture], out: &[Token], toks: &
                     if t.tag == "số" {
                         text.push_str(&match t.val {
                             Some(v) => num_text(v, t.digit, how),
-                            None => low(t),
+                            None => filled(t),
                         });
                         continue;
                     }
@@ -732,11 +723,16 @@ fn run_round<'q>(
             Some((rule, used, take)) => {
                 let vi = fill(program, rule, caps, out, &toks);
                 let zh: String = toks[i..i + used].iter().map(|t| &*t.zh).collect();
+                // Token gộp phủ mọi token nó thay: `take` token lấy bên trái và
+                // các token tiêu bên phải (không tiêu gì thì `toks[i]` bị bỏ).
+                let start = toks[if take > 0 { w - take } else { i }].src.start;
+                let src = start..toks[i + used.max(1) - 1].src.end;
                 // Bỏ `take` token cuối của phần đã ra rồi ghi token gộp vào chỗ đầu
                 // của chúng; chỗ đó là token đã tiêu, hoặc chính `toks[i]` khi
                 // `w == i` và không lấy gì bên trái.
                 w -= take;
-                toks[w] = Token::new(zh, vi, rule.result.as_str());
+                toks[w] = Token::new(zh, vi, rule.result.as_str()).at(src);
+                toks[w].fired = true;
                 w += 1;
                 fired += 1;
                 i += used.max(1);
@@ -788,6 +784,57 @@ fn run_section<'q>(
         }
     }
     (toks, fired)
+}
+
+/// Nghĩa (hoa thường của từ điển) mở đầu bằng chữ hoa: tên riêng hay phần của tên riêng.
+fn capitalized(t: &Token) -> bool {
+    t.vi.trim_start().chars().next().is_some_and(char::is_uppercase)
+}
+
+/// Đầu chuỗi tên riêng: token có nghĩa viết hoa (`沧溟` = "Thương Minh", từ loại
+/// `g`), không phải dấu câu, số, hay token do quy tắc tạo. Nhãn tên thôi chưa
+/// đủ: names có cả chữ thường dùng (`连` = "liền", `向` = "hướng").
+fn proper_head(t: &Token) -> bool {
+    !t.fired && !matches!(t.tag, "w" | "số" | "m") && capitalized(t)
+}
+
+/// Phần tiếp của chuỗi: danh từ hay tên có nghĩa viết hoa (`剑宗` = "Kiếm tông").
+fn proper_tail(t: &Token) -> bool {
+    !t.fired && (is_noun(t) || is_name(t)) && capitalized(t)
+}
+
+/// Gộp mỗi chuỗi tên riêng (`沧溟` + `剑宗` = "Thương Minh Kiếm tông") thành một
+/// token, mang từ loại của token cuối (đầu ngữ của cụm tiếng Hán). Chỗ khác bản
+/// thử, cố ý: không quy tắc nào bắt được một phần của chuỗi, nên không tách hay
+/// dời một phần đi ("Thương Minh chưởng môn của kiếm tông"); quy tắc bắt token
+/// nào của chuỗi thì bắt cả chuỗi.
+pub(crate) fn join_proper_chains(toks: Vec<Token<'_>>) -> Vec<Token<'_>> {
+    let joins = toks.windows(2).any(|pair| proper_head(&pair[0]) && proper_tail(&pair[1]));
+    if !joins {
+        return toks;
+    }
+    let mut out: Vec<Token> = Vec::with_capacity(toks.len());
+    // Token cuối của `out` là đầu chuỗi, hoặc chuỗi đã gộp (tính tiếp được).
+    let mut open = false;
+    for t in toks {
+        match out.last_mut() {
+            Some(last) if (open || proper_head(last)) && proper_tail(&t) => {
+                let mut zh = last.zh.to_string();
+                zh.push_str(&t.zh);
+                let mut vi = last.vi.trim().to_string();
+                vi.push(' ');
+                vi.push_str(t.vi.trim());
+                let src = last.src.start..t.src.end;
+                *last = Token::new(zh, vi, t.tag).at(src);
+                open = true;
+            }
+            _ => {
+                open = false;
+                out.push(t);
+            }
+        }
+    }
+    out
 }
 
 /// Chạy lần lượt mọi nhóm quy tắc; trả về token mới và số lần có quy tắc chạy.
@@ -842,7 +889,7 @@ mod tests {
     fn run(rules: &str, toks: Vec<Token<'static>>) -> (String, usize) {
         let program = Box::leak(Box::new(Program::parse(rules).unwrap()));
         let (toks, fired) = apply_program(program, toks);
-        (crate::quy_tac::render::render(&toks), fired)
+        (crate::quy_tac::render::render_sentence(&toks), fired)
     }
 
     #[test]
@@ -857,7 +904,7 @@ mod tests {
         let rules = "[khung 1]\n{vế-động} 的时候 = khi {vế-động}\n";
         let (text, _) = run(
             rules,
-            vec![tok("他", "Hắn", "r"), tok("走进来", "đi tới", "v"), tok("的时候", "thời điểm", "n")],
+            vec![tok("他", "hắn", "r"), tok("走进来", "đi tới", "v"), tok("的时候", "thời điểm", "n")],
         );
         assert_eq!(text, "Khi hắn đi tới");
     }
@@ -963,6 +1010,67 @@ mod tests {
                 .collect();
             let j = next() % (toks.len() + 1);
             assert_eq!(lit_span(&toks, j, &lits), lit_span_slow(&toks, j, &lits), "{lits:?}");
+        }
+    }
+
+    /// Nghĩa viết hoa của từ điển ("Ma tộc") giữ nguyên khi bị dời; bản thử hạ
+    /// thành "ma tộc" vì nhãn không phải tên.
+    #[test]
+    fn dictionary_capitals_survive_a_move() {
+        let rules = "[của 3]\n{danh-từ} 的 {danh-từ}+ = {2} của {1}\n";
+        let (text, fired) = run(
+            rules,
+            vec![tok("魔族", "Ma tộc", "n"), tok("的", "", "uj"), tok("力量", "lực lượng", "n")],
+        );
+        assert_eq!((text.as_str(), fired), ("Lực lượng của Ma tộc", 1));
+    }
+
+    /// Chuỗi tên riêng (`沧溟` "Thương Minh", từ loại `g`, + `剑宗` "Kiếm tông")
+    /// đi cùng nhau: quy tắc bắt `剑宗` thì bắt cả chuỗi. Không gộp thì quy tắc
+    /// tách `剑宗` khỏi `沧溟` như bản thử.
+    #[test]
+    fn proper_noun_chains_are_not_split() {
+        let rules = "[của 3]\n{danh-từ} 的 {danh-từ}+ = {2} của {1}\n";
+        let toks = || {
+            vec![
+                tok("找", "tìm", "v"),
+                tok("沧溟", "Thương Minh", "g"),
+                tok("剑宗", "Kiếm tông", "nz"),
+                tok("的", "", "uj"),
+                tok("掌门", "chưởng môn", "n"),
+            ]
+        };
+        let (text, _) = run(rules, join_proper_chains(toks()));
+        assert_eq!(text, "Tìm chưởng môn của Thương Minh Kiếm tông");
+        let (text, _) = run(rules, toks());
+        assert_eq!(text, "Tìm Thương Minh chưởng môn của Kiếm tông");
+        // Ba token viết hoa liền nhau thành một chuỗi; nhãn của token cuối.
+        let joined = join_proper_chains(vec![
+            tok("天元", "Thiên Nguyên", "ns"),
+            tok("魔族", "Ma tộc", "n"),
+            tok("圣女", "Thánh nữ", "n"),
+            tok("的", "", "uj"),
+        ]);
+        let view: Vec<(&str, &str, &str)> =
+            joined.iter().map(|t| (&*t.zh, &*t.vi, t.tag)).collect();
+        assert_eq!(view, [("天元魔族圣女", "Thiên Nguyên Ma tộc Thánh nữ", "n"), ("的", "", "uj")]);
+    }
+
+    /// Không mở chuỗi: token nhãn tên mà nghĩa viết thường (names có `连` =
+    /// "liền"), dấu câu, số, token do quy tắc tạo; không nối: phần sau không
+    /// phải danh từ hay viết thường.
+    #[test]
+    fn chains_need_capitalized_nouns() {
+        let mut made = tok("第三章", "Chương ba:", "lit");
+        made.fired = true;
+        for toks in [
+            vec![tok("连", "liền", "nr"), tok("叶流云", "Diệp Lưu Vân", "nr")],
+            vec![tok("，", ",", "w"), tok("剑宗", "Kiếm tông", "nz")],
+            vec![made, tok("魔族", "Ma tộc", "n")],
+            vec![tok("沧溟", "Thương Minh", "g"), tok("走", "Đi", "v")],
+            vec![tok("回疆", "Hồi Cương", "ns"), tok("女主人", "nữ chủ nhân", "n")],
+        ] {
+            assert_eq!(join_proper_chains(toks.clone()), toks);
         }
     }
 

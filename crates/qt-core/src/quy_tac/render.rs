@@ -1,201 +1,263 @@
-//! Ráp token thành câu cho đoạn có quy tắc chạy: nối bằng dấu cách, bỏ cách
-//! trước dấu câu / sau ngoặc mở, viết hoa đầu câu. Giống `render` của bản thử.
+//! Ráp kết quả Quy Tắc vào output của engine (spec mục 5).
 //!
-//! Ba bước của bản thử (ba regex, giữ trong test để so) gộp thành một lượt
-//! quét: `\s` của regex là Unicode White_Space, đúng như `char::is_whitespace`;
-//! `\w` vẫn hỏi regex, trừ chữ ASCII.
+//! Khác `render` của bản thử, cố ý: bản thử nối mọi token của đoạn bằng dấu
+//! cách rồi sửa khoảng cách theo ngoặc cong `“ ” ‘ ’`. Bước chuẩn hoá của QT
+//! đổi chúng thành ngoặc thẳng (`“` → `"`, `”` → `" `) trước khi dịch, nên
+//! ráp kiểu đó làm mất cách đặt dấu cách quanh `"` của engine trên cả đoạn
+//! (`" Ngươi … ngơ ngác. "`), kể cả khúc không quy tắc nào đụng tới. Ở đây:
+//! - chỉ ráp lại các *cửa sổ*: khúc token mà quy tắc đã đổi, nới tới ranh giới
+//!   chung của token engine và token Quy Tắc; ngoài cửa sổ output giữ nguyên
+//!   từng byte;
+//! - trong cửa sổ, nối như engine (`text::append_translated_word`): viết hoa
+//!   khi output trước đó kết thúc câu theo engine (`text::ends_sentence`: `. `,
+//!   `: `, `"`…), không cách trước dấu đóng và sau ngoặc mở; ngoặc thẳng là
+//!   ngoặc đóng khi chữ nguồn sau nó là khoảng trắng, dấu đóng hay hết đoạn;
+//! - chữ đầu của chữ ngay sau cửa sổ đổi hoa thường khi cửa sổ đổi việc nó có
+//!   đứng đầu câu hay không (`Chương 251:` của nhóm `[số]` rồi `tương lai…`).
 
-use std::sync::LazyLock;
-
-use regex::Regex;
+use std::ops::Range;
 
 use super::prepare::Token;
+use crate::text::{ends_sentence, SENTENCE_ENDERS};
 
-/// `\s+([,.!?:;…”’)\]】])` → `$1`: dấu câu đóng.
+/// Dấu đóng: không có dấu cách trước nó.
 fn is_closer(c: char) -> bool {
-    matches!(c, ',' | '.' | '!' | '?' | ':' | ';' | '…' | '”' | '’' | ')' | ']' | '】')
+    matches!(
+        c,
+        ',' | '.' | '!' | '?' | ':' | ';' | '…' | '”' | '’' | ')' | ']' | '】' | '》' | '」' | '』'
+    )
 }
 
-/// `([“‘(\[【])\s+` → `$1`: ngoặc mở.
+/// Ngoặc mở: không có dấu cách sau nó.
 fn is_opener(c: char) -> bool {
-    matches!(c, '“' | '‘' | '(' | '[' | '【')
+    matches!(c, '“' | '‘' | '(' | '[' | '【' | '《' | '「' | '『')
 }
 
-/// Đầu câu trong `(^|[.!?…]\s+|[“‘]\s*)(\w)`.
-fn is_stop(c: char) -> bool {
-    matches!(c, '.' | '!' | '?' | '…')
+/// Ngoặc thẳng `"` hoặc `'` đứng một mình (bước chuẩn hoá đổi ngoặc cong ra nó).
+fn is_straight_quote(piece: &str) -> bool {
+    piece == "\"" || piece == "'"
 }
 
-fn is_quote(c: char) -> bool {
-    matches!(c, '“' | '‘')
+/// Ngoặc thẳng kết thúc ở byte `end` của chữ Hán cả đoạn là ngoặc đóng: sau nó
+/// là khoảng trắng (`”` → `" `), dấu đóng, hoặc hết đoạn.
+fn closes(text: &str, end: usize) -> bool {
+    let next = text.get(end..).and_then(|rest| rest.chars().next());
+    next.is_none_or(|c| c.is_whitespace() || is_closer(c))
 }
 
-static WORD_START: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\A\w").unwrap());
-
-/// Ký tự đầu của `rest` là `\w`. ASCII: `\w` là `[0-9A-Za-z_]`.
-fn word_start(rest: &str) -> bool {
-    match rest.chars().next() {
-        Some(c) if c.is_ascii() => c.is_ascii_alphanumeric() || c == '_',
-        Some(_) => WORD_START.is_match(rest),
-        None => false,
+/// Như `text::to_upper_case`: viết hoa chữ đầu, hoặc chữ sau `[`.
+fn push_capitalized(out: &mut String, piece: &str) {
+    let mut chars = piece.chars();
+    match chars.next() {
+        Some('[') if piece.len() > 1 => {
+            out.push('[');
+            push_capitalized(out, chars.as_str());
+        }
+        Some(first) => {
+            out.extend(first.to_uppercase());
+            out.push_str(chars.as_str());
+        }
+        None => {}
     }
 }
 
-/// Đang chờ chữ `\w` để viết hoa: sau dấu dừng (cần thêm ít nhất một khoảng
-/// trắng) hay sau ngoặc kép mở (khoảng trắng tuỳ ý).
-#[derive(Clone, Copy, PartialEq)]
-enum Arm {
-    None,
-    Stop { spaced: bool },
-    Quote,
+/// `before + gap` kết thúc câu theo engine, không cần nối hai chuỗi.
+fn ends_sentence_after(before: &str, gap: &str) -> bool {
+    SENTENCE_ENDERS.iter().any(|e| match e.len().checked_sub(gap.len()) {
+        None | Some(0) => gap.ends_with(e),
+        Some(head) => e.ends_with(gap) && before.ends_with(&e[..head]),
+    })
 }
 
-/// Một lượt cho cả ba bước của bản thử, y như
-/// `capitalize(drop_space_after(drop_space_before(text)))` (test so):
-/// - một quãng trắng bị bỏ khi ký tự kế là dấu đóng, hoặc ký tự khác trắng
-///   ngay trước nó là ngoặc mở; quãng trắng không bao giờ dính nhau sau khi bỏ
-///   vì giữa hai quãng luôn có ký tự khác trắng;
-/// - trên chuỗi đã bỏ, viết hoa chữ `\w` đứng đầu chuỗi, sau dấu dừng + ít
-///   nhất một khoảng trắng, hoặc sau ngoặc kép mở + khoảng trắng tuỳ ý; tìm
-///   tiếp ngay sau chữ vừa viết hoa. Chữ `\w` không là dấu dừng hay ngoặc.
-fn tidy(text: &str) -> String {
-    let mut out = String::with_capacity(text.len() + 4);
-    let mut run: Option<usize> = None;
+/// Trả chữ đầu engine đã viết hoa về chữ gốc `c`; không khớp thì để nguyên.
+pub(crate) fn push_uncapitalized(out: &mut String, word: &str, c: char) {
+    let upper: String = c.to_uppercase().collect();
+    match word.strip_prefix(upper.as_str()) {
+        Some(rest) => {
+            out.push(c);
+            out.push_str(rest);
+        }
+        None => out.push_str(word),
+    }
+}
+
+/// Ráp các token của một cửa sổ nối vào `out` (output đã ráp tới đầu cửa sổ).
+/// `text` là chữ Hán cả đoạn (biết ngoặc thẳng mở hay đóng). `keep_gap`: dấu
+/// cách trước cửa sổ là của output cũ, token đầu nối thẳng (cửa sổ thay một
+/// khúc chữ); `false` khi cửa sổ chèn vào chỗ output cũ không có chữ.
+pub(crate) fn render_window(out: &mut String, toks: &[Token], text: &str, keep_gap: bool) {
+    let mut first = true;
     let mut after_opener = false;
-    let mut arm = Arm::None;
-    for (at, c) in text.char_indices() {
-        if c.is_whitespace() {
-            run.get_or_insert(at);
+    for t in toks {
+        let piece = t.vi.trim();
+        let Some(head) = piece.chars().next() else { continue };
+        let quote = is_straight_quote(piece);
+        let closing = quote && closes(text, t.src.end);
+        let attach = closing || (!quote && is_closer(head));
+        if first && keep_gap {
+            if attach {
+                out.truncate(out.trim_end_matches(' ').len());
+            }
+        } else if !(attach || after_opener || out.is_empty() || out.ends_with(char::is_whitespace))
+        {
+            out.push(' ');
+        }
+        first = false;
+        if ends_sentence(out) {
+            push_capitalized(out, piece);
+        } else {
+            out.push_str(piece);
+        }
+        after_opener = (quote && !closing) || piece.ends_with(is_opener);
+    }
+}
+
+/// Một token engine của đoạn, như bước ráp cần: `src` là byte trong chữ Hán
+/// cả đoạn, `out` là chữ của nó trong output (đã cắt khoảng trắng; rỗng khi
+/// không có chữ, khi đó bắt đầu ở chỗ token nằm), `capital` như `SourceToken`.
+#[derive(Debug, Clone)]
+pub(crate) struct Piece {
+    pub(crate) src: Range<usize>,
+    pub(crate) out: Range<usize>,
+    pub(crate) capital: Option<char>,
+}
+
+/// Một cửa sổ: token engine `pieces[p]`, token Quy Tắc `toks[t]`, cùng phủ một
+/// khúc chữ Hán.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Window {
+    pub(crate) pieces: Range<usize>,
+    pub(crate) toks: Range<usize>,
+}
+
+/// Các cửa sổ của đoạn, theo thứ tự. Mỗi token do quy tắc tạo (`fired`) nới ra
+/// tới ranh giới chung gần nhất của hai cách cắt (token engine và token Quy
+/// Tắc đều nối liền nhau phủ trọn đoạn, nên luôn có ranh giới chung ở đầu và
+/// cuối đoạn). Cửa sổ chồng, chạm nhau, hay chỉ cách nhau bởi token engine
+/// không có chữ thì gộp.
+pub(crate) fn windows(pieces: &[Piece], toks: &[Token]) -> Vec<Window> {
+    // Ranh giới chung: (byte, chỉ số token engine bắt đầu ở đó, chỉ số token Quy Tắc).
+    let mut common = Vec::new();
+    let (mut p, mut t) = (0, 0);
+    loop {
+        let pb = pieces.get(p).map_or(usize::MAX, |piece| piece.src.start);
+        let tb = toks.get(t).map_or(usize::MAX, |tok| tok.src.start);
+        if pb == usize::MAX && tb == usize::MAX {
+            break;
+        }
+        if pb == tb {
+            common.push((pb, p, t));
+            p += 1;
+            t += 1;
+        } else if pb < tb {
+            p += 1;
+        } else {
+            t += 1;
+        }
+    }
+    common.push((usize::MAX, pieces.len(), toks.len()));
+    let mut out: Vec<Window> = Vec::new();
+    for (index, tok) in toks.iter().enumerate() {
+        if !tok.fired {
             continue;
         }
-        if let Some(start) = run.take() {
-            if !is_closer(c) && !after_opener {
-                out.push_str(&text[start..at]);
-                if let Arm::Stop { .. } = arm {
-                    arm = Arm::Stop { spaced: true };
-                }
+        let end = toks.get(index + 1).map_or(usize::MAX, |next| next.src.start);
+        let a = common.partition_point(|&(byte, _, _)| byte <= tok.src.start) - 1;
+        let b = common.partition_point(|&(byte, _, _)| byte < end);
+        let window = Window {
+            pieces: common[a].1..common[b].1,
+            toks: common[a].2..common[b].2,
+        };
+        if let Some(last) = out.last_mut() {
+            let between = &pieces[last.pieces.end.min(window.pieces.start)..window.pieces.start];
+            if between.iter().all(|piece| piece.out.is_empty()) {
+                last.pieces.end = last.pieces.end.max(window.pieces.end);
+                last.toks.end = last.toks.end.max(window.toks.end);
+                continue;
             }
         }
-        let capital = match arm {
-            _ if out.is_empty() => word_start(&text[at..]),
-            Arm::Stop { spaced: true } | Arm::Quote => word_start(&text[at..]),
-            _ => false,
-        };
-        if capital {
-            out.extend(c.to_uppercase());
-            arm = Arm::None;
-        } else {
-            out.push(c);
-            arm = if is_stop(c) {
-                Arm::Stop { spaced: false }
-            } else if is_quote(c) {
-                Arm::Quote
-            } else {
-                Arm::None
-            };
-        }
-        after_opener = is_opener(c);
-    }
-    if let Some(start) = run {
-        if !after_opener {
-            out.push_str(&text[start..]);
-        }
+        out.push(window);
     }
     out
 }
 
-pub(crate) fn render(toks: &[Token]) -> String {
-    let mut text = String::with_capacity(toks.iter().map(|t| t.vi.len() + 1).sum());
-    for piece in toks.iter().map(|t| t.vi.trim()).filter(|piece| !piece.is_empty()) {
-        if !text.is_empty() {
-            text.push(' ');
+/// Ráp đoạn: chép output từ `*cursor`, thay từng cửa sổ bằng bản ráp lại, dời
+/// `*cursor` tới sau khúc đã thay. `text` là chữ Hán cả đoạn.
+pub(crate) fn splice(
+    output: &str,
+    text: &str,
+    pieces: &[Piece],
+    toks: &[Token],
+    result: &mut String,
+    cursor: &mut usize,
+) {
+    for window in windows(pieces, toks) {
+        let span = &pieces[window.pieces.clone()];
+        let first = span.iter().find(|piece| !piece.out.is_empty());
+        let last = span.iter().rev().find(|piece| !piece.out.is_empty());
+        let (from, to) = match (first, last) {
+            (Some(first), Some(last)) => (first.out.start, last.out.end),
+            _ => (span[0].out.start, span[0].out.start),
+        };
+        if from < *cursor || to < from {
+            continue;
         }
-        text.push_str(piece);
+        let replaced = from < to;
+        result.push_str(&output[*cursor..from]);
+        let before = result.len();
+        render_window(result, &toks[window.toks.clone()], text, replaced);
+        let rendered = result.len() > before;
+        let rest = &output[to..];
+        let next = rest.chars().next();
+        if rendered && !replaced {
+            // Chèn vào chỗ không có chữ: cách chữ kế như engine.
+            let open = result.ends_with(|c: char| c.is_whitespace() || is_opener(c));
+            if next.is_some_and(|c| !c.is_whitespace() && !is_closer(c)) && !open {
+                result.push(' ');
+            }
+        } else if !rendered && replaced && next.is_none_or(|c| c == ' ' || is_closer(c)) {
+            // Cửa sổ ra rỗng: khỏi để lại hai dấu cách hay cách trước dấu đóng.
+            result.truncate(result.trim_end_matches(' ').len());
+        }
+        *cursor = to;
+        // Chữ ngay sau cửa sổ: cửa sổ đổi việc nó đứng đầu câu thì đổi chữ đầu.
+        let Some(after) = pieces[window.pieces.end..].iter().find(|p| !p.out.is_empty()) else {
+            continue;
+        };
+        let gap = &output[to..after.out.start];
+        let was = ends_sentence(&output[..after.out.start]);
+        let now = ends_sentence_after(result, gap);
+        if was == now {
+            continue;
+        }
+        let word = &output[after.out.clone()];
+        result.push_str(gap);
+        match after.capital {
+            _ if now => push_capitalized(result, word),
+            Some(c) => push_uncapitalized(result, word, c),
+            None => result.push_str(word),
+        }
+        *cursor = after.out.end;
     }
-    tidy(&text)
+}
+
+/// Ráp mọi token như một cửa sổ đứng đầu câu (cho test của các bước khác).
+#[cfg(test)]
+pub(crate) fn render_sentence(toks: &[Token]) -> String {
+    let mut out = String::from("\n");
+    render_window(&mut out, toks, "", false);
+    out.split_off(1)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::quy_tac::prepare::Token;
-    use regex::Captures;
 
-    /// Như `SPACE_BEFORE.replace_all(text, "$1")`: bỏ cả quãng trắng đứng ngay trước dấu đóng.
-    fn drop_space_before(text: &str) -> String {
-        let mut out = String::with_capacity(text.len());
-        let mut run: Option<usize> = None;
-        for (at, c) in text.char_indices() {
-            if c.is_whitespace() {
-                run.get_or_insert(at);
-                continue;
-            }
-            if let Some(start) = run.take() {
-                if !is_closer(c) {
-                    out.push_str(&text[start..at]);
-                }
-            }
-            out.push(c);
-        }
-        if let Some(start) = run {
-            out.push_str(&text[start..]);
-        }
-        out
-    }
-
-    /// Như `SPACE_AFTER.replace_all(text, "$1")`: bỏ quãng trắng ngay sau ngoặc mở.
-    fn drop_space_after(text: &str) -> String {
-        let mut out = String::with_capacity(text.len());
-        let mut skip = false;
-        for c in text.chars() {
-            if skip && c.is_whitespace() {
-                continue;
-            }
-            skip = is_opener(c);
-            out.push(c);
-        }
-        out
-    }
-
-    /// Byte ngay sau quãng trắng bắt đầu ở `at`.
-    fn skip_space(text: &str, at: usize) -> usize {
-        at + text[at..].len() - text[at..].trim_start().len()
-    }
-
-    /// Như `CAPITAL.replace_all` với khuôn `{1}{2 viết hoa}`: tìm từ trái sang, mỗi
-    /// chỗ khớp là `^`, `[.!?…]` + quãng trắng (ít nhất một), hoặc `[“‘]` + quãng
-    /// trắng (có thể rỗng), theo sau là một chữ `\w`; viết hoa chữ đó rồi tìm tiếp
-    /// sau nó. Tại một vị trí chỉ một nhánh có thể khớp (chữ `\w` không là dấu câu).
-    fn capitalize(text: &str) -> String {
-        let word_at = |at: usize| at < text.len() && WORD_START.is_match(&text[at..]);
-        let mut out = String::with_capacity(text.len());
-        let (mut copied, mut at) = (0, 0);
-        while let Some(c) = text[at..].chars().next() {
-            let after = at + c.len_utf8();
-            let word = if at == 0 && word_at(0) {
-                Some(0)
-            } else if is_stop(c) {
-                let end = skip_space(text, after);
-                (end > after && word_at(end)).then_some(end)
-            } else if is_quote(c) {
-                let end = skip_space(text, after);
-                word_at(end).then_some(end)
-            } else {
-                None
-            };
-            match word {
-                Some(start) => {
-                    let w = text[start..].chars().next().expect("word_at có chữ");
-                    out.push_str(&text[copied..start]);
-                    out.extend(w.to_uppercase());
-                    copied = start + w.len_utf8();
-                    at = copied;
-                }
-                None => at = after,
-            }
-        }
-        out.push_str(&text[copied..]);
-        out
+    fn tok(vi: &str, src: Range<usize>, fired: bool) -> Token<'static> {
+        let mut t = Token::new("x", vi.to_string(), "n").at(src);
+        t.fired = fired;
+        t
     }
 
     #[test]
@@ -204,61 +266,146 @@ mod tests {
             .iter()
             .map(|vi| Token::new("x", *vi, "n"))
             .collect();
-        assert_eq!(render(&toks), "Hắn đi, “Ta nói”.");
+        assert_eq!(render_sentence(&toks), "Hắn đi, “ta nói”.");
+    }
+
+    /// Ngoặc thẳng mở hay đóng theo chữ nguồn sau nó; sau ngoặc mở và sau `: `
+    /// viết hoa như engine.
+    #[test]
+    fn straight_quotes_open_or_close_by_the_source() {
+        // Chữ Hán đoạn: 他说: "你好" 。  (byte của từng token ghi trong `src`)
+        let text = "他说: \"你好\" 。";
+        let at = |piece: &str| {
+            let start = text.find(piece).unwrap();
+            start..start + piece.len()
+        };
+        let quote_open = text.find('"').unwrap();
+        let quote_close = text.rfind('"').unwrap();
+        let toks = vec![
+            tok("hắn nói", at("他说"), true),
+            tok(":", at(":"), false),
+            tok("\"", quote_open..quote_open + 1, false),
+            tok("ngươi tốt", at("你好"), true),
+            tok("\"", quote_close..quote_close + 1, false),
+            tok(".", at("。"), false),
+        ];
+        let mut out = String::new();
+        render_window(&mut out, &toks, text, true);
+        assert_eq!(out, "hắn nói: \"Ngươi tốt\".");
+        // Đầu đoạn không viết hoa, như engine (chữ đầu của request).
+        assert!(!ends_sentence(""));
     }
 
     #[test]
-    fn scans_match_the_prototype_regexes() {
-        // Ba bước của bản thử, viết bằng regex.
-        let space_before = Regex::new(r"\s+([,.!?:;…”’)\]】])").unwrap();
-        let space_after = Regex::new(r"([“‘(\[【])\s+").unwrap();
-        let capital = Regex::new(r"(^|[.!?…]\s+|[“‘]\s*)(\w)").unwrap();
-        let by_regex = |text: &str| {
-            let text = space_before.replace_all(text, "$1");
-            let text = space_after.replace_all(&text, "$1");
-            capital
-                .replace_all(&text, |caps: &Captures| {
-                    format!("{}{}", &caps[1], caps[2].to_uppercase())
-                })
-                .into_owned()
-        };
-        let alphabet: Vec<char> = " \u{3000}\u{a0}\ta1ăđß.!?…,;:”’)]】“‘([【-_x\u{301}"
-            .chars()
-            .collect();
-        // Chuỗi giả ngẫu nhiên cố định (LCG) trên bảng chữ có đủ loại ký tự.
-        let mut seed: u64 = 7;
-        let mut next = || {
-            seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
-            (seed >> 33) as usize
-        };
-        for _ in 0..20_000 {
-            let length = next() % 10;
-            let text: String = (0..length).map(|_| alphabet[next() % alphabet.len()]).collect();
-            let ours = capitalize(&drop_space_after(&drop_space_before(&text)));
-            assert_eq!(ours, by_regex(&text), "{text:?}");
+    fn sentence_end_check_spans_the_join() {
+        for (before, gap, want) in [
+            ("vậy?", "\" ", true),
+            ("vậy", "\" ", false),
+            ("Chương 251:", " ", true),
+            ("x", "", false),
+            ("x.", " ", true),
+            ("", "\n", true),
+            ("\"", "", true),
+        ] {
+            let joined = format!("{before}{gap}");
+            assert_eq!(ends_sentence_after(before, gap), ends_sentence(&joined), "{joined:?}");
+            assert_eq!(ends_sentence(&joined), want, "{joined:?}");
         }
     }
 
-    /// Lượt gộp `tidy` cho kết quả y như ba bước tách rời (cũng là ba regex).
+    /// Dựng đoạn từ các cụm `(chữ Hán, chữ engine ra kể cả dấu cách trước nó)`:
+    /// trả chữ Hán cả đoạn, output và token engine.
+    fn layout(parts: &[(&str, &str)]) -> (String, String, Vec<Piece>) {
+        let (mut text, mut output, mut pieces) = (String::new(), String::new(), Vec::new());
+        for (zh, chunk) in parts {
+            let src = text.len()..text.len() + zh.len();
+            text.push_str(zh);
+            let lead = chunk.len() - chunk.trim_start().len();
+            let start = output.len() + lead.min(chunk.len());
+            output.push_str(chunk);
+            pieces.push(Piece { src, out: start..start + chunk.trim().len(), capital: None });
+        }
+        (text, output, pieces)
+    }
+
+    /// Token Quy Tắc y như token engine (chưa quy tắc nào chạy).
+    fn same(output: &str, pieces: &[Piece]) -> Vec<Token<'static>> {
+        pieces.iter().map(|p| tok(&output[p.out.clone()], p.src.clone(), false)).collect()
+    }
+
+    fn spliced(output: &str, text: &str, pieces: &[Piece], toks: &[Token]) -> String {
+        let (mut result, mut cursor) = (String::new(), 0);
+        splice(output, text, pieces, toks, &mut result, &mut cursor);
+        result.push_str(&output[cursor..]);
+        result
+    }
+
+    /// Ngoài cửa sổ output giữ nguyên từng byte; cửa sổ chỉ phủ khúc quy tắc đổi.
     #[test]
-    fn one_pass_matches_the_three_steps() {
-        let alphabet: Vec<char> = " \u{3000}\u{a0}\ta1Zăđß.!?…,;:”’)]】“‘([【-_x\u{301}\u{2028}"
-            .chars()
-            .collect();
-        let mut seed: u64 = 13;
-        let mut next = || {
-            seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
-            (seed >> 33) as usize
-        };
-        for _ in 0..100_000 {
-            let length = next() % 14;
-            let text: String = (0..length).map(|_| alphabet[next() % alphabet.len()]).collect();
-            let steps = capitalize(&drop_space_after(&drop_space_before(&text)));
-            assert_eq!(tidy(&text), steps, "{text:?}");
-        }
-        for c in (0..0x80u8).map(char::from) {
-            let rest = c.to_string();
-            assert_eq!(word_start(&rest), WORD_START.is_match(&rest), "{c:?}");
-        }
+    fn text_outside_the_windows_is_byte_identical() {
+        // Engine: hai dấu cách lạ, ngoặc thẳng sát chữ, `" ` đóng.
+        let (text, output, pieces) = layout(&[
+            ("\"", " \""),
+            ("我", "Ta"),
+            ("走", "  đi"),
+            ("啊", " a"),
+            (",", ","),
+            ("\"", "\""),
+            (" ", " "),
+            ("他", "hắn"),
+            ("说", " nói"),
+            (".", "."),
+        ]);
+        assert_eq!(output, " \"Ta  đi a,\" hắn nói.");
+        // Quy tắc gộp 他说 thành "nói hắn"; mọi token khác y nguyên.
+        let mut toks = same(&output, &pieces);
+        let src = pieces[7].src.start..pieces[8].src.end;
+        toks.splice(7..9, [tok("nói hắn", src, true)]);
+        assert_eq!(windows(&pieces, &toks), vec![Window { pieces: 7..9, toks: 7..8 }]);
+        assert_eq!(spliced(&output, &text, &pieces, &toks), " \"Ta  đi a,\" nói hắn.");
+        // Không quy tắc nào chạy thì không có cửa sổ.
+        assert!(windows(&pieces, &same(&output, &pieces)).is_empty());
+    }
+
+    /// Cửa sổ nới tới ranh giới chung: token Quy Tắc tách một token engine
+    /// (đuôi dấu câu, `的`) thì cả token engine đó vào cửa sổ.
+    #[test]
+    fn windows_grow_to_common_boundaries_and_merge() {
+        let piece = |src: Range<usize>, out: Range<usize>| Piece { src, out, capital: None };
+        // Token engine: [0,6) [6,9) [9,12) [12,15) [15,18); token thứ ba không có chữ.
+        let pieces =
+            [piece(0..6, 0..4), piece(6..9, 5..7), piece(9..12, 7..7), piece(12..15, 8..9)];
+        // Quy Tắc tách [0,6) thành [0,3) [3,6); quy tắc gộp [3,6)+[6,9) và đổi [12,15).
+        let toks = vec![
+            tok("a", 0..3, false),
+            tok("b", 3..9, true),
+            tok("c", 9..12, false),
+            tok("d", 12..15, true),
+        ];
+        assert_eq!(windows(&pieces, &toks), vec![Window { pieces: 0..4, toks: 0..4 }]);
+        let toks = vec![tok("a", 0..3, false), tok("b", 3..6, true), tok("c", 6..15, false)];
+        let pieces = [piece(0..6, 0..4), piece(6..15, 5..7)];
+        assert_eq!(windows(&pieces, &toks), vec![Window { pieces: 0..1, toks: 0..2 }]);
+    }
+
+    /// `Chương 251:` của nhóm `[số]` đứng trước chữ không đổi: chữ đó viết hoa
+    /// như sau `: ` của engine; cửa sổ bỏ dấu kết câu thì chữ hoa do engine
+    /// viết được trả về chữ gốc.
+    #[test]
+    fn the_word_after_a_window_follows_the_new_sentence_start() {
+        let (text, output, pieces) =
+            layout(&[("第251章", " thứ 251 chương"), (" ", " "), ("未来", "tương lai")]);
+        let mut toks = same(&output, &pieces);
+        toks[0] = tok("Chương 251:", pieces[0].src.clone(), true);
+        assert_eq!(spliced(&output, &text, &pieces, &toks), " Chương 251: Tương lai");
+        let (text, output, mut pieces) =
+            layout(&[("完了", " hết."), (" ", " "), ("未来", "Tương lai")]);
+        pieces[2].capital = Some('t');
+        let mut toks = same(&output, &pieces);
+        toks[0] = tok("xong", pieces[0].src.clone(), true);
+        assert_eq!(spliced(&output, &text, &pieces, &toks), " xong tương lai");
+        // Chữ hoa của chính nghĩa (không do engine viết) thì giữ.
+        pieces[2].capital = None;
+        assert_eq!(spliced(&output, &text, &pieces, &toks), " xong Tương lai");
     }
 }

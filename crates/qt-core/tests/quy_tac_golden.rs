@@ -1,5 +1,8 @@
 //! Bản Rust phải ra đúng như bản thử Python (docs/superpowers/specs/2026-11-06-quy-tac/)
-//! trên các câu mẫu: QT2025 thật, bộ luật mặc định, không names riêng.
+//! trên các câu mẫu: QT2025 thật, bộ luật mặc định, không names riêng. Trừ chỗ
+//! khác cố ý (spec mục 5): chữ đầu của request không viết hoa (như engine,
+//! ngoài cửa sổ ráp lại output giữ nguyên), nghĩa viết hoa của từ điển giữ
+//! hoa khi bị dời, chữ sau `Chương N:` viết hoa; đáp án đã sửa theo đó.
 //! Nạp QT2025 nên chậm: chạy bằng
 //! `cargo test --release -p qt-core --test quy_tac_golden -- --ignored`.
 

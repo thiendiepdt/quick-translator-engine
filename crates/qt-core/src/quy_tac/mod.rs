@@ -114,66 +114,77 @@ impl QuyTac {
         result: &mut String,
         cursor: &mut usize,
     ) {
-        // Range hỏng (không được xảy ra, `record` giữ bất biến) thì coi như
-        // cụm rỗng chứ không panic ở bản release; bản debug thì báo ngay.
-        fn text_of<'o>(output: &'o str, t: &SourceToken) -> &'o str {
-            debug_assert!(
-                output.get(t.out_start..t.out_end).is_some(),
-                "range cụm hỏng {}..{} trên output {} byte",
-                t.out_start,
-                t.out_end,
-                output.len()
-            );
-            output.get(t.out_start..t.out_end).unwrap_or("").trim()
-        }
-        let Some(first) = paragraph.iter().find(|t| !text_of(output, t).is_empty()) else {
+        // Range hỏng (không được xảy ra, `record` giữ bất biến) thì giữ nguyên
+        // đoạn chứ không panic ở bản release; bản debug thì báo ngay.
+        let broken = paragraph.iter().find(|t| output.get(t.out_start..t.out_end).is_none());
+        let bytes = output.len();
+        debug_assert!(broken.is_none(), "range cụm hỏng {broken:?} trên output {bytes} byte");
+        if broken.is_some() {
             return;
-        };
-        let last = paragraph
-            .iter()
-            .rev()
-            .find(|t| !text_of(output, t).is_empty())
-            .expect("có cụm đầu thì có cụm cuối");
+        }
+        let text_of = |t: &SourceToken| output[t.out_start..t.out_end].trim();
+        if paragraph.iter().all(|t| text_of(t).is_empty()) {
+            return;
+        }
         // Chữ Hán cả đoạn một chuỗi; token mượn khúc của nó và nghĩa trong output.
         let source = paragraph.iter().map(|t| &chars[t.start..t.start + t.len]);
         let mut text = String::with_capacity(source.clone().map(<[char]>::len).sum::<usize>() * 3);
         source.clone().for_each(|zh| text.extend(zh));
         let mut at = 0;
+        let mut pieces = Vec::with_capacity(paragraph.len());
         let raw: Vec<Raw> = source
             .zip(paragraph)
             .map(|(zh, t)| {
                 let start = at;
                 at += zh.iter().map(|c| c.len_utf8()).sum::<usize>();
-                Raw::Plain(Cow::Borrowed(&text[start..at]), Cow::Borrowed(text_of(output, t)))
+                let vi = text_of(t);
+                // Chữ của cụm trong output, bỏ khoảng trắng hai đầu.
+                let chunk = &output[t.out_start..t.out_end];
+                let out = t.out_start + (chunk.len() - chunk.trim_start().len());
+                pieces.push(render::Piece {
+                    src: start..at,
+                    out: out..out + vi.len(),
+                    capital: t.capital,
+                });
+                Raw::Plain(Cow::Borrowed(&text[start..at]), meaning(vi, t.capital))
             })
             .collect();
-        let Some(rendered) = self.apply_paragraph(&text, raw, lk) else {
+        let Some(toks) = self.apply_paragraph(&text, raw, lk) else {
             return;
         };
-        let head = &output[first.out_start..first.out_end];
-        let from = first.out_start + (head.len() - head.trim_start().len());
-        let tail = &output[last.out_start..last.out_end];
-        let to = last.out_end - (tail.len() - tail.trim_end().len());
-        if from < *cursor || to < from {
-            return;
-        }
-        result.push_str(&output[*cursor..from]);
-        result.push_str(&rendered);
-        *cursor = to;
+        render::splice(output, &text, &pieces, &toks, result, cursor);
     }
 
     /// `text` là chữ Hán cả đoạn, `raw` các token của nó. `None` khi không có
-    /// quy tắc nào chạy.
+    /// quy tắc nào chạy; không thì token cuối cùng, có `src` và `fired`.
     fn apply_paragraph<'a>(
         &'a self,
         text: &'a str,
         raw: Vec<Raw<'a>>,
         lk: &Lookups,
-    ) -> Option<String> {
+    ) -> Option<Vec<prepare::Token<'a>>> {
         let (items, char_fired) = char_rules::apply_chars(&self.program, text, raw, lk);
         let toks = prepare::prepare(items, &self.pos, lk, &self.program.classes);
+        let covered = toks.last().is_none_or(|t| t.src.end == text.len());
+        debug_assert!(covered, "token không phủ trọn đoạn");
+        let toks = matcher::join_proper_chains(toks);
         let (toks, fired) = matcher::apply_program(&self.program, toks);
-        (char_fired + fired > 0).then(|| render::render(&toks))
+        (char_fired + fired > 0).then_some(toks)
+    }
+}
+
+/// Nghĩa của cụm như từ điển cho: chữ đầu engine viết hoa vì đứng đầu câu
+/// (`capital`) trả về chữ gốc. Khác bản thử (hạ chữ đầu mọi token bị dời, trừ
+/// tên): chữ hoa của chính nghĩa ("Ma tộc", tên) giữ nguyên; đầu câu do bước ráp
+/// viết hoa lại.
+fn meaning(vi: &str, capital: Option<char>) -> Cow<'_, str> {
+    match capital {
+        Some(c) => {
+            let mut out = String::with_capacity(vi.len());
+            render::push_uncapitalized(&mut out, vi, c);
+            Cow::Owned(out)
+        }
+        None => Cow::Borrowed(vi),
     }
 }
 

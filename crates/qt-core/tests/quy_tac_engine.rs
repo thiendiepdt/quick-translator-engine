@@ -28,12 +28,13 @@ fn engine_reorders_only_when_enabled() {
     let engine = engine();
     let mode = Mode::VietPhraseOneMeaning;
     assert_eq!(engine.translate("桌子上", mode, &Options::default()), " cái bàn bên trên");
-    assert_eq!(engine.translate("桌子上", mode, &on()), " Trên cái bàn");
+    // Chữ đầu của request không viết hoa, như engine (" cái bàn bên trên").
+    assert_eq!(engine.translate("桌子上", mode, &on()), " trên cái bàn");
     assert_eq!(
         engine
             .translate_with_overrides("桌子上", mode, &on(), &DictionaryOverrides::default())
             .unwrap(),
-        " Trên cái bàn"
+        " trên cái bàn"
     );
 }
 
@@ -64,7 +65,7 @@ fn paragraphs_are_handled_separately() {
         engine.translate("桌子上\n上", Mode::VietPhraseOneMeaning, &on()),
         engine
             .translate("桌子上\n上", Mode::VietPhraseOneMeaning, &Options::default())
-            .replacen("cái bàn bên trên", "Trên cái bàn", 1)
+            .replacen("cái bàn bên trên", "trên cái bàn", 1)
     );
 }
 
@@ -75,7 +76,7 @@ fn lite_matches_engine() {
         .with_quy_tac(quy_tac());
     assert_eq!(
         lite.translate("桌子上", &on(), &DictionaryOverrides::default()).unwrap(),
-        " Trên cái bàn"
+        " trên cái bàn"
     );
 }
 
@@ -103,8 +104,8 @@ fn empty_meanings_then_punctuation_do_not_break_the_splice() {
     assert_eq!(engine.translate("的的Y", mode, &on()), " , ý");
     // Quy tắc chạy ngay sau / ngay trước các cụm đó.
     assert_eq!(engine.translate("了的Y桌子上", mode, &on()), " , ý trên cái bàn");
-    assert_eq!(engine.translate("桌子上的了Y", mode, &on()), " Trên cái bàn, ý");
-    assert_eq!(engine.translate("桌子上的的X", mode, &on()), " Trên cái bàn");
+    assert_eq!(engine.translate("桌子上的了Y", mode, &on()), " trên cái bàn, ý");
+    assert_eq!(engine.translate("桌子上的的X", mode, &on()), " trên cái bàn");
 }
 
 /// Đoạn không có quy tắc nào chạy giữ nguyên từng byte, kể cả dấu câu, ngoặc
@@ -136,4 +137,53 @@ fn untouched_text_with_punctuation_stays_byte_identical() {
         .translate(text, mode, &off)
         .replacen("Cái bàn bên trên", "Trên cái bàn", 1);
     assert_eq!(engine.translate(text, mode, &on()), want);
+}
+
+/// Chữ hoa đầu câu do engine viết (`Cái bàn` sau `. `) bị dời vào giữa thì trả
+/// về chữ thường; chữ đầu mới của câu viết hoa như engine.
+#[test]
+fn sentence_start_capital_moves_with_the_sentence_start() {
+    let engine = engine_punct();
+    let mode = Mode::VietPhraseOneMeaning;
+    assert_eq!(engine.translate("他。桌子上", mode, &Options::default()), " tha. Cái bàn bên trên");
+    assert_eq!(engine.translate("他。桌子上", mode, &on()), " tha. Trên cái bàn");
+}
+
+/// Nghĩa viết hoa của từ điển (`Long Án`) giữ hoa khi bị dời, kể cả khi engine
+/// đã viết hoa nó vì đứng đầu câu.
+#[test]
+fn dictionary_capitals_are_kept_when_moved() {
+    let vietphrase = "桌子=Long Án\n上=bên trên";
+    let engine = Engine::from_dicts(Dictionaries::build(HAN_VIET_PUNCT, "", "", vietphrase))
+        .with_quy_tac(quy_tac());
+    let mode = Mode::VietPhraseOneMeaning;
+    assert_eq!(engine.translate("桌子上", mode, &on()), " trên Long Án");
+    assert_eq!(engine.translate("他。桌子上", mode, &on()), " tha. Trên Long Án");
+}
+
+/// Ngoặc kép thẳng ngoài cửa sổ giữ đúng cách đặt dấu cách của engine; trong
+/// đoạn chỉ khúc quy tắc đổi được ráp lại.
+#[test]
+fn quotes_outside_the_window_keep_engine_spacing() {
+    let engine = engine_punct();
+    let mode = Mode::VietPhraseOneMeaning;
+    let text = "他说：“桌子上。”他说：“好。”";
+    let off = engine.translate(text, mode, &Options::default());
+    assert_eq!(off, " tha nói: \"Cái bàn bên trên.\" Tha nói: \"Tốt.\" ");
+    let want = off.replacen("Cái bàn bên trên", "Trên cái bàn", 1);
+    assert_eq!(engine.translate(text, mode, &on()), want);
+}
+
+/// `Chương N:` của nhóm `[số]` đứng trước chữ không đổi: chữ đó viết hoa như
+/// engine viết sau `: `.
+#[test]
+fn title_after_chapter_number_is_capitalized() {
+    let rules = "[số]\n第{số}章 = Chương {1|số}: -> lit\n";
+    let han_viet = "第=đệ\n章=chương\n未=vị\n来=lai";
+    let engine = Engine::from_dicts(Dictionaries::build(han_viet, "", "", "未来=tương lai"))
+        .with_quy_tac(QuyTac::from_sources(rules, "", "").unwrap());
+    let mode = Mode::VietPhraseOneMeaning;
+    let text = "第3章 未来";
+    assert_eq!(engine.translate(text, mode, &Options::default()), " đệ 3 chương tương lai");
+    assert_eq!(engine.translate(text, mode, &on()), " Chương 3: Tương lai");
 }
