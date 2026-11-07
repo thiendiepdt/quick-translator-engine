@@ -36,10 +36,10 @@ Luật Nhân. Tham chiếu: bản đã biên tập trong bookshelf (raw và out 
 | Tắt Luật Nhân | 603.005 | 283.117 |
 | Convert hiện tại | 604.979 | 284.658 |
 | Quy tắc mới, bản 2026-11-06 (161 quy tắc) | 628.191 (+3,84%) | 312.907 (+9,92%) |
-| Quy tắc mới, gộp ý `rules.txt` (183 quy tắc) | 628.592 (+3,90%) | 313.136 (+10,00%) |
-| Quy tắc mới, gộp thêm ý bộ luật số thứ hai (197 quy tắc) | 628.795 (+3,94%) | 313.379 (+10,09%) |
-| **Mặc định**: thêm sửa nghĩa sai (207 quy tắc) | 630.946 (**+4,29%**) | 315.386 (**+10,79%**) |
-| Mặc định + bật `[giọng-mượt]` (215 quy tắc) | 633.530 (+4,72%) | 317.419 (+11,51%) |
+| Quy tắc mới, gộp ý `rules.txt` (180 quy tắc) | 628.592 (+3,90%) | 313.136 (+10,00%) |
+| Quy tắc mới, gộp thêm ý bộ luật số thứ hai (194 quy tắc) | 628.795 (+3,94%) | 313.379 (+10,09%) |
+| **Mặc định**: thêm sửa nghĩa sai (204 quy tắc) | 630.946 (**+4,29%**) | 315.386 (**+10,79%**) |
+| Mặc định + bật `[giọng-mượt]` (212 quy tắc) | 633.530 (+4,72%) | 317.419 (+11,51%) |
 
 Bản mặc định: 43,7% số đoạn đổi, 17.598 đoạn tốt hơn, 3.647 đoạn kém hơn, 17.127 đoạn hoà. Tỉ lệ
 thắng 82,8%. Cách gộp ở mục 8 và 9. Câu mẫu thời gian: [demo_thoi_gian.txt](2026-11-06-quy-tac/demo_thoi_gian.txt).
