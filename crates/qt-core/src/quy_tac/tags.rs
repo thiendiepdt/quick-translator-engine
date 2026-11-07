@@ -1,6 +1,9 @@
 //! Từ loại cho Quy Tắc: bảng kiểu jieba (`Resources/dict.txt`, dòng
 //! `từ tần-số nhãn`) đè bằng `TuLoai.txt` (dòng `từ<TAB>nhãn`). Lưu gọn trong
 //! bảng băm tự dựng (~350 nghìn mục, ~5,5 MB).
+//!
+//! BOM UTF-8 đầu hai file được bỏ (`dict.txt` của QT2025 có). Dòng TuLoai
+//! không có TAB, ví dụ ngăn từ và nhãn bằng dấu cách, bị bỏ qua không báo lỗi.
 
 use crate::dict::KeyLenIndex;
 use rustc_hash::{FxBuildHasher, FxHashMap};
@@ -33,6 +36,9 @@ pub(crate) struct PosLexicon {
 
 impl PosLexicon {
     pub(crate) fn build(jieba_dict: &str, tu_loai: &str) -> PosLexicon {
+        // BOM dính vào key đầu thì mục đầu file không bao giờ tra trúng.
+        let jieba_dict = jieba_dict.strip_prefix('\u{feff}').unwrap_or(jieba_dict);
+        let tu_loai = tu_loai.strip_prefix('\u{feff}').unwrap_or(tu_loai);
         let fixes = tu_loai.lines().filter_map(|line| {
             let (word, tag) = line.trim_end_matches('\r').split_once('\t')?;
             (!word.is_empty() && !tag.is_empty()).then_some((word, tag))
@@ -265,6 +271,16 @@ mod tests {
         assert_eq!(pos.get("美丽"), Some("a"));
         assert_eq!(pos.get("少女"), Some("n"));
         assert_eq!(pos.get("没有"), None);
+    }
+
+    /// QT2025 `Resources/dict.txt` mở đầu bằng EF BB BF.
+    #[test]
+    fn leading_bom_does_not_hide_the_first_entry() {
+        let pos = PosLexicon::build("\u{feff}美丽 10 ns\n少女 5 n\n", "\u{feff}看\tv\n家 n\n");
+        assert_eq!(pos.get("美丽"), Some("ns"));
+        assert_eq!(pos.get("看"), Some("v"));
+        // Dòng TuLoai ngăn bằng dấu cách bị bỏ (ghi trong doc module).
+        assert_eq!(pos.get("家"), None);
     }
 
     #[test]

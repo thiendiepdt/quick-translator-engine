@@ -56,17 +56,24 @@ impl QuyTac {
     }
 
     /// `QuyTac.txt` ở gốc thư mục dữ liệu nếu có, không thì bộ mặc định;
-    /// `Resources/dict.txt` bắt buộc; `Resources/TuLoai.txt` nếu có.
+    /// `Resources/dict.txt` bắt buộc; `Resources/TuLoai.txt` nếu có. Chỉ file
+    /// không có mới dùng bộ mặc định: file có mà không đọc được hay không phải
+    /// UTF-8 (UTF-16, ANSI do trình soạn thảo lưu) là lỗi, kèm đường dẫn.
     pub fn load(data_dir: &Path, giong_muot: bool) -> std::io::Result<QuyTac> {
-        let read_optional = |rel: &str| std::fs::read_to_string(data_dir.join(rel)).ok();
-        let mut rules =
-            read_optional("QuyTac.txt").unwrap_or_else(|| Self::DEFAULT_RULES.to_string());
+        let mut rules = read_text(&data_dir.join("QuyTac.txt"))?
+            .unwrap_or_else(|| Self::DEFAULT_RULES.to_string());
         if giong_muot {
             rules.push('\n');
             rules.push_str(Self::GIONG_MUOT_RULES);
         }
-        let pos_dict = std::fs::read_to_string(data_dir.join("Resources/dict.txt"))?;
-        let tu_loai = read_optional("Resources/TuLoai.txt")
+        let pos_path = data_dir.join("Resources/dict.txt");
+        let pos_dict = read_text(&pos_path)?.ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                format!("{}: không có file", pos_path.display()),
+            )
+        })?;
+        let tu_loai = read_text(&data_dir.join("Resources/TuLoai.txt"))?
             .unwrap_or_else(|| Self::DEFAULT_TU_LOAI.to_string());
         Self::from_sources(&rules, &pos_dict, &tu_loai).map_err(|error| {
             std::io::Error::new(std::io::ErrorKind::InvalidData, error.to_string())
@@ -148,5 +155,100 @@ impl QuyTac {
         let toks = prepare::prepare(items, &self.pos, lk, &self.program.classes);
         let (toks, fired) = matcher::apply_program(&self.program, toks);
         (char_fired + fired > 0).then(|| render::render(&toks))
+    }
+}
+
+/// Đọc file chữ UTF-8, bỏ BOM đầu file. `Ok(None)` chỉ khi file không có; lỗi
+/// khác trả về kèm đường dẫn.
+fn read_text(path: &Path) -> std::io::Result<Option<String>> {
+    match std::fs::read_to_string(path) {
+        Ok(mut text) => {
+            if text.starts_with('\u{feff}') {
+                text.drain(..'\u{feff}'.len_utf8());
+            }
+            Ok(Some(text))
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(error) => Err(std::io::Error::new(
+            error.kind(),
+            format!("{}: {error}", path.display()),
+        )),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    const RULES: &str =
+        "[lớp]\nvị-trí: 上=trên\n\n[của 1]\n{danh-từ} {vị-trí} = {vị-trí} {danh-từ}\n";
+
+    /// Thư mục dữ liệu tạm có `Resources/dict.txt` mở đầu bằng BOM như QT2025;
+    /// xoá khi ra khỏi test.
+    struct TempData(PathBuf);
+
+    impl TempData {
+        fn new(tag: &str) -> TempData {
+            let unique = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos();
+            let dir = std::env::temp_dir().join(format!("qt-core-quy-tac-{tag}-{unique}"));
+            std::fs::create_dir_all(dir.join("Resources")).unwrap();
+            let pos_dict = "\u{feff}桌子 10 n\n上 10 f\n";
+            std::fs::write(dir.join("Resources/dict.txt"), pos_dict).unwrap();
+            TempData(dir)
+        }
+    }
+
+    impl Drop for TempData {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    #[test]
+    fn missing_user_files_fall_back_to_defaults() {
+        let data = TempData::new("missing");
+        let quy_tac = QuyTac::load(&data.0, false).unwrap();
+        let defaults = program::Program::parse(QuyTac::DEFAULT_RULES).unwrap();
+        assert_eq!(quy_tac.program.sections.len(), defaults.sections.len());
+        let error = QuyTac::load(&data.0.join("không-có"), false).err().unwrap();
+        assert_eq!(error.kind(), std::io::ErrorKind::NotFound);
+        assert!(error.to_string().contains("dict.txt"), "{error}");
+    }
+
+    #[test]
+    fn unreadable_user_files_are_errors_not_defaults() {
+        let data = TempData::new("invalid");
+        // UTF-16 LE có BOM, như Notepad cũ lưu kiểu "Unicode".
+        let utf16: Vec<u8> = format!("\u{feff}{RULES}")
+            .encode_utf16()
+            .flat_map(u16::to_le_bytes)
+            .collect();
+        std::fs::write(data.0.join("QuyTac.txt"), utf16).unwrap();
+        let error = QuyTac::load(&data.0, false).err().expect("không được dùng bộ mặc định");
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("QuyTac.txt"), "{error}");
+        // ANSI (Windows-1258): byte 0xC0 không phải UTF-8.
+        std::fs::remove_file(data.0.join("QuyTac.txt")).unwrap();
+        std::fs::write(data.0.join("Resources/TuLoai.txt"), b"\xc0\xe1\tn\n").unwrap();
+        let error = QuyTac::load(&data.0, false).err().expect("không được dùng bộ mặc định");
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("TuLoai.txt"), "{error}");
+    }
+
+    #[test]
+    fn bom_prefixed_files_parse() {
+        let data = TempData::new("bom");
+        std::fs::write(data.0.join("QuyTac.txt"), format!("\u{feff}{RULES}")).unwrap();
+        std::fs::write(data.0.join("Resources/TuLoai.txt"), "\u{feff}椅子\tn\n").unwrap();
+        let quy_tac = QuyTac::load(&data.0, false).unwrap();
+        assert_eq!(quy_tac.program.sections.len(), 1);
+        // Mục đầu của dict.txt và TuLoai không dính BOM vào key.
+        assert_eq!(quy_tac.pos.get("桌子"), Some("n"));
+        assert_eq!(quy_tac.pos.get("椅子"), Some("n"));
+        assert_eq!(quy_tac.pos.get("上"), Some("f"));
     }
 }
