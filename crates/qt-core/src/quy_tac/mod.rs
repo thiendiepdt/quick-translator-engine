@@ -2,6 +2,7 @@
 //! Spec: docs/superpowers/specs/2026-11-06-quy-tac-design.md. Mặc định tắt.
 #![allow(dead_code)] // Task 8 nối vào engine rồi gỡ dòng này.
 
+mod char_rules;
 mod numbers;
 mod prepare;
 mod program;
