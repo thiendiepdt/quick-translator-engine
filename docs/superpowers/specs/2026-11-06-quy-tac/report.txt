@@ -1,0 +1,478 @@
+=== TỆ NHẤT
+[-14] huyen-giam-than-hoa-ngan-van
+cũ : Luyện khí tầng bảy, luyện khí tầng tám. Luyện khí viên mãn!
+mới: Luyện khí bảy tầng, luyện khí tám tầng. Luyện khí viên mãn!
+ref: Luyện Khí tầng bảy, Luyện Khí tầng tám... Luyện Khí viên mãn!
+
+[-10] ca-phu-nghe-tieng-long-ta-doi-menh-ta-nam-yen-thanh-con-cung
+cũ : Đường Vãn Như cùng Tiêu Hoàn phu thê bốn năm năm, hắn suy nghĩ cái gì nàng một cái liền có thể nhìn ra.
+mới: Đường Vãn Như và Tiêu Hoàn phu thê bốn mươi lăm năm, hắn suy nghĩ cái gì nàng một cái liền có thể nhìn ra.
+ref: Đường Vãn Như cùng Tiêu Hoàn làm phu thê bốn năm năm, hắn nghĩ gì nàng liếc mắt một cái là nhìn ra ngay.
+
+[-10] ma-mon-phan-phoi-nuong-tu-ta-rut-duoc-chinh-dao-tien-tu
+cũ : Kể từ đó, trừ phi Huyền cấp đệ tử xuất thủ, nếu không mây mưa trấn liền không người nào dám có ý đồ với Phương Dương.
+mới: Kể từ đó, trừ phi Huyền cấp đệ tử xuất thủ, nếu không mây mưa trấn liền không người nào dám đánh chủ ý của Phương Dương.
+ref: Như vậy, trừ phi có đệ tử Huyền cấp ra tay, bằng không ở Vân Vũ Trấn sẽ chẳng ai dám có ý đồ với Phương Dương nữa.
+
+[-10] thau-huong-cao-thu
+cũ : Gặp Chu Chỉ Nhược trách cứ chính mình, Triệu Mẫn cũng nổi giận: " Liên quan gì đến ta? "
+mới: Gặp Chu Chỉ Nhược trách cứ chính mình, Triệu Mẫn cũng nổi giận: " Quan ta chuyện gì? "
+ref: Thấy Chu Chỉ Nhược trách móc bản thân, Triệu Mẫn cũng nổi giận: “Liên quan gì đến ta chứ?”
+
+[-9] bien-than-yeu-nu-ta-dua-vao-thai-bo-phi-thang
+cũ : Đình viện, thi thể, máu tươi, phòng ốc. Tất cả cảnh tượng đều đang vặn vẹo, mơ hồ.
+mới: Đình viện, thi thể, máu tươi, phòng ốc. Cảnh tượng tất cả đều đang vặn vẹo, mơ hồ.
+ref: Sân vườn, thi thể, máu tươi, phòng ốc...... tất cả cảnh tượng đều đang vặn vẹo, mờ ảo.
+
+[-9] bien-than-yeu-nu-ta-dua-vao-thai-bo-phi-thang
+cũ : Nghĩ đến cũng là, lúc trước nàng khống chế Diệp Thanh Sương, bày ra trận pháp, đại khái chỉ có thể nhằm vào Thái Thanh một người.
+mới: Nghĩ đến cũng là, lúc trước nàng khống chế Diệp Thanh Sương, trận pháp của bày ra, đại khái chỉ có thể nhằm vào Thái Thanh một người.
+ref: Nghĩ lại cũng đúng, năm xưa nàng ta khống chế Diệp Thanh Sương bày ra trận pháp, đại khái chỉ nhắm vào một mình Thái Thanh.
+
+[-9] xuyen-den-thu-the-van-nguoi-me-lam-ruong-thu-phu-chieu-khong-ngung
+cũ : Minh Tu, ngươi đối ta thật tốt. " Hoa Bồng Bồng trong lòng mềm nhũn, vô cùng cảm động.
+mới: Minh Tu, ngươi đối ta thật tốt. " trong lòng Hoa Bồng Bồng mềm nhũn, vô cùng cảm động.
+ref: “Minh Tu, chàng đối xử với ta thật tốt.” Hoa Bồng Bồng trong lòng mềm nhũn, vô cùng cảm động.
+
+[-8] cung-xuyen-nao-yeu-duong-ta-o-nu-tan-chinh-den-phat-ta
+cũ : P S: Xin lỗi, đổi mới tới chậm, tối hôm qua cùng cao huyết áp phát tác gia gia đi bệnh viện, bận đến hơn 11 giờ mới về nhà.
+mới: P S: Xin lỗi, đổi mới tới chậm, tối hôm qua cùng gia gia cao huyết áp phát tác đi bệnh viện, bận đến 11 điểm đa tài về nhà.
+ref: PS: Xin lỗi, cập nhật muộn rồi, tối qua đưa ông nội bị phát tác cao huyết áp đi viện, bận rộn tới hơn 11 giờ mới về nhà.
+
+[-8] di-lam-mo-ca-bi-bat-tro-tay-keo-nu-tong-giam-doc-xuong-nuoc
+cũ : Nữ phóng viên trên mặt cũng mang theo mỉm cười, lời nói lại sắc bén.
+mới: Nữ trên mặt phóng viên cũng mang theo mỉm cười, lời nói lại sắc bén.
+ref: Nữ phóng viên trên mặt cũng mang nụ cười, nhưng lời lẽ lại vô cùng sắc bén.
+
+[-8] lao-ba-qua-manh-cung-ta-cach-li-sinh-san-lam-sao-bay-gio
+cũ : Cảm ơn Tôn nãi nãi. " Lưu Niệm lễ phép nói cảm ơn, bắt đầu ăn lên cơm sáng.
+mới: Cảm ơn Tôn nãi nãi. " Lưu Niệm nói cảm ơn của lễ phép, bắt đầu ăn lên cơm sáng.
+ref: “Cháu cảm ơn bà Tôn ạ.” Lưu Niệm lễ phép nói lời cảm ơn, bắt đầu ăn bữa sáng.
+
+[-8] phu-quy-bat-nang-ngam
+cũ : Đấu khí thì cũng thôi đi, lại tại sao lại đem khí rơi tại huân quý trên đầu?
+mới: Đấu khí cũng thì thôi, lại tại sao lại đem khí rơi tại huân quý trên đầu?
+ref: Đấu khí thì cũng thôi đi, nhưng cớ sao lại trút giận lên đầu huân quý?
+
+[-8] su-ton-do-nhi-muon-len-roi
+cũ : Dù sao, hắn vẻn vẹn chỉ có kim đan tầng ba tu vi mà thôi, mà cái kia Thái Tập có thể là kim đan tầng bảy!
+mới: Dù sao, hắn vẻn vẹn chỉ có kim đan ba tầng tu vi mà thôi, mà cái kia Thái Tập có thể là kim đan bảy tầng!
+ref: Dẫu sao thì, hắn chỉ có tu vi Kim Đan tầng ba mà thôi, còn Thái Tập kia lại là Kim Đan tầng bảy!
+
+[-8] tien-tu-ta-that-khong-phai-la-nguoi-phan-than-a
+cũ : Cù Chân thẹn quá thành giận mở miệng ngăn cản.
+mới: Cù Chân mở miệng thẹn quá thành giận ngăn cản.
+ref: Cù Chân thẹn quá hóa giận mở miệng ngăn cản.
+
+[-8] xuyen-den-thu-the-van-nguoi-me-lam-ruong-thu-phu-chieu-khong-ngung
+cũ : Hoa Dương tiếc nuối hỏi: " Không có sầu riêng sao? Bồng bồng, ngươi không gian bên trong là không phải giấu sầu riêng? "
+mới: Hoa Dương hỏi tiếc nuối: " Không có sầu riêng sao? Bồng bồng, ngươi không gian bên trong là không phải giấu sầu riêng? "
+ref: Hoa Dương tiếc nuối hỏi: “Không có sầu riêng sao? Bồng Bồng, có phải trong không gian của ngươi giấu sầu riêng rồi không?”
+
+[-7] ac-doc-nu-tu-khong-gia-vo-nua-mo-dau-nam-dao-lu
+cũ : Chương 8: Cửu thiên huyền sâm
+mới: Chương 8: chín ngày huyền sâm
+ref: Chương 8: Cửu Thiên Huyền Sâm
+
+[-7] ac-nu-ta-muon-nguoi-giup-ta-tu-hanh
+cũ : Đến ngày thứ 3, cuối cùng nhịn không được, tìm cái lương khô cùng túi nước dùng xong lý do sai khiến Lục Vô Song một mình đi mua.
+mới: Đến thứ ba ngày, cuối cùng nhịn không được, tìm cái lương khô và túi nước dùng xong lý do sai khiến Lục Vô Song một mình đi mua.
+ref: Đến ngày thứ ba, rốt cuộc nàng nhịn không nổi nữa, viện cớ lương khô cùng túi nước đã cạn để sai bảo Lục Vô Song một mình đi mua.
+
+[-7] ac-nu-ta-muon-nguoi-giup-ta-tu-hanh
+cũ : 【ác niệm một (đổi mới): Đây là lần thứ nhất, chỉ cần lại cứu hắn hai lần, ta là được rồi...】 trung cấp khen thưởng
+mới: 【ác niệm một (đổi mới): Đây là lần đầu, chỉ cần lại cứu hắn hai lần, ta là được rồi...】 trung cấp khen thưởng
+ref: 【Ác niệm một (làm mới): Đây là lần thứ nhất, chỉ cần cứu lão hai lần nữa, ta có thể...】thưởng trung cấp
+
+[-7] bai-poker-phong-yeu-ta-co-sau-muoi-bon-tam-tram-ma-lenh
+cũ : Cái này bốn tên giặc cướp say khướt, thậm chí liền chạy trốn cũng không kịp, liền bị tam đương gia tại chỗ chém giết.
+mới: Bốn tên giặc cướp này say khướt, thậm chí liền chạy trốn đều không kịp, liền bị tam đương gia tại chỗ chém giết.
+ref: Bốn tên cướp say khướt này đến cả chạy trốn cũng không kịp, liền bị tam đương gia chém chết tươi tại chỗ.
+
+[-7] bien-than-nu-dao-si-thanh-lanh-gay-bao-toan-mang
+cũ : Một đám người giấy phù binh cũng theo đó hóa thành một chút ánh sáng nhạt, theo gió tan hết, triệt để hướng hư vô.
+mới: Một đám người giấy phù binh cũng tùy theo hóa thành một chút ánh sáng nhạt, theo gió tan hết, triệt để hướng hư vô.
+ref: Cả bầy chỉ nhân phù binh cũng theo đó hóa thành từng đốm sáng nhỏ li ti, tan biến theo gió, hoàn toàn trở về với hư vô.
+
+[-7] cung-xuyen-nao-yeu-duong-ta-o-nu-tan-chinh-den-phat-ta
+cũ : Ai nha, vị này chẳng lẽ chính là Lưu Ly Thi sư muội? "
+mới: Ai nha, vị chẳng lẽ này chính là Lưu Ly Thi sư muội? "
+ref: “Ai dà, vị này chẳng lẽ chính là Lưu Ly Thi sư muội?”
+
+[-7] hanh-trinh-chu-thien-bat-dau-tu-tieu-long-nu
+cũ : Kiếm giới sinh ra bắt nguồn từ chư thiên hành trình.
+mới: Kiếm sinh ra của giới bắt nguồn từ chư thiên hành trình.
+ref: Kiếm Giới sinh ra bắt nguồn từ hành trình chư thiên.
+
+[-7] nu-tu-doc-ac-vac-bung-bau-nam-thop-dai-lao-duoc-cung-chieu
+cũ : Còn có cảm giác trước mắt có thể nhìn thấy độ cao cũng không đúng.
+mới: Còn có trước mắt cảm giác độ cao có thể nhìn thấy cũng không đối.
+ref: Lại còn cảm thấy tầm nhìn trước mắt có độ cao cũng không đúng.
+
+[-7] ta-cung-khong-muon-lam-phan-phai-nhung-he-thong-thuong-qua-nhieu
+cũ : Mà là đưa tay ôm Chu Ngọc Dao bờ eo thon, một mặt đắc ý trêu chọc mở miệng.
+mới: Mà là đưa tay ôm bờ eo thon của Chu Ngọc Dao, một mặt trêu chọc đắc ý mở miệng.
+ref: mà vươn tay ôm lấy vòng eo thon gọn của nàng, vẻ mặt đắc ý trêu chọc mở lời:
+
+[-7] tam-muoi-tuoi-lao-gia-thu-duoc-tao-ta-c-he-thong
+cũ : La thiếu coi Chu Dịch là thành loại kia đến nịnh bợ chính mình người, vì vậy cũng không có cho hắn sắc mặt tốt.
+mới: La thiếu đem Chu Dịch trở thành loại kia đến nịnh bợ người của chính mình, vì vậy cũng không có cho hắn sắc mặt tốt.
+ref: La thiếu coi Chu Dịch là kiểu người đến nịnh bợ mình, thế nên cũng chẳng cho hắn sắc mặt tốt đẹp gì.
+
+[-7] trong-sinh-thanh-meo-than-phan-meo-lao-dai-cua-ta-bi-lo-ra-anh-sang-toan-mang
+cũ : Cứ như vậy, trải qua trắng đêm đại chiến ngự thú tông, cuối cùng lại lần nữa khôi phục bình tĩnh.
+mới: Cứ như vậy, trải qua trắng đêm ngự thú của đại chiến tông, cuối cùng lại lần nữa khôi phục bình tĩnh.
+ref: Cứ như vậy, trải qua một đêm đại chiến, Ngự Thú Tông rốt cuộc cũng khôi phục lại vẻ yên tĩnh.
+
+[-7] truong-thu-mo-dau-bi-cuong-hon-ta-duoc-dam-ke-dien-cung-chieu
+cũ : Hắn ánh mắt đi vòng một vòng, " Số 733 là ai ấp? "
+mới: Hắn ánh mắt đi vòng một vòng, " 733 hào là ai ấp? "
+ref: Ánh mắt thầy đảo quanh một vòng: “Số 733 là ai ấp nở?”
+
+[-7] xuong-nui-nhat-duoc-yeu-nu-ma-giao-thi-phai-lam-sao
+cũ : Sau đó ánh mắt dần dần dời xuống, nhìn về phía Lục Vân cặp kia tùy ý đặt ở bên cạnh tay.
+mới: Sau đó ánh mắt dần dần dời xuống, nhìn về phía Lục Vân cặp kia tùy ý tay đặt bên cạnh.
+ref: Rồi sau đó ánh mắt nàng dần dần dời xuống, nhìn về phía bàn tay của Lục Vân đang tùy ý đặt ở bên cạnh.
+
+[-6] ac-doc-nu-tu-khong-gia-vo-nua-mo-dau-nam-dao-lu
+cũ : Nàng không biết, cái kia hỗn độn Tà Thần không gian chi đạo là cái gì.
+mới: Nàng không biết, cái kia hỗn độn không gian của tà Thần chi đạo là cái gì.
+ref: Nàng không biết không gian chi đạo của Hỗn Độn Tà Thần kia rốt cuộc là gì.
+
+[-6] bat-dau-tu-doat-xa-tien-tu
+cũ : So Vu Giai Đào " luyện khí tầng tám lúc điểm này nhỏ bé linh lực, cường đại nghìn lần, vạn lần!
+mới: So Vu Giai Đào " luyện khí tám tầng lúc điểm này nhỏ bé linh lực, cường đại gấp một ngàn lần, gấp không lần!
+ref: So với chút linh lực ít ỏi thời Luyện Khí tầng tám của “Vu Giai Đào”, mạnh hơn gấp ngàn lần, vạn lần!
+
+[-6] ca-phu-nghe-tieng-long-ta-doi-menh-ta-nam-yen-thanh-con-cung
+cũ : Lần này, có người từ phía sau nhẹ nhàng ôm nàng, nàng tựa vào thiếu niên bền chắc lồng ngực ấm áp, nghe hắn nói với nàng:
+mới: Lần này, có người từ phía sau nhẹ nhàng ôm nàng, nàng tựa vào thiếu niên bền chắc lồng ngực ấm áp, nghe hắn đối nàng nói:
+ref: Lần này, có người từ phía sau nhẹ nhàng ôm lấy nàng, nàng dựa vào lồng ngực vững chãi ấm áp của thiếu niên, nghe hắn nói với nàng:
+
+[-6] cham-vao-nang-nghe-tieng-long-nam-nghia-huynh-tranh-den-do-mat
+cũ : Mắt thấy đây đã là lần thứ ba mở miệng không thể mang Lạc Tinh Hà đi qua, Thẩm Vân trên mặt thần sắc hơi có chút quẫn bách.
+mới: Mắt thấy đây đã là mở miệng thứ ba không thể mang Lạc Tinh Hà đi qua, thần sắc trên mặt Thẩm Vân hơi có chút quẫn bách.
+ref: Thấy đây đã là lần thứ ba mở miệng bảo không thể dẫn Lạc Tinh Hà qua đó, vẻ mặt Thẩm Vân có phần ngượng ngùng quẫn bách.
+
+[-6] cung-xuyen-nao-yeu-duong-ta-o-nu-tan-chinh-den-phat-ta
+cũ : Lộ Trần trong lòng hài lòng, trong tay không chút nào không chậm trễ.
+mới: Trong lòng Lộ Trần hài lòng, trong tay không chút nào không chậm trễ.
+ref: Lộ Trần trong lòng hài lòng, tay lại không hề chậm trễ chút nào.
+
+[-6] cung-xuyen-nao-yeu-duong-ta-o-nu-tan-chinh-den-phat-ta
+cũ : Nhưng mà, tại hắn cùng Dư Lượng đánh cờ vây bên trong, ngồi tại thời gian trường hà, quan sát thiên địa vạn tượng.
+mới: Nhưng mà, tại hắn cùng đánh cờ vây của Dư Lượng bên trong, ngồi tại thời gian trường hà, quan sát thiên địa vạn tượng.
+ref: Thế nhưng, trong lúc hắn cùng Dư Lượng đánh cờ, ngồi trên dòng sông thời gian quan sát muôn hình vạn trạng của đất trời.
+
+[-6] cung-xuyen-nao-yeu-duong-ta-o-nu-tan-chinh-den-phat-ta
+cũ : Vừa nhắc tới cái kia trong đầu chỉ có đánh cờ ngốc tử nàng liền tức giận.
+mới: Vừa nhắc tới trong đầu kia chỉ có ngốc tử đánh cờ nàng liền tức giận.
+ref: Cứ hễ nhắc tới tên ngốc trong đầu chỉ có đánh cờ kia là nàng lại bốc hỏa.
+
+[-6] cuu-thuc-bat-dau-trong-dong-luyen-su-phu-thanh-cuong-thi
+cũ : Lâm Cửu, cùng là phủ âm người chuyên nghiệp nhân viên, ta không phải không nể mặt ngươi, chỉ là cái này sự thực tại là..... "
+mới: Lâm Cửu, cùng là phủ âm người chuyên nghiệp nhân viên, ta không phải không cho mặt mũi ngươi, chỉ là cái này sự thực tại là..... "
+ref: “Lâm Cửu, cùng là người giữ âm chức dưới Địa Phủ, không phải ta không nể mặt ngươi, chỉ là chuyện này thực sự là.....”
+
+[-6] da-tu-da-phuc-ta-di-benh-vien-gop-500-lan
+cũ : Tài xế phản ứng rất nhanh.
+mới: Phản ứng của tài xế rất nhanh.
+ref: Tài xế phản ứng rất nhanh.
+
+[-6] da-tu-da-phuc-ta-di-benh-vien-gop-500-lan
+cũ : Đối Diệp Thanh Ninh loại này phạm tội tâm lý học chuyên gia đến nói, bước đầu tiên, chính là phát hiện nói dối.
+mới: Đối Diệp Thanh Ninh loại phạm tội này tâm lý học chuyên gia đến nói, bước thứ nhất, chính là phát hiện nói dối.
+ref: Đối với chuyên gia tâm lý học tội phạm như Diệp Thanh Ninh, bước đầu tiên chính là kiểm tra nói dối.
+
+[-6] hanh-trinh-chu-thien-bat-dau-tu-tieu-long-nu
+cũ : Thiên Phi Thiên ánh mắt sáng lên, nói: " Đa tạ cười huynh, a! Cười huynh cẩn thận phía sau. "
+mới: Thiên Phi Thiên ánh mắt sáng lên, nói: " Đa tạ cười huynh, a! Cười huynh sau lưng cẩn thận. "
+ref: Mắt Thiên Phi Thiên sáng lên, nói: “Đa tạ Tiếu huynh, a! Tiếu huynh cẩn thận phía sau.”
+
+[-6] hanh-trinh-chu-thien-bat-dau-tu-tieu-long-nu
+cũ : Chương 239: Nữ Oa nương nương biến mất
+mới: Chương 239: Nữ Oa biến mất của nương nương
+ref: Chương 239: Nữ Oa nương nương biến mất
+
+[-6] lenh-bat-giu-thu-the
+cũ : Tề Quang nghe vậy trong lòng sáng tỏ, khẽ gật đầu.
+mới: Tề Quang trong lòng nghe vậy sáng tỏ, khẽ gật đầu.
+ref: Tề Quang nghe vậy trong lòng hiểu rõ, khẽ gật đầu.
+
+=== NGẪU NHIÊN TRONG NHÓM KÉM
+[-2] lao-ba-qua-manh-cung-ta-cach-li-sinh-san-lam-sao-bay-gio
+cũ : Một cỗ khác thần bí mà kinh khủng lực lượng đột nhiên xuất hiện.
+mới: Một cỗ khác thần bí lực lượng mà kinh khủng đột nhiên xuất hiện.
+ref: Một luồng sức mạnh thần bí mà khủng bố khác đột nhiên xuất hiện.
+
+[-2] truong-sinh-bat-dau-tu-thien-long
+cũ : Lang quân, lần này chúng ta có thể làm tướng quân đi. " Khấu Trọng hưng phấn hỏi.
+mới: Lang quân, lần này chúng ta có thể làm tướng quân đi. " hỏi Khấu Trọng hưng phấn.
+ref: “Lang quân, lần này chúng ta có thể làm tướng quân được rồi chứ?” Khấu Trọng hưng phấn hỏi.
+
+[-2] bat-dau-ho-tong-vi-vong-nhan
+cũ : Thu Tẩy Trần cầm lệnh bài tay chậm rãi thả xuống.
+mới: Thu Tẩy Trần cầm tay của lệnh bài chậm rãi thả xuống.
+ref: Bàn tay cầm lệnh bài của Thu Tẩy Trần từ từ hạ xuống.
+
+[-3] sinh-ton-tren-xe-buyt-ta-la-nam-sinh-duy-nhat
+cũ : Sau lưng cho nàng nắn vai đấm lưng hai cái tiểu nữ sinh cũng bị nàng giật nảy mình.
+mới: Sau lưng nắn vai cho nàng hai tiểu nữ sinh đấm lưng cũng bị nàng giật nảy mình.
+ref: Hai cô gái nhỏ phía sau đang xoa vai đấm lưng cho cô cũng bị cô dọa cho giật nảy mình.
+
+[-3] ac-nu-ta-muon-nguoi-giup-ta-tu-hanh
+cũ : Hắn nếu là do dự một lát, đây mới thực sự là thái giám.
+mới: Hắn nếu là do dự một lát, thái giám đây mới thực sự là.
+ref: Hắn mà do dự nửa khắc thì mới thực sự là thái giám.
+
+[-3] da-tu-da-phuc-ta-di-benh-vien-gop-500-lan
+cũ : Già trẻ xứng, Trì Phương Hoa sinh ra hài tử cũng không phải là Hoàng Hiền Lương.
+mới: Già trẻ xứng, Trì Phương Hoa hài tử của sinh ra cũng không phải là Hoàng Hiền Lương.
+ref: Chồng già vợ trẻ, đứa con Trì Phương Hoa sinh ra lại không phải của Hoàng Hiền Lương.
+
+[-1] trung-sinh-kieu-nu-khong-lam-thiep-thai-tu-cam-duc-cung-chieu-thanh-nghien
+cũ : Triệu Nghiên thử thăm dò hỏi: " Phụ thân chết cùng cái này sổ sách có quan hệ? "
+mới: Triệu Nghiên thử thăm dò hỏi: " Phụ thân chết cùng sổ sách có quan hệ này? "
+ref: Triệu Nghiên ướm hỏi: “Cái chết của phụ thân cô có liên quan tới cuốn sổ cái này?”
+
+[-1] cam-dinh-kieu
+cũ : Nàng ngực có chút lăn lộn. Loại kia kiếp trước kiếp này ảo giác lại nổi lên trong lòng.
+mới: Nàng ngực có chút lăn lộn. Loại kia kiếp trước ảo giác kiếp này lại nổi lên trong lòng.
+ref: Lồng ngực nàng cuộn trào từng đợt sóng. Ảo giác về kiếp trước kiếp này lại dâng lên trong lòng.
+
+[-8] xuyen-den-thu-the-van-nguoi-me-lam-ruong-thu-phu-chieu-khong-ngung
+cũ : Hoa Dương tiếc nuối hỏi: " Không có sầu riêng sao? Bồng bồng, ngươi không gian bên trong là không phải giấu sầu riêng? "
+mới: Hoa Dương hỏi tiếc nuối: " Không có sầu riêng sao? Bồng bồng, ngươi không gian bên trong là không phải giấu sầu riêng? "
+ref: Hoa Dương tiếc nuối hỏi: “Không có sầu riêng sao? Bồng Bồng, có phải trong không gian của ngươi giấu sầu riêng rồi không?”
+
+[-3] xuc-tu-quai-nang-chi-muon-sinh-ton
+cũ : Đây mới là nàng quyết định đi gặp đối phương nguyên nhân chủ yếu.
+mới: Đây mới là nàng quyết định đi gặp nguyên nhân chủ yếu của đối phương.
+ref: Đây mới là lý do chính khiến cô quyết định đi gặp đối phương.
+
+[-2] quan-quyt-xuan-chi
+cũ : Thanh Hạnh trên lưng, rõ ràng truyền đến cơ quan vận chuyển âm thanh.
+mới: Thanh Hạnh trên lưng, rõ ràng truyền đến cơ quan âm thanh vận chuyển.
+ref: Nơi eo Thanh Hạnh bỗng truyền đến tiếng cơ quan vận hành rõ mồn một.
+
+[-2] lao-ba-qua-manh-cung-ta-cach-li-sinh-san-lam-sao-bay-gio
+cũ : Dù sao đây là chính hắn thổi ngưu!
+mới: Dù sao đây là chính hắn ngưu thổi!
+ref: Dù sao đây cũng là trò chém gió do chính hắn thổi phồng lên!
+
+[-2] trung-sinh-kieu-nu-khong-lam-thiep-thai-tu-cam-duc-cung-chieu-thanh-nghien
+cũ : Triệu thế tử, ngài có phải hay không đi nhầm địa phương? "
+mới: Triệu thế tử, ngài là không phải đi nhầm địa phương? "
+ref: “Triệu thế tử, ngài có phải đi nhầm chỗ rồi không?”
+
+[-4] bien-than-yeu-nu-ta-dua-vao-thai-bo-phi-thang
+cũ : Tiếp luyện khí tầng hai tu sĩ một kiếm?
+mới: Tiếp luyện khí hai tầng tu sĩ một kiếm?
+ref: Đỡ một kiếm của tu sĩ Luyện Khí tầng hai?
+
+[-3] truong-thu-mo-dau-bi-cuong-hon-ta-duoc-dam-ke-dien-cung-chieu
+cũ : Triệu Khương Bằng có chút thất vọng, 【không được thì thôi, có lẽ không biết mới là tốt nhất thông tin】
+mới: Triệu Khương Bằng có chút thất vọng, 【không được thì thôi, có lẽ không biết thông tin mới là tốt nhất】
+ref: Triệu Khương Bằng có chút thất vọng: 【Không được thì thôi vậy, có lẽ không biết mới là tin tức tốt nhất.】
+
+[-2] tan-the-nguoi-khac-cau-sinh-ta-cung-hau-gai-di-nghi-duong
+cũ : Khoảng chừng mười mấy người ngoi đầu lên, hiển nhiên là lấy Ta không làm to ca thật nhiều năm " cầm đầu một thế lực.
+mới: Khoảng chừng mười mấy người ngoi đầu lên, hiển nhiên là lấy Ta không làm to ca thật nhiều năm " một thế lực cầm đầu.
+ref: Có tới cả chục người trồi lên, rõ ràng là một thế lực do “Bỏ Làm Đại Ca Đã Bao Năm” cầm đầu.
+
+[-2] truong-sinh-la-meo
+cũ : Bọn họ không hề lo lắng một người một mèo an toàn, trúc cơ tầng chín, đã có thể ở thế tục hoành hành không sợ.
+mới: Bọn họ không hề lo lắng an toàn của một người một mèo, trúc cơ chín tầng, đã có thể ở thế tục hoành hành không sợ.
+ref: Họ chẳng hề lo lắng cho an nguy của một người một mèo, Trúc Cơ tầng chín đã có thể tung hoành ngang dọc chốn thế tục mà không sợ hãi điều gì.
+
+[-1] da-tu-da-phuc-ta-di-benh-vien-gop-500-lan
+cũ : Chờ một cái giờ, Lương Thư Thành nhíu nhíu mày, lấy điện thoại ra, nhìn thoáng qua, sau đó, biên tập một đầu tin tức.
+mới: Chờ một giờ, Lương Thư Thành nhíu nhíu mày, lấy điện thoại ra, nhìn thoáng qua, sau đó, biên tập một đầu tin tức.
+ref: Chờ suốt một tiếng đồng hồ, Lương Thư Thành nhíu mày, lấy điện thoại ra nhìn một cái rồi soạn một tin nhắn.
+
+[-5] hanh-trinh-chu-thien-bat-dau-tu-tieu-long-nu
+cũ : Đồng dạng là một trang giấy một cái bút, có người có thể vẽ ra trăm vạn giá trị tác phẩm hội họa, có người lại không được.
+mới: Đồng dạng là một trang giấy một cây bút, người có có thể vẽ ra trăm vạn tác phẩm hội họa của giá trị, người có lại không được.
+ref: Cũng cùng là một tờ giấy một cây bút, có người có thể vẽ nên bức tranh trị giá tiền triệu, có người lại không làm được.
+
+[-1] hong-roi-tien-tu-ta-lam-kho-sao-deu-thanh-that-ca-roi
+cũ : Nhưng khế ước Trúc Thanh Vũ về sau, tâm tính cũng phát sinh một ít biến hóa.
+mới: Nhưng khế ước sau Trúc Thanh Vũ, tâm tính cũng phát sinh một ít biến hóa.
+ref: Nhưng sau khi khế ước Trúc Thanh Vũ, tâm thái cũng đã xảy ra chút thay đổi.
+
+[-2] bien-than-yeu-nu-ta-dua-vao-thai-bo-phi-thang
+cũ : Lâm Tiểu Uyển báo ra Lý Tiểu Bạch từng tặng cho nàng cái kia thôn nhỏ Rơi suối thôn " chỉ nói muốn vào thành tìm phần công việc.
+mới: Lâm Tiểu Uyển báo ra Lý Tiểu Bạch từng tặng cho thôn nhỏ kia của nàng Rơi suối thôn " chỉ nói muốn vào thành tìm phần công việc.
+ref: Lâm Tiểu Uyển báo ra ngôi làng nhỏ “Lạc Khê Thôn” mà Lý Tiểu Bạch từng tặng cho nàng, chỉ bảo muốn vào thành tìm một công việc.
+
+[-3] cung-xuyen-nao-yeu-duong-ta-o-nu-tan-chinh-den-phat-ta
+cũ : Không cần một lát, trúc cơ viên mãn Lưu Ly Thi, liền tại mấy vị chân truyền chính nghĩa quần ẩu bên dưới, mãnh liệt bại trận.
+mới: Không cần một lát, trúc cơ Lưu Ly Thi viên mãn, liền tại mấy vị chân truyền chính nghĩa quần ẩu bên dưới, mãnh liệt bại trận.
+ref: Chẳng bao lâu sau, một Lưu Ly Thi ở cảnh giới Trúc Cơ viên mãn đã thảm bại hoàn toàn dưới đòn hội đồng chính nghĩa của mấy vị chân truyền......
+
+[-1] da-tu-da-phuc-ta-di-benh-vien-gop-500-lan
+cũ : Đến, ta trước kính ngươi một ly. "
+mới: Đến, ta trước kính ngươi một chén. "
+ref: “Nào, tôi kính cậu một ly trước.”
+
+[-2] hop-hoan-tong-tu-giao-huan-lam-chat-nu-bat-dau-truong-sinh
+cũ : Nguyên Tu Nhai cùng chúng ngự thú tông hạch tâm đệ tử một hơi chạy ra hơn vạn dặm mới dừng lại thân hình.
+mới: Nguyên Tu Nhai và chúng ngự thú tông hạch tâm đệ tử một hơi chạy ra hơn vạn dặm mới dừng lại thân hình.
+ref: Nguyên Tu Nhai cùng các đệ tử nòng cốt Ngự Thú Tông một hơi chạy trốn hơn vạn dặm mới dừng lại thân hình.
+
+[-1] hanh-trinh-chu-thien-bat-dau-tu-tieu-long-nu
+cũ : Thiên Sơn Đồng Mỗ nói: " Cái gì lão nhân gia, Ngữ Yên bây giờ nhìn so Long nha đầu lớn hơn không được bao nhiêu. "
+mới: Thiên Sơn Đồng Mỗ nói: " lão nhân gia gì, Ngữ Yên bây giờ nhìn so Long nha đầu lớn hơn không được bao nhiêu. "
+ref: Thiên Sơn Đồng Mỗ nói: “Người già cái gì chứ, Ngữ Yên bây giờ trông chẳng lớn hơn Long nha đầu bao nhiêu đâu.”
+
+=== TỐT NHẤT
+[+12] truong-sinh-la-meo
+cũ : 【lão Thẩm khí vận như thế cao sao, vượt qua bình thường thương nhân phạm vi?】
+mới: 【khí vận của lão Thẩm cao như vậy sao, vượt qua bình thường phạm vi của thương nhân?】
+ref: 【Khí vận của lão Thẩm cao đến thế sao, vượt ra khỏi phạm vi của thương nhân tầm thường rồi à?】
+
+[+12] truong-thu-mo-dau-bi-cuong-hon-ta-duoc-dam-ke-dien-cung-chieu
+cũ : Doanh Hoa an toàn trọng yếu, Giản Dư an toàn cũng trọng yếu.
+mới: An toàn của Doanh Hoa trọng yếu, an toàn của Giản Dư cũng trọng yếu.
+ref: Sự an toàn của Doanh Hoa quan trọng, sự an toàn của Giản Dư cũng quan trọng.
+
+[+12] xuong-nui-nhat-duoc-yeu-nu-ma-giao-thi-phai-lam-sao
+cũ : Bạch Chỉ câu nói này vừa nói ra, Lục Vân trong đầu liền lóe lên chính mình kiếp trước có khả năng nghĩ tới những hình ảnh kia...
+mới: Câu nói này của Bạch Chỉ vừa nói ra, trong đầu Lục Vân liền lóe lên chính mình kiếp trước có khả năng những hình ảnh kia nghĩ tới...
+ref: Câu nói này của Bạch Chỉ vừa thốt ra, trong đầu Lục Vân lập tức lóe lên những thước phim mà kiếp trước hắn có thể liên tưởng tới...
+
+[+13] bua-ho-menh-thoi-mien-ta-goi-tien-tu-ha-pham-tran
+cũ : Vị này chính là Liễu phủ đương gia chủ mẫu, Liễu thị lang vợ cả, Vương phu nhân.
+mới: Vị này chính là đương gia chủ mẫu của Liễu phủ, vợ cả của liễu thị lang, Vương phu nhân.
+ref: Vị này chính là đương gia chủ mẫu của Liễu phủ, đích thê của Liễu thị lang, Vương phu nhân.
+
+[+13] cung-xuyen-nao-yeu-duong-ta-o-nu-tan-chinh-den-phat-ta
+cũ : Cơ hội này hắn đã chờ 12 vạn 9,600 năm.
+mới: Cơ hội này hắn đã chờ mười hai vạn chín ngàn sáu trăm năm.
+ref: Cơ hội này hắn đã chờ đợi suốt mười hai vạn chín ngàn sáu trăm năm.
+
+[+13] cuu-thuc-bat-dau-trong-dong-luyen-su-phu-thanh-cuong-thi
+cũ : Không sai, cái kia Lâm Cửu đồ đệ thả chạy bầy quỷ, cần phải trị tội! "
+mới: Không sai, đồ đệ của Lâm Cửu kia thả chạy bầy quỷ, cần phải trị tội! "
+ref: “Không sai, đồ đệ của Lâm Cửu kia thả chạy bầy quỷ, tất phải trị tội!”
+
+[+13] dau-la-dao-nguoc-am-duong-hao-thien-dien-cung-thien-su-tong
+cũ : Đường Hạo ngồi một mình ở đại điện bên trong, nhìn xem ngoài cửa gió tuyết, chậm rãi siết chặt nắm đấm.
+mới: Đường Hạo ngồi một mình trong đại điện, nhìn gió tuyết ngoài cửa, chậm rãi siết chặt nắm đấm.
+ref: Đường Hạo ngồi một mình trong đại điện, nhìn gió tuyết ngoài cửa, từ từ siết chặt nắm đấm.
+
+[+13] hon-ve-huong-cang-tu-tiem-may-den-nu-ty-phu
+cũ : Ta dựa vào! " Tô Tuấn trong tay xương gà rơi tại trên bàn, " 10%? Ngươi cướp ngân hàng a! "
+mới: Ta dựa vào! " xương gà trong tay Tô Tuấn rơi tại trên bàn, " mười phần trăm? Ngươi cướp ngân hàng a! "
+ref: “Vãi!” Xương gà trong tay Tô Tuấn rơi xuống bàn, “Mười phần trăm? Cậu đi cướp nhà băng đấy à!”
+
+[+13] nam-nu-de
+cũ : Chỉ có nắm giữ thực lực cường đại, mới có thể nắm giữ chính mình vận mệnh, đây chính là cái này tu tiên giới duy nhất chân lý.
+mới: Chỉ có nắm giữ thực lực cường đại, mới có thể nắm giữ vận mệnh của chính mình, đây chính là tu tiên giới này chân lý duy nhất.
+ref: Chỉ khi sở hữu thực lực hùng mạnh mới có thể nắm giữ vận mệnh của chính mình, đây là chân lý duy nhất của giới tu tiên này.
+
+[+13] nu-hiep-tien-kham-that-su-khong-the-tra-nhu-the
+cũ : Lâm Tiên Nhi cũng từ Thượng Quan Kim Hồng trong ngực ngẩng đầu, theo hắn ánh mắt nhìn lại.
+mới: Lâm Tiên Nhi cũng từ trong ngực Thượng Quan Kim Hồng ngẩng đầu, theo ánh mắt của hắn nhìn lại.
+ref: Lâm Tiên Nhi cũng từ trong lòng Thượng Quan Kim Hồng ngẩng đầu lên, men theo ánh mắt của hắn nhìn sang.
+
+[+13] phu-quy-bat-nang-ngam
+cũ : Cho nên từ Lâm gia thái độ suy đoán, tiếp bọn họ đi qua nuôi dưỡng, cái này căn bản liền không phải bọn họ chủ ý. "
+mới: Cho nên từ thái độ của lâm gia suy đoán, tiếp bọn họ đi qua nuôi dưỡng, cái này căn bản liền không phải chủ ý của bọn họ. "
+ref: “Cho nên từ thái độ của Lâm gia mà suy đoán, đón bọn họ sang đó nuôi nấng căn bản không phải là chủ ý của bọn họ.”
+
+[+13] sinh-ton-tren-xe-buyt-ta-la-nam-sinh-duy-nhat
+cũ : Quả nhiên là đại lão phong cách, liền nhiều lời một cái chữ hứng thú đều không đáp lại.
+mới: Quả nhiên là phong cách của đại lão, ngay cả nhiều lời một cái hứng thú của chữ cũng khiếm phụng.
+ref: Quả nhiên là phong cách của đại lão, ngay cả hứng thú nói thêm một chữ cũng chẳng buồn có.
+
+[+13] ta-mo-phong-truong-sinh-lo
+cũ : Tiểu Thanh trong mắt lóe lên một tia kỳ dị sắc thái, xem như là tạm thời tin tưởng Hứa Bạch thân phận.
+mới: Tiểu Thanh trong mắt lóe lên một tia sắc thái kỳ dị, xem như là tạm thời tin tưởng thân phận của Hứa Bạch.
+ref: Trong mắt Tiểu Thanh lóe lên một tia sắc thái kỳ lạ, xem như tạm thời tin tưởng thân phận của Hứa Bạch.
+
+[+13] ta-mo-phong-truong-sinh-lo
+cũ : Nhấc lên Thiên La Tiên Đế, Tư Đồ Tinh biểu lộ liền thay đổi đến có chút cổ quái. Cực kỳ giống hồi ức Hiên Viên Hoành lúc.
+mới: Nhấc lên Thiên La Tiên Đế, biểu lộ của Tư Đồ Tinh liền trở nên có chút cổ quái. Cực kỳ giống hồi ức Hiên Viên Hoành lúc.
+ref: Nhắc tới Thiên La Tiên Đế, biểu cảm của Tư Đồ Tinh liền trở nên có chút kỳ quặc, rất giống lúc nhớ lại về Hiên Viên Hoành.
+
+[+13] the-gioi-tu-tien-ta-an-minh-thanh-dai-lao
+cũ : Bọn họ là thành công, toàn bộ thế giới tài nguyên gần như tất cả tập hợp đến nơi này.
+mới: Bọn họ là thành công, tài nguyên của toàn bộ thế giới gần như đều tập hợp đến nơi này.
+ref: Bọn họ đã thành công, tài nguyên của toàn bộ thế giới gần như đều đã quy tụ về nơi này.
+
+[+13] tuyet-pham-cuu-thien-tue-bat-dau-xoa-bop-hoang-quy-phi
+cũ : Có thể hoàng đế không những không có nửa câu ngợi khen, thậm chí liền triệu kiến đều không có.
+mới: Nhưng hoàng đế không những không có nửa câu ngợi khen, thậm chí ngay cả triệu kiến cũng không có.
+ref: Nhưng Hoàng đế không những không có nửa lời khen thưởng, thậm chí ngay cả triệu kiến cũng không.
+
+[+13] xuc-tu-quai-nang-chi-muon-sinh-ton
+cũ : Giải quyết xong Du Phù vấn đề, Úc Lý một lần nữa nhìn hướng cái kia hai cỗ thi thể.
+mới: Giải quyết xong vấn đề của Du Phù, Úc Lý một lần nữa nhìn hướng hai cỗ thi thể kia.
+ref: Giải quyết xong vấn đề của Du Phù, Úc Lý nhìn lại hai cỗ thi thể kia.
+
+[+13] xuong-nui-nhat-duoc-yeu-nu-ma-giao-thi-phai-lam-sao
+cũ : Trừ Lục Vân đan điền có chút kỳ quái, còn có Lục Vân bên cạnh người này...
+mới: Trừ đan điền của Lục Vân có chút kỳ quái, còn có người này bên cạnh Lục Vân...
+ref: Ngoài việc đan điền của Lục Vân có chút kỳ lạ ra, còn có người bên cạnh Lục Vân nữa...
+
+[+14] bien-than-yeu-nu-ta-dua-vao-thai-bo-phi-thang
+cũ : Cho nên, vấn đề không phải xuất hiện ở ngụy trang chi tiết, mà là nàng ngụy trang đối tượng!
+mới: Cho nên, vấn đề không phải xuất hiện ở chi tiết ngụy trang, mà là đối tượng nàng ngụy trang!
+ref: Cho nên vấn đề không nằm ở chi tiết ngụy trang, mà là đối tượng nàng ngụy trang!
+
+[+14] thinh-tien-sinh-cuu-ta
+cũ : 130 năm, ròng rã 130 năm.
+mới: Một trăm ba mươi năm, ròng rã một trăm ba mươi năm.
+ref: Một trăm ba mươi năm, tròn một trăm ba mươi năm.
+
+[+15] dao-dien-bat-dau-tu-an-theo-xich-bich
+cũ : Đồng ý Phạm Băng Băng điều kiện, đối Hứa Thịnh đến nói có lợi có hại.
+mới: Đồng ý điều kiện của Phạm Băng Băng, đối với Hứa Thịnh có lợi có hại.
+ref: Đồng ý điều kiện của Phạm Băng Băng đối với Hứa Thịnh mà nói là có lợi có hại.
+
+[+15] nu-hiep-tien-kham-that-su-khong-the-tra-nhu-the
+cũ : Trên giang hồ không biết có bao nhiêu nam nhân liền tới gần ta cơ hội đều không có. "
+mới: Trên giang hồ không biết có bao nhiêu nam nhân ngay cả cơ hội tới gần ta cũng không có. "
+ref: “Trong chốn giang hồ không biết có bao nhiêu nam nhân ngay cả cơ hội tới gần ta cũng không có đâu.”
+
+[+15] tan-the-nguoi-khac-cau-sinh-ta-cung-hau-gai-di-nghi-duong
+cũ : 100 mét, 200 mét, 500 mét.
+mới: Một trăm mét, hai trăm mét, năm trăm mét.
+ref: Một trăm mét, hai trăm mét, năm trăm mét......
+
+[+15] than-dieu-vi-hoang-dung-giai-doc-sau-do-nhieu-con-nhieu-phuc
+cũ : Mạn Đà sơn trang tất nhiên là Lý Thanh La địa bàn, lấy nữ nhân kia nội tình, tuyệt đối cất giấu không ít đồ tốt.
+mới: Mạn Đà sơn trang tất nhiên là địa bàn của Lý Thanh La, lấy nội tình của nữ nhân kia, tuyệt đối cất giấu không ít đồ tốt.
+ref: Mạn Đà Sơn Trang đã là địa bàn của Lý Thanh La, thì với nội tình của nữ nhân kia, tuyệt đối cất giấu không ít đồ tốt.
+
+[+15] xuc-tu-quai-nang-chi-muon-sinh-ton
+cũ : Kiều Việt Tây máu dùng rất tốt, Bạch Dạ có thể giúp nàng suy nghĩ vấn đề, Niên Niên tơ nhện cũng là đồ tốt.
+mới: Máu của Kiều Việt Tây dùng rất tốt, Bạch Dạ có thể giúp nàng suy nghĩ vấn đề, tơ nhện của Niên Niên cũng là đồ tốt.
+ref: Máu của Kiều Việt Tây rất hữu dụng, Bạch Dạ có thể giúp cô suy nghĩ vấn đề, tơ nhện của Niên Niên cũng là đồ tốt.
+
+[+16] ac-doc-nu-tu-khong-gia-vo-nua-mo-dau-nam-dao-lu
+cũ : Nghĩ đến Tô Vân Tiêu đạo mệnh lệnh này, bảy người tinh thần đều có chút phấn chấn.
+mới: Nghĩ đến đạo mệnh lệnh này của Tô Vân Tiêu, tinh thần của bảy người đều có chút phấn chấn.
+ref: Nghĩ tới mệnh lệnh này của Tô Vân Tiêu, tinh thần của bảy người đều có phần phấn chấn.
+
+[+16] cham-vao-nang-nghe-tieng-long-nam-nghia-huynh-tranh-den-do-mat
+cũ : Chân chính chết tiệt, là Thẩm Kế Nghiệp cùng hắn gian phu, là Thẩm Diệu Tông cùng Vi thị hai cái này dối trá tiện nhân!
+mới: Chân chính chết tiệt, là Thẩm Kế Nghiệp và gian phu của hắn, là Thẩm Diệu Tông và Vi thị hai cái này tiện nhân dối trá!
+ref: Kẻ thực sự đáng chết là Thẩm Kế Nghiệp và gian phu của hắn, là hai kẻ ti tiện dối trá Thẩm Diệu Tông và Vi thị kia!
+
+[+16] sau-khi-thai-tu-cam-duc-pha-gioi-nang-kieu-vac-bung-bau-bo-tron
+cũ : Thẩm Vũ sớm đã nhìn quen không trách, hạ nhân thái độ, chính là chủ tử thái độ.
+mới: Thẩm Vũ sớm đã nhìn quen không trách, thái độ của hạ nhân, chính là thái độ của chủ tử.
+ref: Thẩm Vũ sớm đã nhìn quen đến mức chẳng lấy làm lạ, thái độ của hạ nhân chính là thái độ của chủ tử.
+
+[+19] bat-dau-ho-tong-vi-vong-nhan
+cũ : Vị kia ngồi tại trong Đông Cung thái tử cần một cái không thể lộ ra ngoài ánh sáng đao.
+mới: Vị thái tử ngồi trong Đông Cung kia cần một thanh đao không thể lộ ra ngoài ánh sáng.
+ref: Vị Thái tử ngồi trong Đông Cung kia cần một thanh đao không thể đem ra ánh sáng.
+
+[+19] pham-nhan-cai-gi-muon-ta-lam-tan-ma-to
+cũ : U cốt chu 550 khối linh thạch, trầm uyên dây xích 820 khối linh thạch, âm sát lưới trận chín trăm khối linh thạch. "
+mới: U cốt chu năm trăm năm mươi khối linh thạch, trầm uyên dây xích tám trăm hai mươi khối linh thạch, âm sát lưới trận chín trăm khối linh thạch. "
+ref: “U Cốt Chu năm trăm năm mươi khối linh thạch, Trầm Uyên Liễn tám trăm hai mươi khối linh thạch, Âm Sát La Võng Trận chín trăm khối linh thạch.”
+

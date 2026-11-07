@@ -1,0 +1,253 @@
+# Bản thử bộ quy tắc v2. Mỗi nhóm là một tầng, chạy theo thứ tự trong file.
+[lớp]
+đv-thời: 天=ngày 日=ngày 年=năm 个月=tháng 个星期=tuần 星期=tuần 个礼拜=tuần 周=tuần 秒=giây 秒钟=giây 分钟=phút 小时=tiếng 个小时=tiếng 个时辰=canh_giờ 时辰=canh_giờ 世纪=thế_kỷ 个世纪=thế_kỷ 季度=quý 个季度=quý 昼夜=ngày_đêm 炷香=nén_hương
+nhãn-chương: 章=Chương 卷=Quyển 集=Tập 节=Tiết 幕=Màn 回=Hồi 折=Chiết
+vị-trí: 四周=xung_quanh 周围=xung_quanh 附近=gần 上=trên 上面=trên 上方=phía_trên 里=trong 里面=trong 中=trong 之中=trong 下=dưới 下面=dưới 下方=phía_dưới 内=trong 之内=trong 外=ngoài 外面=ngoài 之外=ngoài 前=trước 前面=trước 后=sau 后面=sau 旁=cạnh 旁边=bên_cạnh 中央=giữa 中间=giữa 之上=trên 之下=dưới
+thân-vị: 身上=trên_người 手上=trên_tay 手中=trong_tay 手里=trong_tay 眼中=trong_mắt 眼里=trong_mắt 心中=trong_lòng 心里=trong_lòng 面前=trước_mặt 身后=sau_lưng 身边=bên_cạnh 身旁=bên_cạnh 身前=trước_người 耳边=bên_tai 脸上=trên_mặt 头上=trên_đầu 头顶=trên_đỉnh_đầu 怀里=trong_ngực 怀中=trong_ngực 背后=sau_lưng 眼前=trước_mắt 脑海中=trong_đầu 脑海里=trong_đầu 嘴里=trong_miệng 体内=trong_cơ_thể 掌心=trong_lòng_bàn_tay 肩上=trên_vai 腰间=bên_hông 脚下=dưới_chân 跟前=trước_mặt
+lượng-từ: 个=cái 只=con 条=đầu 道=đạo 名=tên 位=vị 次=lần 把=thanh 张=tấm 件=kiện 头=đầu 匹=con 根=cây 朵=đóa 颗=viên 座=tòa 层=tầng 块=khối 枚=miếng 本=quyển 封=phong 瓶=bình 杯=chén 碗=bát 句=câu 群=đám 对=đôi 双=đôi 种=loại 份=phần 片=mảnh 扇=cánh 辆=chiếc 艘=chiếc 间=gian 栋=tòa 柄=chuôi 尊=tôn 具=cỗ 团=đoàn 股=cỗ 丝=tia 缕=sợi 滴=giọt 声=tiếng 步=bước 口=ngụm 眼=mắt 下=cái 年=năm 天=ngày 月=tháng 岁=tuổi 里=dặm 米=mét 斤=cân 丈=trượng 尺=thước 寸=tấc
+trung-tâm-chung: 人= 者= 东西= 事= 事情= 时候= 地方= 样子= 话= 家伙= 女人= 男人= 女子= 男子= 少女= 少年= 女孩= 男孩= 姑娘= 感觉= 表情= 模样= 情况= 问题=
+động-từ-định-ngữ: 属于=thuộc_về 来自=đến_từ 充满=tràn_ngập 带着=mang_theo 具有=có 拥有=có 含有=có 包含=bao_hàm 有着=có 蕴含=ẩn_chứa 散发着=toả_ra 关于=về 掌握=nắm_giữ 代表=đại_biểu 象征=tượng_trưng
+động-từ-chính: 看着=x 望着=x 看向=x 看到=x 看见=x 听到=x 听见=x 发现=x 知道=x 觉得=x 感觉=x 感到=x 感受到=x 认为=x 以为=x 想到=x 想起=x 记得=x 忘记=x 盯着=x 抓住=x 握着=x 拿着=x 抱着=x 打开=x 找到=x 遇到=x 不知道=x 明白=x 希望=x 担心=x 害怕=x 喜欢=x 讨厌=x 等待=x 等着=x 成为=x 变成=x 进入=x 离开=x 来到=x 走到=x 走向=x 回到=x 穿着=x 戴着=x 露出=x 带来=x 放在=x
+tính-chất: 级别=cấp_bậc 层次=tầng_thứ 境界=cảnh_giới 程度=mức_độ 地步=mức 规模=quy_mô 类型=loại 水平=trình_độ 品质=phẩm_chất 档次=đẳng_cấp 风格=phong_cách
+buổi: 上午=sáng 早上=sáng 早晨=sáng 清晨=sáng_sớm 凌晨=rạng_sáng 中午=trưa 下午=chiều 傍晚=chiều_tối 晚上=tối 夜里=đêm 半夜=nửa_đêm 深夜=đêm_khuya
+thứ: 一=Hai 二=Ba 三=Tư 四=Năm 五=Sáu 六=Bảy 日=Chủ_nhật 天=Chủ_nhật 末=cuối_tuần
+nhìn-hướng: 看向= 望向= 看着= 望着= 盯着= 投向= 瞪着= 扫向=
+ánh-mắt: 目光= 眼神= 视线= 眼光=
+động-từ-đối: 看=x 听=x 吃=x 喝=x 用=x 穿=x 读=x 玩=x 尝=x 瞧=x 闻=x
+
+[số]
+# Mốc tương đối và khoảng
+{số:1-3}{đv-thời}(后|之后|以后) = {1} {2} sau -> thời-gian
+{số:1-3}{đv-thời}(前|之前|以前) = {1} {2} trước -> thời-gian
+{số:1-3}{đv-thời}(内|之内|以内) = trong vòng {1} {2} -> thời-gian
+{số:1-3}{đv-thời}左右 = khoảng {1} {2} -> thời-gian
+{số:1-3}(多|余){đv-thời} = hơn {1} {2} -> thời-gian
+{số:1-3}{đv-thời}多 = hơn {1} {2} -> thời-gian
+{số:1-3}个半小时 = {1} tiếng rưỡi -> thời-gian
+{số:1-3}个半月 = {1} tháng rưỡi -> thời-gian
+{số:1-3}天半 = {1} ngày rưỡi -> thời-gian
+{số:1-2}点(到|至){số:1-2}点 = từ {1} giờ đến {2} giờ -> thời-gian
+{số:1-2}月{số:1-3}(日|号)(到|至){số:1-2}月{số:1-3}(日|号) = từ ngày {2} tháng {1} đến ngày {4} tháng {3} -> thời-gian
+{số:1-2}月{số:1-3}(日|号)(到|至){số:1-3}(日|号) = từ ngày {2} đến ngày {3} tháng {1} -> thời-gian
+公元前{số:1-6}年 = năm {1} trước Công nguyên -> thời-gian
+{buổi}{số:1-2}点多钟? = hơn {2} giờ {1} -> thời-gian
+# Chương, quyển
+第{số}(章|回|节) = Chương {1|số}: -> lit
+第{số}卷 = Quyển {1|số} -> lit
+
+# Ngày tháng năm. Năm đọc từng chữ số (rules.txt): bản biên tập viết "năm 2019" 88%.
+{năm:3-4}年{số:1-2}月{số:1-2}(日|号) = ngày {3} tháng {2} năm {1} -> thời-gian
+{năm:3-4}年 = năm {1} -> thời-gian
+{số}年{số}月{số}(日|号) = ngày {3} tháng {2} năm {1|năm} -> thời-gian
+{năm:3-4}年{số:1-2}月 = tháng {2} năm {1} -> thời-gian
+{số}年{số}月 = tháng {2} năm {1|năm} -> thời-gian
+{số:1-2}月{số:1-2}(日|号) = ngày {2} tháng {1} -> thời-gian
+第二天 = hôm sau -> thời-gian
+第一次 = lần đầu -> lit
+
+# Giờ. Sau 点 phải có đơn vị (rules.txt), không thì 一点 = một chút bị nuốt.
+{buổi}{số:1-2}点{số:1-2}分 = {2} giờ {3} phút {1} -> thời-gian
+{buổi}{số:1-2}点半 = {2} giờ rưỡi {1} -> thời-gian
+{buổi}{số:1-2}点钟? = {2} giờ {1} -> thời-gian
+{số:1-2}点{số:1-2}分{số:1-2}秒 = {1} giờ {2} phút {3} giây -> thời-gian
+{số:1-2}点{số:1-2}分 = {1} giờ {2} phút -> thời-gian
+{số:1-2}点半 = {1} giờ rưỡi -> thời-gian
+{số:1-2}点整 = đúng {1} giờ -> thời-gian
+{số:1-2}点一刻 = {1} giờ mười lăm phút -> thời-gian
+{số:1-2}点(两|二)刻 = {1} giờ rưỡi -> thời-gian
+{số:1-2}点三刻 = {1} giờ bốn mươi lăm phút -> thời-gian
+{số:1-2}(时|時){số:1-2}分 = {1} giờ {2} phút -> thời-gian
+半个小时 = nửa tiếng -> thời-gian
+{số:1-3}个?小(时|時) = {1} tiếng -> thời-gian
+{số}个时辰 = {1} canh giờ -> thời-gian
+{số:1-3}秒(钟|鐘)? = {1} giây -> thời-gian
+{số:1-2}个多月 = hơn {1} tháng -> thời-gian
+
+# Thập phân, phần trăm. Bản biên tập: "năm mươi phần trăm" 92%, thập phân đọc "phẩy".
+百分之{số:1-6}点{năm:1-2} = {1} phẩy {2|từng-chữ} phần trăm -> m
+百分之{số} = {1} phần trăm -> m
+{số:1-2}点{năm:1-2} = {1} phẩy {2|từng-chữ} -> m
+
+# Tiền (rules.txt). 块钱 = tệ 96%.
+{số:1-6}亿元 = {1} ức tệ -> m
+{số:1-8}日元 = {1} yên -> m
+{số:1-8}英镑 = {1} bảng Anh -> m
+{số:1-8}港币 = {1} đô la Hồng Kông -> m
+{số:1-8}人民币 = {1} nhân dân tệ -> m
+{số:1-8}(元钱|块钱) = {1} tệ -> m
+{số:1-8}元 = {1} tệ -> m
+{số:1-8}(枚|块|个)?银币 = {1} đồng bạc -> m
+{số:1-8}(枚|个)?(铜板|铜钱) = {1} đồng tiền -> m
+{số:1-8}文钱 = {1} văn tiền -> m
+{số:1-8}(锭|块)?金锭 = {1} đĩnh vàng -> m
+{số:1-8}(锭|块)?银锭 = {1} đĩnh bạc -> m
+{số:1-8}(贯|吊)钱 = {1} quan tiền -> m
+{số:1-8}两(纹银|白银|银子) = {1} lượng bạc -> m
+{số}两 = {1} lượng -> m
+
+# Tuổi, bội số
+{số:1-3}岁左右 = chừng {1} tuổi -> m
+{số:1-3}(多|来)岁 = hơn {1} tuổi -> m
+{số:1-4}倍 = gấp {1} lần -> m
+
+# Đo lường. 厘米 = xen-ti-mét, 公里 = cây số (bản biên tập), không viết tắt.
+{số:1-6}公里 = {1} cây số -> m
+{số:1-6}厘米 = {1} xen-ti-mét -> m
+{số:1-6}毫米 = {1} mi-li-mét -> m
+{số:1-6}毫升 = {1} mi-li-lít -> m
+{số:1-4}亩 = {1} mẫu -> m
+
+# Ước lượng, số hiệu
+{số}(多|余)米 = hơn {1} mét -> m
+{số}(多|余)里 = hơn {1} dặm -> m
+{số}(多|余)年前 = hơn {1} năm trước -> m
+{số}(多|余)人 = hơn {1} người -> m
+
+
+[lượng 2]
+第 一 !次 {lượng-từ} {danh-từ} | !的 = {danh-từ} đầu tiên
+小 {tên} = tiểu {tên}
+{số} 个 {danh-từ} | !的 = {số} {danh-từ}
+{số} {lượng-từ} = {số} {lượng-từ} -> số-lượng
+第 {số} {lượng-từ} {danh-từ} | !的 = {danh-từ} thứ {số|thứ}
+第 {số} {lượng-từ} = {lượng-từ} thứ {số|thứ}
+第 {số} {danh-từ} | !的 = {danh-từ} thứ {số|thứ}
+第 {số} = thứ {số|thứ}
+
+[luật-riêng 1]
+{người} 自己 = chính {người}
+{người} 是不是 = {người} có phải hay không
+(跟|对|向) {người} (说着|说道|说) = nói với {người}
+(跟|和|像) {người} 一样 = giống như {người}
+在 {người} 看来 = theo {người}
+当着 {người} (面前|的面|面) = ngay trước mặt {người}
+把 {người} 当 = coi {người} là
+对 {người} 出手 = ra tay với {người}
+和 {người} 商量 = thương lượng với {người}
+和 {người} 合作 = hợp tác với {người}
+(跟|与|和) {người} 在一起 = cùng với {người}
+对 {người} 的态度 = thái độ đối với {người}
+(与|和|对|向|跟) {người} (说明白|说明) = nói rõ với {người}
+不是 {người} 的对手 = không phải là đối thủ của {người}
+不会放过 {người} 的 = sẽ không bỏ qua cho {người}
+(跟|与|和) {người} 说话 = nói chuyện với {người}
+是 {người} 还是 = là {người} hay là
+在 {người} 的帮助下 = tại sự giúp đỡ của {người}
+不给 {người} 面子 = không nể mặt {người}
+对 {người} 下手 = xuống tay với {người}
+对 {người} 不利 = bất lợi cho {người}
+(跟|与|对|和) {người} 客气 = khách khí với {người}
+在 {người} 顶 = tại đỉnh {người}
+落在 {người} 手里 = rơi vào tay {người}
+
+[của 3]
+这 {lượng-từ} {danh-từ} | !的 = {lượng-từ} {danh-từ} này
+那 {lượng-từ} {danh-từ} | !的 = {lượng-từ} {danh-từ} kia
+这 {số-lượng} {danh-từ} | !的 = {số-lượng} {danh-từ} này
+那 {số-lượng} {danh-từ} | !的 = {số-lượng} {danh-từ} kia
+这个 {danh-từ}+ | !的 = {1} này
+那个 {danh-từ}+ | !的 = {1} kia
+这些 {danh-từ} | !的 = những {danh-từ} này
+那些 {danh-từ} | !的 = những {danh-từ} kia
+这种 {danh-từ} | !的 = loại {danh-từ} này
+那种 {danh-từ} | !的 = loại {danh-từ} kia
+这位 {danh-từ} | !的 = vị {danh-từ} này
+那位 {danh-từ} | !的 = vị {danh-từ} kia
+这 {danh-từ}+ | !的 = {1} này
+那 {danh-từ}+ | !的 = {1} kia
+一 个 {danh-từ} | !的 = một {danh-từ}
+
+(^|一个|这个|那个|这|那) | {động-từ} {danh-từ} 的 {danh-từ} | = {3} {1} {2}
+{hệ-từ} | {động-từ} {danh-từ} 的 {danh-từ} | = {3} {1} {2}
+{nhìn-hướng} {cụm} 的 {ánh-mắt} = {ánh-mắt} {nhìn-hướng} {cụm}
+{có-đích} {danh-từ} = {danh-từ} {có-đích}
+这样 的 {danh-từ} = {danh-từ} như vậy
+那样 的 {danh-từ} = {danh-từ} như vậy
+什么样 的 {danh-từ} = {danh-từ} như thế nào
+怎样 的 {danh-từ} = {danh-từ} như thế nào
+之前 的 {danh-từ} = {danh-từ} trước đó
+之后 的 {danh-từ} = {danh-từ} sau đó
+以前 的 {danh-từ} = {danh-từ} trước đây
+以后 的 {danh-từ} = {danh-từ} sau này
+最 {tính-từ} 的 {danh-từ}+ = {2} {1} nhất
+{cụm} {danh-động} 的 {danh-từ} = {3} {1} {2}
+属于 {cụm} 的 {danh-từ}+ = {2} thuộc về {1}
+来自 {cụm} 的 {danh-từ}+ = {2} đến từ {1}
+充满 {cụm} 的 {danh-từ}+ = {2} tràn ngập {1}
+带着 {cụm} 的 {danh-từ}+ = {2} mang theo {1}
+{danh-động} 的 {danh-từ} = {2} {1}
+{tính-chất} 的 {danh-từ} = {danh-từ} {tính-chất}
+{danh-từ} {tính-chất} 的 {danh-từ} = {3} {2} {1}
+{đại-từ} 的 {danh-từ}+ = {2} của {1}
+{tên} 的 {danh-từ}+ = {2} của {1}
+{danh-từ} 的 {danh-từ}+ = {2} của {1}
+{tính-từ} 的 {danh-từ}+ = {2} {1}
+{tính-từ} 的 {tên} = {2} {1}
+{thành-ngữ} 的 {danh-từ} = {danh-từ} {thành-ngữ}
+{nơi} 的 {danh-từ} = {danh-từ} {nơi}
+{thời-gian} 的 {danh-từ} = {danh-từ} {thời-gian}
+
+{người} {thân-vị} = {thân-vị} {người} -> nơi-cụm
+{người} 的 {thân-vị} = {thân-vị} {người} -> nơi-cụm
+{số} 个 {danh-từ} | !的 = {số} {danh-từ}
+{số} {lượng-từ} {danh-từ} | !的 = {số} {lượng-từ} {danh-từ}
+{danh-từ} {thân-vị} = {thân-vị} {danh-từ} -> nơi-cụm
+{cụm} {vị-trí} | !{danh-từ} = {vị-trí} {cụm} -> nơi-cụm
+{động-từ-tại} {nơi-từ} 的 {danh-từ}+ = {3} {1|bỏ-tại} {2}
+{nơi-cụm} 的 {danh-từ} = {danh-từ} {nơi-cụm}
+
+[mệnh 1]
+{mệnh-đề} 的 {danh-từ} = {danh-từ} {mệnh-đề}
+
+[khung 1]
+{thời-gian} (后|之后|以后) = {1} sau -> thời-gian
+在 {nơi-cụm} = {nơi-cụm}
+{động-từ-tại} {nơi-cụm} = {1|bỏ-tại} {nơi-cụm}
+{động-từ} 在 {nơi-cụm} = {động-từ} {nơi-cụm}
+(和|跟|与) {người} 一起 = cùng {người}
+比 {cụm} (更|还|要|更加|还要)? {tính-từ} = {tính-từ} hơn {cụm} -> tính-cụm
+到 {đoạn} 的时候 = đến lúc {đoạn}
+当 {đoạn} (时|的时候) = khi {đoạn}
+{vế-động} 的时候 = khi {vế-động}
+{vế-động} 之后 | !的 = sau khi {vế-động}
+{vế-động} 以后 | !的 = sau khi {vế-động}
+{vế-động} 之前 | !的 = trước khi {vế-động}
+{vế-động} 以前 | !的 = trước khi {vế-động}
+{vế-động} 后 | {dấu} = sau khi {vế-động}
+{danh-động} 后 | {dấu} = sau khi {danh-động}
+像 {đoạn} 一样 = giống như {đoạn}
+和 {cụm} 一样 = giống như {cụm}
+跟 {cụm} 一样 = giống như {cụm}
+连 {đoạn} (都|也) = ngay cả {đoạn} cũng
+对 {cụm} 来说 = đối với {cụm}
+除了 {đoạn} (之外|以外) = ngoài {đoạn} ra
+{động-từ} 得 {tính-từ} = {động-từ} {tính-từ} -> v-cụm
+{động-từ} 得 很 {tính-từ} = {động-từ} rất {tính-từ} -> v-cụm
+{động-từ} 一下 = {động-từ} một chút -> v-cụm
+给 {người} {động-từ-đối} = cho {người} {động-từ-đối} -> v-cụm
+给 {người} {động-từ} = {động-từ} cho {người} -> v-cụm
+(对|向|跟|和) {người} 说 = nói với {người} -> v-cụm
+这么 {tính-từ} = {tính-từ} như vậy -> tính-cụm
+那么 {tính-từ} = {tính-từ} như vậy -> tính-cụm
+太 {tính-từ} 了 = quá {tính-từ} -> tính-cụm
+{cụm} 和 {cụm} = {1} và {2}
+{người} 自己 = chính {người}
+
+[nghĩa 1]
+刚刚 = vừa -> d
+正 {động-từ} = đang {1} -> v-cụm
+正在 = đang -> d
+变得 = trở nên -> v
+既然 = đã -> c
+谁 = ai -> r
+看着 = nhìn -> v
+力量 = sức mạnh -> n
+身上 = trên người -> s
+{động-từ} 出来 = {1} ra -> v-cụm
+在 {động-từ} = đang {động-từ} -> v-cụm
+将 {động-từ} = sẽ {động-từ} -> v-cụm
+^ | 可 | = Nhưng -> lit
+^ | 可是 | = Nhưng -> lit
+最 {tính-từ} = {tính-từ} nhất -> tính-cụm
+什么 {danh-từ} = {danh-từ} gì
+没 {động-từ} = không {động-từ} -> v-cụm
