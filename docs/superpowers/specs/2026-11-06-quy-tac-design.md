@@ -414,14 +414,39 @@ và đánh dấu từng dòng, luật được duyệt mới vào file.
 
 ## 12. Hiệu năng
 
-Chưa đo, đây là cổng phải qua. Lý do kỳ vọng: bỏ regex gỡ đi phần 49% thời gian, còn các tầng chỉ
-tra bảng theo token.
+Cổng phải qua. Lý do kỳ vọng: bỏ regex gỡ đi phần 49% thời gian, còn các tầng chỉ tra bảng theo
+token. Số đo thật ở bước 1 nằm dưới bảng.
 
 | Chỉ tiêu | Cổng |
 |---|---|
-| Thời gian dịch | không quá 70% hiện tại, cùng corpus, có names |
+| Thời gian dịch | không quá 100% hiện tại, cùng corpus, có names (ban đầu 70%, xem dưới) |
 | RAM lite idle | tăng không quá 10 MB |
 | Đỉnh RAM mỗi request | tăng không quá 20% |
+
+**Số đo bước 1 (2026-11-07).** Đo bằng `cargo run --release -p qt-core --example quy_tac_eval -- QT2025
+<books/common>` trên bộ test bookshelf (12 chương mỗi truyện, từ chương thứ 8), dịch từng đoạn, có
+names riêng của truyện:
+
+| | Hiện tại (có Luật Nhân) | Quy Tắc | Cổng |
+|---|---|---|---|
+| Đoạn / ký tự | 103.803 / 2.798.883 | | |
+| Cụm 2 từ trùng bản biên tập | 721.960 | 752.437 (+4,22%) | |
+| Cụm 3 từ trùng bản biên tập | 338.562 | 374.805 (+10,70%) | ≥ +10,0%: đạt |
+| Đoạn đổi / tốt hơn / kém hơn | | 46.220 / 20.544 / 4.201, thắng 83,0% | ≥ 80%: đạt |
+| Thời gian | 2.677 ns/ký tự | 2.323 ns/ký tự (87%) | ≤ 100%: đạt |
+| RAM `QuyTac` giữ sau khi nạp | | 9.273.388 byte (8,9 MiB) | ≤ 10 MiB: đạt |
+
+- Bản đầu tiên tốn 206% thời gian và giữ 11,4 MiB. Sau hai lượt tối ưu (lọc chữ cố định một lần mỗi
+  nhóm, bit khoá trên token, lọc regex `[số]`, bảng từ loại tự dựng với nhãn gộp), các tầng quy tắc
+  từ 10,3 s xuống 2,7 s trên cả bộ test. Mỗi lượt so dump output của mọi đoạn với bản trước, giống
+  nhau từng byte.
+- Cổng 70% dựa trên giả định các tầng quy tắc chỉ tốn nửa phần Luật Nhân. Thực tế, sau tối ưu, chúng
+  vẫn tốn khoảng 84% phần đó, và phần vòng dịch dùng chung đã chiếm ~52% đường hiện tại. Không xuống
+  70% được mà giữ nguyên output, nên user đổi cổng thành "không chậm hơn đường hiện tại" (2026-11-07).
+- Đỉnh RAM mỗi request chưa đo, để bước 4 khi nối lite / Lambda. Riêng lúc nạp, bảng từ loại cấp phát
+  đỉnh ~5,9 MB.
+- Số tuyệt đối dao động theo tải máy (cùng code từng đo 4.168 ns/ký tự cho đường hiện tại); tỉ lệ ổn
+  định hơn.
 
 ## 13. Kiểm thử
 
