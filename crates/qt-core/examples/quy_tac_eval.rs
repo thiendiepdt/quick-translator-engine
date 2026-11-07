@@ -19,9 +19,18 @@
 //! RAM: allocator chỉ đếm byte lúc nạp `QuyTac`. Lúc đo tốc độ nó chỉ đọc một
 //! cờ rồi gọi thẳng allocator hệ thống, như bản chạy thật: đếm trên mọi lần
 //! cấp phát thì phạt đường cấp phát nhiều hơn.
+//!
+//! Lỗi nhìn thấy mà điểm cụm từ không thấy (điểm hạ chữ thường, bỏ dấu câu),
+//! đếm trên lượt chất lượng cho mỗi đường (`Defects`):
+//! - đoạn có dấu cách lạ trong ngoặc kép thẳng: `(^|\s)" \S|\S "(\s|$)`;
+//! - dòng tiêu đề (theo đường hiện tại) mà chữ ngay sau `Chương N:` không viết hoa;
+//! - đoạn có từ viết hoa giữa câu ở đường hiện tại (`(?<=[\p{Ll},] )\p{Lu}\p{Ll}+`)
+//!   mà output Quy Tắc không có, chỉ có bản viết thường.
+//!
+//! `QT_EVAL_GIONG_MUOT=1`: đường Quy Tắc chạy thêm nhóm `[giọng-mượt]`.
 
 use std::alloc::{GlobalAlloc, Layout, System};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::hint::black_box;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -70,6 +79,82 @@ unsafe impl GlobalAlloc for Counting {
 
 #[global_allocator]
 static ALLOCATOR: Counting = Counting;
+
+/// Đếm ba lỗi nhìn thấy (đầu file) trên output của hai đường.
+struct Defects {
+    quote: Regex,
+    title: Regex,
+    after_title: Regex,
+    capital: Regex,
+    lower: Regex,
+    word: Regex,
+    quoted: usize,
+    quote_current: usize,
+    quote_next: usize,
+    titles: usize,
+    title_current: usize,
+    title_next: usize,
+    lowered: usize,
+}
+
+impl Defects {
+    fn new() -> Defects {
+        Defects {
+            quote: Regex::new(r#"(^|\s)" \S|\S "(\s|$)"#).unwrap(),
+            title: Regex::new(r"^\s*[Cc]hương \d+:[\W\d_]*[\w&&[^\d_]]").unwrap(),
+            after_title: Regex::new(r"^\s*[Cc]hương \d+:\s*(.)").unwrap(),
+            capital: Regex::new(r"\p{Lu}\p{Ll}+").unwrap(),
+            lower: Regex::new(r"^\p{Ll}$").unwrap(),
+            word: Regex::new(r"\w+").unwrap(),
+            quoted: 0,
+            quote_current: 0,
+            quote_next: 0,
+            titles: 0,
+            title_current: 0,
+            title_next: 0,
+            lowered: 0,
+        }
+    }
+
+    /// Chữ ngay sau `Chương N:` (bỏ khoảng trắng) không phải chữ hoa.
+    fn lower_title(&self, text: &str) -> bool {
+        self.after_title
+            .captures(text)
+            .is_some_and(|caps| !caps[1].chars().all(char::is_uppercase))
+    }
+
+    /// Từ viết hoa giữa câu ở `current`: ngay trước là một dấu cách, trước đó
+    /// là chữ thường (`\p{Ll}`) hay dấu phẩy, như lookbehind `(?<=[\p{Ll},] )`.
+    /// Chỗ khớp của lookbehind không bao giờ bắt đầu giữa một chỗ khớp
+    /// `\p{Lu}\p{Ll}+` khác (sau chữ hoa đầu chỉ còn chữ thường), nên lọc các
+    /// chỗ khớp liên tiếp là đủ.
+    fn mid_sentence_capitals<'t>(&'t self, current: &'t str) -> impl Iterator<Item = &'t str> {
+        self.capital.find_iter(current).filter_map(move |m| {
+            let mut before = current[..m.start()].chars().rev();
+            let spaced = before.next() == Some(' ');
+            let after_lower = before
+                .next()
+                .is_some_and(|c| c == ',' || self.lower.is_match(c.encode_utf8(&mut [0; 4])));
+            (spaced && after_lower).then_some(m.as_str())
+        })
+    }
+
+    fn count(&mut self, current: &str, next: &str) {
+        self.quoted += usize::from(next.contains('"'));
+        self.quote_current += usize::from(self.quote.is_match(current));
+        self.quote_next += usize::from(self.quote.is_match(next));
+        if self.title.is_match(current) {
+            self.titles += 1;
+            self.title_current += usize::from(self.lower_title(current));
+            self.title_next += usize::from(self.lower_title(next));
+        }
+        let words: HashSet<&str> = self.word.find_iter(next).map(|m| m.as_str()).collect();
+        let lowered = self.mid_sentence_capitals(current).any(|capital| {
+            !words.contains(capital) && words.contains(capital.to_lowercase().as_str())
+        });
+        self.lowered += usize::from(lowered);
+    }
+}
 
 /// Một đoạn nguồn cùng bản biên tập; `book` là chỉ số vào bảng names theo truyện.
 struct Paragraph {
@@ -202,9 +287,13 @@ fn main() -> ExitCode {
     let engine = Engine::from_dicts(Dictionaries::load(&data).expect("nạp QT2025"));
     // Trong lúc nạp, mọi cấp phát và giải phóng đều được đếm; phần còn lại là
     // byte `QuyTac` giữ. Tắt cờ trước mọi phép đo thời gian.
+    let giong_muot = std::env::var_os("QT_EVAL_GIONG_MUOT").is_some_and(|value| value == "1");
     COUNTING.store(true, Ordering::SeqCst);
-    let quy_tac = QuyTac::load(&data, false).expect("nạp Quy Tắc");
+    let quy_tac = QuyTac::load(&data, giong_muot).expect("nạp Quy Tắc");
     COUNTING.store(false, Ordering::SeqCst);
+    if giong_muot {
+        println!("Quy Tắc có nhóm [giọng-mượt] (QT_EVAL_GIONG_MUOT=1)");
+    }
     let quy_tac_bytes = LIVE.load(Ordering::SeqCst);
     let engine = engine.with_quy_tac(quy_tac);
     let word = Regex::new(r"\w+").unwrap();
@@ -226,6 +315,7 @@ fn main() -> ExitCode {
     // Chất lượng: một lượt ghép đôi.
     let (mut cur2, mut cur3, mut new2, mut new3) = (0u64, 0u64, 0u64, 0u64);
     let (mut changed, mut better, mut worse) = (0usize, 0usize, 0usize);
+    let mut defects = Defects::new();
     // QT_EVAL_DUMP=<file>: mỗi đoạn một dòng `{hiện tại}\t{Quy Tắc}`, theo thứ tự chấm.
     let mut dump = std::env::var_os("QT_EVAL_DUMP").map(|path| {
         std::io::BufWriter::new(std::fs::File::create(path).expect("tạo file dump"))
@@ -236,6 +326,7 @@ fn main() -> ExitCode {
         if let Some(dump) = dump.as_mut() {
             writeln!(dump, "{current}\t{next}").expect("ghi dump");
         }
+        defects.count(&current, &next);
         let reference_words = words(&p.edited, &word);
         let (ref2, ref3) = (grams(&reference_words, 2), grams(&reference_words, 3));
         let current_words = words(&current, &word);
@@ -327,11 +418,24 @@ fn main() -> ExitCode {
         median * 100.0
     );
     println!("RAM giữ của QuyTac: {mib:.1} MiB ({quy_tac_bytes} byte)");
+    let d = &defects;
+    println!(
+        "ngoặc kép có dấu cách lạ: hiện tại {}, Quy Tắc {} đoạn (Quy Tắc có ngoặc kép: {} đoạn)",
+        d.quote_current, d.quote_next, d.quoted
+    );
+    println!(
+        "chữ thường sau \"Chương N:\": hiện tại {}, Quy Tắc {} (trong {} dòng tiêu đề)",
+        d.title_current, d.title_next, d.titles
+    );
+    println!("từ viết hoa bị Quy Tắc hạ thường: {} đoạn", d.lowered);
     let gates = [
         ("chất lượng: cụm 3 từ >= +10,0%", gain(new3, cur3) >= 10.0),
         ("chất lượng: thắng >= 80%", win_rate >= 80.0),
         ("tốc độ: <= 100% hiện tại (tổng các lượt)", speed <= 1.00),
         ("RAM: <= 10 MiB", mib <= 10.0),
+        ("ngoặc kép: Quy Tắc <= hiện tại", d.quote_next <= d.quote_current),
+        ("tiêu đề: chữ thường sau Chương N: Quy Tắc <= hiện tại", d.title_next <= d.title_current),
+        ("từ viết hoa bị hạ: <= 100 đoạn", d.lowered <= 100),
     ];
     let mut ok = true;
     for (name, pass) in gates {
