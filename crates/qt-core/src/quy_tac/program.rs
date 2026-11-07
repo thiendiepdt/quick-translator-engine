@@ -8,8 +8,18 @@ use std::sync::LazyLock;
 use regex::{Captures, Regex};
 use rustc_hash::FxHashMap;
 
-use super::numbers::NUM_CHARS;
 use super::QuyTacError;
+
+/// Chữ số Hán trừ 〇, cho `zh_digit`.
+const HAN_DIGITS: &str = "零一二三四五六七八九";
+const NUM_NO_ZERO: &str = "零一二三四五六七八九十百千万亿两";
+
+/// Một chữ số Hán trong khuôn `[số]`. Chuẩn hoá đầu vào của QT chèn dấu cách quanh 〇
+/// (không có trong bảng Hán Việt): "二〇一九" thành "二 〇 一九", "二〇〇〇年" thành
+/// "二 〇〇〇 年". Chỉ dấu cách sát 〇 được bỏ qua; dấu cách thật giữa hai chữ số khác thì không.
+fn zh_digit(others: &str) -> String {
+    format!(r"\s?〇\s?|[{others}]")
+}
 
 /// Một lớp từ: chữ Hán → nghĩa thay trong khuôn (có thể rỗng).
 pub(crate) type Class = FxHashMap<String, String>;
@@ -442,17 +452,23 @@ fn compile_char_rule(
         let (lo, hi) = bounds.split_once('-').unwrap_or((bounds, ""));
         slots.push(name.to_string());
         match (name, bounds.is_empty()) {
-            ("số", false) => format!(r"\s*((?:[{NUM_CHARS}]|\d){{{lo},{hi}}})\s*"),
-            ("số", true) => format!(r"\s*([{NUM_CHARS}]+|\d+(?:\.\d+)?)\s*"),
+            ("số", false) => {
+                format!(r"\s*((?:{}|\d){{{lo},{hi}}})\s*", zh_digit(NUM_NO_ZERO))
+            }
+            ("số", true) => {
+                format!(r"\s*((?:{})+|\d+(?:\.\d+)?)\s*", zh_digit(NUM_NO_ZERO))
+            }
             // Năm lịch: chữ số Hán đọc từng chữ, hoặc số Ả Rập trông như năm.
             // 500年, 5000年 là "500 năm", không phải năm lịch.
-            // Chuẩn hoá đầu vào của QT chèn dấu cách quanh 〇 (không có trong bảng Hán Việt),
-            // nên giữa các chữ số Hán cho phép một dấu cách: "二 〇 一九".
             ("năm", false) if lo == "3" => {
-                r"\s*((?:[零〇一二三四五六七八九]\s?){3,4}|1[5-9]\d\d|20\d\d)\s*".to_string()
+                format!(r"\s*((?:{}){{3,4}}|1[5-9]\d\d|20\d\d)\s*", zh_digit(HAN_DIGITS))
             }
-            ("năm", false) => format!(r"\s*((?:[零〇一二三四五六七八九\d]\s?){{{lo},{hi}}})\s*"),
-            ("năm", true) => r"\s*((?:[零〇一二三四五六七八九\d]\s?)+)\s*".to_string(),
+            ("năm", false) => {
+                format!(r"\s*((?:{}|\d){{{lo},{hi}}})\s*", zh_digit(HAN_DIGITS))
+            }
+            ("năm", true) => {
+                format!(r"\s*((?:{}|\d)+)\s*", zh_digit(HAN_DIGITS))
+            }
             _ => match classes.get(name) {
                 Some(class) => {
                     let mut keys: Vec<&String> = class.keys().collect();

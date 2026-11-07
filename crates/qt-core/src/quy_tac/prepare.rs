@@ -281,6 +281,17 @@ pub(crate) fn untie<'q>(raw: Vec<Raw<'q>>, pos: &PosLexicon, lk: &Lookups) -> Ve
     out
 }
 
+/// Chuẩn hoá đầu vào của QT chèn dấu cách quanh 〇 ("一 〇 八"). Token toàn chữ số có 〇
+/// được trả về như văn bản gốc, để còn nhận ra là số.
+fn unspace_zero(zh: String) -> String {
+    let only_number = zh.chars().all(|c| c.is_whitespace() || NUM_CHARS.contains(c));
+    if only_number && zh.contains('〇') && zh.contains(char::is_whitespace) {
+        zh.chars().filter(|c| !c.is_whitespace()).collect()
+    } else {
+        zh
+    }
+}
+
 /// Tách hư từ, gắn nhãn, nhận số và tách số + lượng từ.
 pub(crate) fn prepare<'q>(
     raw: Vec<Raw<'q>>,
@@ -297,7 +308,7 @@ pub(crate) fn prepare<'q>(
                 out.push(Token::new(zh, vi, tag));
                 continue;
             }
-            Raw::Plain(zh, vi) => (zh, vi),
+            Raw::Plain(zh, vi) => (unspace_zero(zh), vi),
         };
         if !HAN_OR_DIGIT.is_match(&zh) {
             out.push(Token::new(zh, vi, "w"));
@@ -437,6 +448,16 @@ mod tests {
             ]
         );
         assert!(toks[4].digit && !toks[1].digit);
+    }
+
+    #[test]
+    fn number_token_with_qt_spaces_around_zero_is_still_a_number() {
+        let pos = PosLexicon::build("", "");
+        let (names, lexicon) = (map(&[]), map(&[]));
+        let lk = Lookups { names: &names, lexicon: &lexicon };
+        let toks = prepare(plain(&[("一 〇 八", "108")]), &pos, &lk, &FxHashMap::default());
+        let view: Vec<_> = toks.iter().map(|t| (t.zh.as_str(), t.tag, t.val)).collect();
+        assert_eq!(view, vec![("一〇八", "số", Some(108))]);
     }
 
     #[test]

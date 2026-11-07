@@ -40,6 +40,14 @@ fn digit_char(c: char) -> Option<char> {
 
 /// Giá trị của một khoá trong khuôn `[số]`, theo bộ lọc (`số`, `thứ`, `năm`, `từng-chữ`…).
 fn char_value(program: &Program, name: &str, text: &str, how: Option<&str>) -> String {
+    // Dấu cách QT chèn quanh 〇 nằm trong chuỗi bắt được: bỏ đi trước khi đọc số.
+    let squeezed: String;
+    let text = if matches!(name, "số" | "năm") {
+        squeezed = text.chars().filter(|c| !c.is_whitespace()).collect();
+        squeezed.as_str()
+    } else {
+        text
+    };
     if name == "năm" {
         let digits: String = text.chars().filter_map(digit_char).collect();
         if how == Some("từng-chữ") {
@@ -252,10 +260,38 @@ buổi: 晚上=tối
         let (out, _) = apply_chars(&program, &raw(&[("二〇一九年", "x")]), &lk);
         assert_eq!(out, vec![Raw::Tagged("二〇一九年".into(), "năm 2019".into(), "thời-gian")]);
         // QT chèn dấu cách quanh 〇: token nguồn là "二 〇 一九".
-        let (out, _) = apply_chars(&program, &raw(&[("二 〇 一九", "9"), ("年", "năm")]), &lk);
+        let tokens = raw(&[("二 〇 一九", "9"), ("年", "năm")]);
+        let (out, _) = apply_chars(&program, &tokens, &lk);
         assert_eq!(out, vec![Raw::Tagged("二 〇 一九年".into(), "năm 2019".into(), "thời-gian")]);
         let (out, _) = apply_chars(&program, &raw(&[("三点一四", "x")]), &lk);
         assert_eq!(out, vec![Raw::Tagged("三点一四".into(), "ba phẩy một bốn".into(), "m")]);
+    }
+
+    /// Token đúng dạng engine ra sau chuẩn hoá của QT (dấu cách quanh 〇).
+    #[test]
+    fn tolerates_only_the_spaces_qt_inserts_around_zero() {
+        let program = Program::parse(
+            "[số]
+{số:1-3}个 = {1} cái -> m
+{năm:3-4}年 = năm {1} -> thời-gian
+",
+        )
+        .unwrap();
+        let (names, lexicon) = (map(&[]), map(&[]));
+        let lk = Lookups { names: &names, lexicon: &lexicon };
+        let tagged = |zh: &str, vi: &str, tag| vec![Raw::Tagged(zh.into(), vi.into(), tag)];
+        // 一〇八个: ba chữ số, tính cả 〇 ở giữa là một.
+        let (out, _) = apply_chars(&program, &raw(&[("一 〇 八", "x"), ("个", "cái")]), &lk);
+        assert_eq!(out, tagged("一 〇 八个", "một trăm lẻ tám cái", "m"));
+        // 二〇〇〇年: QT ra "二 〇〇〇 年" (dấu cách sau 〇 đi theo token kế).
+        let (out, _) = apply_chars(&program, &raw(&[("二 〇〇〇", "x"), ("年", "năm")]), &lk);
+        assert_eq!(out, tagged("二 〇〇〇年", "năm 2000", "thời-gian"));
+        // Dấu cách thật giữa hai chữ số không phải 〇 thì không bắc cầu.
+        let spaced = raw(&[("一 二", "x"), ("个", "cái")]);
+        let (out, fired) = apply_chars(&program, &spaced, &lk);
+        assert_eq!(fired, 0);
+        let plain = |zh: &str, vi: &str| Raw::Plain(zh.into(), vi.into());
+        assert_eq!(out, vec![plain("一 二", "x"), plain("个", "cái")]);
     }
 
     #[test]
