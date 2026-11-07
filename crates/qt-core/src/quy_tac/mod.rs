@@ -3,6 +3,7 @@
 #![allow(dead_code)] // Task 8 nối vào engine rồi gỡ dòng này.
 
 mod numbers;
+mod prepare;
 mod program;
 mod tags;
 
