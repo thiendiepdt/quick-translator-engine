@@ -246,7 +246,10 @@ nhìn-hướng: 看向= 望向= 看着= 望着= 盯着= 投向= 瞪着= 扫向=
 {động-từ} 出来 = {1} ra -> v-cụm
 在 {động-từ} = đang {động-từ} -> v-cụm
 将 {động-từ} = sẽ {động-từ} -> v-cụm
-^ | 可 | = nhưng -> lit
+# 可 đầu vế là "nhưng", trừ 可曾/可愿/可需 (hỏi: "có… không") và sau 【 mà kế là danh từ
+# (bảng hệ thống: 【可加点：1】 = "có thể thêm điểm").
+^ !【 | 可 | !(曾|愿|需) = nhưng -> lit
+【 | 可 | !{danh-từ} !(曾|愿|需) = nhưng -> lit
 ^ | 可是 | = nhưng -> lit
 最 {tính-từ} = {tính-từ} nhất -> tính-cụm
 什么 {danh-từ} = {danh-từ} gì

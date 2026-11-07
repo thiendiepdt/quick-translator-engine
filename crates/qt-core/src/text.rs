@@ -33,6 +33,37 @@ pub(crate) fn needs_space_after_sentence_punctuation(chars: &[char], index: usiz
     !(current == '.' && index > 0 && chars[index - 1].is_ascii_digit() && next.is_ascii_digit())
 }
 
+/// Số ký tự tối đa quét ngược tìm đầu dòng khi đếm ngoặc; dòng dài hơn thì không đoán.
+const QUOTE_SCAN: usize = 2000;
+
+/// Ngoặc thẳng `quote` đứng ngay sau `.` `?` `!` mở câu thoại kế (`xong. "Ngươi`)
+/// khi chữ ngay sau nó là chữ (`“` thành `"` dính chữ, còn `”` thành `" `) và số
+/// ngoặc cùng loại từ đầu dòng tới trước nó là chẵn: sách dùng sẵn ngoặc thẳng
+/// (`"你好。"他说`) thì ngoặc thứ hai là ngoặc đóng. `before` là các ký tự trước
+/// ngoặc, đọc ngược. Dòng dài quá `QUOTE_SCAN` thì coi là ngoặc đóng như trước.
+pub(crate) fn opens_after_sentence_end(
+    before: impl Iterator<Item = char>,
+    quote: char,
+    next: Option<char>,
+) -> bool {
+    if !next.is_some_and(char::is_alphanumeric) {
+        return false;
+    }
+    let mut count = 0usize;
+    for (scanned, c) in before.enumerate() {
+        if c == '\n' {
+            break;
+        }
+        if scanned == QUOTE_SCAN {
+            return false;
+        }
+        if c == quote {
+            count += 1;
+        }
+    }
+    count.is_multiple_of(2)
+}
+
 pub fn wrap_translation(t: &str, wrap_type: i32) -> String {
     if wrap_type == 0 {
         t.to_string()

@@ -142,7 +142,10 @@ Một dòng: `[trước |] mẫu [| sau] = khuôn [-> nhãn]`.
 | `{mệnh-đề}` | `[chủ ngữ] [phó từ] động từ [tân ngữ]`, dựng từ phải sang trái |
 | `{đoạn}` | khúc ngắn nhất trong vế, tới phần tử kế tiếp |
 
-Ngữ cảnh đặt ngoài hai dấu `|`, không bị thay: `^` đầu vế, `$` cuối vế, `!` phủ định.
+Ngữ cảnh đặt ngoài hai dấu `|`, không bị thay: `^` đầu vế, `$` cuối vế, `!` phủ định. Ngữ cảnh
+trước là token liền trước, bỏ qua dấu cách sau dấu câu (mục 5, "Chỗ khác bản thử"); các phần tử
+của một bên cùng xét một token (`| !{danh-từ} !(曾|愿|需)` là token sau không phải danh từ và
+không phải 曾, 愿, 需).
 
 Khuôn dùng `{1}`, `{2}` theo thứ tự khoá, hoặc tên nhãn khi nhãn đó chỉ xuất hiện một lần. Chữ cố
 định không được đánh số. Tham chiếu tới khoá không tồn tại là lỗi khi nạp file, không im lặng
@@ -177,13 +180,20 @@ Bản Rust port nguyên ngữ nghĩa bản thử, kể cả chỗ kỳ quặc, t
   thì gộp. Ngoài cửa sổ, output của engine giữ nguyên từng byte. Trong cửa sổ, nối như engine
   (`append_translated_word`): viết hoa khi output trước đó kết thúc câu theo engine (`. `, `? `,
   `! `, `: `, `"`, xuống dòng…), không cách trước dấu đóng và sau ngoặc mở; ngoặc thẳng là ngoặc
-  đóng khi chữ nguồn sau nó là khoảng trắng, dấu đóng hay hết đoạn. Chữ ngay sau cửa sổ đổi chữ
+  đóng khi chữ nguồn sau nó là khoảng trắng, dấu đóng hay hết đoạn, hoặc khi chữ đã ráp kết thúc
+  bằng `.` `?` `!` mà ngoặc không mở câu thoại kế (như engine, `text::opens_after_sentence_end`:
+  sau nó là chữ và số ngoặc cùng loại từ đầu dòng tới nó là chẵn). Chữ ngay sau cửa sổ đổi chữ
   đầu nếu cửa sổ đổi việc nó đứng đầu câu (`Chương 251:` của nhóm `[số]` rồi `Tương lai…`). Hệ quả:
   chữ đầu của request không viết hoa, như engine (bản thử viết hoa đầu đoạn có quy tắc chạy).
 - **Ngoặc mở cuối cụm từ điển (đường Quy Tắc).** Cụm nguồn và nghĩa cùng kết thúc bằng ngoặc thẳng
   mà ngay sau là chữ Hán (`道, "` = `nói, "`) thì không chèn dấu cách sau ngoặc, chữ kế viết hoa,
   như ngoặc đứng riêng. Đường hiện tại giữ `nói, " đi`; ở đó Luật Nhân thường nuốt cụm trước
   (`{s}道`), đường Quy Tắc thì không.
+- **Ngữ cảnh trước bỏ qua token dấu cách (2026-11-08).** Bước chuẩn hoá chèn dấu cách sau dấu câu
+  đứng trước chữ Hán (`，可` → `, 可`, `【可` → `【 可`), và dấu cách đó là một token riêng, nên
+  token liền trước luôn là nó: chữ cố định là dấu câu (`【 | 可 |`) không bao giờ khớp. Bản Rust
+  bỏ qua các token chỉ có dấu cách khi trước chúng là dấu câu. Dấu cách sau chữ (`Chương 8:` do
+  `[số]` tạo) thì giữ, vì nó vẫn là ranh giới vế. Nhờ vậy `^` và mọi luật cũ ra y như trước.
 - **Hoa thường.** Bản thử hạ chữ đầu mọi token bị dời mà không mang nhãn tên (`t.vi[:1].lower()`),
   để gỡ chữ hoa đầu câu của engine, nên hạ luôn nghĩa viết hoa của từ điển ("Ma tộc", "Kiếm tông",
   tên không gắn nhãn tên): "lực lượng của ma tộc". Bản Rust ghi lại chữ nào engine viết hoa vì
@@ -499,6 +509,14 @@ tự xen kẽ, cổng lấy tổng thời gian các lượt:
   thường chữ "nhưng" ở 970 đoạn, không đổi gì khác: sau dấu phẩy, sau `【` / `——`, và ở chữ đầu
   request (432 chỗ; engine không viết hoa chữ đầu request, đường hiện tại ở các đoạn đó cũng mở
   đầu bằng chữ thường).
+- 2026-11-08, trên bản chụp: (1) ngoặc mở sau `.?!` có dấu cách (engine và Quy Tắc cùng một hàm),
+  đổi đúng 100 đoạn ở mỗi đường, mọi chỗ đổi chỉ là thêm một dấu cách trước ngoặc mở (`câu."Ngươi`
+  → `câu. "Ngươi`); (2) ngữ cảnh trước bỏ qua dấu cách sau dấu câu, luật `可` tách hai dòng (205
+  quy tắc): đổi thêm 5 đoạn (`可愿`, `可需`, `【可加点`), không đoạn nào kém đi. Chặn `可` + động
+  từ sau dấu phẩy được +32 cụm nhưng hỏng nhiều câu đúng ("可一想到", "可她说的话") vì nhãn từ loại
+  của cụm gộp không đáng tin (`加点` là danh từ, `等你们` là đại từ), nên không dùng. Cụm 3 từ
+  +11,46%, thắng 84,6%, thời gian 93,0% (trung vị 93,3%), RAM 9.404.921 byte, ba cổng lỗi nhìn thấy
+  158 / 33 / 3.
 - Bookshelf đang được sửa nên số đoạn đổi theo ngày. Bản chụp cố định 103.803 đoạn (2.798.883 ký
   tự) cho cụm 3 từ +10,70%, thắng 83,0%, và output y nguyên từng byte qua mọi lượt tối ưu.
 - Các số 87%, 91% (và 206% ở bản đầu) đo trước đây là bộ đo ghép đôi bị lệch: mỗi đoạn dịch đường

@@ -167,6 +167,13 @@ ProcessHanViet(chinese, wrapType, ref num2, ...):
     num2++                                                   # LUÔN chỉ tiến 1 ký tự
 ```
 
+**qt-core khác QT ở một chỗ (2026-11-08).** QT coi ngoặc thẳng ngay sau `.?!` luôn là ngoặc
+đóng, nên câu thoại mở ngay sau dấu chấm dính liền: `他说完。“你好。”` ra `nói xong."Ngươi tốt."`.
+qt-core chèn dấu cách trước ngoặc đó khi nó mở câu thoại kế (`text::opens_after_sentence_end`):
+chữ ngay sau nó là chữ (bước chuẩn hoá đổi `“` thành `"` dính chữ, `”` thành `" `), và số ngoặc
+cùng loại từ đầu dòng tới trước nó là chẵn (sách dùng sẵn ngoặc thẳng như `"你好。"他说` thì
+ngoặc thứ hai vẫn là ngoặc đóng). Dòng dài quá 2.000 ký tự thì giữ cách của QT.
+
 Xem chi tiết phiên âm: [han-viet.md](han-viet.md).
 
 ## 8. `appendTranslatedWord` — quy tắc nối chuỗi & viết hoa

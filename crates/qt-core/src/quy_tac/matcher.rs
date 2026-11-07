@@ -479,7 +479,17 @@ fn match_rule<'p>(
         }
     }
     if !rule.pre.is_empty() {
-        let tok = out.len().checked_sub(take + 1).map(|back| &out[back]);
+        // Token liền trước. Bước chuẩn hoá chèn dấu cách sau dấu câu đứng trước chữ
+        // Hán (`，可` → `, 可`, `【可` → `【 可`) thành token riêng, nên dấu cách sau dấu
+        // câu được bỏ qua để thấy dấu câu. Dấu cách sau chữ (`Chương 8:` của `[số]`)
+        // thì giữ: nó vẫn là ranh giới vế, `^` không đổi.
+        let before = &out[..out.len() - take];
+        let mut tok = before.last();
+        if let Some(k) = before.iter().rposition(|t| !t.zh.trim().is_empty()) {
+            if before[k].tag == "w" {
+                tok = Some(&before[k]);
+            }
+        }
         for el in &rule.pre {
             if !ctx_ok(program, el, tok, tok.is_none_or(|t| t.tag == "w")) {
                 return None;
@@ -928,6 +938,35 @@ mod tests {
         assert_eq!((text.as_str(), fired), ("Hắn, nhưng", 1));
         let (_, fired) = run(rules, vec![tok("他", "hắn", "r"), tok("可是", "có thể là", "c")]);
         assert_eq!(fired, 0);
+    }
+
+    /// Bước chuẩn hoá chèn dấu cách sau dấu câu đứng trước chữ Hán (`【可` →
+    /// `【 可`): ngữ cảnh trước bỏ qua token chỉ có dấu cách nên thấy được `【`.
+    #[test]
+    fn context_before_skips_whitespace_tokens() {
+        let rules = "[nghĩa 1]\n^ !【 | 可 | !(曾|愿|需) = nhưng -> lit\n\
+            【 | 可 | !{danh-từ} !(曾|愿|需) = nhưng -> lit\n";
+        let bracket = |next: Token<'static>| {
+            vec![tok("【", "【", "w"), tok(" ", " ", "w"), tok("可", "có thể", "v"), next]
+        };
+        let (text, _) = run(rules, bracket(tok("加点", "thêm điểm", "n")));
+        assert_eq!(text, "【có thể thêm điểm");
+        let (text, _) = run(rules, bracket(tok("它", "nó", "r")));
+        assert_eq!(text, "【nhưng nó");
+        let comma = vec![
+            tok("他", "hắn", "r"),
+            tok(",", ",", "w"),
+            tok(" ", " ", "w"),
+            tok("可", "có thể", "v"),
+            tok("愿", "nguyện", "v"),
+        ];
+        let (text, fired) = run(rules, comma);
+        assert_eq!((text.as_str(), fired), ("Hắn, có thể nguyện", 0));
+        // Dấu cách sau chữ (tiêu đề `[số]` tạo) vẫn là ranh giới vế.
+        let title =
+            vec![tok("第8章", "Chương 8:", "lit"), tok(" ", " ", "w"), tok("可", "có thể", "v")];
+        let (_, fired) = run(rules, title);
+        assert_eq!(fired, 1);
     }
 
     #[test]

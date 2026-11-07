@@ -11,14 +11,15 @@
 //! - trong cửa sổ, nối như engine (`text::append_translated_word`): viết hoa
 //!   khi output trước đó kết thúc câu theo engine (`text::ends_sentence`: `. `,
 //!   `: `, `"`…), không cách trước dấu đóng và sau ngoặc mở; ngoặc thẳng là
-//!   ngoặc đóng khi chữ nguồn sau nó là khoảng trắng, dấu đóng hay hết đoạn;
+//!   ngoặc đóng khi chữ nguồn sau nó là khoảng trắng, dấu đóng hay hết đoạn, hoặc
+//!   khi chữ đã ráp kết thúc câu mà ngoặc không mở câu thoại kế (`closes`);
 //! - chữ đầu của chữ ngay sau cửa sổ đổi hoa thường khi cửa sổ đổi việc nó có
 //!   đứng đầu câu hay không (`Chương 251:` của nhóm `[số]` rồi `tương lai…`).
 
 use std::ops::Range;
 
 use super::prepare::Token;
-use crate::text::{ends_sentence, SENTENCE_ENDERS};
+use crate::text::{ends_sentence, opens_after_sentence_end, SENTENCE_ENDERS};
 
 /// Dấu đóng: không có dấu cách trước nó. Hai tập dấu này phải theo lối nối của
 /// engine (`text.rs`); chỗ lệch đã biết: `【 x 】`, ở đây ráp sát thành `【x】`.
@@ -39,13 +40,19 @@ fn is_straight_quote(piece: &str) -> bool {
     piece == "\"" || piece == "'"
 }
 
-/// Ngoặc thẳng kết thúc ở byte `end` của chữ Hán cả đoạn là ngoặc đóng: sau nó
+/// Ngoặc thẳng `quote` ở byte `src` của chữ Hán cả đoạn là ngoặc đóng: sau nó
 /// là khoảng trắng (`”` → `" `), dấu đóng, hoặc hết đoạn; hoặc chữ đã ráp tới đây
-/// kết thúc bằng `.` `?` `!` (như nhánh ngoặc lẻ của `translate.rs`).
-fn closes(text: &str, end: usize, so_far: &str) -> bool {
-    let next = text.get(end..).and_then(|rest| rest.chars().next());
+/// kết thúc bằng `.` `?` `!` mà ngoặc không mở câu thoại kế (như nhánh ngoặc lẻ
+/// của `translate.rs`, cùng `text::opens_after_sentence_end`).
+fn closes(text: &str, src: &Range<usize>, quote: char, so_far: &str) -> bool {
+    let next = text.get(src.end..).and_then(|rest| rest.chars().next());
     next.is_none_or(|c| c.is_whitespace() || is_closer(c))
-        || so_far.trim_end_matches(' ').ends_with(['.', '?', '!'])
+        || (so_far.trim_end_matches(' ').ends_with(['.', '?', '!'])
+            && !opens_after_sentence_end(
+                text.get(..src.start).unwrap_or("").chars().rev(),
+                quote,
+                next,
+            ))
 }
 
 /// Như `text::to_upper_case`: viết hoa chữ đầu, hoặc chữ sau `[`.
@@ -95,7 +102,7 @@ pub(crate) fn render_window(out: &mut String, toks: &[Token], text: &str, keep_g
         let piece = t.vi.trim();
         let Some(head) = piece.chars().next() else { continue };
         let quote = is_straight_quote(piece);
-        let closing = quote && closes(text, t.src.end, out);
+        let closing = quote && closes(text, &t.src, head, out);
         let attach = closing || (!quote && is_closer(head));
         if first && keep_gap {
             if attach {
@@ -432,6 +439,24 @@ mod tests {
         let mut out = String::new();
         render_window(&mut out, &toks, text, false);
         assert_eq!(out, "\"Ngươi tốt.\" Hắn nói");
+    }
+
+    /// Ngoặc thẳng sau `.` mà dính chữ và đứng sau một số chẵn ngoặc trong dòng
+    /// (`“` sau bước chuẩn hoá) là ngoặc mở câu thoại kế: dấu cách trước nó.
+    #[test]
+    fn straight_quote_after_sentence_end_opens_the_next_line() {
+        let text = "说完。\"你好。\" ";
+        let toks = vec![
+            tok("nói xong", 0..6, true),
+            tok(".", 6..9, false),
+            tok("\"", 9..10, false),
+            tok("ngươi tốt", 10..16, false),
+            tok(".", 16..19, false),
+            tok("\"", 19..20, false),
+        ];
+        let mut out = String::new();
+        render_window(&mut out, &toks, text, false);
+        assert_eq!(out, "nói xong. \"Ngươi tốt.\"");
     }
 
     /// Hai cửa sổ trong một đoạn: cửa sổ đầu đổi chữ đầu của chữ ngay sau và dời

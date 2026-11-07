@@ -125,7 +125,7 @@ use crate::luat_nhan::{LuatNhan, LuatNhanScratch};
 use crate::number::{number_modifier, prescan_numbers, translate_number};
 use crate::text::{
     self, append_translated_word, needs_space_after_sentence_punctuation, next_char_is_chinese,
-    utf16_len, wrap_translation,
+    opens_after_sentence_end, utf16_len, wrap_translation,
 };
 use crate::{CharRange, Options, TranslationResult};
 
@@ -274,14 +274,20 @@ fn process_han_viet(
             output.append_space();
         }
     } else if (c == '"' || c == '\'')
-        && !output.last.ends_with(' ')
-        && !output.last.ends_with('.')
-        && !output.last.ends_with('?')
-        && !output.last.ends_with('!')
-        && !output.last.ends_with('\t')
-        && *num2 < chars.len() - 1
-        && chars[*num2 + 1] != ' '
-        && chars[*num2 + 1] != ','
+        && ((!output.last.ends_with(' ')
+            && !output.last.ends_with('.')
+            && !output.last.ends_with('?')
+            && !output.last.ends_with('!')
+            && !output.last.ends_with('\t')
+            && *num2 < chars.len() - 1
+            && chars[*num2 + 1] != ' '
+            && chars[*num2 + 1] != ',')
+            || (output.last.ends_with(['.', '?', '!'])
+                && opens_after_sentence_end(
+                    chars[..*num2].iter().rev().copied(),
+                    c,
+                    chars.get(*num2 + 1).copied(),
+                )))
     {
         output.append_space();
         output.append_char(c);
@@ -858,6 +864,24 @@ mod tests {
         // Ngoặc trong nghĩa mà cụm nguồn không kết thúc bằng ngoặc: không đổi.
         let (output, _) = translate_recorded("杀字就", &d, &han_viet, true);
         assert_eq!(output, " chữ \"giết\" tựu");
+    }
+
+    /// Ngoặc thẳng ngay sau `.` `?` `!` mà dính chữ, đứng sau một số chẵn ngoặc
+    /// trong dòng (`“` sau bước chuẩn hoá), là ngoặc mở câu thoại kế: dấu cách
+    /// trước nó. Ngoặc thứ lẻ (sách dùng sẵn ngoặc thẳng) vẫn là ngoặc đóng; dòng
+    /// mới đếm lại từ đầu. Cả hai đường như nhau.
+    #[test]
+    fn straight_quote_after_sentence_end_opens_on_even_count() {
+        let d = dict(&[("说完", "nói xong"), ("你好", "ngươi tốt"), ("他说", "hắn nói")]);
+        let han_viet = hv(&[('他', "tha"), ('说', "thuyết"), ('你', "nhĩ"), ('好', "hảo")]);
+        for record in [false, true] {
+            let (output, _) = translate_recorded("说完.\"你好!\" ", &d, &han_viet, record);
+            assert_eq!(output, " nói xong. \"Ngươi tốt!\" ");
+            let (output, _) = translate_recorded("\"你好.\"他说", &d, &han_viet, record);
+            assert_eq!(output, " \"Ngươi tốt.\"Hắn nói");
+            let (output, _) = translate_recorded("\"他说\n说完?\"你好", &d, &han_viet, record);
+            assert_eq!(output, " \"Hắn nói\nNói xong? \"Ngươi tốt");
+        }
     }
 
     /// Cụm mở đầu bằng dấu câu bỏ dấu cách cuối output; dấu đó là cụm ký tự
