@@ -35,6 +35,14 @@ impl PosLexicon {
     /// Tách tham lam theo cụm dài nhất có trong bảng; ký tự lạ mang nhãn `"?"`.
     pub(crate) fn segment(&self, text: &str) -> Vec<(String, &str)> {
         let chars: Vec<char> = text.chars().collect();
+        self.spans(&chars)
+            .into_iter()
+            .map(|(start, length, tag)| (chars[start..start + length].iter().collect(), tag))
+            .collect()
+    }
+
+    /// Các khúc của `segment`: (vị trí ký tự đầu, số ký tự, nhãn), khỏi dựng chuỗi.
+    fn spans(&self, chars: &[char]) -> Vec<(usize, usize, &str)> {
         let mut out = Vec::new();
         let mut buffer = String::new();
         let mut i = 0;
@@ -49,16 +57,9 @@ impl PosLexicon {
                     break;
                 }
             }
-            match found {
-                Some((length, tag)) => {
-                    out.push((chars[i..i + length].iter().collect(), tag));
-                    i += length;
-                }
-                None => {
-                    out.push((chars[i].to_string(), "?"));
-                    i += 1;
-                }
-            }
+            let (length, tag) = found.unwrap_or((1, "?"));
+            out.push((i, length, tag));
+            i += length;
         }
         out
     }
@@ -75,10 +76,11 @@ impl PosLexicon {
         if let Some(tag) = self.get(core) {
             return tag;
         }
+        let chars: Vec<char> = core.chars().collect();
         let tags: Vec<&str> = self
-            .segment(core)
+            .spans(&chars)
             .into_iter()
-            .map(|(_, tag)| tag)
+            .map(|(_, _, tag)| tag)
             .filter(|tag| *tag != "?")
             .collect();
         let Some(&last) = tags.last() else {

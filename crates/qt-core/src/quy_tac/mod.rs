@@ -119,10 +119,10 @@ impl QuyTac {
         let raw: Vec<(String, String)> = paragraph
             .iter()
             .map(|t| {
-                (
-                    chars[t.start..t.start + t.len].iter().collect(),
-                    text_of(output, t).to_string(),
-                )
+                let source = &chars[t.start..t.start + t.len];
+                let mut zh = String::with_capacity(source.iter().map(|c| c.len_utf8()).sum());
+                zh.extend(source);
+                (zh, text_of(output, t).to_string())
             })
             .collect();
         let Some(rendered) = self.apply_paragraph(raw, lk) else {
@@ -142,7 +142,7 @@ impl QuyTac {
 
     /// `None` khi không có quy tắc nào chạy.
     fn apply_paragraph(&self, raw: Vec<(String, String)>, lk: &Lookups) -> Option<String> {
-        let (items, char_fired) = char_rules::apply_chars(&self.program, &raw, lk);
+        let (items, char_fired) = char_rules::apply_chars(&self.program, raw, lk);
         let toks = prepare::prepare(items, &self.pos, lk, &self.program.classes);
         let (toks, fired) = matcher::apply_program(&self.program, toks);
         (char_fired + fired > 0).then(|| render::render(&toks))

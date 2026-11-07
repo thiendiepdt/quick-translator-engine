@@ -9,6 +9,7 @@ use regex::Regex;
 use rustc_hash::FxHashMap;
 use unicode_normalization::UnicodeNormalization;
 
+use super::matcher::SlotMemo;
 use super::numbers::{number_words, zh_value, NUM_CHARS};
 use super::program::Class;
 use super::tags::PosLexicon;
@@ -23,6 +24,8 @@ pub(crate) struct Token<'q> {
     pub(crate) val: Option<i64>,
     /// Số viết bằng chữ số Ả Rập (giữ nguyên khi ra).
     pub(crate) digit: bool,
+    /// Kết quả khớp khoá đã tính (bộ nhớ đệm của `matcher`).
+    pub(crate) memo: SlotMemo,
 }
 
 impl<'q> Token<'q> {
@@ -33,6 +36,7 @@ impl<'q> Token<'q> {
             tag,
             val: None,
             digit: false,
+            memo: SlotMemo::default(),
         }
     }
 
@@ -43,6 +47,7 @@ impl<'q> Token<'q> {
             tag: "số",
             val: Some(val),
             digit,
+            memo: SlotMemo::default(),
         }
     }
 }
@@ -115,18 +120,73 @@ static NUM_TOKEN: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(&format!(r"^(?:[{NUM_CHARS}]+|\d+(?:\.\d+)?)$")).unwrap()
 });
 static DIGITS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\d+(?:\.\d+)?$").unwrap());
-static MEASURE_SPLIT: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(&format!(r"^(第?)([{NUM_CHARS}]+)(.)$")).unwrap());
-
-/// Chữ thường, NFC, chỉ giữ chữ: để so nghĩa không vướng dấu câu, hoa thường.
-pub(crate) fn plain_words(text: &str) -> Vec<String> {
-    let lowered = text.nfc().collect::<String>().to_lowercase();
-    WORD.find_iter(&lowered).map(|m| m.as_str().to_string()).collect()
+/// Dấu câu của `PUNCT_TAIL`.
+fn is_punct(c: char) -> bool {
+    matches!(c, '，' | '。' | '！' | '？' | '、' | '；' | '：' | ',' | '.' | '!' | '?' | '…')
 }
 
+/// `Some(là chữ số \d)` cho ký tự biết chắc, `None` thì phải hỏi regex. Ngoài
+/// chữ ASCII, các khối dấu câu dưới đây không có chữ số `\d` nào (test kiểm
+/// lại với regex); khối chữ rộng FF00–FFEF thì trừ các chữ số FF10–FF19.
+fn known_digit(c: char) -> Option<bool> {
+    match c {
+        '\0'..='\u{7f}' => Some(c.is_ascii_digit()),
+        '\u{80}'..='\u{ff}'
+        | '\u{2000}'..='\u{206f}'
+        | '\u{3000}'..='\u{303f}'
+        | '\u{ff00}'..='\u{ff0f}'
+        | '\u{ff1a}'..='\u{ffef}' => Some(false),
+        _ => None,
+    }
+}
+
+/// Như `HAN_OR_DIGIT.is_match(zh)`, hỏi regex chỉ khi gặp ký tự lạ.
+fn han_or_digit(zh: &str) -> bool {
+    let mut unknown = false;
+    for c in zh.chars() {
+        if is_han(c) {
+            return true;
+        }
+        match known_digit(c) {
+            Some(true) => return true,
+            Some(false) => {}
+            None => unknown = true,
+        }
+    }
+    unknown && HAN_OR_DIGIT.is_match(zh)
+}
+
+/// Như `MEASURE_SPLIT.captures(zh)` (`^(第?)([số Hán]+)(.)$`): trả (第 hoặc rỗng,
+/// phần số, chữ cuối). `第?` tham nên có 第 thì lấy; bỏ 第 thì phần số phải bắt
+/// đầu bằng 第, không được. Chữ cuối là một ký tự bất kỳ trừ `\n`.
+fn measure_split(zh: &str) -> Option<(&str, &str, &str)> {
+    let (ordinal, rest) = match zh.strip_prefix('第') {
+        Some(rest) => (&zh[..'第'.len_utf8()], rest),
+        None => ("", zh),
+    };
+    let (last, unit) = rest.char_indices().last()?;
+    let number = &rest[..last];
+    let all_number = !number.is_empty() && number.chars().all(|c| NUM_CHARS.contains(c));
+    (all_number && unit != '\n').then(|| (ordinal, number, &rest[last..]))
+}
+
+/// Chữ Hán khối cơ bản (U+4E00–U+9FFF): khớp `HAN_OR_DIGIT`, không bao giờ là `\d`.
+/// Dùng để trả lời nhanh trước khi gọi regex; kết quả y như regex.
+fn is_han(c: char) -> bool {
+    ('\u{4e00}'..='\u{9fff}').contains(&c)
+}
+
+/// Chữ thường, NFC: để so nghĩa không vướng hoa thường.
+fn lowered(text: &str) -> String {
+    text.nfc().collect::<String>().to_lowercase()
+}
+
+/// Nghĩa ghép từ các phần có cùng dãy chữ (`\w+`) với `vi`, bỏ qua dấu câu, hoa thường.
 fn same_order(parts: &[(String, String)], vi: &str) -> bool {
     let joined: Vec<&str> = parts.iter().map(|(_, v)| v.as_str()).collect();
-    plain_words(&joined.join(" ")) == plain_words(vi)
+    let (left, right) = (lowered(&joined.join(" ")), lowered(vi));
+    let right_words = WORD.find_iter(&right).map(|m| m.as_str());
+    WORD.find_iter(&left).map(|m| m.as_str()).eq(right_words)
 }
 
 /// Tách lại một khúc bằng từ điển, cụm dài trước (tối đa 15 ký tự); tên đi trước VietPhrase.
@@ -155,12 +215,23 @@ pub(crate) fn seg(text: &str, lk: &Lookups) -> Vec<(String, String)> {
 /// để quy tắc đảo được. Cụm có nghĩa khác phép ghép từng phần (đã dịch tay)
 /// thì giữ nguyên. Thành ngữ không tách.
 fn unfreeze(zh: &str, vi: &str, pos: &PosLexicon, lk: &Lookups) -> Option<Vec<(String, String)>> {
+    let n = zh.chars().count();
+    let first = zh.chars().next();
+    // 的 nằm giữa cụm (không là chữ đầu, chữ cuối).
+    let inner_de = n >= 3 && zh.contains('的') && zh.chars().skip(1).take(n - 2).any(|c| c == '的');
+    let head_du = n > 2 && matches!(first, Some('都' | '也'));
+    // Mọi chữ trong `LOCS` kết thúc bằng một trong các chữ này.
+    let maybe_loc = zh.ends_with(['上', '中', '下', '内', '外', '面', '里'])
+        && LOCS.iter().any(|loc| zh.ends_with(loc));
+    // Không nhánh nào chạy được thì kết quả vẫn là None: khỏi tra từ loại.
+    if !inner_de && !head_du && !maybe_loc {
+        return None;
+    }
     let tag = pos.get(zh).unwrap_or("");
     if tag == "i" || tag == "l" {
         return None;
     }
-    let chars: Vec<char> = zh.chars().collect();
-    if chars.len() >= 3 && chars[1..chars.len() - 1].contains(&'的') {
+    if inner_de {
         let parts: Vec<&str> = zh.split('的').collect();
         if parts.iter().all(|part| !part.is_empty()) {
             let mut out = Vec::new();
@@ -174,16 +245,16 @@ fn unfreeze(zh: &str, vi: &str, pos: &PosLexicon, lk: &Lookups) -> Option<Vec<(S
         }
     }
     for loc in LOCS {
-        if chars.len() > loc.chars().count() && zh.ends_with(loc) && WRONG_TAIL.is_match(vi) {
+        if n > loc.chars().count() && zh.ends_with(loc) && WRONG_TAIL.is_match(vi) {
             let mut parts = seg(&zh[..zh.len() - loc.len()], lk);
             parts.push((loc.to_string(), lk.word(loc).unwrap_or(loc).to_string()));
             return same_order(&parts, vi).then_some(parts);
         }
     }
-    if chars.len() > 2 && (chars[0] == '都' || chars[0] == '也') {
-        let rest = &zh[chars[0].len_utf8()..];
+    if let (true, Some(first)) = (head_du, first) {
+        let rest = &zh[first.len_utf8()..];
         if let Some(meaning) = lk.word(rest) {
-            let head = chars[0].to_string();
+            let head = first.to_string();
             let head_vi = lk.word(&head).unwrap_or("").to_string();
             return Some(vec![(head, head_vi), (rest.to_string(), meaning.to_string())]);
         }
@@ -208,15 +279,16 @@ fn vi_punct(tail: &str) -> String {
 /// Tách dấu câu cuối, `的` đầu/cuối, cụm đóng băng. Nghĩa giữ ở phần chữ.
 pub(crate) fn untie<'q>(raw: Vec<Raw<'q>>, pos: &PosLexicon, lk: &Lookups) -> Vec<Raw<'q>> {
     let mut out = Vec::with_capacity(raw.len() + 4);
-    for index in 0..raw.len() {
-        let (zh, vi) = match &raw[index] {
+    let mut items = raw.into_iter().peekable();
+    while let Some(item) = items.next() {
+        let (zh, vi) = match item {
             Raw::Tagged(..) => {
-                out.push(raw[index].clone());
+                out.push(item);
                 continue;
             }
-            Raw::Plain(zh, vi) => (zh.clone(), vi.clone()),
+            Raw::Plain(zh, vi) => (zh, vi),
         };
-        let next_de = raw.get(index + 1).is_some_and(|next| next.zh().starts_with('的'));
+        let next_de = items.peek().is_some_and(|next| next.zh().starts_with('的'));
         // Cụm động từ + danh từ đứng ngay trước 的: tách theo từ để 的 bám đúng định ngữ.
         if next_de && zh.chars().count() >= 3 && pos.get(&zh).is_none() && !lk.is_name(&zh) {
             let words = pos.segment(&zh);
@@ -232,9 +304,10 @@ pub(crate) fn untie<'q>(raw: Vec<Raw<'q>>, pos: &PosLexicon, lk: &Lookups) -> Ve
             }
         }
         // Tính xong trong một câu lệnh để `Captures` (mượn `zh`) hết hạn trước khi `zh` bị move.
-        let split = PUNCT_TAIL
-            .captures(&zh)
-            .filter(|_| zh.chars().count() > 1)
+        // `PUNCT_TAIL` chỉ khớp khi chữ cuối là dấu câu (`$` là cuối chuỗi): xét trước cho nhanh.
+        let split = (zh.ends_with(is_punct) && zh.chars().count() > 1)
+            .then(|| PUNCT_TAIL.captures(&zh))
+            .flatten()
             .map(|caps| (caps[1].to_string(), caps[2].to_string()));
         let (mut zh, vi, tail) = match split {
             Some((body, tail)) => {
@@ -253,15 +326,16 @@ pub(crate) fn untie<'q>(raw: Vec<Raw<'q>>, pos: &PosLexicon, lk: &Lookups) -> Ve
             }
             continue;
         }
-        if zh.chars().count() >= 2
-            && zh.starts_with('的')
+        if zh.starts_with('的')
+            && zh.chars().count() >= 2
             && !KEEP_DE.contains(&zh.as_str())
             && pos.get(&zh['的'.len_utf8()..]).is_some()
         {
             out.push(Raw::Plain("的".to_string(), String::new()));
             zh = zh['的'.len_utf8()..].to_string();
         }
-        let split_tail = zh.chars().count() >= 2
+        let split_tail = zh.ends_with('的')
+            && zh.chars().count() >= 2
             && !KEEP_TAIL_DE.contains(&zh.as_str())
             && zh
                 .strip_suffix('的')
@@ -310,11 +384,17 @@ pub(crate) fn prepare<'q>(
             }
             Raw::Plain(zh, vi) => (unspace_zero(zh), vi),
         };
-        if !HAN_OR_DIGIT.is_match(&zh) {
+        if !han_or_digit(&zh) {
             out.push(Token::new(zh, vi, "w"));
             continue;
         }
-        if NUM_TOKEN.is_match(&zh) && !["一", "万", "千", "百", "十"].contains(&zh.as_str()) {
+        // Chữ đầu là chữ Hán ngoài bộ chữ số thì `NUM_TOKEN` không khớp được.
+        let head = zh.chars().next();
+        let maybe_number = !head.is_some_and(|c| is_han(c) && !NUM_CHARS.contains(c));
+        if maybe_number
+            && NUM_TOKEN.is_match(&zh)
+            && !["一", "万", "千", "百", "十"].contains(&zh.as_str())
+        {
             if DIGITS.is_match(&zh) {
                 // Như bản thử: int(float(zh)), phần thập phân bị cắt.
                 match zh.parse::<f64>() {
@@ -332,8 +412,7 @@ pub(crate) fn prepare<'q>(
             out.push(Token::number(zh, vi, 1, false));
             continue;
         }
-        if let (Some(measure), Some(caps)) = (measure, MEASURE_SPLIT.captures(&zh)) {
-            let (ordinal, number, unit) = (&caps[1], &caps[2], &caps[3]);
+        if let (Some(measure), Some((ordinal, number, unit))) = (measure, measure_split(&zh)) {
             if measure.contains_key(unit)
                 && !["万", "千", "百"].contains(&number)
                 && !MEASURE_EXCLUDED.contains(&zh.as_str())
@@ -458,6 +537,34 @@ mod tests {
         let toks = prepare(plain(&[("一 〇 八", "108")]), &pos, &lk, &FxHashMap::default());
         let view: Vec<_> = toks.iter().map(|t| (t.zh.as_str(), t.tag, t.val)).collect();
         assert_eq!(view, vec![("一〇八", "số", Some(108))]);
+    }
+
+    #[test]
+    fn fast_paths_match_the_regexes() {
+        let digit = Regex::new(r"\d").unwrap();
+        for c in (0..=0x10ffff).filter_map(char::from_u32) {
+            if let Some(known) = known_digit(c) {
+                assert_eq!(known, digit.is_match(c.encode_utf8(&mut [0; 4])), "{c:?}");
+            }
+            if is_han(c) {
+                assert!(!digit.is_match(c.encode_utf8(&mut [0; 4])), "{c:?}");
+            }
+        }
+        let measure = Regex::new(&format!(r"^(第?)([{NUM_CHARS}]+)(.)$")).unwrap();
+        let samples = [
+            "一个", "第一", "第一次", "第三层", "三百五十个", "两", "第", "一一", "第一\n",
+            "个", "五万", "第五十章", "第个", "x一", "一", "",
+        ];
+        for zh in samples {
+            let by_regex = measure.captures(zh).map(|c| {
+                (c.get(1).unwrap().as_str(), c.get(2).unwrap().as_str(), c.get(3).unwrap().as_str())
+            });
+            assert_eq!(measure_split(zh), by_regex, "{zh:?}");
+            assert_eq!(han_or_digit(zh), HAN_OR_DIGIT.is_match(zh), "{zh:?}");
+        }
+        for zh in ["，", "“", "……", "ａ", "１", "٣", "x", "(", "  "] {
+            assert_eq!(han_or_digit(zh), HAN_OR_DIGIT.is_match(zh), "{zh:?}");
+        }
     }
 
     #[test]

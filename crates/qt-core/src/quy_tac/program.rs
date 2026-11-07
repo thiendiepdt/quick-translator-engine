@@ -49,6 +49,91 @@ pub(crate) const BUILTIN_SLOTS: [&str; 21] = [
     "động-từ-tại",
 ];
 
+/// Nhãn khoá có sẵn. Thứ tự là vị trí bit trong bộ nhớ đệm của `matcher`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Builtin {
+    DaiTu,
+    Ten,
+    Nguoi,
+    DanhTu,
+    Cum,
+    DongTu,
+    DanhDong,
+    HeTu,
+    CoDich,
+    TinhTu,
+    ThanhNgu,
+    So,
+    SoLuong,
+    ThoiGian,
+    Noi,
+    PhoTu,
+    Dau,
+    ChiDinh,
+    NoiCum,
+    NoiTu,
+    DongTuTai,
+}
+
+impl Builtin {
+    /// Số nhãn có sẵn.
+    pub(crate) const COUNT: usize = Builtin::DongTuTai as usize + 1;
+
+    fn from_name(name: &str) -> Option<Builtin> {
+        Some(match name {
+            "đại-từ" => Builtin::DaiTu,
+            "tên" => Builtin::Ten,
+            "người" => Builtin::Nguoi,
+            "danh-từ" => Builtin::DanhTu,
+            "cụm" => Builtin::Cum,
+            "động-từ" => Builtin::DongTu,
+            "danh-động" => Builtin::DanhDong,
+            "hệ-từ" => Builtin::HeTu,
+            "có-đích" => Builtin::CoDich,
+            "tính-từ" => Builtin::TinhTu,
+            "thành-ngữ" => Builtin::ThanhNgu,
+            "số" => Builtin::So,
+            "số-lượng" => Builtin::SoLuong,
+            "thời-gian" => Builtin::ThoiGian,
+            "nơi" => Builtin::Noi,
+            "phó-từ" => Builtin::PhoTu,
+            "dấu" => Builtin::Dau,
+            "chỉ-định" => Builtin::ChiDinh,
+            "nơi-cụm" => Builtin::NoiCum,
+            "nơi-từ" => Builtin::NoiTu,
+            "động-từ-tại" => Builtin::DongTuTai,
+            _ => return None,
+        })
+    }
+}
+
+/// Loại khoá, phân giải một lần sau khi đọc hết file (lớp từ khai báo sau
+/// quy tắc vẫn được tính, và lớp từ đè nhãn có sẵn cùng tên).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SlotKind {
+    /// Lớp từ thứ `k` trong các lớp dùng làm khoá (bit `k` của `Program::class_bits`).
+    Class(u16),
+    Builtin(Builtin),
+    /// Tên lạ: không khớp gì. Không xảy ra vì lúc đọc đã kiểm tên khoá.
+    Unknown,
+}
+
+/// Khoá `{tên}` trong mẫu.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Slot {
+    pub(crate) name: Box<str>,
+    pub(crate) kind: SlotKind,
+}
+
+impl Slot {
+    fn new(name: String) -> Slot {
+        Slot {
+            name: name.into_boxed_str(),
+            kind: SlotKind::Unknown,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum LeftKind {
     Ve,
@@ -72,8 +157,8 @@ pub(crate) enum ElKind {
     End,
     Left(LeftKind),
     Gap,
-    Many(String),
-    Slot(String),
+    Many(Slot),
+    Slot(Slot),
     Lit(Vec<String>),
 }
 
@@ -105,8 +190,71 @@ pub(crate) struct Rule {
     pub(crate) post: Vec<El>,
     pub(crate) tmpl: Vec<Part>,
     pub(crate) result: String,
-    /// Chữ cố định bắt buộc của mẫu: đoạn không chứa thì khỏi thử.
-    pub(crate) needs: Vec<Vec<String>>,
+    /// Chữ cố định bắt buộc của mẫu: mỗi danh sách là một mặt nạ bit trên
+    /// `Program::need_lits` (`LitTable::words` từ), đoạn phải có ít nhất một chữ
+    /// của mỗi danh sách, không thì khỏi thử.
+    pub(crate) needs: Vec<u64>,
+}
+
+/// Chỉ mục quy tắc chung (`Section::generic`) theo khoá đầu, để chọn bằng bit
+/// những quy tắc mà khoá đầu có thể khớp token: khoá đầu không khớp thì quy tắc
+/// không khớp. Bit `n` (từ `words` từ 64 bit) là `generic[n]`.
+#[derive(Debug, Default)]
+pub(crate) struct HeadIndex {
+    pub(crate) words: usize,
+    /// `by_builtin[b * words..]`: quy tắc có khoá đầu là nhãn có sẵn thứ `b`.
+    pub(crate) by_builtin: Vec<u64>,
+    /// `by_class[k * words..]`: quy tắc có khoá đầu là lớp từ thứ `k` (`k < 64`).
+    pub(crate) by_class: Vec<u64>,
+    /// Khoá đầu tuỳ chọn hay không phải khoá: không lọc được, luôn thử.
+    pub(crate) open: Vec<u64>,
+    /// Bit nhãn có sẵn / lớp từ mà quy tắc `n` đòi ở khoá đầu (0 nếu không).
+    pub(crate) builtin_of: Vec<u32>,
+    pub(crate) class_of: Vec<u64>,
+}
+
+impl HeadIndex {
+    fn build(rules: &[Rule], generic: &[usize]) -> HeadIndex {
+        let words = generic.len().div_ceil(64);
+        let mut index = HeadIndex {
+            words,
+            by_builtin: vec![0; Builtin::COUNT * words],
+            by_class: Vec::new(),
+            open: vec![0; words],
+            builtin_of: vec![0; generic.len()],
+            class_of: vec![0; generic.len()],
+        };
+        for (n, &rule) in generic.iter().enumerate() {
+            let (word, bit) = (n / 64, 1u64 << (n % 64));
+            let head = &rules[rule].pat[0];
+            let slot = match &head.kind {
+                ElKind::Slot(slot) if !head.opt => slot,
+                ElKind::Many(slot) => slot,
+                _ => {
+                    index.open[word] |= bit;
+                    continue;
+                }
+            };
+            match slot.kind {
+                SlotKind::Builtin(builtin) => {
+                    index.by_builtin[builtin as usize * words + word] |= bit;
+                    index.builtin_of[n] = 1 << builtin as u32;
+                }
+                SlotKind::Class(k) if k < 64 => {
+                    let k = k as usize;
+                    if index.by_class.len() < (k + 1) * words {
+                        index.by_class.resize((k + 1) * words, 0);
+                    }
+                    index.by_class[k * words + word] |= bit;
+                    index.class_of[n] = 1 << k;
+                }
+                SlotKind::Class(_) => index.open[word] |= bit,
+                // Không khớp gì: không bao giờ là ứng viên (`match_rule` cũng trả `None`).
+                SlotKind::Unknown => {}
+            }
+        }
+        index
+    }
 }
 
 #[derive(Debug)]
@@ -119,6 +267,14 @@ pub(crate) struct Section {
     /// Quy tắc mở đầu bằng `{vế}`…, theo chữ đầu của chữ cố định ngay sau.
     pub(crate) left: FxHashMap<char, Vec<usize>>,
     pub(crate) generic: Vec<usize>,
+    /// Quy tắc chung theo khoá đầu.
+    pub(crate) heads: HeadIndex,
+    /// Mọi khoá của `first` và `left`.
+    pub(crate) key_chars: CharBloom,
+    /// Có quy tắc không cần chữ cố định nào.
+    pub(crate) always: bool,
+    /// Mặt nạ mọi chữ cố định (trên `Program::need_lits`) mà quy tắc của nhóm cần.
+    pub(crate) lits: Vec<u64>,
 }
 
 #[derive(Debug)]
@@ -127,7 +283,92 @@ pub(crate) struct CharRule {
     pub(crate) slots: Vec<String>,
     pub(crate) tmpl: Vec<Part>,
     pub(crate) result: String,
+    /// Chữ cố định bắt buộc (chỉ số vào `Program::char_lits`), mỗi danh sách
+    /// phải có ít nhất một chữ trong đoạn, không thì regex chắc chắn không khớp.
+    /// `None`: mẫu có cú pháp lạ, luôn chạy regex.
+    pub(crate) needs: Option<Box<[Box<[u32]>]>>,
     sort_key: usize,
+}
+
+/// Lọc Bloom 512 bit trên tập ký tự: bit chưa bật thì chắc chắn ký tự không có
+/// trong tập (không bao giờ báo thiếu), nên dùng để khỏi tra bảng băm.
+#[derive(Debug, Default, Clone, Copy)]
+pub(crate) struct CharBloom([u64; 8]);
+
+impl CharBloom {
+    fn bit(c: char) -> (usize, u64) {
+        let hash = (c as u32).wrapping_mul(0x9e37_79b9) >> 23;
+        ((hash >> 6) as usize, 1 << (hash & 63))
+    }
+
+    pub(crate) fn insert(&mut self, c: char) {
+        let (word, bit) = Self::bit(c);
+        self.0[word] |= bit;
+    }
+
+    pub(crate) fn may_contain(&self, c: char) -> bool {
+        let (word, bit) = Self::bit(c);
+        self.0[word] & bit != 0
+    }
+}
+
+/// Bảng chữ cố định cần dò trong đoạn: mỗi chữ một chỉ số, tra theo chữ đầu.
+#[derive(Debug, Default)]
+pub(crate) struct LitTable {
+    lits: Vec<Box<str>>,
+    /// (chữ đầu, chỉ số chữ), xếp tăng dần để tìm nhị phân theo chữ đầu.
+    heads: Vec<(char, u32)>,
+    bloom: CharBloom,
+}
+
+impl LitTable {
+    fn intern(&mut self, lit: &str) -> usize {
+        if let Some(id) = self.lits.iter().position(|known| &**known == lit) {
+            return id;
+        }
+        let head = lit.chars().next().expect("chữ cố định không rỗng");
+        let id = u32::try_from(self.lits.len()).expect("quá nhiều chữ cố định");
+        let at = self.heads.partition_point(|&entry| entry < (head, id));
+        self.heads.insert(at, (head, id));
+        self.bloom.insert(head);
+        self.lits.push(lit.into());
+        self.lits.len() - 1
+    }
+
+    /// Trả phần dư của các mảng sau khi đọc xong.
+    fn shrink(&mut self) {
+        self.lits.shrink_to_fit();
+        self.heads.shrink_to_fit();
+    }
+
+    /// Số từ 64 bit của một tập chỉ số chữ (ít nhất 1).
+    pub(crate) fn words(&self) -> usize {
+        self.lits.len().div_ceil(64).max(1)
+    }
+
+    /// Bit `n` của `present` thành `text.contains(chữ thứ n)`, quét `text` một lượt.
+    pub(crate) fn find(&self, text: &str, present: &mut Vec<u64>) {
+        present.clear();
+        present.resize(self.words(), 0);
+        for (at, c) in text.char_indices() {
+            if !self.bloom.may_contain(c) {
+                continue;
+            }
+            let from = self.heads.partition_point(|&(head, _)| head < c);
+            for &(_, id) in self.heads[from..].iter().take_while(|&&(head, _)| head == c) {
+                let id = id as usize;
+                let (word, bit) = (id / 64, 1 << (id % 64));
+                if present[word] & bit == 0 && text[at..].starts_with(&*self.lits[id]) {
+                    present[word] |= bit;
+                }
+            }
+        }
+    }
+}
+
+/// Chữ thứ `id` có trong tập bit `present` của `LitTable::find`.
+pub(crate) fn has_lit(present: &[u64], id: usize) -> bool {
+    present[id / 64] & (1 << (id % 64)) != 0
 }
 
 #[derive(Debug)]
@@ -135,6 +376,12 @@ pub(crate) struct Program {
     pub(crate) classes: FxHashMap<String, Class>,
     pub(crate) char_rules: Vec<CharRule>,
     pub(crate) sections: Vec<Section>,
+    /// Chữ cố định mà `Rule::needs` trỏ tới.
+    pub(crate) need_lits: LitTable,
+    /// Chữ cố định mà `CharRule::needs` trỏ tới.
+    pub(crate) char_lits: LitTable,
+    /// Chữ Hán → các lớp từ có chữ đó, bit `k` cho `SlotKind::Class(k)` (64 lớp đầu).
+    pub(crate) class_bits: FxHashMap<Box<str>, u64>,
 }
 
 static CONTEXT_SPLIT: LazyLock<Regex> =
@@ -214,19 +461,81 @@ impl Program {
                 }
             }
         }
+        let mut char_lits = LitTable::default();
         let mut char_rules = char_lines
             .iter()
-            .map(|(line_no, line)| compile_char_rule(line, *line_no, &classes))
+            .map(|(line_no, line)| compile_char_rule(line, *line_no, &classes, &mut char_lits))
             .collect::<Result<Vec<_>, _>>()?;
         // Nhiều chữ cố định hơn đi trước; hoà thì giữ thứ tự file (sort ổn định).
         char_rules.sort_by_key(|rule| Reverse(rule.sort_key));
         for section in &mut sections {
             section.finish();
         }
+        let mut slot_classes: Vec<String> = Vec::new();
+        let mut need_lits = LitTable::default();
+        let mut need_ids: Vec<Vec<Vec<usize>>> = Vec::new();
+        for rule in sections.iter_mut().flat_map(|section| section.rules.iter_mut()) {
+            let elements = rule.pre.iter_mut().chain(&mut rule.pat).chain(&mut rule.post);
+            for el in elements {
+                if let ElKind::Slot(slot) | ElKind::Many(slot) = &mut el.kind {
+                    slot.kind = if classes.contains_key(&*slot.name) {
+                        let known = slot_classes.iter().position(|name| **name == *slot.name);
+                        let k = known.unwrap_or_else(|| {
+                            slot_classes.push(slot.name.to_string());
+                            slot_classes.len() - 1
+                        });
+                        // Từ lớp thứ 64 không có bit mà tra theo tên: chỉ số lớn mấy cũng được.
+                        SlotKind::Class(u16::try_from(k).unwrap_or(u16::MAX))
+                    } else {
+                        Builtin::from_name(&slot.name).map_or(SlotKind::Unknown, SlotKind::Builtin)
+                    };
+                }
+            }
+            need_ids.push(
+                rule.pat
+                    .iter()
+                    .filter(|el| !el.opt && !el.neg)
+                    .filter_map(|el| match &el.kind {
+                        ElKind::Lit(lits) => {
+                            Some(lits.iter().map(|lit| need_lits.intern(lit)).collect())
+                        }
+                        _ => None,
+                    })
+                    .collect(),
+            );
+        }
+        // Đủ bảng chữ rồi mới biết số từ của mặt nạ.
+        let words = need_lits.words();
+        let rules = sections.iter_mut().flat_map(|section| section.rules.iter_mut());
+        for (rule, lists) in rules.zip(need_ids) {
+            for ids in lists {
+                let mut mask = vec![0u64; words];
+                for id in ids {
+                    mask[id / 64] |= 1 << (id % 64);
+                }
+                rule.needs.extend(mask);
+            }
+            rule.needs.shrink_to_fit();
+        }
+        for section in &mut sections {
+            section.index_needs(words);
+        }
+        let mut class_bits: FxHashMap<Box<str>, u64> = FxHashMap::default();
+        for (k, name) in slot_classes.iter().enumerate().take(64) {
+            for zh in classes[name].keys() {
+                *class_bits.entry(zh.as_str().into()).or_default() |= 1 << k;
+            }
+        }
+        class_bits.shrink_to_fit();
+        need_lits.shrink();
+        char_lits.shrink();
         Ok(Program {
             classes,
             char_rules,
             sections,
+            need_lits,
+            char_lits,
+            class_bits,
         })
     }
 }
@@ -280,10 +589,10 @@ fn parse_elements(
             "{mệnh-đề}" => ElKind::Left(LeftKind::MenhDe),
             "{đoạn}" => ElKind::Gap,
             _ if part.starts_with('{') && part.ends_with("}+") => {
-                ElKind::Many(slot_name(&part[1..part.len() - 2], line_no, classes)?)
+                ElKind::Many(Slot::new(slot_name(&part[1..part.len() - 2], line_no, classes)?))
             }
             _ if part.starts_with('{') && part.ends_with('}') => {
-                ElKind::Slot(slot_name(&part[1..part.len() - 1], line_no, classes)?)
+                ElKind::Slot(Slot::new(slot_name(&part[1..part.len() - 1], line_no, classes)?))
             }
             _ => {
                 let mut lits: Vec<String> = Vec::new();
@@ -399,33 +708,103 @@ fn parse_rule(
                 }
                 cap_names.push("đoạn".to_string());
             }
-            ElKind::Slot(name) | ElKind::Many(name) => cap_names.push(name.clone()),
+            ElKind::Slot(slot) | ElKind::Many(slot) => cap_names.push(slot.name.to_string()),
             _ => {}
         }
     }
     let tmpl = parse_template(tmpl_src.trim(), &cap_names, line_no)?;
-    let needs = pat
-        .iter()
-        .filter(|el| !el.opt && !el.neg)
-        .filter_map(|el| match &el.kind {
-            ElKind::Lit(lits) => Some(lits.clone()),
-            _ => None,
-        })
-        .collect();
     Ok(Rule {
         pre,
         pat,
         post,
         tmpl,
         result,
-        needs,
+        // Điền ở `Program::parse`, khi đã có bảng chữ cố định chung.
+        needs: Vec::new(),
     })
+}
+
+/// Chữ cố định bắt buộc của vế trái luật `[số]`, dạng "mỗi danh sách phải có
+/// ít nhất một chữ trong đoạn": khúc chữ nằm ngoài khoá và nhóm (hai chữ liền
+/// nhau trong mẫu thì liền nhau trong regex, `\s*` chỉ chèn quanh khoá), nhóm
+/// `(a|b)` không tuỳ chọn, khoá lớp từ không tuỳ chọn (một trong các chữ của
+/// lớp). Chữ có `?` theo sau, nhóm và khoá tuỳ chọn, khoá số thì bỏ qua.
+/// `None` khi gặp cú pháp regex khác (thoát, lớp ký tự, lặp…).
+fn char_rule_needs(lhs: &str, classes: &FxHashMap<String, Class>) -> Option<Vec<Vec<String>>> {
+    let chars: Vec<char> = lhs.chars().collect();
+    let mut needs: Vec<Vec<String>> = Vec::new();
+    let mut run = String::new();
+    let mut i = 0;
+    while i < chars.len() {
+        let c = chars[i];
+        let (skip, need) = match c {
+            '{' => {
+                let close = chars[i..].iter().position(|&d| d == '}')?;
+                let spec: String = chars[i + 1..i + close].iter().collect();
+                if spec.contains('{') {
+                    return None;
+                }
+                let optional = chars.get(i + close + 1) == Some(&'?');
+                let (name, _) = spec.split_once(':').unwrap_or((&spec, ""));
+                let keys = classes
+                    .get(name)
+                    .filter(|_| !optional && !matches!(name, "số" | "năm"))
+                    .map(|class| class.keys().cloned().collect::<Vec<_>>())
+                    .filter(|keys| !keys.iter().any(String::is_empty));
+                (close + 1, keys)
+            }
+            '(' => {
+                let mut depth = 0;
+                let mut close = None;
+                for (offset, &d) in chars[i..].iter().enumerate() {
+                    match d {
+                        '(' => depth += 1,
+                        ')' => depth -= 1,
+                        '\\' => return None,
+                        _ => {}
+                    }
+                    if depth == 0 {
+                        close = Some(offset);
+                        break;
+                    }
+                }
+                let close = close?;
+                let body: String = chars[i + 1..i + close].iter().collect();
+                let optional = chars.get(i + close + 1) == Some(&'?');
+                let plain = !body.contains(|d: char| "()[]\\.*+?^${}".contains(d));
+                let alternatives: Vec<String> = body.split('|').map(str::to_string).collect();
+                let usable = !optional && plain && !alternatives.iter().any(String::is_empty);
+                (close + 1, usable.then_some(alternatives))
+            }
+            '?' => (1, None),
+            '\\' | '[' | ']' | '.' | '*' | '+' | '|' | '^' | '$' | ')' | '}' => return None,
+            _ if chars.get(i + 1) == Some(&'?') => (2, None),
+            _ => {
+                run.push(c);
+                i += 1;
+                continue;
+            }
+        };
+        if !run.is_empty() {
+            needs.push(vec![std::mem::take(&mut run)]);
+        }
+        if let Some(mut alternatives) = need {
+            alternatives.sort();
+            needs.push(alternatives);
+        }
+        i += skip;
+    }
+    if !run.is_empty() {
+        needs.push(vec![run]);
+    }
+    Some(needs)
 }
 
 fn compile_char_rule(
     line: &str,
     line_no: usize,
     classes: &FxHashMap<String, Class>,
+    char_lits: &mut LitTable,
 ) -> Result<CharRule, QuyTacError> {
     let (lhs, rhs) = line
         .split_once(" = ")
@@ -495,6 +874,13 @@ fn compile_char_rule(
     let regex = Regex::new(&pattern)
         .map_err(|error| err(line_no, format!("mẫu số không hợp lệ: {error}")))?;
     let tmpl = parse_template(tmpl_src.trim(), &slots, line_no)?;
+    let needs = char_rule_needs(lhs, classes).map(|needs| {
+        let mut intern = |lit: &String| u32::try_from(char_lits.intern(lit)).expect("chữ cố định");
+        needs
+            .iter()
+            .map(|alternatives| alternatives.iter().map(&mut intern).collect())
+            .collect()
+    });
     let sort_key = SORT_STRIP
         .replace_all(&format!("[số] {line}"), "")
         .chars()
@@ -504,6 +890,7 @@ fn compile_char_rule(
         slots,
         tmpl,
         result,
+        needs,
         sort_key,
     })
 }
@@ -527,6 +914,23 @@ impl Section {
             first: FxHashMap::default(),
             left: FxHashMap::default(),
             generic: Vec::new(),
+            heads: HeadIndex::default(),
+            key_chars: CharBloom::default(),
+            always: false,
+            lits: Vec::new(),
+        }
+    }
+
+    /// Sau khi các quy tắc đã có `needs` (mặt nạ `words` từ) và khoá đã phân giải.
+    fn index_needs(&mut self, words: usize) {
+        for &c in self.first.keys().chain(self.left.keys()) {
+            self.key_chars.insert(c);
+        }
+        self.heads = HeadIndex::build(&self.rules, &self.generic);
+        self.always = self.rules.iter().any(|rule| rule.needs.is_empty());
+        self.lits = vec![0; words];
+        for mask in self.rules.iter().flat_map(|rule| rule.needs.chunks(words)) {
+            self.lits.iter_mut().zip(mask).for_each(|(all, m)| *all |= m);
         }
     }
 
@@ -621,6 +1025,29 @@ lượng-từ: 层=tầng 个=
         let caps = chapter.regex.captures("第 12 章").unwrap();
         assert_eq!(&caps[1], "12");
         assert!(program.char_rules[1].regex.is_match("三点半"));
+    }
+
+    #[test]
+    fn char_rule_needs_keep_only_required_literals() {
+        let mut classes: FxHashMap<String, Class> = FxHashMap::default();
+        let buoi = [("晚上", "tối"), ("上午", "sáng")];
+        let buoi = buoi.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect();
+        classes.insert("buổi".to_string(), buoi);
+        let needs = |lhs: &str| char_rule_needs(lhs, &classes);
+        let lists = |lists: &[&[&str]]| {
+            let lists = lists.iter().map(|list| list.iter().map(|s| s.to_string()).collect());
+            Some(lists.collect::<Vec<Vec<String>>>())
+        };
+        assert_eq!(needs("{số:1-2}点{số:1-2}分"), lists(&[&["点"], &["分"]]));
+        assert_eq!(needs("{buổi}{số:1-2}点多钟?"), lists(&[&["上午", "晚上"], &["点多"]]));
+        assert_eq!(needs("{buổi}?{số}点"), lists(&[&["点"]]));
+        assert_eq!(needs("{số:1-3}个?小(时|時)"), lists(&[&["小"], &["时", "時"]]));
+        assert_eq!(needs("{số:1-8}(枚|块|个)?银币"), lists(&[&["银币"]]));
+        assert_eq!(needs("公元前{số:1-6}年"), lists(&[&["公元前"], &["年"]]));
+        assert_eq!(needs("第二天"), lists(&[&["第二天"]]));
+        assert_eq!(needs("(?:年|月){số}"), lists(&[]));
+        assert_eq!(needs(r"{số}\d"), None);
+        assert_eq!(needs("{số}[年月]"), None);
     }
 
     #[test]
