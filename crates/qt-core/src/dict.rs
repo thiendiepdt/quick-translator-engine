@@ -2,9 +2,11 @@
 
 use crate::han_viet::HanVietMap;
 use rustc_hash::FxHashMap;
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::hash::BuildHasher;
+use unicode_normalization::{is_nfc_quick, IsNormalized, UnicodeNormalization};
 
 /// Raw QT2025 contents for every dictionary that can be replaced per request.
 /// VietPhrase and ChinesePhienAmWords stay fixed and are intentionally not
@@ -60,6 +62,39 @@ impl DictionaryDefaults {
     }
 }
 
+/// Chuẩn hoá NFC phần nghĩa (sau dấu `=` đầu tiên) của từng dòng `key=value`.
+///
+/// QT2025 lưu hơn 11 nghìn dòng VietPhrase với dấu tách rời (NFD): `也` ra
+/// "cũng" nhìn giống hệt nhưng tìm, thay và so chuỗi đều hụt. Key giữ nguyên
+/// byte: NFC đổi chữ Hán tương thích (U+F900…) sang chữ thường, làm key không
+/// còn khớp văn bản nguồn.
+pub(crate) fn nfc_values(source: &str) -> Cow<'_, str> {
+    if is_nfc_quick(source.chars()) == IsNormalized::Yes {
+        return Cow::Borrowed(source);
+    }
+    let mut out = String::with_capacity(source.len());
+    for line in source.split_inclusive('\n') {
+        match line.split_once('=') {
+            Some((key, value)) if is_nfc_quick(value.chars()) != IsNormalized::Yes => {
+                out.push_str(key);
+                out.push('=');
+                out.extend(value.nfc());
+            }
+            _ => out.push_str(line),
+        }
+    }
+    Cow::Owned(out)
+}
+
+/// NFC cho một nghĩa đơn lẻ (patch gửi kèm request).
+pub(crate) fn nfc_string(value: String) -> String {
+    if is_nfc_quick(value.chars()) == IsNormalized::Yes {
+        value
+    } else {
+        value.nfc().collect()
+    }
+}
+
 /// Raw contents for the dictionaries that callers may replace for one
 /// translation. `None` keeps the dictionary loaded with the engine; `Some("")`
 /// deliberately replaces it with an empty dictionary.
@@ -105,13 +140,17 @@ pub struct DictionaryOverrides {
 impl DictionaryOverrides {
     pub fn from_sources(sources: DictionarySourceOverrides<'_>) -> Self {
         Self {
-            names: sources.names.map(first_wins_scan_map),
-            names2: sources.names2.map(first_wins_scan_map),
-            luat_nhan: sources.luat_nhan.map(parse_luat_nhan),
-            pronouns: sources.pronouns.map(first_wins_map),
-            danh_tu: sources.danh_tu.map(first_wins_map),
-            ho_nguoi: sources.ho_nguoi.map(first_wins_map),
-            hau_tu: sources.hau_tu.map(first_wins_map),
+            names: sources.names.map(|source| first_wins_scan_map(&nfc_values(source))),
+            names2: sources
+                .names2
+                .map(|source| first_wins_scan_map(&nfc_values(source))),
+            luat_nhan: sources
+                .luat_nhan
+                .map(|source| parse_luat_nhan(&nfc_values(source))),
+            pronouns: sources.pronouns.map(|source| first_wins_map(&nfc_values(source))),
+            danh_tu: sources.danh_tu.map(|source| first_wins_map(&nfc_values(source))),
+            ho_nguoi: sources.ho_nguoi.map(|source| first_wins_map(&nfc_values(source))),
+            hau_tu: sources.hau_tu.map(|source| first_wins_map(&nfc_values(source))),
             ignored_chinese_phrases: sources
                 .ignored_chinese_phrases
                 .map(parse_ignored_chinese_phrases),
@@ -121,8 +160,16 @@ impl DictionaryOverrides {
     }
 
     pub fn with_patches(mut self, patches: DictionaryPatches) -> Self {
-        self.vietphrase_patches = patches.vietphrase;
-        self.chinese_phien_am_words_patches = patches.chinese_phien_am_words;
+        self.vietphrase_patches = patches
+            .vietphrase
+            .into_iter()
+            .map(|(key, value)| (key, nfc_string(value)))
+            .collect();
+        self.chinese_phien_am_words_patches = patches
+            .chinese_phien_am_words
+            .into_iter()
+            .map(|(key, value)| (key, nfc_string(value)))
+            .collect();
         self
     }
 
@@ -292,14 +339,18 @@ impl Dictionaries {
         names2_src: &str,
         vietphrase_src: &str,
     ) -> Dictionaries {
-        let han_viet = parse_han_viet(han_viet_src);
+        let han_viet_src = nfc_values(han_viet_src);
+        let names_src = nfc_values(names_src);
+        let names2_src = nfc_values(names2_src);
+        let vietphrase_src = nfc_values(vietphrase_src);
+        let han_viet = parse_han_viet(&han_viet_src);
 
         // Names: first-wins into only_name; Names2: OVERRIDE (indexer assignment),
         // but within Names2 itself the FIRST occurrence of a duplicate key wins
         // (engine guards the override with !onlyNamePhuDictionary.ContainsKey(key),
         // decompiled ~2103-2116).
-        let primary_names = first_wins_scan_map(names_src);
-        let secondary_names = first_wins_scan_map(names2_src);
+        let primary_names = first_wins_scan_map(&names_src);
+        let secondary_names = first_wins_scan_map(&names2_src);
         let mut only_name = primary_names.clone();
         for (key, value) in &secondary_names {
             only_name.insert(key.clone(), value.clone());
@@ -307,7 +358,7 @@ impl Dictionaries {
 
         // only_vietphrase: first-wins
         let mut only_vietphrase: FxHashMap<String, String> = FxHashMap::default();
-        for (k, v) in parse_dict(vietphrase_src) {
+        for (k, v) in parse_dict(&vietphrase_src) {
             if !within_scan_window(&k) {
                 continue;
             }
@@ -356,7 +407,7 @@ impl Dictionaries {
     /// Attach the optional Lạc Việt lookup dictionary without changing the
     /// translation dictionary contract.
     pub fn with_lac_viet(mut self, lac_viet_src: &str) -> Self {
-        self.lac_viet = first_wins_map(lac_viet_src);
+        self.lac_viet = first_wins_map(&nfc_values(lac_viet_src));
         self
     }
 
@@ -375,11 +426,11 @@ impl Dictionaries {
     ) -> Dictionaries {
         let mut dictionaries =
             Dictionaries::build(han_viet_src, names_src, names2_src, vietphrase_src);
-        dictionaries.pronouns = first_wins_map(pronouns_src);
-        dictionaries.danh_tu = first_wins_map(danh_tu_src);
-        dictionaries.ho_nguoi = first_wins_map(ho_nguoi_src);
-        dictionaries.hau_tu = first_wins_map(hau_tu_src);
-        dictionaries.luat_nhan = parse_luat_nhan(luat_nhan_src);
+        dictionaries.pronouns = first_wins_map(&nfc_values(pronouns_src));
+        dictionaries.danh_tu = first_wins_map(&nfc_values(danh_tu_src));
+        dictionaries.ho_nguoi = first_wins_map(&nfc_values(ho_nguoi_src));
+        dictionaries.hau_tu = first_wins_map(&nfc_values(hau_tu_src));
+        dictionaries.luat_nhan = parse_luat_nhan(&nfc_values(luat_nhan_src));
         dictionaries.ignored_chinese_phrases = parse_ignored_chinese_phrases(ignored_src);
         dictionaries
     }
@@ -613,5 +664,22 @@ mod tests {
         );
 
         let _ = std::fs::remove_dir_all(directory);
+    }
+}
+
+#[cfg(test)]
+mod nfc_tests {
+    use super::*;
+
+    #[test]
+    fn nfc_values_normalizes_meanings_but_not_keys() {
+        // U+F928 là chữ Hán tương thích: NFC sẽ đổi nó, nên key phải giữ nguyên.
+        let source = "也=cu\u{0303}ng\n\u{F928}=x\r\n";
+        assert_eq!(nfc_values(source), "也=c\u{0169}ng\n\u{F928}=x\r\n");
+    }
+
+    #[test]
+    fn nfc_values_borrows_when_already_nfc() {
+        assert!(matches!(nfc_values("也=cũng\n"), Cow::Borrowed(_)));
     }
 }

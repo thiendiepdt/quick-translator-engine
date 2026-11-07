@@ -15,8 +15,8 @@
 
 use crate::compact::CompactDict;
 use crate::dict::{
-    first_wins_map, parse_dict_borrowed, parse_han_viet, parse_ignored_chinese_phrases,
-    parse_luat_nhan, within_scan_window, DictionaryLookup, IndexedLookup, KeyLenIndex,
+    first_wins_map, nfc_values, parse_dict_borrowed, parse_han_viet,
+    parse_ignored_chinese_phrases, parse_luat_nhan, within_scan_window, DictionaryLookup, IndexedLookup, KeyLenIndex,
 };
 use crate::luat_nhan::LuatNhan;
 use crate::standardize::Standardizer;
@@ -56,19 +56,19 @@ impl LiteEngine {
     pub fn load(data_dir: &Path) -> std::io::Result<Self> {
         let read = |rel: &str| std::fs::read_to_string(data_dir.join(rel));
         let read_optional = |rel: &str| read(rel).unwrap_or_default();
-        let han_viet = parse_han_viet(&read("Resources/ChinesePhienAmWords.txt")?);
-        let only_vietphrase = scan_dictionary(&read("VietPhrase/VietPhrase.txt")?);
-        let primary_names = scan_dictionary(&read_optional("Names.txt"));
-        let secondary_names = scan_dictionary(&read_optional("Names2/123.txt"));
+        let han_viet = parse_han_viet(&nfc_values(&read("Resources/ChinesePhienAmWords.txt")?));
+        let only_vietphrase = scan_dictionary(&nfc_values(&read("VietPhrase/VietPhrase.txt")?));
+        let primary_names = scan_dictionary(&nfc_values(&read_optional("Names.txt")));
+        let secondary_names = scan_dictionary(&nfc_values(&read_optional("Names2/123.txt")));
         Self::assemble(
             han_viet,
             primary_names,
             secondary_names,
             only_vietphrase,
-            &read_optional("Resources/Pronouns.txt"),
-            &read_optional("Resources/HoNguoi.txt"),
-            &read_optional("Resources/HauTu.txt"),
-            &read_optional("LuatNhan.txt"),
+            &nfc_values(&read_optional("Resources/Pronouns.txt")),
+            &nfc_values(&read_optional("Resources/HoNguoi.txt")),
+            &nfc_values(&read_optional("Resources/HauTu.txt")),
+            &nfc_values(&read_optional("LuatNhan.txt")),
             &read_optional("IgnoredChinesePhrases.txt"),
         )
         .map_err(|message| std::io::Error::new(std::io::ErrorKind::InvalidData, message))
@@ -89,14 +89,14 @@ impl LiteEngine {
         ignored_src: &str,
     ) -> Result<Self, String> {
         Self::assemble(
-            parse_han_viet(han_viet_src),
-            scan_dictionary(names_src),
-            scan_dictionary(names2_src),
-            scan_dictionary(vietphrase_src),
-            pronouns_src,
-            ho_nguoi_src,
-            hau_tu_src,
-            luat_nhan_src,
+            parse_han_viet(&nfc_values(han_viet_src)),
+            scan_dictionary(&nfc_values(names_src)),
+            scan_dictionary(&nfc_values(names2_src)),
+            scan_dictionary(&nfc_values(vietphrase_src)),
+            &nfc_values(pronouns_src),
+            &nfc_values(ho_nguoi_src),
+            &nfc_values(hau_tu_src),
+            &nfc_values(luat_nhan_src),
             ignored_src,
         )
     }
