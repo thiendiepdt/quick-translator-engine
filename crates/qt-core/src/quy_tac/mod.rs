@@ -3,9 +3,11 @@
 #![allow(dead_code)] // Task 8 nối vào engine rồi gỡ dòng này.
 
 mod char_rules;
+mod matcher;
 mod numbers;
 mod prepare;
 mod program;
+mod render;
 mod tags;
 
 /// Lỗi khi đọc file Quy Tắc; `line` là số dòng (tính từ 1), 0 khi không gắn dòng.
