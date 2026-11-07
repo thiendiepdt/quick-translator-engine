@@ -446,11 +446,13 @@ fn compile_char_rule(
             ("số", true) => format!(r"\s*([{NUM_CHARS}]+|\d+(?:\.\d+)?)\s*"),
             // Năm lịch: chữ số Hán đọc từng chữ, hoặc số Ả Rập trông như năm.
             // 500年, 5000年 là "500 năm", không phải năm lịch.
+            // Chuẩn hoá đầu vào của QT chèn dấu cách quanh 〇 (không có trong bảng Hán Việt),
+            // nên giữa các chữ số Hán cho phép một dấu cách: "二 〇 一九".
             ("năm", false) if lo == "3" => {
-                r"\s*([零〇一二三四五六七八九]{3,4}|1[5-9]\d\d|20\d\d)\s*".to_string()
+                r"\s*((?:[零〇一二三四五六七八九]\s?){3,4}|1[5-9]\d\d|20\d\d)\s*".to_string()
             }
-            ("năm", false) => format!(r"\s*([零〇一二三四五六七八九\d]{{{lo},{hi}}})\s*"),
-            ("năm", true) => r"\s*([零〇一二三四五六七八九\d]+)\s*".to_string(),
+            ("năm", false) => format!(r"\s*((?:[零〇一二三四五六七八九\d]\s?){{{lo},{hi}}})\s*"),
+            ("năm", true) => r"\s*((?:[零〇一二三四五六七八九\d]\s?)+)\s*".to_string(),
             _ => match classes.get(name) {
                 Some(class) => {
                     let mut keys: Vec<&String> = class.keys().collect();

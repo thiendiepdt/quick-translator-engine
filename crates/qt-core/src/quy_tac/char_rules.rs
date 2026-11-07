@@ -251,6 +251,9 @@ buổi: 晚上=tối
         assert_eq!(out, vec![Raw::Tagged("晚上九点半".into(), "chín giờ rưỡi tối".into(), "thời-gian")]);
         let (out, _) = apply_chars(&program, &raw(&[("二〇一九年", "x")]), &lk);
         assert_eq!(out, vec![Raw::Tagged("二〇一九年".into(), "năm 2019".into(), "thời-gian")]);
+        // QT chèn dấu cách quanh 〇: token nguồn là "二 〇 一九".
+        let (out, _) = apply_chars(&program, &raw(&[("二 〇 一九", "9"), ("年", "năm")]), &lk);
+        assert_eq!(out, vec![Raw::Tagged("二 〇 一九年".into(), "năm 2019".into(), "thời-gian")]);
         let (out, _) = apply_chars(&program, &raw(&[("三点一四", "x")]), &lk);
         assert_eq!(out, vec![Raw::Tagged("三点一四".into(), "ba phẩy một bốn".into(), "m")]);
     }
