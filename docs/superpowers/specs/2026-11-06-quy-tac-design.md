@@ -77,8 +77,8 @@ văn bản
 ```
 
 Vòng dịch không ghi thẳng ra chuỗi nữa mà sinh `Vec<Token>`. `Token` giữ chữ nguồn, nghĩa, nhãn,
-khoảng nguồn. Bước ráp phát lại token qua `TranslationOutput`, nên quy tắc viết hoa và khoảng
-trắng vẫn nằm một chỗ.
+khoảng nguồn. Bước ráp giữ output của engine ở ngoài các cửa sổ token quy tắc đã đổi; trong cửa
+sổ, `render_window` tự áp tập dấu đóng và ngoặc mở riêng, theo lối nối của engine.
 
 Bản cài ở bước 1 giữ output của vòng dịch và chỉ ráp lại các khúc quy tắc đã đổi, theo đúng lối
 nối chữ của engine (mục 5, "Chỗ khác bản thử").
@@ -484,9 +484,9 @@ tự xen kẽ, cổng lấy tổng thời gian các lượt:
 
 - Sau khi sửa ráp câu, hoa thường và chuỗi tên riêng (mục 5, "Chỗ khác bản thử"), cùng lệnh trên bộ
   sống 104.742 đoạn: cụm 3 từ +10,78%, thắng 83,9%, thời gian 95,6% (trung vị 95,3%), RAM
-  9.397.215 byte. Ba cổng lỗi nhìn thấy, hiện tại / Quy Tắc: đoạn có dấu cách lạ trong ngoặc kép
-  200 / 159 (trước sửa Quy Tắc 11.634 trên bản chụp), chữ thường sau `Chương N:` 34 / 33 (973),
-  đoạn có từ viết hoa bị hạ 3 (954). Cổng: Quy Tắc ≤ hiện tại, ≤ hiện tại, ≤ 100.
+  9.397.215 byte. Ba cổng lỗi nhìn thấy, đều trên bản chụp
+  (dấu cách lạ trong ngoặc kép / chữ thường sau `Chương N:` / từ viết hoa bị hạ): Quy Tắc trước
+  sửa 11.634 / 973 / 954, sau sửa 158 / 33 / 3, đường hiện tại 199 / 34. Cổng: Quy Tắc ≤ hiện tại, ≤ hiện tại, ≤ 100.
 - Bookshelf đang được sửa nên số đoạn đổi theo ngày. Bản chụp cố định 103.803 đoạn (2.798.883 ký
   tự) cho cụm 3 từ +10,70%, thắng 83,0%, và output y nguyên từng byte qua mọi lượt tối ưu.
 - Các số 87%, 91% (và 206% ở bản đầu) đo trước đây là bộ đo ghép đôi bị lệch: mỗi đoạn dịch đường

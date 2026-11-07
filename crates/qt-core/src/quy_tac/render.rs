@@ -20,7 +20,8 @@ use std::ops::Range;
 use super::prepare::Token;
 use crate::text::{ends_sentence, SENTENCE_ENDERS};
 
-/// Dấu đóng: không có dấu cách trước nó.
+/// Dấu đóng: không có dấu cách trước nó. Hai tập dấu này phải theo lối nối của
+/// engine (`text.rs`); chỗ lệch đã biết: `【 x 】`, ở đây ráp sát thành `【x】`.
 fn is_closer(c: char) -> bool {
     matches!(
         c,
@@ -39,10 +40,12 @@ fn is_straight_quote(piece: &str) -> bool {
 }
 
 /// Ngoặc thẳng kết thúc ở byte `end` của chữ Hán cả đoạn là ngoặc đóng: sau nó
-/// là khoảng trắng (`”` → `" `), dấu đóng, hoặc hết đoạn.
-fn closes(text: &str, end: usize) -> bool {
+/// là khoảng trắng (`”` → `" `), dấu đóng, hoặc hết đoạn; hoặc chữ đã ráp tới đây
+/// kết thúc bằng `.` `?` `!` (như nhánh ngoặc lẻ của `translate.rs`).
+fn closes(text: &str, end: usize, so_far: &str) -> bool {
     let next = text.get(end..).and_then(|rest| rest.chars().next());
     next.is_none_or(|c| c.is_whitespace() || is_closer(c))
+        || so_far.trim_end_matches(' ').ends_with(['.', '?', '!'])
 }
 
 /// Như `text::to_upper_case`: viết hoa chữ đầu, hoặc chữ sau `[`.
@@ -92,7 +95,7 @@ pub(crate) fn render_window(out: &mut String, toks: &[Token], text: &str, keep_g
         let piece = t.vi.trim();
         let Some(head) = piece.chars().next() else { continue };
         let quote = is_straight_quote(piece);
-        let closing = quote && closes(text, t.src.end);
+        let closing = quote && closes(text, t.src.end, out);
         let attach = closing || (!quote && is_closer(head));
         if first && keep_gap {
             if attach {
@@ -193,6 +196,10 @@ pub(crate) fn splice(
 ) {
     for window in windows(pieces, toks) {
         let span = &pieces[window.pieces.clone()];
+        if span.is_empty() {
+            debug_assert!(false, "cửa sổ không có token engine");
+            continue;
+        }
         let first = span.iter().find(|piece| !piece.out.is_empty());
         let last = span.iter().rev().find(|piece| !piece.out.is_empty());
         let (from, to) = match (first, last) {
@@ -200,6 +207,7 @@ pub(crate) fn splice(
             _ => (span[0].out.start, span[0].out.start),
         };
         if from < *cursor || to < from {
+            debug_assert!(false, "khoảng output của cửa sổ lùi hoặc đảo");
             continue;
         }
         let replaced = from < to;
@@ -407,5 +415,65 @@ mod tests {
         // Chữ hoa của chính nghĩa (không do engine viết) thì giữ.
         pieces[2].capital = None;
         assert_eq!(spliced(&output, &text, &pieces, &toks), " xong Tương lai");
+    }
+
+    /// Ngoặc thẳng sau chữ đã ráp kết thúc bằng `.` là ngoặc đóng dù chữ nguồn
+    /// sau nó là chữ (`"你好。"他说`), như nhánh ngoặc lẻ của engine.
+    #[test]
+    fn straight_quote_after_sentence_end_closes() {
+        let text = "\"你好。\"他说";
+        let toks = vec![
+            tok("\"", 0..1, false),
+            tok("ngươi tốt", 1..7, true),
+            tok(".", 7..10, false),
+            tok("\"", 10..11, false),
+            tok("hắn nói", 11..17, false),
+        ];
+        let mut out = String::new();
+        render_window(&mut out, &toks, text, false);
+        assert_eq!(out, "\"Ngươi tốt.\" Hắn nói");
+    }
+
+    /// Hai cửa sổ trong một đoạn: cửa sổ đầu đổi chữ đầu của chữ ngay sau và dời
+    /// con trỏ qua nó; cửa sổ sau vẫn ráp đúng, không chép lại chữ đã đổi.
+    #[test]
+    fn two_windows_after_a_handover() {
+        let (text, output, mut pieces) = layout(&[
+            ("完了", " hết."),
+            (" ", " "),
+            ("未来", "Tương lai"),
+            (" ", " "),
+            ("他", "hắn"),
+        ]);
+        pieces[2].capital = Some('t');
+        let mut toks = same(&output, &pieces);
+        toks[0] = tok("xong", pieces[0].src.clone(), true);
+        toks[4] = tok("nó", pieces[4].src.clone(), true);
+        assert_eq!(windows(&pieces, &toks).len(), 2);
+        assert_eq!(spliced(&output, &text, &pieces, &toks), " xong tương lai nó");
+    }
+
+    /// Cửa sổ chèn vào chỗ output cũ không có chữ (token engine rỗng): thêm dấu
+    /// cách trước chữ kế.
+    #[test]
+    fn window_inserting_where_the_output_had_no_text() {
+        let (text, output, pieces) = layout(&[("你", "ngươi"), ("的", ""), ("好", " tốt")]);
+        let mut toks = same(&output, &pieces);
+        toks[1] = tok("của", pieces[1].src.clone(), true);
+        assert_eq!(spliced(&output, &text, &pieces, &toks), "ngươi của tốt");
+        // Chữ kế là dấu đóng thì không thêm dấu cách.
+        let (text, output, pieces) = layout(&[("你", "ngươi"), ("的", ""), (",", ",")]);
+        let mut toks = same(&output, &pieces);
+        toks[1] = tok("của", pieces[1].src.clone(), true);
+        assert_eq!(spliced(&output, &text, &pieces, &toks), "ngươi của,");
+    }
+
+    /// Cửa sổ thay chữ bằng không gì: không để hai dấu cách.
+    #[test]
+    fn window_rendering_nothing_leaves_one_space() {
+        let (text, output, pieces) = layout(&[("你", "ngươi"), ("的", " của"), ("好", " tốt")]);
+        let mut toks = same(&output, &pieces);
+        toks[1] = tok("", pieces[1].src.clone(), true);
+        assert_eq!(spliced(&output, &text, &pieces, &toks), "ngươi tốt");
     }
 }

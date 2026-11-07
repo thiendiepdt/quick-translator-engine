@@ -165,6 +165,10 @@ impl QuyTac {
     ) -> Option<Vec<prepare::Token<'a>>> {
         let (items, char_fired) = char_rules::apply_chars(&self.program, text, raw, lk);
         let toks = prepare::prepare(items, &self.pos, lk, &self.program.classes);
+        debug_assert!(
+            toks.windows(2).all(|w| w[0].src.end == w[1].src.start),
+            "src của token không liền và tăng dần"
+        );
         let covered = toks.last().is_none_or(|t| t.src.end == text.len());
         debug_assert!(covered, "token không phủ trọn đoạn");
         let toks = matcher::join_proper_chains(toks);
