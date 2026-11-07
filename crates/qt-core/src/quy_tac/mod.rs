@@ -4,6 +4,7 @@
 
 mod numbers;
 mod program;
+mod tags;
 
 /// Lỗi khi đọc file Quy Tắc; `line` là số dòng (tính từ 1), 0 khi không gắn dòng.
 #[derive(Debug, Clone, PartialEq, Eq)]
