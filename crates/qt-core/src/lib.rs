@@ -8,6 +8,7 @@ mod luat_nhan;
 mod meanings;
 mod name_filter;
 mod number;
+mod quy_tac;
 mod standardize;
 mod text;
 mod translate;
