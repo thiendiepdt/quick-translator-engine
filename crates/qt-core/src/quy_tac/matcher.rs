@@ -99,7 +99,9 @@ fn verbal(t: &Token) -> bool {
 
 /// Kết quả khớp khoá của một token, tính một lần cho mọi khoá: bit theo
 /// `Builtin` và theo lớp từ. Khoá chỉ đọc `zh`, `vi`, `tag` của token, mà token
-/// không bị sửa sau khi tạo, nên nhớ lại là đúng. Không tính vào phép so sánh token.
+/// không bị sửa sau khi tạo, nên nhớ lại là đúng. Bit lớp từ còn tuỳ `Program`
+/// (`class_bits`): mỗi token chỉ được khớp với một `Program`, như `apply_program`.
+/// Không tính vào phép so sánh token.
 #[derive(Debug, Clone, Default)]
 pub(crate) struct SlotMemo {
     builtins: Cell<Option<u32>>,
@@ -767,6 +769,81 @@ mod tests {
         let spaces = Regex::new(r"\s+").unwrap();
         for text in ["", "  ", " a \t b\u{3000}\u{a0}c  ", "x", "\u{2028}y z\n"] {
             assert_eq!(squeeze_spaces(text), spaces.replace_all(text, " ").trim());
+        }
+    }
+
+    /// `builtin_bits` viết lại `slot_ok` cũ (so chuỗi tên, `is_noun`, `is_person`…)
+    /// trong một lượt: hai bên phải khớp nhau trên mọi nhãn và chữ đáng ngờ.
+    #[test]
+    fn builtin_bits_match_the_named_predicates() {
+        let named = |name: &str, t: &Token| match name {
+            "đại-từ" => has(PRONOUNS, &t.zh),
+            "tên" => is_name(t),
+            "người" => is_person(t) || is_name(t),
+            "danh-từ" => is_noun(t),
+            "cụm" => is_noun(t) || is_person(t) || is_name(t) || t.tag == "s",
+            "động-từ" => t.tag.starts_with('v'),
+            "danh-động" => t.tag == "vn",
+            "hệ-từ" => t.tag == "hệ-từ",
+            "có-đích" => {
+                t.zh.chars().count() >= 2 && t.zh.ends_with('的') && !t.vi.trim().is_empty()
+            }
+            "tính-từ" => has(ADJ_TAGS, t.tag) || t.tag == "tính-cụm",
+            "thành-ngữ" => matches!(t.tag, "i" | "l"),
+            "số" => t.tag == "số",
+            "số-lượng" => t.tag == "số-lượng",
+            "thời-gian" => matches!(t.tag, "t" | "tg" | "thời-gian"),
+            "nơi" => matches!(t.tag, "s" | "nơi"),
+            "phó-từ" => t.tag.starts_with('d') && t.tag != "dấu",
+            "dấu" => t.tag == "w",
+            "chỉ-định" => has(DEMONSTRATIVE, &t.zh),
+            "nơi-cụm" => t.tag == "nơi-cụm",
+            "nơi-từ" => matches!(t.tag, "nơi-cụm" | "s" | "f") && t.zh.chars().count() > 1,
+            "động-từ-tại" => {
+                t.zh.chars().count() >= 2 && t.zh.ends_with('在') && t.tag.starts_with('v')
+            }
+            _ => unreachable!("{name}"),
+        };
+        let mut tags: Vec<&str> = NOUN_TAGS.iter().chain(ADJ_TAGS).copied().collect();
+        tags.extend([
+            "nr", "nrfg", "ns", "nt", "tên", "người", "s", "t", "tg", "thời-gian", "nơi", "v",
+            "vn", "vd", "hệ-từ", "tính-cụm", "i", "l", "số", "số-lượng", "d", "dấu", "w",
+            "nơi-cụm", "f", "m", "",
+        ]);
+        let mut words: Vec<&str> = PRONOUNS.iter().chain(DEMONSTRATIVE).copied().collect();
+        words.extend(["", "的", "好的", "坐在", "在", "上面", "桌子", "我的", "这个人"]);
+        for &tag in &tags {
+            for &zh in &words {
+                for vi in ["", " ", "x"] {
+                    let t = tok(zh, vi, tag);
+                    let bits = builtin_bits(&t);
+                    for name in crate::quy_tac::program::BUILTIN_SLOTS {
+                        let builtin = Builtin::from_name(name).unwrap();
+                        let hit = bits & (1 << builtin as u32) != 0;
+                        assert_eq!(hit, named(name, &t), "{name} {zh:?} {vi:?} {tag:?}");
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn lit_span_matches_the_string_version() {
+        let pieces = ["", "的", "时", "候", "的时", "时候", "a", "ab", "b"];
+        let mut seed: u64 = 11;
+        let mut next = || {
+            seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            (seed >> 33) as usize
+        };
+        for _ in 0..20_000 {
+            let toks: Vec<Token> = (0..next() % 6)
+                .map(|_| tok(pieces[next() % pieces.len()], "", "x"))
+                .collect();
+            let lits: Vec<String> = (0..1 + next() % 3)
+                .map(|_| (0..1 + next() % 3).map(|_| pieces[1 + next() % 8]).collect())
+                .collect();
+            let j = next() % (toks.len() + 1);
+            assert_eq!(lit_span(&toks, j, &lits), lit_span_slow(&toks, j, &lits), "{lits:?}");
         }
     }
 

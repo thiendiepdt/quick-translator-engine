@@ -97,6 +97,8 @@ const LOCS: [&str; 15] = [
     "之上", "之中", "之下", "之内", "之外", "上面", "下面", "里面", "外面", "上", "里", "中", "下",
     "内", "外",
 ];
+/// Chữ cuối của mọi chữ trong `LOCS` (test kiểm).
+const LOC_TAILS: [char; 7] = ['上', '中', '下', '内', '外', '面', '里'];
 /// Cụm số + lượng từ có nghĩa riêng, không tách.
 const MEASURE_EXCLUDED: [&str; 26] = [
     "一点", "一下", "一些", "一样", "一直", "一定", "一起", "一切", "一般", "一边", "一旦", "一时",
@@ -220,9 +222,7 @@ fn unfreeze(zh: &str, vi: &str, pos: &PosLexicon, lk: &Lookups) -> Option<Vec<(S
     // 的 nằm giữa cụm (không là chữ đầu, chữ cuối).
     let inner_de = n >= 3 && zh.contains('的') && zh.chars().skip(1).take(n - 2).any(|c| c == '的');
     let head_du = n > 2 && matches!(first, Some('都' | '也'));
-    // Mọi chữ trong `LOCS` kết thúc bằng một trong các chữ này.
-    let maybe_loc = zh.ends_with(['上', '中', '下', '内', '外', '面', '里'])
-        && LOCS.iter().any(|loc| zh.ends_with(loc));
+    let maybe_loc = zh.ends_with(LOC_TAILS) && LOCS.iter().any(|loc| zh.ends_with(loc));
     // Không nhánh nào chạy được thì kết quả vẫn là None: khỏi tra từ loại.
     if !inner_de && !head_du && !maybe_loc {
         return None;
@@ -537,6 +537,15 @@ mod tests {
         let toks = prepare(plain(&[("一 〇 八", "108")]), &pos, &lk, &FxHashMap::default());
         let view: Vec<_> = toks.iter().map(|t| (t.zh.as_str(), t.tag, t.val)).collect();
         assert_eq!(view, vec![("一〇八", "số", Some(108))]);
+    }
+
+    #[test]
+    fn hand_written_sets_match_their_sources() {
+        assert!(LOCS.iter().all(|loc| loc.ends_with(LOC_TAILS)));
+        // `PUNCT_TAIL` khớp "a" + c đúng khi c thuộc lớp dấu câu của nó (mọi dấu đều trong BMP).
+        for c in (0..=0xffff).filter_map(char::from_u32) {
+            assert_eq!(is_punct(c), PUNCT_TAIL.is_match(&format!("a{c}")), "{c:?}");
+        }
     }
 
     #[test]

@@ -143,10 +143,20 @@ pub(crate) fn apply_chars<'q>(
         .char_rules
         .iter()
         .filter(|rule| {
-            let has_one = |ids: &Box<[u32]>| ids.iter().any(|&id| has_lit(&present, id as usize));
-            rule.needs.as_ref().is_none_or(|needs| needs.iter().all(has_one))
+            let has_one = |ids: &[u32]| ids.iter().any(|&id| has_lit(&present, id as usize));
+            rule.needs.as_ref().is_none_or(|needs| needs.iter().all(|ids| has_one(ids)))
         })
         .collect();
+    // Bản debug (mọi lần chạy test): luật bị lọc bỏ thì regex đúng là không khớp.
+    #[cfg(debug_assertions)]
+    for rule in &program.char_rules {
+        let kept = rules.iter().any(|kept| std::ptr::eq(*kept, rule));
+        assert!(
+            kept || !rule.regex.is_match(&text),
+            "lọc trước bỏ nhầm luật [số] {:?} trên {text:?}",
+            rule.regex.as_str()
+        );
+    }
     if rules.is_empty() {
         return (plain(raw), 0);
     }
@@ -344,6 +354,29 @@ buổi: 晚上=tối
                 Raw::Plain("出发".into(), "xuất phát".into()),
             ]
         );
+    }
+
+    /// Luật mà bộ đọc mẫu không lọc trước được vẫn chạy như khi không lọc.
+    #[test]
+    fn flags_and_empty_classes_still_fire() {
+        let program = Program::parse(
+            "[lớp]
+trống:
+
+[số]
+(?i){số}kg = {1} kg -> m
+(?x)第 {số} 章 = Chương {1|số}: -> lit
+{số}{trống}年 = {1} năm -> thời-gian
+",
+        )
+        .unwrap();
+        let (names, lexicon) = (map(&[]), map(&[]));
+        let lk = Lookups { names: &names, lexicon: &lexicon };
+        for zh in ["5KG", "第三章", "三年"] {
+            let (out, fired) = apply_chars(&program, raw(&[(zh, "x")]), &lk);
+            assert_eq!(fired, 1, "{zh}: {out:?}");
+            assert!(matches!(&out[..], [Raw::Tagged(whole, _, _)] if whole == zh), "{out:?}");
+        }
     }
 
     #[test]

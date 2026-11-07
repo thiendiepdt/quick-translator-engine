@@ -79,7 +79,7 @@ impl Builtin {
     /// Số nhãn có sẵn.
     pub(crate) const COUNT: usize = Builtin::DongTuTai as usize + 1;
 
-    fn from_name(name: &str) -> Option<Builtin> {
+    pub(crate) fn from_name(name: &str) -> Option<Builtin> {
         Some(match name {
             "đại-từ" => Builtin::DaiTu,
             "tên" => Builtin::Ten,
@@ -729,8 +729,12 @@ fn parse_rule(
 /// nhau trong mẫu thì liền nhau trong regex, `\s*` chỉ chèn quanh khoá), nhóm
 /// `(a|b)` không tuỳ chọn, khoá lớp từ không tuỳ chọn (một trong các chữ của
 /// lớp). Chữ có `?` theo sau, nhóm và khoá tuỳ chọn, khoá số thì bỏ qua.
-/// `None` khi gặp cú pháp regex khác (thoát, lớp ký tự, lặp…).
+/// `None` khi gặp cú pháp regex khác (thoát, lớp ký tự, lặp…), kể cả nhóm `(?…)`
+/// không phải `(?:`: cờ như `(?i)`, `(?x)` đổi cách khớp cả phần sau nó.
 fn char_rule_needs(lhs: &str, classes: &FxHashMap<String, Class>) -> Option<Vec<Vec<String>>> {
+    if lhs.match_indices("(?").any(|(at, _)| !lhs[at + 2..].starts_with(':')) {
+        return None;
+    }
     let chars: Vec<char> = lhs.chars().collect();
     let mut needs: Vec<Vec<String>> = Vec::new();
     let mut run = String::new();
@@ -746,11 +750,12 @@ fn char_rule_needs(lhs: &str, classes: &FxHashMap<String, Class>) -> Option<Vec<
                 }
                 let optional = chars.get(i + close + 1) == Some(&'?');
                 let (name, _) = spec.split_once(':').unwrap_or((&spec, ""));
+                // Lớp rỗng thành `()`, khớp chuỗi rỗng: không đòi chữ nào.
                 let keys = classes
                     .get(name)
                     .filter(|_| !optional && !matches!(name, "số" | "năm"))
                     .map(|class| class.keys().cloned().collect::<Vec<_>>())
-                    .filter(|keys| !keys.iter().any(String::is_empty));
+                    .filter(|keys| !keys.is_empty() && !keys.iter().any(String::is_empty));
                 (close + 1, keys)
             }
             '(' => {
@@ -1048,6 +1053,20 @@ lượng-từ: 层=tầng 个=
         assert_eq!(needs("(?:年|月){số}"), lists(&[]));
         assert_eq!(needs(r"{số}\d"), None);
         assert_eq!(needs("{số}[年月]"), None);
+        // Cờ đổi cách khớp cả phần sau: không lọc trước.
+        assert_eq!(needs("(?i){số}kg"), None);
+        assert_eq!(needs("(?x)第 {số} 章"), None);
+        assert_eq!(needs("{số}(?i:kg)"), None);
+        // Lớp rỗng không đòi chữ nào.
+        classes.insert("trống".to_string(), FxHashMap::default());
+        let needs = |lhs: &str| char_rule_needs(lhs, &classes);
+        assert_eq!(needs("{số}{trống}年"), lists(&[&["年"]]));
+    }
+
+    #[test]
+    fn every_builtin_slot_has_a_kind() {
+        assert!(BUILTIN_SLOTS.iter().all(|name| Builtin::from_name(name).is_some()));
+        assert_eq!(BUILTIN_SLOTS.len(), Builtin::COUNT);
     }
 
     #[test]
