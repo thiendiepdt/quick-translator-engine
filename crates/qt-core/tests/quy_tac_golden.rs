@@ -4,18 +4,24 @@
 //! `cargo test --release -p qt-core --test quy_tac_golden -- --ignored`.
 
 use std::path::PathBuf;
+use std::sync::LazyLock;
 
 use qt_core::{
     Dictionaries, DictionaryOverrides, DictionarySourceOverrides, Engine, Mode, Options, QuyTac,
 };
 use unicode_normalization::UnicodeNormalization;
 
+/// Nạp một lần cho mọi test trong file.
+static ENGINE: LazyLock<Engine> = LazyLock::new(|| {
+    let data = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../QT2025");
+    Engine::from_dicts(Dictionaries::load(&data).unwrap())
+        .with_quy_tac(QuyTac::load(&data, false).unwrap())
+});
+
 #[test]
 #[ignore = "nạp QT2025 thật, chạy riêng ở bản release"]
 fn matches_prototype_on_golden_sentences() {
-    let data = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../QT2025");
-    let engine = Engine::from_dicts(Dictionaries::load(&data).unwrap())
-        .with_quy_tac(QuyTac::load(&data, false).unwrap());
+    let engine = &*ENGINE;
     let mode = Mode::VietPhraseOneMeaning;
     let on = Options {
         quy_tac: true,
@@ -47,4 +53,22 @@ fn matches_prototype_on_golden_sentences() {
         }
     }
     assert!(failures.is_empty(), "{} câu lệch:\n{}", failures.len(), failures.join("\n"));
+}
+
+/// QT2025 có 29 key nghĩa đầu rỗng (了 的 之 地…) và 172 key nghĩa mở đầu bằng dấu
+/// câu, không có trong Hán Việt. Ghép chúng từng làm range cụm bị đảo, bước
+/// ghép của Quy Tắc panic.
+#[test]
+#[ignore = "nạp QT2025 thật, chạy riêng ở bản release"]
+fn empty_meanings_then_punctuation_do_not_panic() {
+    let engine = &*ENGINE;
+    let mode = Mode::VietPhraseOneMeaning;
+    let on = Options {
+        quy_tac: true,
+        ..Options::default()
+    };
+    for text in ["了的，一般情况下", "的了……等等"] {
+        let got = engine.translate(text, mode, &on);
+        assert!(!got.trim().is_empty(), "{text}: {got:?}");
+    }
 }

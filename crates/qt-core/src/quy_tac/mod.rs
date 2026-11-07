@@ -105,8 +105,10 @@ impl QuyTac {
         result: &mut String,
         cursor: &mut usize,
     ) {
+        // Range hỏng (không được xảy ra, `record` giữ bất biến) thì coi như
+        // cụm rỗng chứ không panic ở bản release.
         fn text_of<'o>(output: &'o str, t: &SourceToken) -> &'o str {
-            output[t.out_start..t.out_end].trim()
+            output.get(t.out_start..t.out_end).unwrap_or("").trim()
         }
         let Some(first) = paragraph.iter().find(|t| !text_of(output, t).is_empty()) else {
             return;

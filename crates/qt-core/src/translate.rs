@@ -168,13 +168,21 @@ impl TranslationOutput<'_> {
         self.target_length += 1;
     }
 
-    /// Ghi cụm vừa nối (`out_start` tới cuối output). Dấu cách cuối của cụm
-    /// trước có thể đã bị `append_translated_word` bỏ, nên cắt lại cụm trước.
+    /// Ghi cụm vừa nối (`out_start` tới cuối output). `append_translated_word`
+    /// có thể đã bỏ dấu cách cuối output, và dấu đó có thể thuộc một cụm trước
+    /// cả cụm liền trước: sau cụm nghĩa rỗng, range rỗng nằm ở cuối output.
+    /// Range trước đó tăng dần nên các cụm chạy quá `out_start` là một đoạn
+    /// cuối danh sách: cắt hết về `out_start`, chúng chỉ mất đúng dấu cách đó.
     fn record(&mut self, start: usize, len: usize, out_start: usize) {
         let out_end = self.result.len();
+        debug_assert!(out_start <= out_end, "range cụm bị đảo: {out_start}..{out_end}");
         if let Some(tokens) = self.tokens.as_deref_mut() {
-            if let Some(previous) = tokens.last_mut() {
-                previous.out_end = previous.out_end.min(out_start);
+            for token in tokens.iter_mut().rev() {
+                if token.out_end <= out_start {
+                    break;
+                }
+                token.out_end = out_start;
+                token.out_start = token.out_start.min(out_start);
             }
             tokens.push(SourceToken {
                 start,
@@ -723,5 +731,122 @@ mod tests {
                 length: 7
             }
         );
+    }
+
+    /// Vòng dịch có ghi token; kiểm bất biến của `SourceToken` rồi trả output
+    /// cùng chữ (đã cắt khoảng trắng) của từng cụm.
+    fn translate_tokens(
+        text: &str,
+        dict: &HashMap<String, String>,
+        han_viet: &HanVietMap,
+    ) -> (String, Vec<String>) {
+        let chars: Vec<char> = text.chars().collect();
+        let mut tokens = Vec::new();
+        let result = translate_all_mapped(
+            &chars,
+            None,
+            &Options::default(),
+            dict,
+            &HashMap::new(),
+            dict,
+            dict,
+            han_viet,
+            &LuatNhan::default(),
+            None,
+            None,
+            None,
+            Some(&mut tokens),
+        );
+        let output = result.translated_text;
+        let (mut source, mut out) = (0, 0);
+        for token in &tokens {
+            assert_eq!(token.start, source, "cụm nối liền nhau trên nguồn: {tokens:?}");
+            assert!(token.len > 0, "{tokens:?}");
+            assert!(
+                out <= token.out_start
+                    && token.out_start <= token.out_end
+                    && token.out_end <= output.len(),
+                "range tăng dần, không đảo, nằm trong output {output:?}: {tokens:?}"
+            );
+            assert!(
+                output.is_char_boundary(token.out_start) && output.is_char_boundary(token.out_end),
+                "{output:?}: {tokens:?}"
+            );
+            // Giữa hai cụm chỉ có dấu cách chèn thêm, không mất chữ nào.
+            assert!(output[out..token.out_start].bytes().all(|b| b == b' '), "{output:?}");
+            source += token.len;
+            out = token.out_end;
+        }
+        assert_eq!(source, chars.len(), "{tokens:?}");
+        assert!(output[out..].bytes().all(|b| b == b' '), "{output:?}");
+        let texts = tokens
+            .iter()
+            .map(|t| output[t.out_start..t.out_end].trim().to_string())
+            .collect();
+        (output, texts)
+    }
+
+    /// Cụm mở đầu bằng dấu câu bỏ dấu cách cuối output; dấu đó là cụm ký tự
+    /// ' ' liền trước nên range của nó bị cắt về rỗng. 他 đi qua Hán Việt, 'Z'
+    /// đi qua nguyên ký tự.
+    #[test]
+    fn record_trims_the_space_dropped_before_punctuation() {
+        let d = dict(&[("好", ", hảo")]);
+        let han_viet = hv(&[('他', "tha")]);
+        let (output, texts) = translate_tokens("他 好Z", &d, &han_viet);
+        assert_eq!(output, " tha, hảoZ");
+        assert_eq!(texts, ["tha", "", ", hảo", "Z"]);
+    }
+
+    /// Nghĩa rỗng (的, 了 trong QT2025): dấu cách bị bỏ có thể thuộc cụm trước
+    /// cả cụm liền trước. Trước đây range cụm giữa bị đảo.
+    #[test]
+    fn empty_meanings_keep_token_ranges_valid() {
+        let d = dict(&[("的", ""), ("了", ""), ("X", ""), ("Y", ", ý")]);
+        let han_viet = hv(&[('的', "đích"), ('了', "liễu")]);
+        let (output, texts) = translate_tokens("的的XX", &d, &han_viet);
+        assert_eq!(output, "");
+        assert_eq!(texts, ["", "", "", ""]);
+        let (output, texts) = translate_tokens("了的Y", &d, &han_viet);
+        assert_eq!(output, " , ý");
+        assert_eq!(texts, ["", "", ", ý"]);
+    }
+
+    #[test]
+    fn token_ranges_hold_on_varied_input() {
+        let d = dict(&[
+            ("很好", "rất tốt"),
+            ("说", "nói"),
+            ("的", ""),
+            ("了", ""),
+            ("X", ""),
+            ("Y", ", ý"),
+            ("好", ", hảo"),
+        ]);
+        let han_viet = hv(&[
+            ('他', "tha"),
+            ('很', "ngận"),
+            ('好', "hảo"),
+            ('说', "thuyết"),
+            ('的', "đích"),
+            ('了', "liễu"),
+            ('人', "nhân"),
+        ]);
+        let text = "他很好，“他”说：了的的X Y\n一百二十三人。他 好!'他'了的。\t的Y好\n\n";
+        let (_, texts) = translate_tokens(text, &d, &han_viet);
+        assert!(texts.iter().any(|t| t == "rất tốt"), "{texts:?}");
+        assert!(texts.iter().any(|t| t == "123"), "{texts:?}");
+        // Chuỗi ngẫu nhiên (cố định hạt giống) trên cùng bảng chữ.
+        let alphabet: Vec<char> = "他很好，“”说：了的XY \n一二三百人。!'\"\t(".chars().collect();
+        let mut seed: u64 = 7;
+        for _ in 0..20_000 {
+            let mut next = || {
+                seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+                (seed >> 33) as usize
+            };
+            let len = next() % 10;
+            let text: String = (0..len).map(|_| alphabet[next() % alphabet.len()]).collect();
+            translate_tokens(&text, &d, &han_viet);
+        }
     }
 }
