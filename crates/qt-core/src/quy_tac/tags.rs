@@ -3,7 +3,7 @@
 //! bảng băm tự dựng (~350 nghìn mục, ~5,5 MB).
 
 use crate::dict::KeyLenIndex;
-use rustc_hash::FxBuildHasher;
+use rustc_hash::{FxBuildHasher, FxHashMap};
 use std::hash::BuildHasher;
 
 /// Trợ từ cuối được bỏ đi khi tra một cụm không có trong bảng.
@@ -12,8 +12,11 @@ const TRAILERS: &[char] = &['了', '着', '过', '吗', '呢', '啊', '吧', '�
 /// Key dài nhất (byte) lưu được; key dài hơn bị bỏ như ở `CompactDict`.
 const MAX_KEY_BYTES: usize = u8::MAX as usize;
 
+/// Nhãn dài nhất (byte) lưu được, như giới hạn value của `CompactDict`.
+const MAX_TAG_BYTES: usize = (1 << 24) - 1;
+
 /// Bảng key -> nhãn, chỉ đọc. Mỗi bản ghi trong arena là
-/// `[độ dài key][byte của key][nhãn 1-2 byte]`; nhãn là chỉ số vào bảng nhãn
+/// `[độ dài key][byte của key][chỉ số nhãn 1-4 byte]`; nhãn là chỉ số vào bảng nhãn
 /// đã gộp (chỉ vài chục nhãn khác nhau). Bảng băm là mảng `u32` thăm dò
 /// tuyến tính, tải ~0,75: mỗi ô gồm `offset + 1` ở các bit thấp và vài bit
 /// dấu vân tay của hash ở các bit cao (0 là ô trống), nên hầu hết lần trượt
@@ -22,7 +25,7 @@ pub(crate) struct PosLexicon {
     arena: Box<[u8]>,
     slots: Box<[u32]>,
     tags: Box<[Box<str>]>,
-    /// 1 hoặc 2 byte chỉ số nhãn trong mỗi bản ghi.
+    /// 1 đến 4 byte (little-endian) chỉ số nhãn trong mỗi bản ghi.
     tag_bytes: usize,
     offset_bits: u32,
     index: KeyLenIndex,
@@ -48,19 +51,26 @@ impl PosLexicon {
     where
         I: Iterator<Item = (&'a str, &'a str)> + Clone,
     {
+        let storable =
+            |key: &str, tag: &str| key.len() <= MAX_KEY_BYTES && tag.len() <= MAX_TAG_BYTES;
+        let mut ids: FxHashMap<&str, usize> = FxHashMap::default();
         let mut tags: Vec<Box<str>> = Vec::new();
         let (mut count, mut key_bytes) = (0usize, 0usize);
         for (key, tag) in entries.clone() {
-            if key.len() > MAX_KEY_BYTES {
+            if !storable(key, tag) {
                 continue;
             }
-            if !tags.iter().any(|known| **known == *tag) {
+            ids.entry(tag).or_insert_with(|| {
                 tags.push(tag.into());
-            }
+                tags.len() - 1
+            });
             count += 1;
             key_bytes += key.len();
         }
-        let tag_bytes = if tags.len() <= 256 { 1 } else { 2 };
+        // Số byte vừa đủ cho chỉ số nhãn lớn nhất (1 đến 4).
+        let tag_bytes = (usize::BITS - tags.len().saturating_sub(1).leading_zeros())
+            .div_ceil(8)
+            .max(1) as usize;
         let bound = key_bytes + count * (1 + tag_bytes);
         let bound = u32::try_from(bound).expect("bảng từ loại vượt 4 GiB");
         let offset_bits = u32::BITS - bound.leading_zeros();
@@ -69,7 +79,7 @@ impl PosLexicon {
         let mut arena: Vec<u8> = Vec::with_capacity(bound as usize);
         let hasher = FxBuildHasher;
         for (key, tag) in entries {
-            if key.len() > MAX_KEY_BYTES {
+            if !storable(key, tag) {
                 continue;
             }
             let hash = hasher.hash_one(key);
@@ -89,23 +99,23 @@ impl PosLexicon {
             if present {
                 continue;
             }
-            let id = tags.iter().position(|known| **known == *tag).expect("nhãn đã gộp");
+            let id = ids[tag];
             slots[slot] = pack(arena.len(), fingerprint, offset_bits);
             arena.push(key.len() as u8);
             arena.extend_from_slice(key.as_bytes());
-            arena.push(id as u8);
-            if tag_bytes == 2 {
-                arena.push((id >> 8) as u8);
-            }
+            arena.extend_from_slice(&id.to_le_bytes()[..tag_bytes]);
         }
-        let mut keys = Vec::with_capacity(count);
+        drop(ids);
+        // Chỉ mục độ dài key đọc thẳng từ arena, khỏi dựng Vec key tạm.
         let mut start = 0;
-        while start < arena.len() {
+        let index = KeyLenIndex::from_str_keys(std::iter::from_fn(|| {
+            if start >= arena.len() {
+                return None;
+            }
             let key = record_key(&arena, start);
-            keys.push(std::str::from_utf8(key).expect("key lấy từ str"));
             start += 1 + key.len() + tag_bytes;
-        }
-        let index = KeyLenIndex::from_str_keys(keys);
+            Some(std::str::from_utf8(key).expect("key lấy từ str"))
+        }));
         PosLexicon {
             arena: arena.into_boxed_slice(),
             slots: slots.into_boxed_slice(),
@@ -130,11 +140,10 @@ impl PosLexicon {
                 let key = record_key(&self.arena, start);
                 if key == word.as_bytes() {
                     let tag_start = start + 1 + key.len();
-                    let mut id = self.arena[tag_start] as usize;
-                    if self.tag_bytes == 2 {
-                        id |= (self.arena[tag_start + 1] as usize) << 8;
-                    }
-                    return Some(&self.tags[id]);
+                    let mut raw = [0u8; 8];
+                    raw[..self.tag_bytes]
+                        .copy_from_slice(&self.arena[tag_start..tag_start + self.tag_bytes]);
+                    return Some(&self.tags[usize::from_le_bytes(raw)]);
                 }
             }
             slot = if slot + 1 == self.slots.len() { 0 } else { slot + 1 };
@@ -245,6 +254,8 @@ fn record_key(arena: &[u8], start: usize) -> &[u8] {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::compact::CompactDict;
+    use crate::dict::DictionaryLookup;
 
     const DICT: &str = "美丽 10 ns\n少女 5 n\n看 3 v\n在 9 p\n家 4 n\n的 9 uj\n";
 
@@ -280,18 +291,57 @@ mod tests {
     fn many_tags_and_duplicates_keep_first_and_resolve_all() {
         let mut dict = String::new();
         for i in 0..3000 {
-            dict.push_str(&format!("词{i} 1 t{}", i % 300));
-            dict.push(char::from(10));
+            dict.push_str(&format!("词{i} 1 t{}\n", i % 300));
         }
-        dict.push_str("词7 1 LOST");
-        dict.push(char::from(10));
-        let tu_loai = format!("词8{}fix{}", char::from(9), char::from(10));
-        let pos = PosLexicon::build(&dict, &tu_loai);
+        dict.push_str("词7 1 LOST\n");
+        let pos = PosLexicon::build(&dict, "词8\tfix\n");
         for i in 0..3000 {
             let expected = if i == 8 { "fix".to_string() } else { format!("t{}", i % 300) };
             assert_eq!(pos.get(&format!("词{i}")), Some(expected.as_str()));
         }
         assert_eq!(pos.get("词3000"), None);
         assert_eq!(pos.get(""), None);
+    }
+
+    #[test]
+    fn tag_ids_beyond_two_bytes_do_not_wrap() {
+        let entries: Vec<(String, String)> =
+            (0..70_000).map(|i| (format!("k{i}"), format!("tag{i}"))).collect();
+        let pos = PosLexicon::first_wins(entries.iter().map(|(k, t)| (k.as_str(), t.as_str())));
+        assert_eq!(pos.tag_bytes, 3);
+        for (key, tag) in &entries {
+            assert_eq!(pos.get(key), Some(tag.as_str()));
+        }
+    }
+
+    #[test]
+    fn matches_compact_dict_on_synthetic_keys() {
+        let long = "长".repeat(100); // 300 byte, quá giới hạn key
+        let mut entries: Vec<(String, String)> = Vec::new();
+        // Nhiều key chung chữ đầu: chuỗi thăm dò dài, nhiều ô cùng vân tay.
+        for i in 0..4000 {
+            entries.push((format!("我{i}"), format!("t{}", i % 400)));
+        }
+        for i in 0..500 {
+            entries.push((format!("你{}{}", i, "们".repeat(i % 7)), format!("u{}", i % 3)));
+        }
+        entries.push(("我7".into(), "LOST".into())); // trùng: bản đầu thắng
+        entries.push((long.clone(), "n".into()));
+        entries.push((String::new(), "empty-key".into()));
+        entries.push(("空".into(), String::new()));
+        entries.push(("a".into(), "x".repeat(100)));
+        let pairs = || entries.iter().map(|(k, t)| (k.as_str(), t.as_str()));
+        let (reference, skipped) = CompactDict::first_wins(pairs());
+        assert_eq!(skipped, 1);
+        let pos = PosLexicon::first_wins(pairs());
+        for (key, _) in &entries {
+            assert_eq!(pos.get(key), reference.get(key), "key {key:?}");
+        }
+        for miss in ["我", "我4000", "他", "你们", "b", "空空"] {
+            assert_eq!(pos.get(miss), reference.get(miss), "miss {miss:?}");
+        }
+        for first in ['我', '你', '空', 'a', 'b', '长', '他'] {
+            assert_eq!(pos.max_key_len(first), reference.max_key_len(first), "{first}");
+        }
     }
 }
