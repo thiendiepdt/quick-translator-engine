@@ -201,7 +201,17 @@ Bản Rust port nguyên ngữ nghĩa bản thử, kể cả chỗ kỳ quặc, t
 - **Số ước lượng (2026-11-08).** Hai chữ số Hán liền nhau, không chữ nào là `零`/`〇` (`一两`,
   `两三`, `十二三`, `二十七八`, `二三十`), không có một giá trị. Bản thử đọc chúng thành 12, 23,
   13, 28 ("mười hai câu" cho `一两句`). Token giữ bản dịch của engine ("một hai", "mười hai mười
-  ba"), luật `[số]` không áp. Chuỗi chữ số từ ba chữ (`一九九八`) vẫn đọc rời từng chữ.
+  ba"), luật `[số]` không áp. Chuỗi chữ số từ ba chữ (`一九九八`) vẫn đọc rời từng chữ. Hai đơn
+  vị liền nhau `千百`, `百十`, `亿万` cũng là ước lượng; `万`, `亿` đứng đầu là một vạn, một ức
+  (bản thử ra 0: `万倍` thành "gấp không lần").
+- **Chuỗi qua hậu tố tên, trợ động từ ghép (2026-11-08).** `{danh-từ}+` đi tiếp qua chữ của lớp
+  `hậu-tố-tên` dù nhãn khác (`仁心|堂`, `堂` nhãn lượng từ: "nhân tâm đường này"). Mệnh đề nhận
+  token ghép từ hai trợ động từ (`不该`, `想要`, `就能`, `不可`) như trợ động từ: `不该做的事情` =
+  "sự tình không nên làm".
+- **`第N` + lượng từ (2026-11-08).** Engine gộp `第三` thành một token; trước `天 日 年 次 层 名 位
+  个` nó được tách thành `第` + số, để `第 {số} {lượng-từ}` ra "ngày thứ ba". `天下第一` giữ nguyên.
+- **Khúc `[số]` không để lọt chữ Hán (2026-11-08).** Khúc cắt giữa một token mà phần dư có chữ từ
+  điển không có (`一两道|途`) thì luật không áp.
 - **Hoa thường.** Bản thử hạ chữ đầu mọi token bị dời mà không mang nhãn tên (`t.vi[:1].lower()`),
   để gỡ chữ hoa đầu câu của engine, nên hạ luôn nghĩa viết hoa của từ điển ("Ma tộc", "Kiếm tông",
   tên không gắn nhãn tên): "lực lượng của ma tộc". Bản Rust ghi lại chữ nào engine viết hoa vì
@@ -543,6 +553,24 @@ tự xen kẽ, cổng lấy tổng thời gian các lượt:
   214 quy tắc. Cụm 3 từ 377.364 → 378.918, +11,92% so với đường hiện tại; thắng 85,7% (đổi 44.680,
   tốt hơn 22.274, kém hơn 3.712); thời gian 94,1% (trung vị 94,1%); RAM 9.419.001 byte; ba cổng lỗi
   nhìn thấy 158 / 33 / 3. Cột đường hiện tại của dump y nguyên từng byte.
+- 2026-11-08, chấm tay đoạn kém: 3.712 đoạn kém theo điểm được đọc từng đoạn (chữ Hán, khúc cũ /
+  mới, bản biên tập) và chia ba loại: kém thật 2.114, ngang 1.000 (khác văn phong, "và" / "cùng",
+  có "của" hay không), thật ra tốt hơn 598. Kém thật tập trung ở `{danh-từ}+ 的` (495),
+  `{mệnh-đề} 的` (361), `{tính-từ} 的` (164), `{cụm} {vị-trí}` (143); theo kiểu lỗi: cắt đôi tên
+  hay từ ghép (~650), đảo `的` khi trước là động từ + tân ngữ, mệnh đề bắt sai ranh giới. Phần lớn
+  gốc ở nhãn từ loại của cụm gộp (`消失` = n, `穿道袍` = n vì `穿` mang `zg`, `符` = v). Sửa được:
+  lớp `động-từ-đối` từng in "x" ra bản dịch (`给你吃` = "cho ngươi x"); `带着X的Y` bỏ; thập phân chỉ
+  khi trước là `零` hoặc phần lẻ hai chữ số; `X后` chỉ là vị trí ở đầu vế hay sau `从`, `躲在`…;
+  `亩地`; `一两` / `三两` + lượng từ; `在她看来` (engine gộp `她看来`); `第N` + lượng từ; `四下`,
+  `九天` không tách; số ước lượng và `万`; hậu tố tên; trợ động từ ghép; khúc `[số]` không để lọt
+  chữ Hán. Đã đo mà không dùng (lấy nhãn tay làm thước: đoạn kém thật được sửa, đoạn tốt bị hỏng,
+  đọc mẫu đoạn chưa chấm): chặn `{danh-từ}+ 的` khi trước là động từ (sửa 299 đoạn kém thật nhưng
+  hỏng nhiều câu `V + [X 的 Y]` như "tay áo kéo tỷ tỷ"), `{cụm}+ {vị-trí}` và `{danh-từ}+ {vị-trí}`
+  (chuỗi ăn qua danh từ mang nhãn sai), tên sau danh từ quan hệ, cụm gộp mở bằng chữ `zg` là động
+  từ, bỏ `把` / `下` khỏi lớp lượng từ. Kết quả: đổi 613 đoạn so với lượt trước, trong đó 126 đoạn
+  kém thật và 3 đoạn tốt hơn; 225 quy tắc; cụm 3 từ +12,02%, thắng 86,1% (kém 3.622), thời gian
+  96,0% (trung vị 94,0%; lượt trước đó 91,5%), RAM 9.645.313 byte; ba cổng lỗi nhìn thấy 158 / 33
+  / 3; không đoạn nào thêm chữ Hán.
 - Bookshelf đang được sửa nên số đoạn đổi theo ngày. Bản chụp cố định 103.803 đoạn (2.798.883 ký
   tự) cho cụm 3 từ +10,70%, thắng 83,0%, và output y nguyên từng byte qua mọi lượt tối ưu.
 - Các số 87%, 91% (và 206% ở bản đầu) đo trước đây là bộ đo ghép đôi bị lệch: mỗi đoạn dịch đường

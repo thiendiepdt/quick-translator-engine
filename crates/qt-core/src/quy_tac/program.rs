@@ -6,7 +6,7 @@ use std::cmp::Reverse;
 use std::sync::LazyLock;
 
 use regex::{Captures, Regex};
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::QuyTacError;
 
@@ -441,6 +441,8 @@ pub(crate) struct Program {
     pub(crate) char_lits: LitTable,
     /// Chữ Hán → các lớp từ có chữ đó, bit `k` cho `SlotKind::Class(k)` (64 lớp đầu).
     pub(crate) class_bits: FxHashMap<Box<str>, u64>,
+    /// Lớp `hậu-tố-tên`: chuỗi `{danh-từ}+` đi tiếp qua các chữ này (`仁心|堂`).
+    pub(crate) name_suffixes: FxHashSet<Box<str>>,
 }
 
 static CONTEXT_SPLIT: LazyLock<Regex> =
@@ -623,6 +625,10 @@ impl Program {
         class_bits.shrink_to_fit();
         need_lits.finish();
         char_lits.finish();
+        let name_suffixes = classes
+            .get("hậu-tố-tên")
+            .map(|class| class.keys().map(|zh| zh.as_str().into()).collect())
+            .unwrap_or_default();
         Ok(Program {
             classes,
             char_rules,
@@ -630,6 +636,7 @@ impl Program {
             need_lits,
             char_lits,
             class_bits,
+            name_suffixes,
         })
     }
 }
@@ -1276,7 +1283,7 @@ lượng-từ: 层=tầng 个=
         let base = include_str!("../../data/QuyTac.txt");
         let program = Program::parse(base).unwrap();
         let rules: usize = program.sections.iter().map(|s| s.rules.len()).sum();
-        assert_eq!(rules + program.char_rules.len(), 214);
+        assert_eq!(rules + program.char_rules.len(), 225);
         let extra = include_str!("../../data/QuyTac-giong-muot.txt");
         Program::parse(&format!("{base}\n{extra}")).unwrap();
     }

@@ -44,6 +44,16 @@ const ADJ_TAGS: &[&str] = &["a", "ad", "ag", "z", "b"];
 static BO_TAI: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?i)\s*(tại|ở|trên|tới|vào|đến)\s*$").unwrap());
 
+/// Chuỗi `{danh-từ}+` đi tiếp qua hậu tố tên dù nó không mang nhãn danh từ (lớp
+/// `hậu-tố-tên` của bộ luật): `仁心|堂` (`堂` nhãn lượng từ), `万仙|盟`.
+fn continues_chain(program: &Program, slot: &Slot, t: &Token) -> bool {
+    let mut chars = t.zh.chars();
+    chars.next().is_some()
+        && chars.next().is_none()
+        && &*slot.name == "danh-từ"
+        && program.name_suffixes.contains(&*t.zh)
+}
+
 fn has(list: &[&str], word: &str) -> bool {
     list.contains(&word)
 }
@@ -70,6 +80,7 @@ impl WordSet {
 }
 
 static PRONOUN_SET: LazyLock<WordSet> = LazyLock::new(|| WordSet::new(PRONOUNS));
+static AUX_SET: LazyLock<WordSet> = LazyLock::new(|| WordSet::new(AUX));
 static DEMONSTRATIVE_SET: LazyLock<WordSet> = LazyLock::new(|| WordSet::new(DEMONSTRATIVE));
 
 fn is_pronoun(word: &str) -> bool {
@@ -332,7 +343,15 @@ fn clause_span(program: &Program, out: &[Token]) -> Option<usize> {
         return None;
     }
     k -= 1;
-    while k > 0 && (has(AUX, &out[k - 1].zh) || matches!(out[k - 1].tag, "d" | "ad")) {
+    // Trợ động từ ghép (`不该`, `想要`, `就能`, `不可`): hai khúc đều là trợ động từ.
+    let aux_like = |t: &Token| {
+        AUX_SET.contains(&t.zh)
+            || t.zh.char_indices().skip(1).any(|(at, _)| {
+                AUX_SET.contains(&t.zh[..at])
+                    && (AUX_SET.contains(&t.zh[at..]) || matches!(&t.zh[at..], "可" | "肯"))
+            })
+    };
+    while k > 0 && (aux_like(&out[k - 1]) || matches!(out[k - 1].tag, "d" | "ad")) {
         k -= 1;
     }
     if k > 0 && (is_person(&out[k - 1]) || is_name(&out[k - 1]) || is_noun(&out[k - 1])) {
@@ -455,8 +474,14 @@ fn match_rule<'p>(
                     k += 1;
                 }
                 let first = k;
-                while k < n && k - first < 3 && slot_ok(program, slot, &toks[k]) {
-                    k += 1;
+                while k < n && k - first < 3 {
+                    let t = &toks[k];
+                    let suffix = k > first && continues_chain(program, slot, t);
+                    if slot_ok(program, slot, t) || suffix {
+                        k += 1;
+                    } else {
+                        break;
+                    }
                 }
                 if k == j {
                     return None;
@@ -1007,6 +1032,37 @@ mod tests {
             tok("兄长", "huynh trưởng", "n"),
         ];
         assert_eq!(run(rules, measure).0, "Hai vị huynh trưởng của sư phụ");
+    }
+
+    /// Chuỗi danh từ đi qua hậu tố tên mang nhãn khác (`仁心|堂`, `堂` nhãn lượng từ).
+    #[test]
+    fn noun_chain_continues_over_name_suffixes() {
+        let rules = "[lớp]
+hậu-tố-tên: 堂=
+
+[của 1]
+这 {danh-từ}+ | !的 = {1} này
+";
+        let this = || tok("这", "cái này", "r");
+        let toks = vec![this(), tok("仁心", "nhân tâm", "n"), tok("堂", "đường", "q")];
+        assert_eq!(run(rules, toks).0, "Nhân tâm đường này");
+        let toks = vec![this(), tok("仁心", "nhân tâm", "n"), tok("个", "cái", "q")];
+        assert_eq!(run(rules, toks).0, "Nhân tâm này cái");
+    }
+
+    /// Trợ động từ ghép (`不该` = `不` + `该`) thuộc mệnh đề định ngữ.
+    #[test]
+    fn clause_takes_compound_auxiliaries() {
+        let rules = "[mệnh 1]
+{mệnh-đề} 的 {danh-từ} = {danh-từ} {mệnh-đề}
+";
+        let toks = vec![
+            tok("不该", "không nên", "v"),
+            tok("做", "làm", "v"),
+            tok("的", "", "uj"),
+            tok("事情", "sự tình", "n"),
+        ];
+        assert_eq!(run(rules, toks).0, "Sự tình không nên làm");
     }
 
     #[test]

@@ -136,11 +136,14 @@ const LOCS: [&str; 15] = [
 /// Chữ cuối của mọi chữ trong `LOCS` (test kiểm).
 const LOC_TAILS: [char; 7] = ['上', '中', '下', '内', '外', '面', '里'];
 /// Cụm số + lượng từ có nghĩa riêng, không tách.
-const MEASURE_EXCLUDED: [&str; 26] = [
+const MEASURE_EXCLUDED: [&str; 28] = [
     "一点", "一下", "一些", "一样", "一直", "一定", "一起", "一切", "一般", "一边", "一旦", "一时",
     "一半", "一丝", "一身", "一面", "一口", "一眼", "一声", "一阵", "一番", "一片", "一场", "一股",
-    "一道", "一天",
+    "一道", "一天", "四下", "九天",
 ];
+
+/// Lượng từ sau `第N` mà `第 {số} {lượng-từ}` đọc được thành "<lượng từ> thứ N".
+const ORDINAL_MEASURES: [&str; 8] = ["天", "日", "年", "次", "层", "名", "位", "个"];
 
 /// Bản regex của `punct_tail` và `is_punct`, giữ để test so.
 #[cfg(test)]
@@ -447,7 +450,8 @@ pub(crate) fn prepare<'q>(
     debug_assert_eq!(raw.iter().map(Raw::zh).collect::<String>(), source, "untie đổi chữ Hán");
     let mut out = Vec::with_capacity(raw.len() + 4);
     let mut at = 0;
-    for item in raw {
+    let mut raw = raw.into_iter().peekable();
+    while let Some(item) = raw.next() {
         let src = at..at + item.zh().len();
         at = src.end;
         let (zh, vi) = match item {
@@ -485,6 +489,25 @@ pub(crate) fn prepare<'q>(
         }
         if zh == "一" {
             out.push(Token::number(zh, vi, 1, false).at(src));
+            continue;
+        }
+        // `第三` + lượng từ thời gian, lần, tầng (`第三天`): tách `第` ra để `[lượng]`
+        // đọc "ngày thứ ba". Không có lượng từ đó theo sau (`天下第一`) thì giữ nghĩa.
+        let ordinal_measure = raw.peek().is_some_and(|next| ORDINAL_MEASURES.contains(&next.zh()));
+        if let Some(value) = zh
+            .strip_prefix('第')
+            .filter(|rest| ordinal_measure && !rest.is_empty() && rest.chars().all(is_num_char))
+            .and_then(zh_value)
+        {
+            let at_number = '第'.len_utf8();
+            let (first, second) = if zh.len() == src.len() {
+                (src.start..src.start + at_number, src.start + at_number..src.end)
+            } else {
+                (src.clone(), src.clone())
+            };
+            out.push(Token::new("第", "thứ", "lit").at(first));
+            let number = slice(&zh, at_number..zh.len());
+            out.push(Token::number(number, number_words(value), value, false).at(second));
             continue;
         }
         if let (Some(measure), Some((ordinal, number, unit))) = (measure, measure_split(&zh)) {

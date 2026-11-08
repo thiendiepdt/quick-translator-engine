@@ -225,6 +225,15 @@ pub(crate) fn apply_chars<'q>(
             if vetoed {
                 continue;
             }
+            // Đuôi khúc cắt giữa một token mà phần dư có chữ từ điển không có (`一两道|途`):
+            // tách lại sẽ để lọt chữ Hán, nên nhường cho engine.
+            if bounds[b].is_none() {
+                let token_end = *starts.iter().find(|&&p| p > b).expect("luôn có vị trí n");
+                let rest: String = chars[b..token_end].iter().collect();
+                if seg(&rest, lk).iter().any(|(zh, vi)| zh == vi && zh.chars().any(is_han)) {
+                    continue;
+                }
+            }
             let values: Vec<Option<&str>> = (0..rule.slots.len())
                 .map(|i| caps.get(i + 1).map(|m| m.as_str()))
                 .collect();
@@ -404,7 +413,7 @@ buổi: 晚上=tối
     fn span_cut_inside_a_token_resegments_the_rest() {
         let program = Program::parse(RULES).unwrap();
         let names = map(&[]);
-        let lexicon = map(&[("出发", "xuất phát")]);
+        let lexicon = map(&[("出发", "xuất phát"), ("出", "ra")]);
         let lk = Lookups { names: &names, lexicon: &lexicon };
         let (out, fired) = apply_chars(
             &program,
@@ -429,7 +438,7 @@ buổi: 晚上=tối
     fn resegmenting_the_rest_stops_at_the_next_span() {
         let program = Program::parse(RULES).unwrap();
         let names = map(&[]);
-        let lexicon = map(&[("出发", "xuất phát")]);
+        let lexicon = map(&[("出发", "xuất phát"), ("出", "ra")]);
         let lk = Lookups { names: &names, lexicon: &lexicon };
         let tokens = raw(&[
             ("三点", "ba điểm"),
@@ -444,7 +453,7 @@ buổi: 晚上=tối
             out,
             vec![
                 Raw::Tagged("三点十五分".into(), "ba giờ mười lăm phút".into(), "thời-gian"),
-                Raw::Plain("出".into(), "出".into()),
+                Raw::Plain("出".into(), "ra".into()),
                 Raw::Tagged("二〇一九年".into(), "năm 2019".into(), "thời-gian"),
             ]
         );
@@ -487,6 +496,26 @@ trống:
         let lk = Lookups { names: &names, lexicon: &lexicon };
         let (_, fired) = apply_chars(&program, raw(&[("500年", "500 năm")]), &lk);
         assert_eq!(fired, 0);
+    }
+
+    /// Khúc cắt giữa token mà phần dư có chữ không dịch được (`一两道|途`): nhường engine,
+    /// không để lọt chữ Hán.
+    #[test]
+    fn span_leaving_an_untranslatable_rest_is_dropped() {
+        let rules = "[lớp]
+lượng-từ: 道=đạo
+
+[số]
+一两{lượng-từ} = một hai {1} -> m
+";
+        let program = Program::parse(rules).unwrap();
+        let (names, lexicon) = (map(&[]), map(&[("道途", "con đường")]));
+        let lk = Lookups { names: &names, lexicon: &lexicon };
+        let cut = raw(&[("一两", "một lượng"), ("道途", "con đường")]);
+        let (_, fired) = apply_chars(&program, cut, &lk);
+        assert_eq!(fired, 0);
+        let (_, fired) = apply_chars(&program, raw(&[("一两", "một lượng"), ("道", "đạo")]), &lk);
+        assert_eq!(fired, 1);
     }
 
     /// Số ước lượng không có giá trị: luật không áp, giữ bản dịch của engine
