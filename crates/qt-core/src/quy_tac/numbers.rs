@@ -51,19 +51,35 @@ fn unit_value(c: char) -> Option<i64> {
     })
 }
 
-/// Giá trị của số Hán hoặc số Ả Rập. Chuỗi toàn chữ số đơn (二〇一九) đọc rời
-/// từng chữ. `三千五` = 3500: chữ số cuối đứng sau đơn vị mang đơn vị kế dưới.
+/// Hai chữ số Hán liền nhau, không chữ nào là 零/〇: số ước lượng (`一两`, `两三`,
+/// `十二三`, `二十七八`, `二三十`), không có một giá trị. `一百零五`, `五〇` thì là
+/// số thật.
+fn approximate(chars: &[char]) -> bool {
+    let nonzero = |c: char| !matches!(c, '零' | '〇') && digit_value(c).is_some();
+    chars.windows(2).any(|pair| nonzero(pair[0]) && nonzero(pair[1]))
+}
+
+/// Giá trị của số Hán hoặc số Ả Rập. Chuỗi toàn chữ số đơn từ ba chữ trở lên
+/// (二〇一九, 一九九八) đọc rời từng chữ. `三千五` = 3500: chữ số cuối đứng sau đơn
+/// vị mang đơn vị kế dưới. Số ước lượng (`approximate`) không có giá trị: token giữ
+/// bản dịch của engine ("một hai", "mười hai mười ba").
 pub(crate) fn zh_value(s: &str) -> Option<i64> {
     if !s.is_empty() && s.chars().all(|c| c.is_ascii_digit()) {
         return s.parse().ok();
     }
     let chars: Vec<char> = s.chars().collect();
+    if chars.len() == 2 && approximate(&chars) {
+        return None;
+    }
     if chars.len() > 1 && chars.iter().all(|&c| digit_value(c).is_some()) {
         let mut value: i64 = 0;
         for &c in &chars {
             value = value.checked_mul(10)?.checked_add(digit_value(c)?)?;
         }
         return Some(value);
+    }
+    if approximate(&chars) {
+        return None;
     }
     let (mut total, mut section, mut num, mut last_unit) = (0i64, 0i64, 0i64, 1i64);
     for &c in &chars {
@@ -186,7 +202,7 @@ mod tests {
     fn reads_chinese_numbers_like_the_prototype() {
         assert_eq!(zh_value("三千五"), Some(3500));
         assert_eq!(zh_value("二〇一九"), Some(2019));
-        assert_eq!(zh_value("三五"), Some(35));
+        assert_eq!(zh_value("一九九八"), Some(1998));
         assert_eq!(zh_value("十五"), Some(15));
         assert_eq!(zh_value("二十四"), Some(24));
         assert_eq!(zh_value("三百五十"), Some(350));
@@ -195,6 +211,18 @@ mod tests {
         assert_eq!(zh_value("一万三千"), Some(13_000));
         assert_eq!(zh_value("2015"), Some(2015));
         assert_eq!(zh_value("三点"), None);
+    }
+
+    /// Bản thử đọc `三五` thành 35, `一两` thành 12, `十二三` thành 13: số ước lượng
+    /// không có một giá trị.
+    #[test]
+    fn approximate_numbers_have_no_value() {
+        for s in ["三五", "一两", "两三", "七八", "十二三", "二十七八", "二三十", "三四百"] {
+            assert_eq!(zh_value(s), None, "{s}");
+        }
+        assert_eq!(zh_value("一百零五"), Some(105));
+        assert_eq!(zh_value("一千零五十"), Some(1050));
+        assert_eq!(zh_value("〇五"), Some(5));
     }
 
     #[test]

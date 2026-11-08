@@ -61,7 +61,8 @@ fn digit_char(c: char) -> Option<char> {
 }
 
 /// Giá trị của một khoá trong khuôn `[số]`, theo bộ lọc (`số`, `thứ`, `năm`, `từng-chữ`…).
-fn char_value(program: &Program, name: &str, text: &str, how: Option<&str>) -> String {
+/// `None` khi số không đọc được (số ước lượng `两三`): luật không áp, engine giữ bản dịch.
+fn char_value(program: &Program, name: &str, text: &str, how: Option<&str>) -> Option<String> {
     // Dấu cách QT chèn quanh 〇 nằm trong chuỗi bắt được: bỏ đi trước khi đọc số.
     let squeezed: String;
     let text = if matches!(name, "số" | "năm") {
@@ -78,18 +79,18 @@ fn char_value(program: &Program, name: &str, text: &str, how: Option<&str>) -> S
                 .filter_map(|d| d.to_digit(10))
                 .map(|d| DIGIT_WORDS[d as usize])
                 .collect();
-            return words.join(" ");
+            return Some(words.join(" "));
         }
-        return digits;
+        return Some(digits);
     }
     if name != "số" {
-        return program
+        return Some(program
             .classes
             .get(name)
             .and_then(|class| class.get(text))
             .filter(|value| !value.is_empty())
             .cloned()
-            .unwrap_or_else(|| text.to_string());
+            .unwrap_or_else(|| text.to_string()));
     }
     if let Some(caps) = MIXED.captures(text) {
         let units: Vec<&str> = caps[2]
@@ -102,10 +103,10 @@ fn char_value(program: &Program, name: &str, text: &str, how: Option<&str>) -> S
                 _ => "ức",
             })
             .collect();
-        return format!("{} {}", &caps[1], units.join(" "));
+        return Some(format!("{} {}", &caps[1], units.join(" ")));
     }
     if text.contains('.') {
-        return text.to_string();
+        return Some(text.to_string());
     }
     let digit = text.chars().next().is_some_and(|c| c.is_ascii_digit());
     let value = if digit {
@@ -113,16 +114,14 @@ fn char_value(program: &Program, name: &str, text: &str, how: Option<&str>) -> S
     } else {
         zh_value(text)
     };
-    let Some(value) = value else {
-        return text.to_string();
-    };
+    let value = value?;
     if how == Some("năm") && !digit && text.chars().all(|c| "零〇一二三四五六七八九".contains(c)) {
-        return text.chars().filter_map(digit_char).collect();
+        return Some(text.chars().filter_map(digit_char).collect());
     }
-    num_text(value, digit, how.unwrap_or(""))
+    Some(num_text(value, digit, how.unwrap_or("")))
 }
 
-fn fill_char(program: &Program, rule: &CharRule, values: &[Option<&str>]) -> String {
+fn fill_char(program: &Program, rule: &CharRule, values: &[Option<&str>]) -> Option<String> {
     let mut out = String::new();
     for part in &rule.tmpl {
         match part {
@@ -134,12 +133,12 @@ fn fill_char(program: &Program, rule: &CharRule, values: &[Option<&str>]) -> Str
                 };
                 let Some(index) = index else { continue };
                 if let (Some(name), Some(Some(text))) = (rule.slots.get(index), values.get(index)) {
-                    out.push_str(&char_value(program, name, text, filter.as_deref()));
+                    out.push_str(&char_value(program, name, text, filter.as_deref())?);
                 }
             }
         }
     }
-    SPACES.replace_all(&out, " ").trim().to_string()
+    Some(SPACES.replace_all(&out, " ").trim().to_string())
 }
 
 /// `raw` là các token `Raw::Plain` của đoạn, `text` là chữ Hán của chúng nối lại.
@@ -229,10 +228,13 @@ pub(crate) fn apply_chars<'q>(
             let values: Vec<Option<&str>> = (0..rule.slots.len())
                 .map(|i| caps.get(i + 1).map(|m| m.as_str()))
                 .collect();
+            let Some(vi) = fill_char(program, rule, &values) else {
+                continue;
+            };
             spans.push(Span {
                 a,
                 b,
-                vi: fill_char(program, rule, &values),
+                vi,
                 result: rule.result.as_str(),
             });
             taken[a..b].iter_mut().for_each(|t| *t = true);
@@ -485,5 +487,17 @@ trống:
         let lk = Lookups { names: &names, lexicon: &lexicon };
         let (_, fired) = apply_chars(&program, raw(&[("500年", "500 năm")]), &lk);
         assert_eq!(fired, 0);
+    }
+
+    /// Số ước lượng không có giá trị: luật không áp, giữ bản dịch của engine
+    /// (trước đây `两三` đọc thành 23: "hai mươi ba giờ rưỡi").
+    #[test]
+    fn approximate_number_keeps_the_engine_text() {
+        let program = Program::parse(RULES).unwrap();
+        let (names, lexicon) = (map(&[]), map(&[]));
+        let lk = Lookups { names: &names, lexicon: &lexicon };
+        let (out, fired) = apply_chars(&program, raw(&[("两三点半", "hai ba điểm nửa")]), &lk);
+        assert_eq!(fired, 0);
+        assert_eq!(out, vec![Raw::Plain("两三点半".into(), "hai ba điểm nửa".into())]);
     }
 }

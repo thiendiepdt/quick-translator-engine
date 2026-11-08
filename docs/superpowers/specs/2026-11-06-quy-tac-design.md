@@ -194,6 +194,14 @@ Bản Rust port nguyên ngữ nghĩa bản thử, kể cả chỗ kỳ quặc, t
   token liền trước luôn là nó: chữ cố định là dấu câu (`【 | 可 |`) không bao giờ khớp. Bản Rust
   bỏ qua các token chỉ có dấu cách khi trước chúng là dấu câu. Dấu cách sau chữ (`Chương 8:` do
   `[số]` tạo) thì giữ, vì nó vẫn là ranh giới vế. Nhờ vậy `^` và mọi luật cũ ra y như trước.
+- **Chuỗi `{nhãn}+` (2026-11-08).** Chuỗi mở đầu luật (`{danh-từ}+ 的 …`) không bắt đầu bằng token
+  nhãn `vn`: trong `不影响城市的运转`, `试试瓶子的威力` chữ đó là động từ của vế, chuỗi bắt đầu ở danh
+  từ sau nó. Chuỗi đứng sau phần tử khác mang theo một token `số-lượng` liền trước token khớp đầu
+  tiên (`自己的两位兄长` = hai vị huynh trưởng của chính mình); giới hạn 3 token không tính nó.
+- **Số ước lượng (2026-11-08).** Hai chữ số Hán liền nhau, không chữ nào là `零`/`〇` (`一两`,
+  `两三`, `十二三`, `二十七八`, `二三十`), không có một giá trị. Bản thử đọc chúng thành 12, 23,
+  13, 28 ("mười hai câu" cho `一两句`). Token giữ bản dịch của engine ("một hai", "mười hai mười
+  ba"), luật `[số]` không áp. Chuỗi chữ số từ ba chữ (`一九九八`) vẫn đọc rời từng chữ.
 - **Hoa thường.** Bản thử hạ chữ đầu mọi token bị dời mà không mang nhãn tên (`t.vi[:1].lower()`),
   để gỡ chữ hoa đầu câu của engine, nên hạ luôn nghĩa viết hoa của từ điển ("Ma tộc", "Kiếm tông",
   tên không gắn nhãn tên): "lực lượng của ma tộc". Bản Rust ghi lại chữ nào engine viết hoa vì
@@ -281,6 +289,7 @@ chạy thật: [demo_so.txt](2026-11-06-quy-tac/demo_so.txt).
 | 第二天 | hôm sau | 83% |
 | 三块钱, 五元 | ba tệ, năm tệ | tệ 96% |
 | 十两银子 | mười lượng bạc | 100% |
+| 一两句, 十二三岁 (số ước lượng) | một hai câu, mười hai mười ba tuổi (nghĩa engine, mục 5) | |
 | 三倍, 十多岁 | gấp ba lần, hơn mười tuổi | gấp 61% |
 | 三公里, 五厘米 | ba cây số, năm xen-ti-mét | cây số 79%, xen-ti-mét 100% |
 | 第12章 | Chương 12: | |
@@ -517,6 +526,23 @@ tự xen kẽ, cổng lấy tổng thời gian các lượt:
   của cụm gộp không đáng tin (`加点` là danh từ, `等你们` là đại từ), nên không dùng. Cụm 3 từ
   +11,46%, thắng 84,6%, thời gian 93,0% (trung vị 93,3%), RAM 9.404.921 byte, ba cổng lỗi nhìn thấy
   158 / 33 / 3.
+- 2026-11-08, đoạn kém hơn bản biên tập: bỏ từng quy tắc một rồi chấm lại 44.662 đoạn đổi, 3.348
+  trên 3.982 đoạn kém quy về đúng một quy tắc, phần lớn là các luật đảo `的` và vị trí bắt sai ranh
+  giới. Sửa, cụm 3 từ đo trên bản chụp. Năm sửa đầu đo riêng so với bộ luật cũ: `{danh-từ}+ 的`
+  lấy cả chuỗi danh từ bên trái (+659), bỏ `(^|一个|…) | {động-từ} {danh-từ} 的 {danh-từ}` (+149),
+  `所有的` / `所谓的` (+94), `{vế-động} 后` = sau khi (+41), `和 X 一起/一样/一同` không ra "và"
+  (+21); cả năm cùng chuỗi trái không mở bằng `vn` (mục 5): +956. Các sửa sau đo trên nền đã có
+  các sửa trước, cùng số ước lượng (mục 5): tách `后` khỏi lớp
+  vị trí, `{cụm} 后` chỉ là vị trí khi trước nó không là động từ (+146); giữ lại luật động từ +
+  tân ngữ làm định ngữ nhưng chỉ sau chữ chỉ định (+68); `很有/颇有 X 的 Y` (+9); bốn sửa đo riêng
+  trên cùng nền: `一个` + danh từ / thành ngữ bỏ "cái" (+98), bỏ `月` khỏi lớp lượng từ (`十月` =
+  tháng mười, +16), `柄` = thanh (+74), `{số-lượng} {cụm} {vị-trí}` (+33); cuối cùng chuỗi sau
+  `的` mang khúc số + lượng từ (+59). Đã đo mà không dùng: chặn `{danh-từ} 的` khi trước là động từ
+  (−464, `看着X的Y` cũng cùng hình), khi trước là tên (−26); bỏ hẳn luật gộp số + lượng từ (+72
+  nhưng mất "uống một chén", "một thanh đao"); bỏ "cái" cả trước tính từ ("hai mềm bánh bao").
+  214 quy tắc. Cụm 3 từ 377.364 → 378.918, +11,92% so với đường hiện tại; thắng 85,7% (đổi 44.680,
+  tốt hơn 22.274, kém hơn 3.712); thời gian 94,1% (trung vị 94,1%); RAM 9.419.001 byte; ba cổng lỗi
+  nhìn thấy 158 / 33 / 3. Cột đường hiện tại của dump y nguyên từng byte.
 - Bookshelf đang được sửa nên số đoạn đổi theo ngày. Bản chụp cố định 103.803 đoạn (2.798.883 ký
   tự) cho cụm 3 từ +10,70%, thắng 83,0%, và output y nguyên từng byte qua mọi lượt tối ưu.
 - Các số 87%, 91% (và 206% ở bản đầu) đo trước đây là bộ đo ghép đôi bị lệch: mỗi đoạn dịch đường

@@ -439,8 +439,23 @@ fn match_rule<'p>(
                 }
             }
             ElKind::Many(slot) => {
+                // Chuỗi mở đầu luật (`{danh-từ}+ 的 …`) không bắt đầu bằng danh động từ:
+                // `不影响城市的运转`, `试试瓶子的威力` thì chữ đó là động từ của vế,
+                // chuỗi bắt đầu ở danh từ sau nó.
+                if idx == 0 && toks.get(j).is_some_and(|t| t.tag == "vn") {
+                    return None;
+                }
                 let mut k = j;
-                while k < n && k - j < 3 && slot_ok(program, slot, &toks[k]) {
+                // Chuỗi sau chữ (`… 的 {danh-từ}+`) mang theo khúc số + lượng từ đứng
+                // trước danh từ: 自己的两位兄长 = hai vị huynh trưởng của chính mình.
+                if idx > 0
+                    && toks.get(j).is_some_and(|t| t.tag == "số-lượng")
+                    && toks.get(j + 1).is_some_and(|t| slot_ok(program, slot, t))
+                {
+                    k += 1;
+                }
+                let first = k;
+                while k < n && k - first < 3 && slot_ok(program, slot, &toks[k]) {
                     k += 1;
                 }
                 if k == j {
@@ -967,6 +982,31 @@ mod tests {
             vec![tok("第8章", "Chương 8:", "lit"), tok(" ", " ", "w"), tok("可", "có thể", "v")];
         let (_, fired) = run(rules, title);
         assert_eq!(fired, 1);
+    }
+
+    /// Chuỗi danh từ mở đầu luật không bắt đầu bằng danh động từ; chuỗi sau 的
+    /// mang theo khúc số + lượng từ đứng trước danh từ.
+    #[test]
+    fn noun_chains_skip_verbal_nouns_and_carry_measure_words() {
+        let rules = "[của 1]\n{danh-từ}+ 的 {danh-từ}+ = {2} của {1}\n";
+        let de = || tok("的", "", "u");
+        let chain =
+            vec![tok("幻", "huyễn", "n"), tok("奴", "nô", "n"), de(), tok("身体", "thân thể", "n")];
+        assert_eq!(run(rules, chain).0, "Thân thể của huyễn nô");
+        let verbal = vec![
+            tok("不影响", "không ảnh hưởng", "vn"),
+            tok("城市", "thành thị", "n"),
+            de(),
+            tok("运转", "vận chuyển", "vn"),
+        ];
+        assert_eq!(run(rules, verbal).0, "Không ảnh hưởng vận chuyển của thành thị");
+        let measure = vec![
+            tok("师父", "sư phụ", "n"),
+            de(),
+            tok("两位", "hai vị", "số-lượng"),
+            tok("兄长", "huynh trưởng", "n"),
+        ];
+        assert_eq!(run(rules, measure).0, "Hai vị huynh trưởng của sư phụ");
     }
 
     #[test]

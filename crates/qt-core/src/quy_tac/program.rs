@@ -1276,7 +1276,7 @@ lượng-từ: 层=tầng 个=
         let base = include_str!("../../data/QuyTac.txt");
         let program = Program::parse(base).unwrap();
         let rules: usize = program.sections.iter().map(|s| s.rules.len()).sum();
-        assert_eq!(rules + program.char_rules.len(), 205);
+        assert_eq!(rules + program.char_rules.len(), 214);
         let extra = include_str!("../../data/QuyTac-giong-muot.txt");
         Program::parse(&format!("{base}\n{extra}")).unwrap();
     }
