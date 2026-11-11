@@ -1,6 +1,6 @@
 # Có gì mới
 
-## Chưa phát hành
+## 1.0.31 — 2026-11-11
 - Sửa lỗi dịch lâu bằng agy thì máy lag dần, kéo cửa sổ bị giật (gặp trên Windows 10): mỗi lệnh terminal agy chạy để lại rác trong Desktop Window Manager mà phải khởi động lại máy hoặc đăng xuất mới hết, khoảng 3–4 lệnh mỗi chương, dịch 8 truyện cùng lúc là thêm chừng 1.700 đối tượng mỗi giờ. Giờ agent gọi qt-ai qua tool MCP (`qt_next`, `qt_check`, `qt_accept`…) của một tiến trình chạy suốt phiên, không chạy lệnh terminal nào nữa; dịch thử 12 chương, DWM không tăng. Truyện cũ tự chuyển sang lúc bắt đầu dịch (AGENTS.md và workflow dịch được làm mới, file bạn đã sửa tay thì giữ nguyên). Nếu agy báo lỗi tool, tắt ở Cài đặt → **Gọi qt-ai qua MCP**: agent quay về chạy lệnh terminal như cũ.
 - Tab **Log** giờ ghi tiến độ từng chương trong lúc dịch bằng agy, ví dụ `[qt-ai] Đang dịch: Chương 0046 - 第46章 …` rồi `[qt-ai] Chốt: Chương 0046 - 第46章 … (3/10 của phiên này)`, kèm dòng báo chương lỗi, bỏ qua hay về hàng đợi. Trước đây agy không in gì cho tới khi xong cả phiên 10 chương. Thẻ truyện ở cột **Phiên này** và thanh công cụ màn Dịch gắn nhãn **MCP** hoặc **Shell** cho biết phiên đang gọi qt-ai bằng đường nào.
 - Màn chọn truyện và hộp **Chuyển truyện** (Ctrl+K) giờ gắn chip **Lỗi N** (đỏ) hoặc **Bỏ qua N** (vàng) cạnh tên truyện có chương lỗi hay bị bỏ qua, vì các chương này không tự được dịch lại. Truyện đang dịch thì chip cập nhật ngay khi một chương vừa lỗi. Nút **Có lỗi/bỏ qua (N)** cạnh ô tìm lọc thư viện chỉ còn các truyện cần xử lý.
