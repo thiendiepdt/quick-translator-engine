@@ -1,12 +1,14 @@
 use crate::app_config::{ApiSettings, Engine};
 use crate::error::{blocking, CmdResult, CommandError};
-use crate::sidecar::qt_ai_dir;
+use crate::sidecar::{qt_ai_command, qt_ai_dir, qt_ai_exe};
 use crate::AppState;
 use qt_ai_core::agy::find_agy;
 use qt_ai_core::api::{ApiConfig, HttpModel, TextModel};
 use qt_ai_core::api_fill::{fill_story, sample_chapters, SAMPLE_CHAPTERS};
 use qt_ai_core::api_session::{start_api_session, ApiSessionConfig};
-use qt_ai_core::session::{run_once, start_session, SessionConfig, SessionEvent, SessionHandle, Sink, TRANSIENT_RETRY_WAITS};
+use qt_ai_core::session::{
+    run_once, start_session, AgentLink, SessionConfig, SessionEvent, SessionHandle, Sink, TRANSIENT_RETRY_WAITS,
+};
 use qt_ai_core::story::StoryConfig;
 use qt_ai_core::story_fs::{load_story_config, save_story_config, story_paths};
 use serde::Serialize;
@@ -59,6 +61,8 @@ pub fn session_config(
         resume_on_quota,
         // Bật tự dịch tiếp = treo qua đêm: lỗi thoáng qua thì chờ rồi thử lại thay vì dừng.
         retry_waits: if resume_on_quota { TRANSIENT_RETRY_WAITS.to_vec() } else { vec![] },
+        // session_start đặt lại theo kết quả mcp_config::prepare; AI điền hồ sơ không gọi qt-ai lệnh vòng dịch.
+        agent_link: AgentLink::Shell,
     }
 }
 
@@ -104,9 +108,10 @@ pub fn session_state(state: State<'_, AppState>) -> CmdResult<SessionStatus> {
 pub async fn session_start<R: Runtime>(app: AppHandle<R>, root: String, model: Option<String>) -> CmdResult<SessionStatus> {
     blocking(move || {
         let state = app.state::<AppState>();
-        let (engine, api, max_sessions, max_parallel, resume_on_quota) = {
+        let (engine, api, max_sessions, max_parallel, resume_on_quota, use_mcp) = {
             let config = state.config.lock().unwrap();
-            (config.engine, config.api.clone(), config.max_sessions, config.max_parallel as usize, config.resume_on_quota)
+            let c = &*config;
+            (c.engine, c.api.clone(), c.max_sessions, c.max_parallel as usize, c.resume_on_quota, c.use_mcp)
         };
         state.sessions.lock().unwrap().check_can_start(&root, max_parallel)?;
         crate::vn_cmds::refuse_start_if_verifying(&root)?;
@@ -118,7 +123,11 @@ pub async fn session_start<R: Runtime>(app: AppHandle<R>, root: String, model: O
         let handle: SessionHandle = match engine {
             Engine::Agy => {
                 let agy = resolve_agy(&state)?;
-                start_session(session_config(Path::new(&root), agy, model, max_sessions, resume_on_quota), sink)?
+                let exe = qt_ai_exe().filter(|_| use_mcp);
+                let via_mcp = qt_ai_core::mcp_config::prepare(Path::new(&root), exe.as_deref(), &qt_ai_command())?;
+                let mut config = session_config(Path::new(&root), agy, model, max_sessions, resume_on_quota);
+                config.agent_link = if via_mcp { AgentLink::Mcp } else { AgentLink::Shell };
+                start_session(config, sink)?
             }
             Engine::Api => {
                 let model = Arc::new(HttpModel::new(resolve_api(&api)?));

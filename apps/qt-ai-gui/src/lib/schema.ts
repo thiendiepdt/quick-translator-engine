@@ -425,6 +425,8 @@ export const appConfigSchema = z.object({
   lineNumbers: z.boolean().default(true),
   /** Phiên agy hết quota thì chờ tới giờ reset rồi tự dịch tiếp; mặc định tắt. */
   resumeOnQuota: z.boolean().default(false),
+  /** Agent gọi qt-ai qua tool MCP thay vì lệnh terminal (đỡ lag DWM trên Windows 10); mặc định bật. */
+  useMcp: z.boolean().default(true),
 });
 
 /** "builtin" = bản cứng trong binary; "file" = người dùng đã sửa ở Cài đặt → Bản mặc định. */
@@ -458,6 +460,9 @@ export const recentSummarySchema = z.object({
   pending: z.number().nullable().optional(),
   /** Chỗ nhạy cảm VN chưa xét + cần xử lý; null = chưa quét. */
   vnFlags: z.number().nullable().optional(),
+  /** Chương lỗi / bỏ qua (không tự được dịch lại); null = folder hỏng. */
+  error: z.number().nullable().optional(),
+  skipped: z.number().nullable().optional(),
 });
 
 /** Kết quả quét raw/ của cả thư viện (Rust `library_rescan`). */
@@ -504,7 +509,8 @@ const stoppedEventSchema = z.discriminatedUnion("kind", [
 ]);
 
 export const sessionEventSchema = z.union([
-  z.object({ type: z.literal("started"), session_no: z.number() }),
+  /** `link`: phiên agy gọi qt-ai qua tool MCP hay lệnh terminal; phiên API không có. */
+  z.object({ type: z.literal("started"), session_no: z.number(), link: z.enum(["mcp", "shell"]).optional() }),
   progressSchema.extend({ type: z.literal("progress") }),
   z.object({ type: z.literal("agy_log"), line: z.string(), stream: z.enum(["stdout", "stderr"]) }),
   /** Hết quota agy: phiên chờ tới `until` (ms epoch) rồi tự chạy tiếp. */

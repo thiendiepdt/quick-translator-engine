@@ -130,6 +130,17 @@ describe("SettingsPage · Động cơ dịch", () => {
     await waitFor(() => expect(appConfigSet).toHaveBeenCalledWith(expect.objectContaining({ resumeOnQuota: true })));
   });
 
+  it("ô 'Gọi qt-ai qua MCP' mặc định bật; bỏ tick rồi Lưu thì ghi useMcp false vào AppConfig", async () => {
+    const user = userEvent.setup();
+    vi.mocked(appConfigSet).mockClear();
+    render(<SettingsPage />);
+    const box = screen.getByLabelText("Gọi qt-ai qua MCP (đỡ lag màn hình)");
+    expect(box).toBeChecked();
+    await user.click(box);
+    await user.click(screen.getByRole("button", { name: "Lưu App + Truyện này" }));
+    await waitFor(() => expect(appConfigSet).toHaveBeenCalledWith(expect.objectContaining({ useMcp: false })));
+  });
+
   it("đang dịch: sửa xong nút Lưu vẫn khoá kèm lời nhắc dừng dịch", async () => {
     useStoryStore.getState().openStory({ ...snapshot, sessionRunning: true });
     const user = userEvent.setup();

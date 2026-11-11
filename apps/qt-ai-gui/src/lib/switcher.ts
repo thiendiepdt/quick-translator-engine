@@ -12,6 +12,16 @@ export interface SwitcherCard {
   current: boolean;
   /** Folder chưa init → hiện mờ, không chuyển được từ đây (picker lo khởi tạo). */
   openable: boolean;
+  error: number;
+  skipped: number;
+}
+
+/** Chương lỗi / bỏ qua của truyện: số live của phiên đang chạy đè số đọc từ đĩa. */
+export function storyIssues(
+  summary: Pick<RecentSummary, "error" | "skipped">,
+  live?: Pick<Progress, "error" | "skipped">,
+): { error: number; skipped: number } {
+  return { error: live?.error ?? summary.error ?? 0, skipped: live?.skipped ?? summary.skipped ?? 0 };
 }
 
 /** Gộp đang dịch → thư viện → gần đây, khử trùng theo đường dẫn; đang dịch và đang mở lên đầu. */
@@ -39,6 +49,7 @@ export function mergeCandidates(input: {
       running,
       current: input.currentRoot !== undefined && samePath(input.currentRoot, summary.root),
       openable: summary.total !== null || running,
+      ...storyIssues(summary, live),
     });
   };
   const known = [...input.library, ...input.recent];

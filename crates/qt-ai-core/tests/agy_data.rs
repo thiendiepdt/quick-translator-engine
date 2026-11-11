@@ -1,7 +1,7 @@
 //! Dọn hội thoại agy: dựng thư mục dữ liệu agy giả (SQLite cùng schema tối thiểu agy dùng) trên tempdir.
 use qt_ai_core::agy_data::{clean, scan, stats, Scope, APP_PROMPT_MARK, IDLE_GRACE};
 use qt_ai_core::commands::init::run_init;
-use qt_ai_core::session::{build_translate_prompt, start_session, LogStream, SessionConfig, SessionEvent, StopReason};
+use qt_ai_core::session::{build_translate_prompt, start_session, AgentLink, LogStream, SessionConfig, SessionEvent, StopReason};
 use qt_ai_core::story_fs::{load_state, now_ms, story_paths, ChapterStatus};
 use rusqlite::Connection;
 use std::fs;
@@ -214,6 +214,7 @@ fn phien_agy_tu_don_hoi_thoai_cua_truyen_sau_moi_luot() {
         agy_data_dir: Some(data.clone()),
         resume_on_quota: false,
         retry_waits: vec![],
+        agent_link: AgentLink::Shell,
     };
     let handle = start_session(config, Arc::new(move |event| sink_events.lock().unwrap().push(event))).unwrap();
     assert_eq!(handle.join(), StopReason::Finished);
@@ -247,6 +248,7 @@ fn quota_story(resets: &str, resume_on_quota: bool) -> (tempfile::TempDir, PathB
         agy_data_dir: Some(data.clone()),
         resume_on_quota,
         retry_waits: vec![],
+        agent_link: AgentLink::Shell,
     };
     (dir, data, root, config, Arc::new(Mutex::new(Vec::new())))
 }
@@ -272,7 +274,7 @@ fn het_quota_thi_cho_toi_gio_reset_roi_tu_dich_tiep() {
     assert_eq!(waits.len(), 1, "{events:?}");
     // Reset sau 1s kể từ lúc hội thoại được ghi, cộng biên 30 × poll_interval.
     assert!(waits[0] >= asked_at + 1000 && waits[0] <= now_ms(), "{waits:?}");
-    assert_eq!(events.iter().filter(|e| matches!(e, SessionEvent::Started { session_no: 1 })).count(), 2);
+    assert_eq!(events.iter().filter(|e| matches!(e, SessionEvent::Started { session_no: 1, .. })).count(), 2);
     assert!(events.iter().any(|e| matches!(e, SessionEvent::AgyLog { line, .. } if line.contains("Hết quota agy"))));
     assert!(matches!(events.last(), Some(SessionEvent::Stopped(StopReason::Finished))));
     let state = load_state(&story_paths(&root)).unwrap();

@@ -6,7 +6,7 @@ import { StorySwitcherDialog } from "@/components/story-switcher-dialog";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { openStory as openStoryApi } from "@/lib/api";
-import { dockEntries, initials, issuesLabel } from "@/lib/dock";
+import { dockEntries, initials, issuesLabel, LINK_LABEL } from "@/lib/dock";
 import { samePath } from "@/lib/paths";
 import { clockLabel, stopReasonBrief, stopReasonLabel } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -101,7 +101,7 @@ export function StorySidebar() {
             : item.stop
               ? `Đã dừng${item.stop.at ? ` lúc ${clockLabel(item.stop.at)}` : ""}: ${stopReasonLabel(item.stop.reason)}`
             : item.running
-              ? `Đang dịch${item.currentChapter ? ` · ${item.currentChapter}` : ""}${item.percent !== undefined ? ` · ${item.percent}%` : ""}`
+              ? `Đang dịch${item.currentChapter ? ` · ${item.currentChapter}` : ""}${item.percent !== undefined ? ` · ${item.percent}%` : ""}${item.link ? ` · ${LINK_LABEL[item.link].via}` : ""}`
               : item.current
                 ? "Đang mở"
                 : "Đã mở trong phiên này";
@@ -155,6 +155,18 @@ export function StorySidebar() {
                         ) : (
                           <span className="shrink-0 text-[10px] tabular-nums text-status-translating">
                             {item.percent !== undefined ? `${item.percent}%` : "…"}
+                          </span>
+                        )}
+                        {item.link && (
+                          <span
+                            className={cn(
+                              "shrink-0 rounded border px-1 text-[9px] leading-tight font-medium",
+                              item.link === "mcp"
+                                ? "border-status-done/40 text-status-done"
+                                : "border-status-warning/40 text-status-warning",
+                            )}
+                          >
+                            {LINK_LABEL[item.link].tag}
                           </span>
                         )}
                       </span>

@@ -11,9 +11,12 @@ export type SessionState =
   | { status: "idle" }
   /** `waitUntil` (ms epoch): phiên đang chờ tới giờ đó rồi tự chạy tiếp — vì hết quota agy, hoặc (`retry`) vì lỗi
    * thoáng qua lúc treo qua đêm. */
-  | { status: "running"; sessionNo: number; waitUntil?: number; retry?: RetryInfo }
+  | { status: "running"; sessionNo: number; waitUntil?: number; retry?: RetryInfo; link?: AgentLink }
   /** `at` (ms epoch): lúc nhận event dừng. */
   | { status: "stopped"; reason: StopReason; at?: number };
+
+/** Phiên agy gọi qt-ai qua tool MCP hay lệnh terminal (Rust `AgentLink`). */
+export type AgentLink = "mcp" | "shell";
 
 export interface RetryInfo {
   attempt: number;
@@ -128,13 +131,21 @@ interface StoryState extends PerStory {
   setConfig: (config: AppConfig) => void;
 }
 
+/** Số phiên và đường gọi qt-ai của phiên đang chạy, giữ lại khi phiên chuyển sang chờ quota / chờ thử lại. */
+function runningInfo(current: SessionState | undefined): { sessionNo: number; link: { link?: AgentLink } } {
+  if (current?.status !== "running") return { sessionNo: 0, link: {} };
+  return { sessionNo: current.sessionNo, link: current.link ? { link: current.link } : {} };
+}
+
 /** Reducer thuần: event của một truyện → thay đổi các map theo truyện. */
 export function applySessionEventPure(state: PerStory, root: string, event: SessionEvent): Partial<PerStory> {
   const key = pathKey(root);
   const roots = state.roots[key] === root ? state.roots : { ...state.roots, [key]: root };
   switch (event.type) {
-    case "started":
-      return { roots, sessions: { ...state.sessions, [key]: { status: "running", sessionNo: event.session_no } } };
+    case "started": {
+      const link = event.link ? { link: event.link } : {};
+      return { roots, sessions: { ...state.sessions, [key]: { status: "running", sessionNo: event.session_no, ...link } } };
+    }
     case "progress": {
       const { type: _type, ...progress } = event;
       return {
@@ -144,9 +155,8 @@ export function applySessionEventPure(state: PerStory, root: string, event: Sess
       };
     }
     case "quota_wait": {
-      const current = state.sessions[key];
-      const sessionNo = current?.status === "running" ? current.sessionNo : 0;
-      return { roots, sessions: { ...state.sessions, [key]: { status: "running", sessionNo, waitUntil: event.until } } };
+      const { sessionNo, link } = runningInfo(state.sessions[key]);
+      return { roots, sessions: { ...state.sessions, [key]: { status: "running", sessionNo, ...link, waitUntil: event.until } } };
     }
     case "agy_log": {
       logSeq += 1;
@@ -154,10 +164,12 @@ export function applySessionEventPure(state: PerStory, root: string, event: Sess
       return { roots, logs: { ...state.logs, [key]: lines.length > MAX_LOGS ? lines.slice(lines.length - MAX_LOGS) : lines } };
     }
     case "retry_wait": {
-      const current = state.sessions[key];
-      const sessionNo = current?.status === "running" ? current.sessionNo : 0;
+      const { sessionNo, link } = runningInfo(state.sessions[key]);
       const retry = { attempt: event.attempt, max: event.max, reason: event.reason };
-      return { roots, sessions: { ...state.sessions, [key]: { status: "running", sessionNo, waitUntil: event.until, retry } } };
+      return {
+        roots,
+        sessions: { ...state.sessions, [key]: { status: "running", sessionNo, ...link, waitUntil: event.until, retry } },
+      };
     }
     case "stopped": {
       const { type: _type, ...reason } = event;

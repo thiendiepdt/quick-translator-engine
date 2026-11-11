@@ -6,6 +6,7 @@ use crate::commands::status::count_chapters_live;
 use crate::error::{CoreError, Result};
 use crate::story_fs::{load_state, now_ms, story_paths, ChapterStatus};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use crate::process::quiet_command;
@@ -75,10 +76,25 @@ pub enum StopReason {
     Internal { message: String },
 }
 
+/// agy gọi qt-ai bằng đường nào trong phiên — app chọn lúc bắt đầu phiên (`crate::mcp_config::prepare`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum AgentLink {
+    /// Tool MCP của server `qt-ai mcp`: không chạy lệnh terminal nào.
+    Mcp,
+    /// Lệnh terminal `qt-ai next/check/accept` như cũ.
+    Shell,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum SessionEvent {
-    Started { session_no: u32 },
+    /// `link`: phiên agy gọi qt-ai qua MCP hay terminal (giao diện gắn nhãn); phiên API không có.
+    Started {
+        session_no: u32,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        link: Option<AgentLink>,
+    },
     Progress(Progress),
     AgyLog { line: String, stream: LogStream },
     /// Hết quota agy: phiên đang chờ tới `until` (ms epoch) rồi tự chạy tiếp. Lượt kế phát `Started` như thường.
@@ -108,6 +124,8 @@ pub struct SessionConfig {
     /// Lịch chờ trước mỗi lần thử lại khi phiên gặp lỗi thoáng qua; rỗng = dừng ngay như trước. App đặt
     /// `TRANSIENT_RETRY_WAITS` khi bật tự dịch tiếp (treo qua đêm).
     pub retry_waits: Vec<Duration>,
+    /// Kết quả `mcp_config::prepare` lúc bắt đầu phiên: báo một dòng log đầu phiên và kèm trong `Started`.
+    pub agent_link: AgentLink,
 }
 
 /// Treo qua đêm: agy lỗi, lượt không chốt được chương hay state.json bị khoá thường là sự cố thoáng qua (mạng chập,
@@ -293,6 +311,43 @@ fn pump<R: std::io::Read + Send + 'static>(reader: R, stream: LogStream, sink: S
     })
 }
 
+/// Dòng log cho các chương đổi trạng thái giữa hai lần đọc state.json, theo thứ tự chương — `agy -p` không in gì
+/// tới khi xong cả lượt, nên đây là thứ duy nhất cho thấy tiến độ trong tab Log. `settled` đếm chương chốt / lỗi /
+/// bỏ qua trong lượt agy này, `limit` là số chương mỗi phiên agent tự dừng. Chương chưa có trong `before` (vừa quét
+/// thêm) coi như đang chờ.
+fn change_lines(
+    before: &HashMap<String, ChapterStatus>,
+    after: &[(String, ChapterStatus)],
+    settled: &mut usize,
+    limit: u32,
+) -> Vec<String> {
+    let mut lines = Vec::new();
+    for (id, status) in after {
+        if before.get(id).copied().unwrap_or(ChapterStatus::Queued) == *status {
+            continue;
+        }
+        let mut counted = |label: &str| {
+            *settled += 1;
+            format!("[qt-ai] {label}: {id} ({settled}/{limit} của phiên này)")
+        };
+        lines.push(match status {
+            ChapterStatus::Translating => format!("[qt-ai] Đang dịch: {id}"),
+            ChapterStatus::Done => counted("Chốt"),
+            ChapterStatus::Error => counted("Lỗi"),
+            ChapterStatus::Skipped => counted("Bỏ qua"),
+            ChapterStatus::Queued => format!("[qt-ai] Về hàng đợi: {id}"),
+        });
+    }
+    lines
+}
+
+/// Trạng thái từng chương theo thứ tự trong state.json, kèm số chương mỗi phiên.
+fn chapter_statuses(root: &Path) -> Option<(Vec<(String, ChapterStatus)>, u32)> {
+    let state = load_state(&story_paths(root)).ok()?;
+    let list = state.chapters.iter().map(|(id, chapter)| (id.clone(), chapter.status)).collect();
+    Some((list, state.settings.chapters_per_session))
+}
+
 /// Chạy một lượt agy tới khi xong (hoặc cancel), stream log, poll tiến độ.
 /// Trả `Some(exit code)` khi agy tự thoát, `None` khi bị cancel.
 fn run_child(
@@ -309,6 +364,25 @@ fn run_child(
     let out = pump(child.stdout.take().unwrap(), LogStream::Stdout, sink.clone());
     let err = pump(child.stderr.take().unwrap(), LogStream::Stderr, sink.clone());
     let mut last = read_progress(&config.root).ok();
+    let mut statuses: HashMap<String, ChapterStatus> =
+        chapter_statuses(&config.root).map(|(list, _)| list.into_iter().collect()).unwrap_or_default();
+    let mut settled = 0;
+    // Tiến độ đổi → event Progress + một dòng log mỗi chương đổi trạng thái (so trạng thái từng chương chứ không
+    // đoán theo `current`: chương có thể xong giữa hai lần đọc).
+    let mut observe = |last: &mut Option<Progress>| {
+        let Ok(now) = read_progress(&config.root) else { return };
+        if last.as_ref() == Some(&now) {
+            return;
+        }
+        if let Some((list, limit)) = chapter_statuses(&config.root) {
+            for line in change_lines(&statuses, &list, &mut settled, limit) {
+                sink(SessionEvent::AgyLog { line, stream: LogStream::Stdout });
+            }
+            statuses = list.into_iter().collect();
+        }
+        sink(SessionEvent::Progress(now.clone()));
+        *last = Some(now);
+    };
     let code = loop {
         if let Some(status) = child.try_wait().map_err(|e| CoreError::Internal(e.to_string()))? {
             break Some(status.code().unwrap_or(-1));
@@ -318,23 +392,14 @@ fn run_child(
             break None;
         }
         thread::sleep(config.poll_interval);
-        if let Ok(now) = read_progress(&config.root) {
-            if last.as_ref() != Some(&now) {
-                sink(SessionEvent::Progress(now.clone()));
-                last = Some(now);
-            }
-        }
+        observe(&mut last);
     };
     let _ = out.join();
     let _ = err.join();
     if let Some(slot) = child_slot {
         *slot.lock().unwrap() = None;
     }
-    if let Ok(now) = read_progress(&config.root) {
-        if last.as_ref() != Some(&now) {
-            sink(SessionEvent::Progress(now));
-        }
-    }
+    observe(&mut last);
     Ok(code)
 }
 
@@ -471,6 +536,11 @@ fn reason_brief(reason: &StopReason) -> String {
 }
 
 fn session_loop(config: SessionConfig, sink: Sink, cancel: Arc<AtomicBool>) -> StopReason {
+    let line = match config.agent_link {
+        AgentLink::Mcp => "[qt-ai] Phiên này gọi qt-ai qua tool MCP (không chạy lệnh terminal).",
+        AgentLink::Shell => "[qt-ai] Phiên này chạy lệnh qt-ai qua terminal (MCP tắt hoặc không dùng được).",
+    };
+    sink(SessionEvent::AgyLog { line: line.to_string(), stream: LogStream::Stdout });
     let child_slot = Mutex::new(None);
     let mut consecutive_failures = 0;
     let mut session_no = 0;
@@ -507,7 +577,7 @@ fn session_loop(config: SessionConfig, sink: Sink, cancel: Arc<AtomicBool>) -> S
         if cancel.load(Ordering::SeqCst) {
             return StopReason::UserCancelled;
         }
-        sink(SessionEvent::Started { session_no });
+        sink(SessionEvent::Started { session_no, link: Some(config.agent_link) });
         let prompt = build_translate_prompt(&config.root);
         let round_started = SystemTime::now();
         let outcome = run_child(&config, &prompt, &sink, Some(&cancel), Some(&child_slot));
@@ -670,6 +740,51 @@ pub fn spawn_runner(
 pub fn start_session(config: SessionConfig, sink: Sink) -> Result<SessionHandle> {
     let root = config.root.clone();
     spawn_runner(root, sink, move |sink, cancel| session_loop(config, sink, cancel))
+}
+
+#[cfg(test)]
+mod progress_log_tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    fn before(list: &[(&str, ChapterStatus)]) -> HashMap<String, ChapterStatus> {
+        list.iter().map(|(id, status)| (id.to_string(), *status)).collect()
+    }
+
+    fn after(list: &[(&str, ChapterStatus)]) -> Vec<(String, ChapterStatus)> {
+        list.iter().map(|(id, status)| (id.to_string(), *status)).collect()
+    }
+
+    #[test]
+    fn chuong_doi_trang_thai_thanh_dong_log_theo_thu_tu_chuong_kem_dem_trong_phien() {
+        use ChapterStatus::*;
+        let mut settled = 2;
+        let lines = change_lines(
+            &before(&[("0001", Done), ("0002", Translating), ("0003", Queued), ("0004", Queued)]),
+            &after(&[("0001", Done), ("0002", Done), ("0003", Translating), ("0004", Queued)]),
+            &mut settled,
+            10,
+        );
+        assert_eq!(lines, ["[qt-ai] Chốt: 0002 (3/10 của phiên này)", "[qt-ai] Đang dịch: 0003"]);
+        assert_eq!(settled, 3);
+    }
+
+    #[test]
+    fn loi_bo_qua_ve_hang_doi_va_chuong_moi_quet_vao() {
+        use ChapterStatus::*;
+        let mut settled = 0;
+        let lines = change_lines(
+            &before(&[("a", Translating), ("b", Translating), ("c", Done)]),
+            &after(&[("a", Error), ("b", Skipped), ("c", Queued), ("d", Queued)]),
+            &mut settled,
+            10,
+        );
+        assert_eq!(
+            lines,
+            ["[qt-ai] Lỗi: a (1/10 của phiên này)", "[qt-ai] Bỏ qua: b (2/10 của phiên này)", "[qt-ai] Về hàng đợi: c"]
+        );
+        assert!(change_lines(&before(&[("a", Queued)]), &after(&[("a", Queued)]), &mut settled, 10).is_empty());
+    }
 }
 
 #[cfg(test)]

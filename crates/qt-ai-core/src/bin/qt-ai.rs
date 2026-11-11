@@ -1,15 +1,12 @@
 //! CLI cho agent (bên trong agy / Antigravity IDE) gọi từ AGENTS.md. Cùng lệnh, message, exit code
 //! với apps/qt-ai-cli/src/main.ts.
 
-use qt_ai_core::commands::accept::run_accept;
-use qt_ai_core::commands::check::run_check;
+use qt_ai_core::agent_reply::{self, Reply};
 use qt_ai_core::commands::delete::run_delete;
 use qt_ai_core::commands::export::{run_export, ExportOptions};
 use qt_ai_core::commands::init::run_init;
-use qt_ai_core::commands::next::run_next;
-use qt_ai_core::commands::retry::{run_retry, run_retry_range};
-use qt_ai_core::commands::skip::run_skip;
-use qt_ai_core::commands::status::run_status;
+use qt_ai_core::commands::next::Via;
+use qt_ai_core::commands::retry::run_retry_range;
 use qt_ai_core::commands::sync_progress::run_sync_progress;
 use qt_ai_core::CoreError;
 use std::path::{Path, PathBuf};
@@ -29,7 +26,8 @@ Lệnh:
                                      Gộp các chương done thành một file txt
   sync-progress <root>               Đánh dấu đã dịch các chương có bản dịch trong out/ (state.json lệch sau sync Drive)
   vn-check <root>                    Quét nội dung nhạy cảm về Việt Nam
-  status <root>                      Bảng tiến độ";
+  status <root>                      Bảng tiến độ
+  mcp <root>                         Server MCP (stdio) cho agy: tool qt_next/qt_check/qt_accept/… thay lệnh terminal";
 
 /// Lệnh chạy chính binary này, render vào AGENTS.md — bọc ngoặc kép vì đường dẫn Windows hay có khoảng trắng.
 fn self_command() -> String {
@@ -47,6 +45,16 @@ fn usage() -> i32 {
     2
 }
 
+/// In lời đáp như CLI xưa nay: mã 0 ra stdout, khác 0 ra stderr; trả mã thoát.
+fn emit(reply: Reply) -> i32 {
+    if reply.code == 0 {
+        println!("{}", reply.text);
+    } else {
+        eprintln!("{}", reply.text);
+    }
+    reply.code
+}
+
 fn run(argv: &[String]) -> Result<i32, CoreError> {
     let Some(command) = argv.first() else { return Ok(usage()) };
     let Some(root) = argv.get(1).map(Path::new) else { return Ok(usage()) };
@@ -56,61 +64,14 @@ fn run(argv: &[String]) -> Result<i32, CoreError> {
             println!("{}", run_init(root, &self_command())?);
             Ok(0)
         }
-        "next" => {
-            let result = run_next(root)?;
-            println!("Chương {} → đọc prompt tại: {}", result.chapter_id, result.prompt_path.display());
-            Ok(0)
-        }
+        "next" => Ok(emit(agent_reply::next(root, Via::Shell)?)),
         "check" => {
             let Some(id) = rest.first() else { return Ok(usage()) };
-            let result = run_check(root, id)?;
-            if result.pass {
-                if result.accepted_with_warnings {
-                    println!(
-                        "Chương {id} hết vòng review, còn {} vi phạm rule → chốt kèm cảnh báo. Chạy accept.",
-                        result.violations.len()
-                    );
-                } else {
-                    println!("Chương {id} PASS (ratio {:.2}) — chạy accept.", result.ratio);
-                }
-                return Ok(0);
-            }
-            if result.escalated_to_error {
-                eprintln!("Chương {id} quá số vòng review → error. Xem qt-ai status.");
-                return Ok(2);
-            }
-            eprintln!(
-                "Chương {id} FAIL: thiếu {} đoạn, {} vi phạm, ratio {:.2}.\nSửa theo: {}",
-                result.missing.len(),
-                result.violations.len(),
-                result.ratio,
-                result.review_path.map(|p| p.display().to_string()).unwrap_or_default()
-            );
-            Ok(1)
+            Ok(emit(agent_reply::check(root, id)?))
         }
         "accept" => {
             let Some(id) = rest.first() else { return Ok(usage()) };
-            let result = run_accept(root, id, rest.iter().any(|a| a == "--force"))?;
-            println!("Đã chốt {} (+{} glossary mới).", result.out_path.display(), result.added_glossary);
-            for note in &result.cast_notes {
-                println!("Bảng nhân vật: {note}");
-            }
-            if !result.glossary_fixes.is_empty() {
-                println!("Tự sửa theo glossary: {}", result.glossary_fixes.join(", "));
-            }
-            if result.self_ref_fixes > 0 {
-                println!("Tự xưng bản → bổn: {} chỗ", result.self_ref_fixes);
-            }
-            // Dòng kiểm tra VN không lưu vào state nên in thẳng; cảnh báo còn lại xem ở status.
-            let (vn, stored): (Vec<&String>, Vec<&String>) =
-                result.warnings.iter().partition(|w| w.starts_with(qt_ai_core::vn_check::VN_WARNING_PREFIX));
-            for warning in vn {
-                println!("{warning}");
-            }
-            if !stored.is_empty() {
-                println!("Kèm {} cảnh báo — xem qt-ai status.", stored.len());
-            }
-            Ok(0)
+            Ok(emit(agent_reply::accept(root, id, rest.iter().any(|a| a == "--force"))?))
         }
         "skip" => {
             // Không có id, hoặc "--reason" bị hiểu nhầm thành id → usage thay vì lỗi khó hiểu.
@@ -120,9 +81,7 @@ fn run(argv: &[String]) -> Result<i32, CoreError> {
                 .position(|a| a == "--reason")
                 .map(|index| rest[index + 1..].join(" "))
                 .unwrap_or_default();
-            run_skip(root, id, &reason)?;
-            println!("Đã skip chương {id}.");
-            Ok(0)
+            Ok(emit(agent_reply::skip(root, id, &reason)?))
         }
         "retry" => {
             let ranged = rest.iter().any(|arg| arg == "--all" || arg == "--from" || arg == "--to");
@@ -137,9 +96,7 @@ fn run(argv: &[String]) -> Result<i32, CoreError> {
                 return Ok(0);
             }
             let Some(id) = rest.first() else { return Ok(usage()) };
-            run_retry(root, id)?;
-            println!("Đã đưa chương {id} về hàng đợi — next sẽ phát lại nó.");
-            Ok(0)
+            Ok(emit(agent_reply::retry(root, id)?))
         }
         "delete" => {
             if rest.is_empty() {
@@ -192,8 +149,10 @@ fn run(argv: &[String]) -> Result<i32, CoreError> {
             }
             Ok(0)
         }
-        "status" => {
-            println!("{}", run_status(root)?);
+        "status" => Ok(emit(agent_reply::status(root)?)),
+        "mcp" => {
+            let (stdin, stdout) = (std::io::stdin(), std::io::stdout());
+            qt_ai_core::mcp::serve(stdin.lock(), stdout.lock(), root).map_err(|e| CoreError::Internal(e.to_string()))?;
             Ok(0)
         }
         _ => Ok(usage()),

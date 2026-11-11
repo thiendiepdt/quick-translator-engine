@@ -1,6 +1,20 @@
 import { pathKey, samePath } from "@/lib/paths";
 import { isAbnormalStop, type Progress, type StopReason } from "@/lib/types";
-import { runningRoots, type RetryInfo, type SessionState, type StoryIssues } from "@/store/story";
+import { runningRoots, type AgentLink, type RetryInfo, type SessionState, type StoryIssues } from "@/store/story";
+
+/** Nhãn ngắn, cụm "qua …" cho tooltip và câu giải thích của đường gọi qt-ai trong phiên agy. */
+export const LINK_LABEL: Record<AgentLink, { tag: string; via: string; title: string }> = {
+  mcp: {
+    tag: "MCP",
+    via: "qua MCP",
+    title: "agy gọi qt-ai qua tool MCP — không chạy lệnh terminal, máy không lag dần khi dịch lâu",
+  },
+  shell: {
+    tag: "Shell",
+    via: "qua terminal",
+    title: "agy chạy lệnh qt-ai qua terminal — dịch lâu trên Windows 10 làm máy lag dần (bật Cài đặt → Gọi qt-ai qua MCP)",
+  },
+};
 
 export interface DockEntry {
   root: string;
@@ -14,6 +28,8 @@ export interface DockEntry {
   waitUntil?: number;
   /** Lỗi thoáng qua lúc treo qua đêm: `waitUntil` là giờ thử lại. */
   retry?: RetryInfo;
+  /** Phiên agy gọi qt-ai qua MCP hay terminal; phiên API / chưa báo thì không có. */
+  link?: AgentLink;
   /** Phiên dừng bất thường trong phiên app này (không phải xong / bấm Dừng): lý do hiện bền trên thẻ. */
   stop?: { at?: number; reason: StopReason };
   /** Chương bỏ qua / lỗi biết được gần nhất — > 0 thì thẻ truyện hiện dòng nhắc. */
@@ -72,6 +88,7 @@ export function dockEntries(state: {
       currentChapter: isRunning ? (progress?.current ?? null) : undefined,
       waitUntil: session?.status === "running" ? session.waitUntil : undefined,
       retry: session?.status === "running" ? session.retry : undefined,
+      link: session?.status === "running" ? session.link : undefined,
       stop:
         session?.status === "stopped" && isAbnormalStop(session.reason) ? { at: session.at, reason: session.reason } : undefined,
       skipped: state.issues[key]?.skipped ?? 0,

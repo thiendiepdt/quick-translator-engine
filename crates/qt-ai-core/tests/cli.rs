@@ -73,6 +73,39 @@ fn init_next_check_accept_status_export_qua_binary() {
 }
 
 #[test]
+fn mcp_qua_binary_dap_tung_dong_json_rpc_tren_stdout_toi_eof() {
+    use std::io::Write;
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    fs::create_dir_all(root.join("raw")).unwrap();
+    fs::write(root.join("raw").join("0001.txt"), "第一章").unwrap();
+    assert_eq!(qt_ai(&["init", "."], root).status.code(), Some(0));
+
+    let mut child = Command::new(env!("CARGO_BIN_EXE_qt-ai"))
+        .args(["mcp", root.to_str().unwrap()])
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    let requests = concat!(
+        r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25"}}"#,
+        "\n",
+        r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#,
+        "\n",
+        r#"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"qt_status","arguments":{}}}"#,
+        "\n"
+    );
+    child.stdin.take().unwrap().write_all(requests.as_bytes()).unwrap();
+    let out = child.wait_with_output().unwrap();
+    assert_eq!(out.status.code(), Some(0), "{}", stderr(&out));
+    let lines: Vec<serde_json::Value> = stdout(&out).lines().map(|l| serde_json::from_str(l).expect(l)).collect();
+    assert_eq!(lines.len(), 2, "{}", stdout(&out));
+    assert_eq!(lines[0]["result"]["serverInfo"]["name"], "qt-ai");
+    assert!(lines[1]["result"]["content"][0]["text"].as_str().unwrap().contains("queued: 1"), "{}", lines[1]);
+}
+
+#[test]
 fn skip_thieu_id_in_usage_thay_vi_hieu_nham_reason() {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path();

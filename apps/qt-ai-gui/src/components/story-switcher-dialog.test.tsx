@@ -41,6 +41,25 @@ describe("mergeCandidates / filterCards", () => {
   });
 });
 
+describe("mergeCandidates · chương lỗi/bỏ qua", () => {
+  it("thẻ mang số chương lỗi/bỏ qua từ đĩa; phiên đang chạy dùng số live", () => {
+    const cards = mergeCandidates({
+      running: ["D:\\lib\\b"],
+      names: {},
+      progress: { "d:\\lib\\b": { done: 1, queued: 0, translating: 0, error: 3, skipped: 0, warnings_count: 0, current: null } },
+      library: [
+        { root: "D:\\lib\\a", name: "A", done: 1, total: 4, error: 1, skipped: 2 },
+        { root: "D:\\lib\\b", name: "B", done: 1, total: 4, error: 0, skipped: 0 },
+        { root: "D:\\lib\\c", name: "C", done: 1, total: 4 },
+      ],
+      recent: [],
+    });
+    expect(cards.find((c) => c.name === "A")).toMatchObject({ error: 1, skipped: 2 });
+    expect(cards.find((c) => c.name === "B")).toMatchObject({ error: 3, skipped: 0 });
+    expect(cards.find((c) => c.name === "C")).toMatchObject({ error: 0, skipped: 0 });
+  });
+});
+
 describe("StorySwitcherDialog", () => {
   beforeEach(() => {
     vi.mocked(libraryList).mockResolvedValue(library);
@@ -65,5 +84,16 @@ describe("StorySwitcherDialog", () => {
     expect(remaining.length).toBe(11); // 2, 20–29
     await user.click(screen.getByRole("button", { name: /Truyện 21/ }));
     expect(onPick).toHaveBeenCalledWith("D:\\lib\\truyen-21");
+  });
+
+  it("thẻ truyện có chương lỗi/bỏ qua hiện chip như màn chọn truyện", async () => {
+    vi.mocked(libraryList).mockResolvedValue([
+      { root: "D:\\lib\\x", name: "X", done: 1, total: 4, error: 2, skipped: 1 },
+      { root: "D:\\lib\\y", name: "Y", done: 4, total: 4, error: 0, skipped: 0 },
+    ]);
+    render(<StorySwitcherDialog open onOpenChange={() => undefined} onPick={() => undefined} />);
+    expect(await screen.findByText("Lỗi 2")).toBeInTheDocument();
+    expect(screen.getByText("Bỏ qua 1")).toBeInTheDocument();
+    expect(screen.getAllByText(/^(Lỗi|Bỏ qua) \d+$/)).toHaveLength(2);
   });
 });

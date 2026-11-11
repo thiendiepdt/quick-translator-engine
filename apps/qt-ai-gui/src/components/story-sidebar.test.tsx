@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -148,6 +148,19 @@ describe("StorySidebar", () => {
       current: null,
     });
     expect(dockEntries(useStoryStore.getState()).find((e) => e.root === B)).toMatchObject({ skipped: 0, error: 0 });
+  });
+
+  it("phiên agy gắn nhãn MCP hay Shell trên thẻ, tooltip ghi rõ đường gọi qt-ai", () => {
+    useStoryStore.getState().applySessionEvent(B, { type: "started", session_no: 1, link: "mcp" });
+    ui();
+    const items = screen.getAllByRole("listitem");
+    expect(items[0]).toHaveAccessibleName("Bravo — Đang dịch · 0006 · 50% · qua MCP");
+    expect(items[0]).toHaveTextContent("MCP");
+    expect(items[1]).toHaveAccessibleName("Delta — Đang dịch");
+    expect(items[1]).not.toHaveTextContent(/MCP|Shell/);
+    act(() => useStoryStore.getState().applySessionEvent(B, { type: "started", session_no: 2, link: "shell" }));
+    expect(screen.getAllByRole("listitem")[0]).toHaveAccessibleName("Bravo — Đang dịch · 0006 · 50% · qua terminal");
+    expect(screen.getAllByRole("listitem")[0]).toHaveTextContent("Shell");
   });
 
   it("truyện đang chờ quota agy: thẻ ghi giờ tự dịch tiếp thay cho phần trăm", () => {

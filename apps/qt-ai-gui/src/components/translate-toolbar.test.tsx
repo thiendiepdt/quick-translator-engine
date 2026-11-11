@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -50,6 +50,28 @@ describe("TranslateToolbar · chờ quota agy", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Hết quota agy — tự dịch tiếp lúc 23:58. Bấm Dừng nếu không muốn chờ.");
     expect(screen.queryByText(/Phiên 4/)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Dừng" })).toBeEnabled();
+  });
+});
+
+describe("TranslateToolbar · đường gọi qt-ai", () => {
+  it("đang dịch hiện 'Phiên N' kèm MCP hay Shell; phiên chưa báo đường gọi thì chỉ 'Phiên N'", () => {
+    const set = (link?: "mcp" | "shell") =>
+      useStoryStore.setState({
+        config,
+        root: ROOT,
+        roots: { [pathKey(ROOT)]: ROOT },
+        sessions: { [pathKey(ROOT)]: { status: "running", sessionNo: 2, ...(link ? { link } : {}) } },
+      });
+    set("mcp");
+    const { rerender } = render(<TranslateToolbar />);
+    expect(screen.getByText("Phiên 2")).toBeInTheDocument();
+    expect(screen.getByText("MCP")).toHaveAttribute("title", expect.stringContaining("tool MCP"));
+    act(() => set("shell"));
+    rerender(<TranslateToolbar />);
+    expect(screen.getByText("Shell")).toHaveAttribute("title", expect.stringContaining("terminal"));
+    act(() => set());
+    rerender(<TranslateToolbar />);
+    expect(screen.queryByText(/^(MCP|Shell)$/)).not.toBeInTheDocument();
   });
 });
 

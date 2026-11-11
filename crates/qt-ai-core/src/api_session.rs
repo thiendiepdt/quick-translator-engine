@@ -694,7 +694,7 @@ fn requeue(root: &Path, id: &str, log: &dyn Fn(String)) {
 pub fn api_loop(config: &ApiSessionConfig, model: &dyn TextModel, sink: &Sink, cancel: &AtomicBool) -> StopReason {
     let root = config.root.as_path();
     let log = |line: String| sink(SessionEvent::AgyLog { line, stream: LogStream::Stdout });
-    sink(SessionEvent::Started { session_no: 1 });
+    sink(SessionEvent::Started { session_no: 1, link: None });
     log(format!("Động cơ API: {}", model.label()));
     let mut failed_chapters = 0;
     loop {

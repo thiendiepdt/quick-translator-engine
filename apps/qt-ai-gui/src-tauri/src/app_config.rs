@@ -103,6 +103,10 @@ pub struct AppConfig {
     pub line_numbers: bool,
     /// Phiên agy hết quota thì chờ tới giờ quota reset rồi tự dịch tiếp, thay vì dừng. Mặc định tắt.
     pub resume_on_quota: bool,
+    /// Agent gọi qt-ai qua tool MCP thay vì lệnh terminal — trên Windows 10 mỗi lệnh terminal của agy để lại
+    /// rác trong DWM, dịch lâu là cả máy lag (xem `qt_ai_core::mcp_config`). Mặc định bật; config cũ chưa có
+    /// khoá này cũng là bật.
+    pub use_mcp: bool,
 }
 
 /// Số phiên agy tối đa mỗi lần Bắt đầu. 500 phiên × 10 chương/phiên ≈ 5.000 chương — đủ cho truyện dài nhất
@@ -127,6 +131,7 @@ impl Default for AppConfig {
             reading_width: "normal".to_string(),
             line_numbers: true,
             resume_on_quota: false,
+            use_mcp: true,
         }
     }
 }
@@ -172,6 +177,16 @@ mod tests {
         assert_eq!(AppConfig::load(&path).max_sessions, 500);
         std::fs::write(&path, r#"{"agyPath":null,"model":null,"maxSessions":120,"recent":[]}"#).unwrap();
         assert_eq!(AppConfig::load(&path).max_sessions, 120);
+    }
+
+    #[test]
+    fn config_cu_chua_co_use_mcp_thi_bat_mac_dinh_tat_roi_thi_giu_tat() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+        std::fs::write(&path, r#"{"agyPath":null,"model":null,"maxSessions":500,"recent":[]}"#).unwrap();
+        assert!(AppConfig::load(&path).use_mcp);
+        std::fs::write(&path, r#"{"useMcp":false}"#).unwrap();
+        assert!(!AppConfig::load(&path).use_mcp);
     }
 
     #[test]

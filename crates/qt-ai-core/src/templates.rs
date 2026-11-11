@@ -10,18 +10,26 @@
 //! AGENTS.md tới được truyện cũ). File không có dấu (app trước 1.0.6 ghi) thì so khuôn template hiện tại
 //! và mọi bản cũ trong `templates/legacy/` — khớp bản nào cũng là chưa sửa tay → render lại kèm dấu.
 //! Đổi template từ nay không cần thêm bản legacy nữa (file đã có dấu); folder đó chỉ để đón truyện cũ.
+//!
+//! Hai chế độ: truyện có server MCP `qt-ai` trong `.agents/mcp_config.json` (`crate::mcp_config`) thì AGENTS.md +
+//! translate.md lấy bản gọi tool `qt_*` (`antigravity/mcp/`), không thì bản chạy lệnh terminal. Đổi chế độ là file
+//! chưa sửa tay được render lại theo bản kia; bản của chế độ kia cũng tính là "chưa sửa tay" khi file không dấu.
 
 use crate::error::{CoreError, Result};
 use crate::story_fs::write_text;
 use regex::Regex;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub const AGENTS_MD: &str = include_str!("../../../apps/qt-ai-cli/antigravity/AGENTS.md");
 pub const WORKFLOWS: [(&str, &str); 2] = [
     ("setup-story.md", include_str!("../../../apps/qt-ai-cli/antigravity/workflows/setup-story.md")),
     ("translate.md", include_str!("../../../apps/qt-ai-cli/antigravity/workflows/translate.md")),
 ];
+/// Bản gọi tool MCP. Nằm ngoài `antigravity/workflows/` vì CLI TS chép mọi file trong đó vào truyện.
+/// setup-story chạy `init` đúng một lần nên hai chế độ dùng chung.
+pub const AGENTS_MCP_MD: &str = include_str!("../../../apps/qt-ai-cli/antigravity/mcp/AGENTS.md");
+pub const TRANSLATE_MCP_MD: &str = include_str!("../../../apps/qt-ai-cli/antigravity/mcp/translate.md");
 const PLACEHOLDERS: [&str; 2] = ["{{QT_AI}}", "{{STORY_ROOT}}"];
 
 /// Bản template cũ chưa có dấu, theo tên file đích. v0 = bản pilot trước khi vào git.
@@ -150,45 +158,67 @@ fn hand_edited(existing: &str, source: &str, legacy: &[&str]) -> bool {
     }
 }
 
+struct Target {
+    name: &'static str,
+    path: PathBuf,
+    /// Template của chế độ hiện tại.
+    source: &'static str,
+    /// Các bản khác (chế độ kia + legacy): file không dấu khớp bản nào cũng là chưa sửa tay.
+    known: Vec<&'static str>,
+}
+
+/// AGENTS.md + workflows của truyện, template theo chế độ (có server MCP `qt-ai` hay không).
+fn targets(root: &Path) -> Vec<Target> {
+    let mcp = crate::mcp_config::has_server(root);
+    let choose = |shell: &'static str, tool: &'static str| if mcp { (tool, shell) } else { (shell, tool) };
+    let (agents, other) = choose(AGENTS_MD, AGENTS_MCP_MD);
+    let mut list = vec![Target { name: "AGENTS.md", path: root.join("AGENTS.md"), source: agents, known: [LEGACY_AGENTS, &[other]].concat() }];
+    let workflows_dir = root.join(".agent").join("workflows");
+    for (name, shell) in WORKFLOWS {
+        let (source, other) = match name {
+            "translate.md" => {
+                let (source, other) = choose(shell, TRANSLATE_MCP_MD);
+                (source, vec![other])
+            }
+            _ => (shell, vec![]),
+        };
+        list.push(Target { name, path: workflows_dir.join(name), source, known: [legacy_for(name), &other].concat() });
+    }
+    list
+}
+
 /// Reset truyện: ép AGENTS.md + workflows về template hiện tại như một truyện vừa tạo. File đã sửa tay được
 /// chép sang `<tên>.bak` cạnh đó trước khi ghi đè. Trả về tên các file có bản sửa tay đã lưu.
 pub fn force_templates(root: &Path, qt_ai_command: &str) -> Result<Vec<String>> {
     let root_text = root.display().to_string();
     let workflows_dir = root.join(".agent").join("workflows");
     fs::create_dir_all(&workflows_dir).map_err(CoreError::io(&workflows_dir))?;
-    let mut targets = vec![("AGENTS.md", root.join("AGENTS.md"), AGENTS_MD, LEGACY_AGENTS)];
-    for (name, source) in WORKFLOWS {
-        targets.push((name, workflows_dir.join(name), source, legacy_for(name)));
-    }
     let mut backups = Vec::new();
-    for (name, target, source, legacy) in targets {
-        if let Ok(existing) = fs::read_to_string(&target) {
-            if hand_edited(&existing, source, legacy) {
-                let mut bak = target.as_os_str().to_owned();
+    for target in targets(root) {
+        if let Ok(existing) = fs::read_to_string(&target.path) {
+            if hand_edited(&existing, target.source, &target.known) {
+                let mut bak = target.path.as_os_str().to_owned();
                 bak.push(".bak");
-                let bak = std::path::PathBuf::from(bak);
-                fs::copy(&target, &bak).map_err(CoreError::io(&bak))?;
-                backups.push(name.to_string());
+                let bak = PathBuf::from(bak);
+                fs::copy(&target.path, &bak).map_err(CoreError::io(&bak))?;
+                backups.push(target.name.to_string());
             }
         }
-        write_text(&target, &stamp(&render(source, qt_ai_command, &root_text)))?;
+        write_text(&target.path, &stamp(&render(target.source, qt_ai_command, &root_text)))?;
     }
     Ok(backups)
 }
 
 /// Copy template vào folder truyện. File đã sửa tay thì giữ nguyên; file còn đúng khuôn thì cập nhật
-/// lệnh qt-ai/đường dẫn. Trả về tên các file đã ghi.
+/// lệnh qt-ai/đường dẫn (và đổi bản khi đổi chế độ MCP). Trả về tên các file đã ghi.
 pub fn copy_templates(root: &Path, qt_ai_command: &str) -> Result<Vec<String>> {
     let root_text = root.display().to_string();
-    let mut written = Vec::new();
-    if write_or_refresh(&root.join("AGENTS.md"), AGENTS_MD, LEGACY_AGENTS, qt_ai_command, &root_text)? {
-        written.push("AGENTS.md".to_string());
-    }
     let workflows_dir = root.join(".agent").join("workflows");
     fs::create_dir_all(&workflows_dir).map_err(CoreError::io(&workflows_dir))?;
-    for (name, source) in WORKFLOWS {
-        if write_or_refresh(&workflows_dir.join(name), source, legacy_for(name), qt_ai_command, &root_text)? {
-            written.push(name.to_string());
+    let mut written = Vec::new();
+    for target in targets(root) {
+        if write_or_refresh(&target.path, target.source, &target.known, qt_ai_command, &root_text)? {
+            written.push(target.name.to_string());
         }
     }
     Ok(written)
@@ -298,6 +328,71 @@ mod tests {
             assert!(split_marker(&text).is_some(), "{name} chưa có dấu");
             assert!(copy_templates(root, "qt-ai").unwrap().is_empty(), "{name}: lần hai không ghi gì");
         }
+    }
+
+    fn agents_and_translate(root: &Path) -> (String, String) {
+        let read = |path: std::path::PathBuf| fs::read_to_string(path).unwrap();
+        (read(root.join("AGENTS.md")), read(root.join(".agent").join("workflows").join("translate.md")))
+    }
+
+    #[test]
+    fn co_server_mcp_thi_ghi_ban_goi_tool_go_server_thi_ve_ban_lenh_terminal() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        copy_templates(root, "qt-ai").unwrap();
+        let (shell_agents, shell_translate) = agents_and_translate(root);
+        assert!(!shell_agents.contains("qt_next") && !shell_translate.contains("qt_check"));
+
+        crate::mcp_config::install(root, Path::new("C:\\app\\qt-ai.exe")).unwrap();
+        assert_eq!(copy_templates(root, "qt-ai").unwrap(), vec!["AGENTS.md", "translate.md"], "setup-story chung hai chế độ");
+        let (agents, translate) = agents_and_translate(root);
+        assert!(agents.contains("qt_next") && agents.contains("qt_status") && translate.contains("qt_check"));
+        assert!(agents.contains(&root.display().to_string()), "vẫn ghi thư mục truyện");
+        assert!(agents.contains("qt-ai <lệnh> ") && translate.contains("qt-ai next "), "còn lệnh terminal dự phòng");
+        assert!(agents.trim_end().ends_with(" -->") && translate.trim_end().ends_with(" -->"));
+        assert!(copy_templates(root, "qt-ai").unwrap().is_empty(), "cùng chế độ thì không ghi lại");
+
+        crate::mcp_config::uninstall(root).unwrap();
+        assert_eq!(copy_templates(root, "qt-ai").unwrap(), vec!["AGENTS.md", "translate.md"]);
+        assert_eq!(agents_and_translate(root), (shell_agents, shell_translate));
+    }
+
+    #[test]
+    fn doi_che_do_van_giu_file_sua_tay() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        copy_templates(root, "qt-ai").unwrap();
+        let translate = root.join(".agent").join("workflows").join("translate.md");
+        let hand = fs::read_to_string(&translate).unwrap() + "\nGhi chú riêng.\n";
+        fs::write(&translate, &hand).unwrap();
+
+        crate::mcp_config::install(root, Path::new("qt-ai.exe")).unwrap();
+        assert_eq!(copy_templates(root, "qt-ai").unwrap(), vec!["AGENTS.md"]);
+        assert_eq!(fs::read_to_string(&translate).unwrap(), hand);
+    }
+
+    #[test]
+    fn file_khong_dau_cua_ban_mcp_van_nhan_la_chua_sua_tay() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        copy_templates(root, "qt-ai").unwrap();
+        let translate = root.join(".agent").join("workflows").join("translate.md");
+        fs::write(&translate, render(TRANSLATE_MCP_MD, "qt-ai", "D:\\khac")).unwrap();
+
+        assert_eq!(copy_templates(root, "qt-ai").unwrap(), vec!["translate.md"]);
+        assert!(!fs::read_to_string(&translate).unwrap().contains("qt_check"), "chế độ terminal → về bản lệnh");
+    }
+
+    #[test]
+    fn reset_khi_co_server_mcp_ep_ve_ban_goi_tool() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        crate::mcp_config::install(root, Path::new("qt-ai.exe")).unwrap();
+        fs::write(root.join("AGENTS.md"), "tự viết\n").unwrap();
+
+        assert_eq!(force_templates(root, "qt-ai").unwrap(), vec!["AGENTS.md"]);
+        let (agents, translate) = agents_and_translate(root);
+        assert!(agents.contains("qt_next") && translate.contains("qt_check"));
     }
 
     #[test]

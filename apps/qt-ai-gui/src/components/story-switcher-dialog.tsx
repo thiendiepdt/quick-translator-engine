@@ -1,6 +1,7 @@
 import { Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
+import { IssueChips } from "@/components/issue-chips";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -118,6 +119,7 @@ export function StorySwitcherDialog({ open, onOpenChange, onPick }: Props) {
                         {card.current && (
                           <span className="shrink-0 rounded-full bg-primary/10 px-1.5 text-[11px] font-medium text-primary">Đang mở</span>
                         )}
+                        <IssueChips error={card.error} skipped={card.skipped} className="px-1.5 py-0" />
                       </div>
                       <span className="truncate font-mono text-[11px] text-muted-foreground">{card.root}</span>
                       {card.total !== null ? (

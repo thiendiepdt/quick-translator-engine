@@ -36,6 +36,12 @@ fn found() -> Option<PathBuf> {
     candidates().into_iter().find(|path| path.is_file())
 }
 
+/// Đường dẫn tuyệt đối binary qt-ai — ghi vào `.agents/mcp_config.json` để agy chạy server MCP. Ghi lại trước
+/// mỗi phiên nên app dời chỗ hay truyện sang máy khác cũng không trỏ sai. None nếu chưa build sidecar.
+pub fn qt_ai_exe() -> Option<PathBuf> {
+    found()
+}
+
 /// Folder chứa binary qt-ai (để chèn PATH). None nếu chưa build sidecar.
 pub fn qt_ai_dir() -> Option<PathBuf> {
     found().and_then(|path| path.parent().map(Path::to_path_buf))

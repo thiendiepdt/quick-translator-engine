@@ -36,9 +36,20 @@ pub fn summarize_uncached(root: &Path) -> RecentSummary {
                 total: Some(counts.total),
                 pending: Some(counts.queued + counts.translating),
                 vn_flags: qt_ai_core::vn_check::flag_count(&paths),
+                error: Some(counts.error),
+                skipped: Some(counts.skipped),
             }
         }
-        _ => RecentSummary { root: root.display().to_string(), name: None, done: None, total: None, pending: None, vn_flags: None },
+        _ => RecentSummary {
+            root: root.display().to_string(),
+            name: None,
+            done: None,
+            total: None,
+            pending: None,
+            vn_flags: None,
+            error: None,
+            skipped: None,
+        },
     }
 }
 

@@ -14,7 +14,16 @@ pub struct NextResult {
     pub prompt_path: PathBuf,
 }
 
-fn agent_instructions(id: &str, unpaired: &[(String, String)]) -> String {
+/// Agent gọi `next` bằng đường nào — quyết định dòng cuối prompt dặn gọi check ra sao.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Via {
+    /// Lệnh terminal `qt-ai next`.
+    Shell,
+    /// Tool MCP `qt_next` (xem `crate::mcp`): dặn gọi tool `qt_check`, không chạy lệnh terminal.
+    Mcp,
+}
+
+fn agent_instructions(id: &str, unpaired: &[(String, String)], via: Via) -> String {
     let mut lines = vec![
         "# Việc của agent sau khi dịch xong".to_string(),
         String::new(),
@@ -38,20 +47,23 @@ fn agent_instructions(id: &str, unpaired: &[(String, String)]) -> String {
         r#"   Cặp ĐÃ CÓ mà chương này cho thấy quan hệ hai người đã khác lúc chốt cặp (đã là người yêu, đính hôn, vợ chồng, thầy trò, chủ tớ, nhận người thân, kết nghĩa, trở mặt) nên đã dịch bằng cặp khác: khai lại cặp đó với target đúng như vừa dịch và "note": "lý do ngắn", cả hai chiều."#.to_string(),
         r#"   Xưng hô chỉ của một cảnh thì dịch theo cảnh nhưng KHÔNG khai: cải trang, giả làm, đóng kịch; xưng hô trước mặt người ngoài, thuộc hạ, sứ giả; hồi tưởng, kiếp trước, dòng thời gian khác; mỉa mai, trêu đùa, giận dỗi nhất thời."#.to_string(),
         r#"   Chỉ ghi {"entries": []} khi không có cả tên mới lẫn cặp xưng hô mới."#.to_string(),
-        format!("4. Chạy: qt-ai check {id} (xem AGENTS.md để biết lệnh đầy đủ)."),
+        match via {
+            Via::Shell => format!("4. Chạy: qt-ai check {id} (xem AGENTS.md để biết lệnh đầy đủ)."),
+            Via::Mcp => format!("4. Gọi tool qt_check với id \"{id}\" (không chạy lệnh terminal)."),
+        },
     ]);
     lines.join("\n")
 }
 
 /// Sinh + ghi work/<id>.prompt.md; trả về đường dẫn đã ghi.
-fn write_prompt_file(paths: &StoryPaths, story: &StoryConfig, id: &str) -> Result<PathBuf> {
+fn write_prompt_file(paths: &StoryPaths, story: &StoryConfig, id: &str, via: Via) -> Result<PathBuf> {
     let source = read_raw_chapter(paths, id)?;
     let base_glossary = crate::base::BaseStore::from_env().glossary(story.genre.setting);
     let cast = crate::cast::load_cast(paths);
     let system = build_chapter_prompt(&base_glossary, story, &cast, id, &source);
     let unpaired = crate::prompt::chapter_unpaired(&base_glossary, story, &cast, id, &source);
     let payload = labeled_source_payload(&paragraphs_of(&source));
-    let prompt = format!("{system}\n\n---\n\n{payload}\n\n---\n\n{}\n", agent_instructions(id, &unpaired));
+    let prompt = format!("{system}\n\n---\n\n{payload}\n\n---\n\n{}\n", agent_instructions(id, &unpaired, via));
     let prompt_path = work_file(paths, id, WorkKind::Prompt);
     // Atomic + ép xuống đĩa: chương chỉ sang translating khi prompt đã đọc được (xem `run_next`).
     write_atomic(&prompt_path, &prompt)?;
@@ -59,6 +71,10 @@ fn write_prompt_file(paths: &StoryPaths, story: &StoryConfig, id: &str) -> Resul
 }
 
 pub fn run_next(root: &Path) -> Result<NextResult> {
+    run_next_via(root, Via::Shell)
+}
+
+pub fn run_next_via(root: &Path, via: Via) -> Result<NextResult> {
     let paths = story_paths(&resolve_root(root));
     let mut state = load_state(&paths)?;
     let story = load_story_config(&paths)?;
@@ -73,7 +89,7 @@ pub fn run_next(root: &Path) -> Result<NextResult> {
         // Phiên trước chết mất work/*.prompt.md của chương đang translating → phát lại đúng chương đó,
         // không đụng reviewRound/status.
         if let Some(lost) = pending.iter().find(|id| !work_file(&paths, id, WorkKind::Prompt).exists()) {
-            let prompt_path = write_prompt_file(&paths, &story, lost)?;
+            let prompt_path = write_prompt_file(&paths, &story, lost, via)?;
             return Ok(NextResult { chapter_id: lost.clone(), prompt_path });
         }
         return Err(CoreError::InvalidState(format!(
@@ -95,7 +111,7 @@ pub fn run_next(root: &Path) -> Result<NextResult> {
         ));
     };
 
-    let prompt_path = write_prompt_file(&paths, &story, &next_id)?;
+    let prompt_path = write_prompt_file(&paths, &story, &next_id, via)?;
     state.chapters.insert(next_id.clone(), ChapterState::fresh(ChapterStatus::Translating));
     save_state(&paths, &state)?;
     Ok(NextResult { chapter_id: next_id, prompt_path })

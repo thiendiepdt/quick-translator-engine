@@ -111,6 +111,9 @@ pub struct RecentSummary {
     pub pending: Option<usize>,
     /// Chỗ nhạy cảm VN chưa xét + cần xử lý; None = truyện chưa từng quét.
     pub vn_flags: Option<usize>,
+    /// Chương lỗi / bỏ qua — không tự được dịch lại, màn chọn truyện nhắc bằng chip và lọc được.
+    pub error: Option<usize>,
+    pub skipped: Option<usize>,
 }
 
 /// Tóm tắt từng folder gần đây; folder hỏng/mất → chỉ có root (UI hiện mờ).
@@ -880,8 +883,10 @@ pub(crate) mod tests {
         assert_eq!(list[0].name.as_deref(), Some("Nam Nữ Đế"));
         assert_eq!(list[0].total, Some(2));
         assert_eq!(list[0].done, Some(0));
+        assert_eq!((list[0].error, list[0].skipped), (Some(0), Some(0)));
         assert_eq!(list[1].root, "D:\\khong\\co");
         assert!(list[1].name.is_none() && list[1].total.is_none());
+        assert_eq!((list[1].error, list[1].skipped), (None, None));
     }
 
     #[test]

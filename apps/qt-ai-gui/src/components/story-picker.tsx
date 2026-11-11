@@ -1,8 +1,24 @@
-import { Activity, FileType, FolderOpen, FolderPlus, FolderSync, LibraryBig, LoaderCircle, Play, RefreshCw, Search, Sparkles, Square, X } from "lucide-react";
+import {
+  Activity,
+  FileType,
+  FolderOpen,
+  FolderPlus,
+  FolderSync,
+  LibraryBig,
+  LoaderCircle,
+  Play,
+  RefreshCw,
+  Search,
+  Sparkles,
+  Square,
+  TriangleAlert,
+  X,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { CreateStoryDialog } from "@/components/create-story-dialog";
+import { IssueChips } from "@/components/issue-chips";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { VnLibraryScanButton } from "@/components/vn-library-scan-button";
@@ -28,7 +44,7 @@ import {
 } from "@/lib/api";
 import { storyLabel } from "@/hooks/use-session-events";
 import { pathKey, samePath } from "@/lib/paths";
-import { filterByQuery, PAGE_SIZE } from "@/lib/switcher";
+import { filterByQuery, PAGE_SIZE, storyIssues } from "@/lib/switcher";
 import { clockLabel, engineLabel } from "@/lib/types";
 import type { Progress, RecentSummary } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -67,6 +83,7 @@ function StoryRow({
   const done = live?.done ?? item.done ?? 0;
   const percent = item.total ? Math.round((done / item.total) * 100) : 0;
   const uninitialized = item.total === null;
+  const issues = storyIssues(item, live);
   return (
     <li className="flex min-w-0 items-stretch gap-1">
       <button
@@ -92,6 +109,7 @@ function StoryRow({
                     ⚠ VN {item.vnFlags}
                   </span>
                 )}
+                <IssueChips error={issues.error} skipped={issues.skipped} />
                 {onStop && (
                   <span
                     className={cn(
@@ -195,6 +213,8 @@ export function StoryPicker() {
   // Thư viện dài: lọc theo tên/folder và vẽ theo khúc PAGE_SIZE dòng để không lag khi hàng trăm truyện.
   const [query, setQuery] = useState("");
   const [limit, setLimit] = useState(PAGE_SIZE);
+  /** Chỉ hiện truyện thư viện có chương lỗi / bỏ qua. */
+  const [onlyIssues, setOnlyIssues] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -405,7 +425,21 @@ export function StoryPicker() {
   }, [saveLibrary]);
 
   const libraryRows = useMemo(() => (libraryRoot ? library : []), [libraryRoot, library]);
-  const libraryFiltered = useMemo(() => filterByQuery(libraryRows, query), [libraryRows, query]);
+  // Truyện có chương lỗi / bỏ qua, tính cả số live của phiên đang chạy (chương vừa lỗi hiện ngay).
+  const issueRows = useMemo(
+    () =>
+      libraryRows.filter((item) => {
+        const live = running.some((r) => samePath(r, item.root)) ? progress[pathKey(item.root)] : undefined;
+        const { error, skipped } = storyIssues(item, live);
+        return error + skipped > 0;
+      }),
+    [libraryRows, running, progress],
+  );
+  const libraryFiltered = useMemo(
+    () => filterByQuery(onlyIssues ? issueRows : libraryRows, query),
+    [onlyIssues, issueRows, libraryRows, query],
+  );
+  const showIssueFilter = issueRows.length > 0 || onlyIssues;
   const libraryVisible = libraryFiltered.slice(0, limit);
   const showSearch = libraryRows.length > 8;
   // "Dịch tất cả": truyện thư viện còn chương chờ mà chưa có phiên, theo thứ tự danh sách; số bắt đầu được
@@ -540,19 +574,37 @@ export function StoryPicker() {
               </p>
             ) : (
               <>
-                {showSearch && (
-                  <div className="relative mb-2">
-                    <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      value={query}
-                      onChange={(e) => {
-                        setQuery(e.target.value);
-                        setLimit(PAGE_SIZE);
-                      }}
-                      placeholder={`Tìm trong ${libraryRows.length} truyện…`}
-                      aria-label="Tìm truyện trong thư viện"
-                      className="pl-8"
-                    />
+                {(showSearch || showIssueFilter) && (
+                  <div className="mb-2 flex items-center gap-2">
+                    {showSearch && (
+                      <div className="relative min-w-0 flex-1">
+                        <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                          value={query}
+                          onChange={(e) => {
+                            setQuery(e.target.value);
+                            setLimit(PAGE_SIZE);
+                          }}
+                          placeholder={`Tìm trong ${libraryRows.length} truyện…`}
+                          aria-label="Tìm truyện trong thư viện"
+                          className="pl-8"
+                        />
+                      </div>
+                    )}
+                    {showIssueFilter && (
+                      <Button
+                        variant={onlyIssues ? "secondary" : "outline"}
+                        aria-pressed={onlyIssues}
+                        title="Chỉ hiện truyện có chương lỗi hoặc bị bỏ qua — các chương này không tự được dịch lại"
+                        className={cn("shrink-0", !showSearch && "ml-auto")}
+                        onClick={() => {
+                          setOnlyIssues((value) => !value);
+                          setLimit(PAGE_SIZE);
+                        }}
+                      >
+                        <TriangleAlert className="text-status-error" /> Có lỗi/bỏ qua ({issueRows.length})
+                      </Button>
+                    )}
                   </div>
                 )}
                 {libraryFiltered.length === 0 ? (

@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ZhStoryBanner, ZhStoryDialog } from "@/components/zh-story-dialog";
 import { chaptersPadAll, chaptersRetryIds, rescanStory, sessionStart, sessionStop, storySnapshot } from "@/lib/api";
 import { chapterGaps, filterChapters, hasHanLeft } from "@/lib/chapters";
+import { LINK_LABEL } from "@/lib/dock";
 import { clockLabel, engineLabel, isAbnormalStop, STATUS_LABELS, stopReasonBrief, stopReasonLabel } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { selectCurrentProgress, selectCurrentSession, selectCurrentShort, useStoryStore } from "@/store/story";
@@ -430,7 +431,20 @@ export function TranslateToolbar() {
           ) : (
             <span className="ml-auto inline-flex items-center gap-2 text-xs text-primary">
               <span className="size-2 animate-pulse rounded-full bg-status-translating" aria-hidden />
-              Phiên {session.sessionNo}
+              <span>Phiên {session.sessionNo}</span>
+              {session.link && (
+                <span
+                  title={LINK_LABEL[session.link].title}
+                  className={cn(
+                    "rounded border px-1.5 text-[10px] leading-tight font-medium",
+                    session.link === "mcp"
+                      ? "border-status-done/40 text-status-done"
+                      : "border-status-warning/40 text-status-warning",
+                  )}
+                >
+                  {LINK_LABEL[session.link].tag}
+                </span>
+              )}
             </span>
           ))}
       </div>

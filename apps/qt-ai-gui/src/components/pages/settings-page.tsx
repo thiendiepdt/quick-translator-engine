@@ -52,6 +52,7 @@ const settingsFormSchema = engineFormSchema.extend({
   maxSessions: z.number().int().min(1).max(1000),
   maxParallel: z.number().int().min(1).max(20),
   resumeOnQuota: z.boolean(),
+  useMcp: z.boolean(),
   chaptersPerSession: z.number().int().min(1).max(100),
   maxReviewRounds: z.number().int().min(0).max(10),
   minLengthRatio: z.number().min(0.1).max(3),
@@ -319,6 +320,7 @@ export function SettingsPage() {
         maxSessions: config.maxSessions,
         maxParallel: config.maxParallel,
         resumeOnQuota: config.resumeOnQuota,
+        useMcp: config.useMcp,
         chaptersPerSession: settings.chaptersPerSession,
         maxReviewRounds: settings.maxReviewRounds,
         minLengthRatio: settings.minLengthRatio,
@@ -338,6 +340,7 @@ export function SettingsPage() {
         maxSessions: values.maxSessions,
         maxParallel: values.maxParallel,
         resumeOnQuota: values.resumeOnQuota,
+        useMcp: values.useMcp,
       });
       setConfig(next);
       if (next.engine === "agy") setAgy(await agyStatus(next.agyPath ?? undefined));
@@ -527,6 +530,18 @@ export function SettingsPage() {
                   ngủ). Bật cũng là chế độ treo qua đêm: agy lỗi, lượt không chốt được chương hay file truyện bị khoá thì
                   phiên chờ 5 phút → 15 phút → 30 phút → 1 giờ rồi thử lại (tối đa 6 lần) thay vì dừng. Tắt thì phiên dừng
                   ngay và báo lý do. Chỉ áp dụng cho động cơ agy; mặc định tắt.
+                </p>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="flex items-center gap-2 text-sm font-medium">
+                  <input type="checkbox" {...form.register("useMcp")} />
+                  Gọi qt-ai qua MCP (đỡ lag màn hình)
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  Agent gọi qt-ai bằng tool MCP thay vì lệnh terminal. Trên Windows 10, mỗi lệnh terminal của agy để lại
+                  rác trong Desktop Window Manager (khoảng 3–4 lệnh mỗi chương), dịch lâu là kéo cửa sổ bị lag cả máy; gọi
+                  tool MCP không để lại gì. Tắt nếu agy báo lỗi tool qt_* — agent quay về chạy lệnh terminal như cũ. Áp dụng
+                  từ phiên dịch kế tiếp. Chỉ áp dụng cho động cơ agy; mặc định bật.
                 </p>
               </div>
             </Card>

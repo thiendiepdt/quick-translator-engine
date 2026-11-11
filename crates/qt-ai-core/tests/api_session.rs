@@ -127,7 +127,7 @@ fn dich_dat_ngay_thi_accept_ghi_out_va_finished() {
     assert!(calls[0].0.contains("Dịch raw text tiếng Trung"), "system prompt của qt-web");
     assert!(calls[0].1.contains("[[1]] 赵静文") && calls[0].1.contains("[[2]] 她沉默"));
     let events = events.lock().unwrap();
-    assert!(matches!(events[0], SessionEvent::Started { session_no: 1 }));
+    assert!(matches!(events[0], SessionEvent::Started { session_no: 1, .. }));
     assert!(events.iter().any(|e| matches!(e, SessionEvent::Progress(p) if p.done == 2)));
     assert!(logs(&events).iter().any(|l| l.contains("0001: chốt (soát 0 lần, 0 cảnh báo")), "{:?}", logs(&events));
     assert!(matches!(events.last(), Some(SessionEvent::Stopped(StopReason::Finished))));

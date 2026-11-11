@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { appConfigSchema, sessionEventSchema, storyConfigSchema, storySnapshotSchema } from "@/lib/schema";
+import { appConfigSchema, recentSummarySchema, sessionEventSchema, storyConfigSchema, storySnapshotSchema } from "@/lib/schema";
 import { clockLabel, stopReasonLabel } from "@/lib/types";
 
 const story = {
@@ -100,6 +100,16 @@ describe("schema", () => {
     const config = appConfigSchema.parse({ agyPath: null, model: null, maxSessions: 50, recent: [] });
     expect(config.resumeOnQuota).toBe(false);
     expect(config.lineNumbers).toBe(true);
+    expect(config.useMcp).toBe(true); // config cũ chưa có khoá → bật như Rust
+    // Phiên agy kèm đường gọi qt-ai; phiên API không có trường này.
+    expect(sessionEventSchema.parse({ type: "started", session_no: 2, link: "mcp" })).toEqual({ type: "started", session_no: 2, link: "mcp" });
+    expect(sessionEventSchema.parse({ type: "started", session_no: 1 })).toEqual({ type: "started", session_no: 1 });
+    expect(() => sessionEventSchema.parse({ type: "started", session_no: 1, link: "ssh" })).toThrow();
+    // Tóm tắt truyện kèm số chương lỗi / bỏ qua; folder hỏng thì null.
+    const summary = { root: "D:\\a", name: "A", done: 8, total: 10, pending: 0, vnFlags: null };
+    expect(recentSummarySchema.parse({ ...summary, error: 2, skipped: 1 })).toMatchObject({ error: 2, skipped: 1 });
+    expect(recentSummarySchema.parse({ ...summary, error: null, skipped: null })).toMatchObject({ error: null, skipped: null });
+    expect(appConfigSchema.parse({ agyPath: null, model: null, maxSessions: 50, recent: [], useMcp: false }).useMcp).toBe(false);
     // Cùng ngày chỉ hiện giờ; khác ngày kèm ngày/tháng.
     const at = new Date(2026, 9, 6, 2, 45).getTime();
     expect(clockLabel(at, new Date(2026, 9, 6, 0, 10).getTime())).toBe("02:45");

@@ -28,7 +28,31 @@ fn config(root: &Path) -> SessionConfig {
         agy_data_dir: None,
         resume_on_quota: false,
         retry_waits: vec![],
+        agent_link: AgentLink::Shell,
     }
+}
+
+#[test]
+fn phien_bao_che_do_goi_qt_ai_mot_lan_va_log_tung_chuong_chot_kem_id() {
+    let dir = story("progress", 2);
+    let (sink, events) = collect();
+    let handle = start_session(SessionConfig { agent_link: AgentLink::Mcp, ..config(dir.path()) }, sink).unwrap();
+    assert_eq!(handle.join(), StopReason::Finished);
+    let events = events.lock().unwrap();
+    let starts: Vec<&SessionEvent> = events.iter().filter(|e| matches!(e, SessionEvent::Started { .. })).collect();
+    assert_eq!(starts.len(), 2);
+    assert!(starts.iter().all(|e| matches!(e, SessionEvent::Started { link: Some(AgentLink::Mcp), .. })), "{starts:?}");
+    let lines: Vec<&str> = events
+        .iter()
+        .filter_map(|e| match e {
+            SessionEvent::AgyLog { line, .. } => Some(line.as_str()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(lines.iter().filter(|l| l.contains("gọi qt-ai qua tool MCP")).count(), 1, "{lines:?}");
+    // fake-agy chốt mỗi lượt một chương, mỗi lượt đếm lại từ 1.
+    assert!(lines.contains(&"[qt-ai] Chốt: 0001 (1/10 của phiên này)"), "{lines:?}");
+    assert!(lines.contains(&"[qt-ai] Chốt: 0002 (1/10 của phiên này)"), "{lines:?}");
 }
 
 fn collect() -> (Arc<dyn Fn(SessionEvent) + Send + Sync>, Arc<Mutex<Vec<SessionEvent>>>) {

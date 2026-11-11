@@ -85,6 +85,18 @@ describe("applySessionEvent theo truyện", () => {
     expect(runningRoots(state)).toEqual([A]);
   });
 
+  it("started kèm đường gọi qt-ai (MCP/terminal); chờ quota hay chờ thử lại vẫn giữ", () => {
+    const store = useStoryStore.getState();
+    store.applySessionEvent(A, { type: "started", session_no: 1, link: "mcp" });
+    expect(sessionOf(useStoryStore.getState(), A)).toEqual({ status: "running", sessionNo: 1, link: "mcp" });
+    store.applySessionEvent(A, { type: "quota_wait", until: 1_791_229_542_000 });
+    expect(sessionOf(useStoryStore.getState(), A)).toMatchObject({ link: "mcp", waitUntil: 1_791_229_542_000 });
+    store.applySessionEvent(A, { type: "retry_wait", until: 1, attempt: 1, max: 6, reason: { kind: "no_progress" } });
+    expect(sessionOf(useStoryStore.getState(), A)).toMatchObject({ link: "mcp", retry: { attempt: 1 } });
+    store.applySessionEvent(A, { type: "started", session_no: 2, link: "shell" });
+    expect(sessionOf(useStoryStore.getState(), A)).toEqual({ status: "running", sessionNo: 2, link: "shell" });
+  });
+
   it("quota_wait: phiên vẫn running kèm giờ chờ, giữ số phiên; started lượt kế xoá giờ chờ", () => {
     const store = useStoryStore.getState();
     store.applySessionEvent(A, { type: "started", session_no: 3 });
@@ -247,6 +259,7 @@ describe("openStory/closeStory", () => {
       readingWidth: "normal",
       lineNumbers: false,
       resumeOnQuota: false,
+      useMcp: true,
     };
     useStoryStore.getState().setConfig(config);
     useStoryStore.getState().openStory(snapshot);

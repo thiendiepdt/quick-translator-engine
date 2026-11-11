@@ -247,6 +247,48 @@ describe("StoryPicker · Thư viện", () => {
     await waitFor(() => expect(screen.queryByText(/Đang dịch 1\/2/)).not.toBeInTheDocument());
   });
 
+  it("truyện có chương lỗi/bỏ qua hiện chip; nút lọc chỉ giữ các truyện đó, tính cả số live của phiên đang chạy", async () => {
+    useStoryStore.setState({
+      screen: "picker",
+      config: { ...config, libraryRoot: "D:\\lib", recent: [], maxParallel: 2 },
+      sessions: { "d:\\lib\\c": { status: "running", sessionNo: 1 } },
+      roots: { "d:\\lib\\c": "D:\\lib\\c" },
+      progress: {
+        "d:\\lib\\c": { done: 3, queued: 1, translating: 0, error: 1, skipped: 0, warnings_count: 0, current: null },
+      },
+    });
+    vi.mocked(libraryList).mockResolvedValue([
+      { root: "D:\\lib\\a", name: "A", done: 8, total: 10, error: 2, skipped: 0 },
+      { root: "D:\\lib\\b", name: "B", done: 5, total: 5, error: 0, skipped: 0 },
+      { root: "D:\\lib\\c", name: "C", done: 3, total: 5, error: 0, skipped: 0 }, // đĩa chưa có, phiên vừa báo 1 lỗi
+      { root: "D:\\lib\\d", name: "D", done: 4, total: 5, error: 0, skipped: 1 },
+    ]);
+    const user = userEvent.setup();
+    render(<StoryPicker />);
+    expect(await screen.findByText("A")).toBeInTheDocument();
+    expect(screen.getByTitle("2 chương lỗi — mở truyện, lọc Lỗi để dịch lại hoặc Chốt --force")).toHaveTextContent("Lỗi 2");
+    expect(screen.getByTitle("1 chương bị bỏ qua — mở truyện, lọc Bỏ qua để dịch lại")).toHaveTextContent("Bỏ qua 1");
+    expect(screen.getAllByText(/^Lỗi \d+$/)).toHaveLength(2); // A từ đĩa + C từ phiên đang chạy
+
+    const filter = screen.getByRole("button", { name: "Có lỗi/bỏ qua (3)" });
+    expect(filter).toHaveAttribute("aria-pressed", "false");
+    await user.click(filter);
+    expect(filter).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByText("B")).not.toBeInTheDocument();
+    for (const name of ["A", "C", "D"]) expect(screen.getByText(name)).toBeInTheDocument();
+    await user.click(filter);
+    expect(screen.getByText("B")).toBeInTheDocument();
+  });
+
+  it("không truyện nào có chương lỗi/bỏ qua thì không có chip lẫn nút lọc", async () => {
+    useStoryStore.setState({ screen: "picker", config: { ...config, libraryRoot: "D:\\lib", recent: [] } });
+    vi.mocked(libraryList).mockResolvedValue([{ root: "D:\\lib\\a", name: "A", done: 8, total: 10, error: 0, skipped: 0 }]);
+    render(<StoryPicker />);
+    expect(await screen.findByText("A")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Có lỗi\/bỏ qua/ })).not.toBeInTheDocument();
+    expect(screen.queryByText(/^(Lỗi|Bỏ qua) \d+$/)).not.toBeInTheDocument();
+  });
+
   it("nút Quét chương mới quét raw/ cả thư viện, cập nhật số chương và toast truyện có chương mới", async () => {
     useStoryStore.setState({ screen: "picker", config: { ...config, libraryRoot: "D:\\lib", recent: [] } });
     const a = { root: "D:\\lib\\truyen-a", name: "Truyện A", done: 2, total: 10, pending: 8 };
