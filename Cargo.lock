@@ -3606,6 +3606,7 @@ version = "1.0.31"
 dependencies = [
  "encoding_rs",
  "qt-ai-core",
+ "qt-ext",
  "serde",
  "serde_json",
  "sysinfo",

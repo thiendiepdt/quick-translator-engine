@@ -19,6 +19,7 @@ mod zh_cmds;
 mod idiom_cmds;
 mod padding_cmds;
 mod process_cmds;
+mod raw_cmds;
 
 use app_config::AppConfig;
 use session_registry::SessionRegistry;
@@ -210,6 +211,11 @@ pub fn run() {
             zh_cmds::zh_convert_text,
             zh_cmds::zh_convert_files,
             idiom_cmds::idioms_get,
+            raw_cmds::raw_info,
+            raw_cmds::raw_save,
+            raw_cmds::raw_toc,
+            raw_cmds::raw_download,
+            raw_cmds::raw_download_cancel,
             idiom_cmds::idioms_refresh,
             idiom_cmds::idioms_save_user,
             padding_cmds::padding_get,
@@ -279,6 +285,7 @@ mod tests {
             include_str!("padding_cmds.rs"),
             include_str!("idiom_cmds.rs"),
             include_str!("process_cmds.rs"),
+            include_str!("raw_cmds.rs"),
         ]
         .join("\n");
         let heavy = [
@@ -347,6 +354,10 @@ mod tests {
             "story_kill",
             "agy_kill",
             "lock_remove",
+            "raw_info",
+            "raw_save",
+            "raw_toc",
+            "raw_download",
         ];
         for name in heavy {
             // Có AppHandle thì generic theo Runtime (mock runtime trong test gọi được), không thì không.

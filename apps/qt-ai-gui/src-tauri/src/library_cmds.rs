@@ -94,7 +94,7 @@ pub fn list_library(library_root: Option<&Path>, cache: &SummaryCache) -> Vec<Re
 }
 
 /// Tạo `<library>/<slug>/raw/`, init, ghi tên + link. Không đụng folder đã có.
-pub fn create_story_inner(library_root: &Path, name: &str, slug: &str, source_url: &str, qt_ai: &str) -> CmdResult<PathBuf> {
+pub fn create_story_inner(library_root: &Path, name: &str, slug: &str, source_url: &str, raw_url: &str, qt_ai: &str) -> CmdResult<PathBuf> {
     let name = name.trim();
     if name.is_empty() {
         return Err(CommandError::new("invalid_state", "Tên truyện không được để trống."));
@@ -116,6 +116,10 @@ pub fn create_story_inner(library_root: &Path, name: &str, slug: &str, source_ur
     story.name = name.to_string();
     story.source_url = source_url.trim().to_string();
     save_story_config(&paths, &story)?;
+    // Link tải raw khác link nguồn thì ghi download.json; bằng hoặc trống thì truyện theo link nguồn.
+    if !raw_url.trim().is_empty() && raw_url.trim() != story.source_url {
+        crate::raw_cmds::save_inner(&root, raw_url, "", "")?;
+    }
     refresh_quietly(&root, &lexicon());
     Ok(root)
 }
@@ -282,7 +286,7 @@ pub async fn library_list<R: Runtime>(app: AppHandle<R>, root: Option<String>) -
 }
 
 #[tauri::command]
-pub async fn create_story<R: Runtime>(app: AppHandle<R>, name: String, slug: String, source_url: String) -> CmdResult<StorySnapshot> {
+pub async fn create_story<R: Runtime>(app: AppHandle<R>, name: String, slug: String, source_url: String, raw_url: Option<String>) -> CmdResult<StorySnapshot> {
     blocking(move || {
         let state = app.state::<AppState>();
         let library = state
@@ -292,7 +296,7 @@ pub async fn create_story<R: Runtime>(app: AppHandle<R>, name: String, slug: Str
             .library_root
             .clone()
             .ok_or_else(|| CommandError::new("invalid_state", "Chưa chọn thư viện (folder cha chứa truyện)."))?;
-        let root = create_story_inner(Path::new(&library), &name, &slug, &source_url, &qt_ai_command())?;
+        let root = create_story_inner(Path::new(&library), &name, &slug, &source_url, raw_url.as_deref().unwrap_or(""), &qt_ai_command())?;
         let root_text = root.display().to_string();
         let snap = snapshot(&root, session_running(&state, &root_text))?;
         let mut config = state.config.lock().unwrap();
@@ -385,7 +389,9 @@ mod tests {
     #[test]
     fn create_story_tao_khung_ghi_ten_va_tu_choi_trung() {
         let lib = tempfile::tempdir().unwrap();
-        let root = create_story_inner(lib.path(), " Kỳ Chiêu Nguyệt ", "ky-chieu-nguyet", "https://x/y ", "qt-ai").unwrap();
+        let root = create_story_inner(lib.path(), " Kỳ Chiêu Nguyệt ", "ky-chieu-nguyet", "https://x/y ", "https://raw/y", "qt-ai").unwrap();
+        let download = qt_ai_core::raw_download::load_download(&story_paths(&root));
+        assert_eq!(download.raw_url, "https://raw/y", "link tải raw khác link nguồn được ghi");
         assert_eq!(root, lib.path().join("ky-chieu-nguyet"));
         assert!(root.join("raw").is_dir() && root.join("state.json").is_file() && root.join("AGENTS.md").is_file());
         let story = load_story_config(&story_paths(&root)).unwrap();
@@ -394,12 +400,12 @@ mod tests {
         assert_eq!(snapshot(&root, false).unwrap().counts.total, 0);
         assert!(root.join(qt_ai_core::vn_check::VN_FILE).is_file(), "tạo truyện xong thì quét kiểm tra VN");
 
-        let dup = create_story_inner(lib.path(), "Khác", "ky-chieu-nguyet", "", "qt-ai").unwrap_err();
+        let dup = create_story_inner(lib.path(), "Khác", "ky-chieu-nguyet", "", "", "qt-ai").unwrap_err();
         assert_eq!(dup.kind, "invalid_state");
         assert!(dup.message.contains("đã tồn tại"));
-        assert_eq!(create_story_inner(lib.path(), "", "abc", "", "qt-ai").unwrap_err().kind, "invalid_state");
-        assert_eq!(create_story_inner(lib.path(), "A", "Sai Slug", "", "qt-ai").unwrap_err().kind, "invalid_state");
-        assert_eq!(create_story_inner(&lib.path().join("none"), "A", "abc", "", "qt-ai").unwrap_err().kind, "invalid_state");
+        assert_eq!(create_story_inner(lib.path(), "", "abc", "", "", "qt-ai").unwrap_err().kind, "invalid_state");
+        assert_eq!(create_story_inner(lib.path(), "A", "Sai Slug", "", "", "qt-ai").unwrap_err().kind, "invalid_state");
+        assert_eq!(create_story_inner(&lib.path().join("none"), "A", "abc", "", "", "qt-ai").unwrap_err().kind, "invalid_state");
         // Lỗi không tạo folder rác.
         assert!(!lib.path().join("abc").exists());
     }
@@ -409,9 +415,9 @@ mod tests {
         let lib = tempfile::tempdir().unwrap();
         fs::create_dir_all(lib.path().join("chua-init").join("raw")).unwrap();
         fs::write(lib.path().join("file-le.txt"), "x").unwrap();
-        let old = create_story_inner(lib.path(), "Cũ", "cu", "", "qt-ai").unwrap();
+        let old = create_story_inner(lib.path(), "Cũ", "cu", "", "", "qt-ai").unwrap();
         std::thread::sleep(std::time::Duration::from_millis(30));
-        let new = create_story_inner(lib.path(), "Mới", "moi", "", "qt-ai").unwrap();
+        let new = create_story_inner(lib.path(), "Mới", "moi", "", "", "qt-ai").unwrap();
         fs::write(new.join("raw").join("0001.txt"), "第一章").unwrap();
         run_init(&new, "qt-ai").unwrap();
         let _ = old;
@@ -432,7 +438,7 @@ mod tests {
     fn rescan_library_chi_dung_truyen_lech_raw_bo_qua_dang_dich_va_chua_init() {
         let lib = tempfile::tempdir().unwrap();
         let story = |slug: &str, chapters: &[&str]| {
-            let root = create_story_inner(lib.path(), slug, slug, "", "qt-ai").unwrap();
+            let root = create_story_inner(lib.path(), slug, slug, "", "", "qt-ai").unwrap();
             for id in chapters {
                 fs::write(root.join("raw").join(format!("{id}.txt")), "章").unwrap();
             }
@@ -484,7 +490,7 @@ mod tests {
     #[test]
     fn import_chapters_copy_bo_trung_bo_duoi_khac_va_queued() {
         let lib = tempfile::tempdir().unwrap();
-        let root = create_story_inner(lib.path(), "T", "t", "", "qt-ai").unwrap();
+        let root = create_story_inner(lib.path(), "T", "t", "", "", "qt-ai").unwrap();
         let src = tempfile::tempdir().unwrap();
         fs::write(src.path().join("0001.txt"), "第一章").unwrap();
         fs::write(src.path().join("0002.TXT"), "第二章").unwrap();
@@ -514,7 +520,7 @@ mod tests {
     #[test]
     fn import_chapters_ghi_lai_utf8_cho_file_gbk_big5_va_bo_file_nhi_phan() {
         let lib = tempfile::tempdir().unwrap();
-        let root = create_story_inner(lib.path(), "T", "t", "", "qt-ai").unwrap();
+        let root = create_story_inner(lib.path(), "T", "t", "", "", "qt-ai").unwrap();
         let src = tempfile::tempdir().unwrap();
         let (gbk, _, _) = encoding_rs::GBK.encode("第一章 少年的修炼之路，他慢慢地走向远方的山门。");
         let (big5, _, _) = encoding_rs::BIG5.encode("第二章 少年的修煉之路，他慢慢地走向遠方的山門。");

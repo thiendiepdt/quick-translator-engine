@@ -75,13 +75,9 @@ pub fn prepare(content: &str, html: bool, title: &str) -> Option<Prepared> {
     let normalized = text.replace("\r\n", "\n").replace('\r', "\n");
     let mut lines: Vec<&str> = normalized.split('\n').map(clean_line).filter(|l| !l.is_empty()).collect();
     let title = clean_line(title);
-    let heading = if !title.is_empty() && lines.first().is_some_and(|first| compact(first) == compact(title)) {
-        lines.remove(0).to_string()
-    } else if title.is_empty() && !lines.is_empty() {
-        lines.remove(0).to_string()
-    } else {
-        title.to_string()
-    };
+    // Dòng đầu đã là tiêu đề (hoặc không có tiêu đề để chèn) thì dùng luôn dòng đầu.
+    let first_is_heading = lines.first().is_some_and(|first| title.is_empty() || compact(first) == compact(title));
+    let heading = if first_is_heading { lines.remove(0).to_string() } else { title.to_string() };
     if lines.is_empty() {
         return None;
     }
