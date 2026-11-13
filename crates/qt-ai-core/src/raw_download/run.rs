@@ -10,7 +10,7 @@ use super::{effective_raw_url, load_download, save_download, DownloadConfig};
 use crate::error::{CoreError, Result};
 use crate::story::StoryConfig;
 use crate::story_fs::{list_raw_chapter_ids, load_story_config, read_raw_chapter, resolve_root, story_paths, write_atomic, StoryPaths};
-use qt_ext::{ChapterFormat, ExtError, Session, SessionOptions, TocItem};
+use qt_ext::{check_setting, ChapterFormat, ExtError, LoginRecord, Scope, Session, SessionOptions, TocItem};
 use serde::Serialize;
 use serde_json::{json, Map, Value};
 use std::collections::HashSet;
@@ -166,17 +166,28 @@ pub fn effective_template(download: &DownloadConfig, existing_ids: &[String]) ->
     guess_template(existing_ids).unwrap_or_else(|| DEFAULT_TEMPLATE.to_string())
 }
 
-fn settings_for(extension: &Installed, download: &DownloadConfig) -> Value {
+/// `ctx.settings`: mỗi trường lấy giá trị đã lưu (chung trong `<config>`, theo truyện trong `download.json`), không
+/// có thì `default` của manifest, không có nữa thì `null`.
+fn settings_for(extension: &Installed, download: &DownloadConfig, global: &Map<String, Value>) -> Value {
+    let manifest = &extension.package.manifest;
+    let own = download.settings.get(&manifest.id);
     let mut settings = Map::new();
-    for field in &extension.package.manifest.settings {
-        settings.insert(field.key.clone(), field.default.clone().unwrap_or(Value::Null));
-    }
-    if let Some(own) = download.settings.get(&extension.package.manifest.id) {
-        for (key, value) in own {
-            settings.insert(key.clone(), value.clone());
-        }
+    for field in &manifest.settings {
+        let saved = match field.scope {
+            Scope::Story => own.and_then(|o| o.get(&field.key)).and_then(|v| check_setting(field, v).ok()),
+            Scope::Global => global.get(&field.key).cloned(),
+        };
+        settings.insert(field.key.clone(), saved.or_else(|| field.default.clone()).unwrap_or(Value::Null));
     }
     Value::Object(settings)
+}
+
+/// Cài đặt chung đã lưu của extension (kể cả secret); không có `ExtStore` thì rỗng.
+fn global_settings(opts: &RunOptions) -> Result<Map<String, Value>> {
+    match &opts.session.store {
+        Some(store) => store.settings(&opts.extension.package.manifest).map_err(ext_error),
+        None => Ok(Map::new()),
+    }
 }
 
 fn current_of(story: &Story, toc: Option<&[TocItem]>, matching: Option<&Matching>) -> Value {
@@ -199,15 +210,14 @@ fn current_of(story: &Story, toc: Option<&[TocItem]>, matching: Option<&Matching
     }
 }
 
-fn build_ctx(story: &Story, extension: &Installed, current: Value, mode: &str, ids: &[String]) -> Value {
+/// `ctx` cho extension; `auth` và `session` do `qt_ext::Session` chèn.
+fn build_ctx(story: &Story, extension: &Installed, global: &Map<String, Value>, current: Value, mode: &str, ids: &[String]) -> Value {
     json!({
         "sourceUrl": story.config.source_url,
         "rawUrl": story.raw_url,
         "story": { "name": story.config.name, "chapterCount": story.existing.len(), "current": current },
         "request": { "mode": mode, "ids": ids },
-        "auth": Value::Null,
-        "session": Value::Null,
-        "settings": settings_for(extension, &story.download),
+        "settings": settings_for(extension, &story.download, global),
     })
 }
 
@@ -262,12 +272,31 @@ fn start_session(opts: &RunOptions, cancel: &Arc<AtomicBool>) -> Result<Session>
 /// Tải mục lục và khớp với raw đã có. Trả cả mục lục để lượt tải dùng lại, khỏi gọi `toc` lần nữa.
 pub fn load_toc(root: &Path, opts: &RunOptions, cancel: Arc<AtomicBool>) -> Result<(Vec<TocItem>, TocView)> {
     let story = load_story(root)?;
+    let global = global_settings(opts)?;
     let session = start_session(opts, &cancel)?;
-    let ctx = build_ctx(&story, &opts.extension, current_of(&story, None, None), "toc", &[]);
+    let ctx = build_ctx(&story, &opts.extension, &global, current_of(&story, None, None), "toc", &[]);
     let toc = session.toc(&ctx).map_err(ext_error)?;
     let matching = do_match(&story, &toc, opts.anchor);
     let shown = view(&story, &toc, &matching);
     Ok((toc, shown))
+}
+
+/// Nút "Đăng nhập": gọi `login` của extension ngay. `root` = truyện đang mở (để `ctx` có link và cài đặt của
+/// truyện); `None` khi đăng nhập từ trang quản lý extension. `None` trả về = extension không có hàm `login`.
+pub fn login(root: Option<&Path>, opts: &RunOptions, cancel: Arc<AtomicBool>) -> Result<Option<LoginRecord>> {
+    let global = global_settings(opts)?;
+    let ctx = match root {
+        Some(root) => {
+            let story = load_story(root)?;
+            build_ctx(&story, &opts.extension, &global, current_of(&story, None, None), "login", &[])
+        }
+        None => json!({
+            "sourceUrl": "", "rawUrl": "", "story": Value::Null,
+            "request": { "mode": "login", "ids": [] },
+            "settings": settings_for(&opts.extension, &DownloadConfig::default(), &global),
+        }),
+    };
+    start_session(opts, &cancel)?.login(&ctx).map_err(ext_error)
 }
 
 fn backup_name(stem: &str) -> String {
@@ -292,11 +321,12 @@ fn write_chapter(paths: &StoryPaths, stem: &str, text: &str) -> Result<bool> {
 /// `toc`: mục lục từ `load_toc` (cùng truyện, cùng extension); `None` thì gọi `toc` trong lượt này.
 pub fn download(root: &Path, opts: &RunOptions, toc: Option<Vec<TocItem>>, mode: Mode, cancel: Arc<AtomicBool>, on_event: &mut dyn FnMut(Event)) -> Result<Summary> {
     let mut story = load_story(root)?;
+    let global = global_settings(opts)?;
     let session = start_session(opts, &cancel)?;
     let toc = match toc {
         Some(toc) => toc,
         None => {
-            let ctx = build_ctx(&story, &opts.extension, current_of(&story, None, None), "toc", &[]);
+            let ctx = build_ctx(&story, &opts.extension, &global, current_of(&story, None, None), "toc", &[]);
             session.toc(&ctx).map_err(ext_error)?
         }
     };
@@ -320,7 +350,7 @@ pub fn download(root: &Path, opts: &RunOptions, toc: Option<Vec<TocItem>>, mode:
     };
     let ids: Vec<String> = targets.iter().map(|(_, t)| t.id.clone()).collect();
     let current = current_of(&story, Some(&toc), Some(&matching));
-    let ctx = build_ctx(&story, &opts.extension, current, mode.label(), &ids);
+    let ctx = build_ctx(&story, &opts.extension, &global, current, mode.label(), &ids);
 
     let total = targets.len();
     on_event(Event::Toc { total });

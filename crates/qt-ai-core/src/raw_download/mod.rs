@@ -37,6 +37,23 @@ pub struct DownloadConfig {
     pub chapters: IndexMap<String, String>,
 }
 
+/// Lưu cài đặt `scope: "story"` của một extension cho truyện. `values` là đủ bộ trường của truyện: thiếu hoặc
+/// `null` = dùng mặc định. Sai kiểu thì báo đúng trường, không đổi gì.
+pub fn set_story_settings(config: &mut DownloadConfig, manifest: &qt_ext::Manifest, values: &Map<String, Value>) -> std::result::Result<(), String> {
+    let mut own = Map::new();
+    for field in manifest.settings.iter().filter(|f| f.scope == qt_ext::Scope::Story) {
+        if let Some(value) = values.get(&field.key).filter(|v| !v.is_null()) {
+            own.insert(field.key.clone(), qt_ext::check_setting(field, value)?);
+        }
+    }
+    if own.is_empty() {
+        config.settings.shift_remove(&manifest.id);
+    } else {
+        config.settings.insert(manifest.id.clone(), own);
+    }
+    Ok(())
+}
+
 pub fn download_path(paths: &StoryPaths) -> PathBuf {
     paths.root.join(DOWNLOAD_JSON)
 }

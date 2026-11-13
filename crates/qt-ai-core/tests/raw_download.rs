@@ -6,8 +6,8 @@ mod common;
 use qt_ai_core::commands::init::run_init;
 use qt_ai_core::raw_download::matching::MatchedBy;
 use qt_ai_core::raw_download::registry::Installed;
-use qt_ai_core::raw_download::run::{download, load_toc, ChapterResult, Event, Mode, RowStatus, RunOptions};
-use qt_ai_core::raw_download::{load_download, save_download, DownloadConfig};
+use qt_ai_core::raw_download::run::{download, load_toc, login, ChapterResult, Event, Mode, RowStatus, RunOptions};
+use qt_ai_core::raw_download::{load_download, save_download, set_story_settings, DownloadConfig};
 use qt_ai_core::story_fs::{load_story_config, save_story_config, story_paths};
 use qt_ext::testkit::{demo_extension_dir, demo_server, TestServer};
 use std::path::Path;
@@ -150,7 +150,7 @@ fn mau_rieng_cua_truyen_va_huy() {
 
     let cancel = Arc::new(AtomicBool::new(true));
     let cancelled = download(dir.path(), &opts, None, Mode::New, cancel, &mut |_| {});
-    assert!(matches!(cancelled, Err(_)) || cancelled.unwrap().cancelled, "huỷ trước khi chạy thì dừng ngay");
+    assert!(cancelled.is_err() || cancelled.unwrap().cancelled, "huỷ trước khi chạy thì dừng ngay");
 }
 
 #[test]
@@ -163,4 +163,72 @@ fn chua_co_link() {
     save_story_config(&paths, &config).unwrap();
     let error = load_toc(dir.path(), &options(), no_cancel()).unwrap_err().to_string();
     assert!(error.contains("link tải raw"), "{error}");
+}
+
+const AUTH_MAIN: &str = r#"
+    let expiredOnce = false;
+    export async function login(ctx) {
+      await http.get(ctx.rawUrl.replace(/\/book\/1$/, "/login"));
+      return { token: "t-" + ctx.auth.values.apiKey + "-" + Math.random() };
+    }
+    export async function toc(ctx) { return [1, 2, 3].map((n) => ({ id: String(n), title: "第" + n + "章" })); }
+    export async function chapter(ctx, ch) {
+      if (ch.id === "2" && !expiredOnce) { expiredOnce = true; throw new AuthExpired("hết hạn"); }
+      const s = ctx.settings;
+      return { content: "第" + ch.id + "章\n" + [s.server, s.lang, s.proxy, ctx.session.token.startsWith("t-key-1-")].join(",") };
+    }"#;
+
+fn auth_extension() -> (tempfile::TempDir, Installed) {
+    let ext = tempfile::tempdir().unwrap();
+    let manifest = serde_json::json!({
+        "id": "io.github.dev.authdemo", "name": "Auth", "version": "1.0.0", "apiVersion": 1, "description": "d",
+        "developer": { "name": "dev" }, "match": ["^http"], "hosts": ["127.0.0.1"], "limits": { "concurrency": 2 },
+        "auth": { "required": true, "schemes": [{ "id": "apiKey", "label": "API key", "fields": [{ "key": "apiKey", "label": "API key", "type": "secret" }] }] },
+        "settings": [
+            { "key": "server", "label": "Máy chủ", "type": "select", "choices": ["cn", "global"], "default": "cn" },
+            { "key": "lang", "label": "Ngôn ngữ", "type": "text", "default": "zh" },
+            { "key": "proxy", "label": "Proxy", "type": "text", "scope": "story" }
+        ]
+    });
+    std::fs::write(ext.path().join("manifest.json"), manifest.to_string()).unwrap();
+    std::fs::write(ext.path().join("main.js"), AUTH_MAIN).unwrap();
+    let package = qt_ext::Package::load_dir(ext.path(), true).unwrap();
+    let installed = Installed { package, dir: ext.path().to_path_buf(), dev: true };
+    (ext, installed)
+}
+
+#[test]
+fn auth_login_cai_dat_chung_va_truyen_auth_expired() {
+    let server = TestServer::start(vec![qt_ext::testkit::Route::ok("/login", "ok")]);
+    let dir = story(&server, &[]);
+    let config_root = tempfile::tempdir().unwrap();
+    let (_ext, installed) = auth_extension();
+    let manifest = installed.package.manifest.clone();
+    let store = qt_ext::ExtStore::with_backend(config_root.path(), &manifest.id, qt_ext::SecretBackend::memory());
+    let map = |v: serde_json::Value| v.as_object().unwrap().clone();
+
+    let mut opts = RunOptions::new(installed);
+    opts.retry_delays = vec![Duration::ZERO, Duration::ZERO];
+    opts.session.store = Some(store.clone());
+    let missing = load_toc(dir.path(), &opts, no_cancel()).unwrap_err().to_string();
+    assert!(missing.contains("cần auth"), "{missing}");
+
+    store.save_auth(&manifest, "apiKey", &map(serde_json::json!({ "apiKey": "key-1" }))).unwrap();
+    store.save_settings(&manifest, &map(serde_json::json!({ "server": "global" }))).unwrap();
+    let paths = story_paths(dir.path());
+    let mut config = load_download(&paths);
+    assert!(set_story_settings(&mut config, &manifest, &map(serde_json::json!({ "proxy": true }))).unwrap_err().contains("Proxy"));
+    set_story_settings(&mut config, &manifest, &map(serde_json::json!({ "proxy": "p1", "server": "bỏ qua" }))).unwrap();
+    save_download(&paths, &config).unwrap();
+    assert_eq!(load_download(&paths).settings["io.github.dev.authdemo"], map(serde_json::json!({ "proxy": "p1" })));
+
+    let summary = download(dir.path(), &opts, None, Mode::New, no_cancel(), &mut |_| {}).unwrap();
+    assert_eq!(summary.saved, vec![1, 2, 3], "{summary:?}");
+    assert_eq!(raw(dir.path(), "0002_2"), "第2章\n\nglobal,zh,p1,true\n");
+    assert_eq!(server.hits("/login"), 2, "đăng nhập đầu lượt + một lần sau AuthExpired");
+
+    let record = login(Some(dir.path()), &opts, no_cancel()).unwrap().unwrap();
+    assert!(record.token.unwrap().starts_with("t-key-1-"));
+    assert_eq!(server.hits("/login"), 3);
+    assert!(store.session_status().logged_in);
 }
