@@ -143,3 +143,21 @@ fn write(stream: &mut TcpStream, resp: &Resp) -> std::io::Result<()> {
     stream.write_all(&resp.body)?;
     stream.flush()
 }
+
+pub const TEST_MANIFEST: &str = r#"{ "id": "io.github.dev.test", "name": "Test", "version": "1.0.0", "apiVersion": 1,
+    "description": "Extension cho test", "developer": { "name": "dev" }, "match": ["^http"],
+    "hosts": ["127.0.0.1"], "limits": { "concurrency": 3 } }"#;
+
+/// Gói tạm từ danh sách file (manifest mặc định nếu không có), nạp ở chế độ developer.
+pub fn package(files: &[(&str, &str)]) -> qt_ext::Package {
+    let dir = tempfile::tempdir().unwrap();
+    if !files.iter().any(|(name, _)| *name == "manifest.json") {
+        std::fs::write(dir.path().join("manifest.json"), TEST_MANIFEST).unwrap();
+    }
+    for (name, text) in files {
+        let path = dir.path().join(name);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, text).unwrap();
+    }
+    qt_ext::Package::load_dir(dir.path(), true).unwrap()
+}

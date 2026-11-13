@@ -15,3 +15,6 @@ pub use manifest::{parse_manifest, AuthField, AuthScheme, AuthSpec, Developer, F
 pub use policy::HostPolicy;
 pub use net::{HttpClient, HttpRequest, HttpResponse};
 pub use package::Package;
+pub use engine::{redact, EngineOptions, LogLevel, LogSink, ProgressSink};
+#[doc(hidden)]
+pub use engine::testing;
