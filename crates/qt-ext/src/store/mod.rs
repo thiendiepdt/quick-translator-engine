@@ -11,6 +11,7 @@
 //! Đổi auth thì sinh mã phiên bản mới; session data ghi mã lúc tạo, lệch thì coi như trống. Không lưu hash của
 //! khoá ra đĩa và vẫn đúng khi một lượt tải cũ còn đang ghi session.
 
+pub mod cache;
 pub mod secrets;
 
 use crate::manifest::{check_setting, FieldKind, Manifest, Scope, SettingKind};
@@ -20,6 +21,7 @@ use serde_json::{Map, Value};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
+pub use cache::Cache;
 pub use secrets::SecretBackend;
 
 pub(crate) fn io_error(path: &Path) -> impl Fn(std::io::Error) -> ExtError + '_ {
