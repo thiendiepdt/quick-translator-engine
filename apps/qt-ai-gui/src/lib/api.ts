@@ -28,6 +28,10 @@ import {
   replaceUndoInfoSchema,
   replaceUndoOutcomeSchema,
   paddingSettingsSchema,
+  rawInfoSchema,
+  rawProgressSchema,
+  rawSummarySchema,
+  rawTocSchema,
   shortChaptersSchema,
   idiomsInfoSchema,
   processOverviewSchema,
@@ -325,8 +329,9 @@ export const slugifyName = (name: string) => call("slugify_name", { name }, (v) 
 /** Không truyền root → thư viện trong config; truyền root → liệt kê folder bất kỳ (dò "có phải thư viện?"). */
 export const libraryList = (root?: string) =>
   call("library_list", { root: root ?? null }, (v) => z.array(recentSummarySchema).parse(v));
-export const createStory = (name: string, slug: string, sourceUrl: string) =>
-  call("create_story", { name, slug, sourceUrl }, (v) => storySnapshotSchema.parse(v));
+/** `rawUrl`: link tải raw; trống hoặc bằng link nguồn thì truyện theo link nguồn. */
+export const createStory = (name: string, slug: string, sourceUrl: string, rawUrl = "") =>
+  call("create_story", { name, slug, sourceUrl, rawUrl }, (v) => storySnapshotSchema.parse(v));
 export const rescanStory = (root: string) => call("rescan_story", { root }, (v) => storySnapshotSchema.parse(v));
 /** Quét raw/ của mọi truyện trong thư viện: chương mới vào hàng đợi; truyện đang dịch bỏ qua. */
 export const libraryRescan = () => call("library_rescan", undefined, (v) => libraryRescanSchema.parse(v));
@@ -393,3 +398,29 @@ export interface VnReplaceRequest {
 /** Thay nhiều cặp một lượt, chung một lần hoàn tác (cụm gốc dài chạy trước; cặp có cụm thay trống bị bỏ). */
 export const vnReplace = (root: string, requests: VnReplaceRequest[]) =>
   call("vn_replace", { root, requests }, (v) => replaceOutcomeSchema.parse(v));
+
+export type RawInfo = z.infer<typeof rawInfoSchema>;
+export type RawExt = RawInfo["candidates"][number];
+export type RawToc = z.infer<typeof rawTocSchema>;
+export type RawTocRow = RawToc["rows"][number];
+export type RawSummary = z.infer<typeof rawSummarySchema>;
+export type RawProgress = z.infer<typeof rawProgressSchema>;
+export type RawMode = "new" | "selected" | "single";
+/** Link tải raw, extension khớp link, mẫu tên file của truyện. */
+export const rawInfo = (root: string) => call("raw_info", { root }, (v) => rawInfoSchema.parse(v));
+/** Lưu link tải raw (bằng link nguồn thì truyện theo link nguồn), extension đã chọn, mẫu tên (trống = mặc định / đoán). */
+export const rawSave = (root: string, settings: { rawUrl: string; extension: string; fileTemplate: string }) =>
+  call("raw_save", { root, ...settings }, (v) => rawInfoSchema.parse(v));
+/** Gọi `toc` của extension rồi khớp với raw đã có. `anchor`: chương cuối đã có là mục số mấy (khi lệch tiêu đề). */
+export const rawToc = (root: string, anchor?: number) =>
+  call("raw_toc", { root, anchor: anchor ?? null }, (v) => rawTocSchema.parse(v));
+/** Tải chương; tiến độ qua `onRawProgress`. Xong thì Rust đã quét raw/ (chương mới vào hàng đợi). */
+export const rawDownload = (root: string, mode: RawMode, ids: string[], anchor?: number) =>
+  call("raw_download", { root, mode, ids, anchor: anchor ?? null }, (v) => rawSummarySchema.parse(v));
+export const rawDownloadCancel = (root: string) => call("raw_download_cancel", { root }, noop);
+/** Nghe tiến độ tải raw (mục lục, từng chương, log); trả hàm huỷ nghe. */
+export const onRawProgress = (handler: (progress: RawProgress) => void) =>
+  listen("raw-download-progress", (event) => {
+    const parsed = rawProgressSchema.safeParse(event.payload);
+    if (parsed.success) handler(parsed.data);
+  });

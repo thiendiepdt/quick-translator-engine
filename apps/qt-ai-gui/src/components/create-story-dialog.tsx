@@ -31,6 +31,9 @@ export function CreateStoryDialog({ libraryRoot, open, onOpenChange, onCreated }
   const [slug, setSlug] = useState("");
   const [slugTouched, setSlugTouched] = useState(false);
   const [url, setUrl] = useState("");
+  // Link tải raw chép theo link nguồn cho tới khi người dùng sửa tay (như ô tên folder).
+  const [rawUrl, setRawUrl] = useState("");
+  const [rawTouched, setRawTouched] = useState(false);
   const [busy, setBusy] = useState(false);
 
   function reset() {
@@ -38,6 +41,8 @@ export function CreateStoryDialog({ libraryRoot, open, onOpenChange, onCreated }
     setSlug("");
     setSlugTouched(false);
     setUrl("");
+    setRawUrl("");
+    setRawTouched(false);
   }
 
   function close() {
@@ -67,7 +72,7 @@ export function CreateStoryDialog({ libraryRoot, open, onOpenChange, onCreated }
     if (!canSubmit) return;
     setBusy(true);
     try {
-      const snapshot = await createStory(name.trim(), slug, url.trim());
+      const snapshot = await createStory(name.trim(), slug, url.trim(), (rawTouched ? rawUrl : url).trim());
       toast.success(`Đã tạo ${snapshot.root} — thả file .txt vào để nạp chương`);
       reset();
       onCreated(snapshot);
@@ -143,6 +148,20 @@ export function CreateStoryDialog({ libraryRoot, open, onOpenChange, onCreated }
                 placeholder="https://www.qidian.com/book/…"
                 disabled={busy}
               />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="create-raw-url">Link tải raw (tuỳ chọn)</Label>
+              <Input
+                id="create-raw-url"
+                value={rawTouched ? rawUrl : url}
+                onChange={(e) => {
+                  setRawTouched(true);
+                  setRawUrl(e.target.value);
+                }}
+                placeholder="Mặc định theo link truyện"
+                disabled={busy}
+              />
+              <p className="text-xs text-muted-foreground">Trang mà extension tải raw về — thường trùng link truyện.</p>
             </div>
           </div>
           <DialogFooter>

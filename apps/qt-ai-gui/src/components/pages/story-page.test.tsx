@@ -7,6 +7,10 @@ import { storySnapshotSchema } from "@/lib/schema";
 import { useStoryStore } from "@/store/story";
 
 vi.mock("@/lib/api", () => ({
+  rawInfo: vi.fn(() =>
+    Promise.resolve({ rawUrl: "", rawUrlIsDefault: true, extensionChoice: "", fileTemplate: "", sourceUrl: "", extension: null, candidates: [], installed: 0, loadErrors: [], defaultTemplate: "", guessedTemplate: null, effectiveTemplate: "", extensionsDir: "" }),
+  ),
+  rawSave: vi.fn(),
   saveStory: vi.fn(),
   storySnapshot: vi.fn(),
   aiFillStory: vi.fn(),
@@ -87,6 +91,19 @@ describe("StoryPage", () => {
     expect(screen.getByText("Có thay đổi chưa lưu")).toBeInTheDocument();
   });
 
+  it("Link tải raw theo Link nguồn tới khi sửa; Lưu ghi qua rawSave", async () => {
+    const user = userEvent.setup();
+    const { rawSave } = await import("@/lib/api");
+    vi.mocked(rawSave).mockResolvedValue({ rawUrl: "https://raw/1", rawUrlIsDefault: false, extensionChoice: "", fileTemplate: "", sourceUrl: "", extension: null, candidates: [], installed: 0, loadErrors: [], defaultTemplate: "", guessedTemplate: null, effectiveTemplate: "", extensionsDir: "" });
+    render(<StoryPage />);
+    const raw = screen.getByLabelText("Link tải raw");
+    await waitFor(() => expect(raw).toBeEnabled());
+    expect(raw).toHaveValue(screen.getByLabelText<HTMLInputElement>("Link nguồn").value);
+    await user.clear(raw);
+    await user.type(raw, "https://raw/1");
+    await user.click(screen.getByRole("button", { name: /^Lưu$/ }));
+    await waitFor(() => expect(rawSave).toHaveBeenCalledWith(expect.any(String), { rawUrl: "https://raw/1", extension: "", fileTemplate: "" }));
+  });
   it("tab Nhân vật hiện bảng giới tính theo glossary names đã lưu", async () => {
     const user = userEvent.setup();
     render(<StoryPage />);

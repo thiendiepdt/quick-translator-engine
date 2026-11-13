@@ -1,0 +1,141 @@
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { RawPage } from "@/components/pages/raw-page";
+import { rawDownload, rawInfo, rawSave, rawToc, rescanStory, type RawInfo, type RawToc } from "@/lib/api";
+import { useStoryStore } from "@/store/story";
+
+vi.mock("@/lib/api", () => ({
+  rawInfo: vi.fn(),
+  rawSave: vi.fn(),
+  rawToc: vi.fn(),
+  rawDownload: vi.fn(),
+  rawDownloadCancel: vi.fn(),
+  onRawProgress: vi.fn(() => Promise.resolve(() => undefined)),
+  rescanStory: vi.fn(),
+  revealFolder: vi.fn(),
+}));
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+
+const ext = {
+  id: "io.github.dev.demo",
+  name: "Demo",
+  version: "1.0.0",
+  description: "Mẫu",
+  developer: { name: "dev", url: null, email: null },
+  license: "MIT",
+  hosts: ["demo.test"],
+  dev: false,
+};
+
+const info: RawInfo = {
+  rawUrl: "https://demo.test/book/1",
+  rawUrlIsDefault: true,
+  sourceUrl: "https://demo.test/book/1",
+  extension: ext,
+  extensionChoice: "",
+  candidates: [ext],
+  installed: 1,
+  loadErrors: [],
+  fileTemplate: "",
+  defaultTemplate: "{chuong:4}_{chapter-id}",
+  guessedTemplate: "chuong-{chuong:4}",
+  effectiveTemplate: "chuong-{chuong:4}",
+  extensionsDir: "C:\\app\\extensions",
+};
+
+const toc: RawToc = {
+  rows: [
+    { index: 1, id: "1", title: "第1章 起", locked: false, file: "chuong-0001", status: "have" },
+    { index: 2, id: "2", title: "第2章 承", locked: false, file: null, status: "missing" },
+    { index: 3, id: "3", title: "第3章 VIP", locked: true, file: null, status: "locked" },
+    { index: 4, id: "4", title: "第4章 合", locked: false, file: null, status: "missing" },
+  ],
+  by: "order",
+  lastIndex: 1,
+  mismatches: [],
+  unmatchedFiles: 0,
+  template: "chuong-{chuong:4}",
+  nextName: "chuong-0002",
+  nextSortsAfter: true,
+};
+
+describe("RawPage", () => {
+  beforeEach(() => {
+    vi.mocked(rawInfo).mockReset().mockResolvedValue(info);
+    vi.mocked(rawSave).mockReset().mockImplementation((_root, s) => Promise.resolve({ ...info, rawUrl: s.rawUrl, rawUrlIsDefault: false, fileTemplate: s.fileTemplate }));
+    vi.mocked(rawToc).mockReset().mockResolvedValue(toc);
+    vi.mocked(rawDownload).mockReset().mockResolvedValue({ saved: [2, 4], short: [4], locked: [], failed: [], cancelled: false });
+    vi.mocked(rescanStory).mockReset().mockResolvedValue({} as never);
+    useStoryStore.setState({ root: "D:\\lib\\demo", setSnapshot: vi.fn() } as never);
+  });
+
+  it("mục lục có trạng thái; Tải chương mới bỏ chương khoá; tải lẻ và tải đã chọn gửi đúng id", async () => {
+    const user = userEvent.setup();
+    render(<RawPage />);
+    expect(await screen.findByText(/Đang theo link nguồn/)).toBeInTheDocument();
+    expect(screen.getByText("Demo")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Tải mục lục/ }));
+    expect(rawToc).toHaveBeenCalledWith("D:\\lib\\demo", undefined);
+    const third = await screen.findByRole("listitem", { name: "Mục 3" });
+    expect(within(third).getByText("Khoá")).toBeInTheDocument();
+    expect(within(screen.getByRole("listitem", { name: "Mục 1" })).getByText("Đã có")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Tải chương mới (2)" }));
+    expect(rawDownload).toHaveBeenLastCalledWith("D:\\lib\\demo", "new", [], 1);
+    expect(await screen.findByLabelText("Kết quả tải")).toHaveTextContent("Tải được 2 chương · 1 chương ngắn (vẫn ghi): 4");
+    expect(rescanStory).toHaveBeenCalledWith("D:\\lib\\demo");
+
+    await user.click(screen.getByRole("button", { name: "Tải lại chương 1" }));
+    expect(rawDownload).toHaveBeenLastCalledWith("D:\\lib\\demo", "single", ["1"], 1);
+
+    await user.click(screen.getByLabelText("Chọn 第3章 VIP"));
+    await user.click(screen.getByLabelText("Chọn 第4章 合"));
+    await user.click(screen.getByRole("button", { name: "Tải đã chọn (2)" }));
+    expect(rawDownload).toHaveBeenLastCalledWith("D:\\lib\\demo", "selected", ["3", "4"], 1);
+  });
+
+  it("mẫu sai chặn Lưu; sửa link thì phải Lưu trước khi tải", async () => {
+    vi.mocked(rawInfo).mockResolvedValue({ ...info, fileTemplate: "{chuong:4}_{chapter-id}", effectiveTemplate: "{chuong:4}_{chapter-id}" });
+    const user = userEvent.setup();
+    render(<RawPage />);
+    const template = await screen.findByLabelText("Mẫu tên file");
+    await user.clear(template);
+    await user.type(template, "{{chapterTitle}");
+    expect(screen.getByText(/phải có \{chuong\}/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Lưu" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: /Dùng mẫu theo tên cũ/ }));
+    expect(template).toHaveValue("chuong-{chuong:4}");
+
+    const link = screen.getByLabelText("Link tải raw");
+    await user.clear(link);
+    await user.type(link, "https://demo.test/book/2");
+    expect(screen.getByRole("button", { name: /Tải mục lục/ })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Lưu" }));
+    expect(rawSave).toHaveBeenCalledWith("D:\\lib\\demo", { rawUrl: "https://demo.test/book/2", extension: "io.github.dev.demo", fileTemplate: "chuong-{chuong:4}" });
+    expect(screen.getByRole("button", { name: /Tải mục lục/ })).toBeEnabled();
+  });
+
+  it("chưa có extension thì chỉ chỗ đặt extension; lệch tiêu đề thì hỏi mốc", async () => {
+    vi.mocked(rawInfo).mockResolvedValue({ ...info, extension: null, candidates: [], installed: 0, loadErrors: ["hong: manifest: id …"] });
+    const user = userEvent.setup();
+    const { unmount } = render(<RawPage />);
+    expect(await screen.findByText(/Chưa có extension nào khớp link này/)).toHaveTextContent("C:\\app\\extensions");
+    expect(screen.getByText(/Không nạp được hong/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Tải mục lục/ })).toBeDisabled();
+    unmount();
+
+    vi.mocked(rawInfo).mockResolvedValue(info);
+    vi.mocked(rawToc).mockResolvedValue({ ...toc, mismatches: [{ index: 1, tocTitle: "序章", fileId: "chuong-0001", fileTitle: "第1章 起" }] });
+    render(<RawPage />);
+    await user.click(await screen.findByRole("button", { name: /Tải mục lục/ }));
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Mục 1: 序章 ↔ file chuong-0001: 第1章 起");
+    const anchor = within(alert).getByLabelText("Chương cuối đã có là mục số");
+    await user.clear(anchor);
+    await user.type(anchor, "2");
+    await user.click(within(alert).getByRole("button", { name: "Khớp lại" }));
+    expect(rawToc).toHaveBeenLastCalledWith("D:\\lib\\demo", 2);
+  });
+});

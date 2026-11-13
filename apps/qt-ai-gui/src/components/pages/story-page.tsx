@@ -20,7 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { TitlesPanel } from "@/components/titles-panel";
 import { VnCheckPanel } from "@/components/vn-check-panel";
 import { useStoryDefaults } from "@/hooks/use-story-defaults";
-import { castLoad, saveStory, storySnapshot } from "@/lib/api";
+import { castLoad, rawInfo, rawSave, saveStory, storySnapshot, type RawInfo } from "@/lib/api";
 import { latestAddressing } from "@/lib/cast-addressing";
 import { GENRE_NAMES, GENRE_SETTINGS, storyConfigSchema, GENRE_TONES } from "@/lib/schema";
 import { fromFormValues, storyFormSchema, toFormValues, type StoryFormValues } from "@/lib/story-form";
@@ -84,6 +84,22 @@ export function StoryPage() {
   });
   const autoGlossary = useWatch({ control: form.control, name: "autoGlossary" });
   const genreSetting = useWatch({ control: form.control, name: "genreSetting" });
+  const sourceUrl = useWatch({ control: form.control, name: "sourceUrl" });
+  // Link tải raw nằm ở download.json (không trong story.json): đọc riêng, lưu riêng khi bấm Lưu.
+  // `rawUrl` undefined = chưa sửa; chưa đặt link riêng thì ô hiện theo Link nguồn đang gõ.
+  const [raw, setRaw] = useState<RawInfo>();
+  const [rawUrl, setRawUrl] = useState<string>();
+  useEffect(() => {
+    if (!root) return;
+    let alive = true;
+    rawInfo(root).then(
+      (info) => alive && setRaw(info),
+      () => alive && setRaw(undefined),
+    );
+    return () => {
+      alive = false;
+    };
+  }, [root]);
   const genreNames = useWatch({ control: form.control, name: "genreNames" });
   const genreTone = useWatch({ control: form.control, name: "genreTone" });
   const glossaryValues = useWatch({ control: form.control, name: "glossary" });
@@ -133,7 +149,12 @@ export function StoryPage() {
 
   const submit = form.handleSubmit(async (values) => {
     try {
-      await persist(fromFormValues(values, currentStory));
+      if (form.formState.isDirty) await persist(fromFormValues(values, currentStory));
+      if (rawUrl !== undefined && raw) {
+        setRaw(await rawSave(currentRoot, { rawUrl, extension: raw.extensionChoice, fileTemplate: raw.fileTemplate }));
+        setRawUrl(undefined);
+        if (!form.formState.isDirty) toast.success("Đã lưu link tải raw");
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Không lưu được");
     }
@@ -166,7 +187,8 @@ export function StoryPage() {
     if (scroller.current) scroller.current.scrollTop = 0;
   }
 
-  const dirty = form.formState.isDirty;
+  const dirty = form.formState.isDirty || rawUrl !== undefined;
+  const rawShown = rawUrl ?? (raw && !raw.rawUrlIsDefault ? raw.rawUrl : sourceUrl);
 
   return (
     <FormProvider {...form}>
@@ -203,6 +225,9 @@ export function StoryPage() {
                   </Field>
                   <Field id="sourceUrl" label="Link nguồn">
                     <Input id="sourceUrl" {...form.register("sourceUrl")} placeholder="https://…" />
+                  </Field>
+                  <Field id="rawUrl" label="Link tải raw" hint="Trang extension tải raw về; để trống là theo link nguồn.">
+                    <Input id="rawUrl" value={rawShown ?? ""} onChange={(e) => setRawUrl(e.target.value)} placeholder="https://…" disabled={!raw} />
                   </Field>
                   <Field id="protagonist" label="Nhân vật chính" hint="Tên Hán-Việt dùng xuyên suốt.">
                     <Input id="protagonist" {...form.register("protagonist")} />

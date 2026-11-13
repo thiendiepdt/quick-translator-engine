@@ -41,10 +41,24 @@ describe("CreateStoryDialog", () => {
     await waitFor(() => expect(slugifyName).toHaveBeenCalled());
     expect(screen.getByLabelText("Tên folder")).toHaveValue("kcn"); // đã sửa tay thì không bị đè
     await user.type(screen.getByLabelText("Link truyện tiếng Trung (tuỳ chọn)"), "https://x/y");
+    expect(screen.getByLabelText("Link tải raw (tuỳ chọn)")).toHaveValue("https://x/y"); // chép theo link truyện
 
     await user.click(screen.getByRole("button", { name: "Tạo và mở" }));
-    await waitFor(() => expect(createStory).toHaveBeenCalledWith("Ky Chieu 2", "kcn", "https://x/y"));
+    await waitFor(() => expect(createStory).toHaveBeenCalledWith("Ky Chieu 2", "kcn", "https://x/y", "https://x/y"));
     expect(onCreated).toHaveBeenCalledWith(snapshot);
+  });
+
+  it("link tải raw sửa tay thì không chép theo link truyện nữa", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createStory).mockResolvedValue({ root: "D:\\lib\\a" } as never);
+    render(<CreateStoryDialog libraryRoot={"D:\\lib"} open onOpenChange={() => undefined} onCreated={() => undefined} />);
+    await user.type(screen.getByLabelText("Tên truyện tiếng Việt"), "A");
+    await waitFor(() => expect(screen.getByLabelText("Tên folder")).toHaveValue("a"));
+    await user.type(screen.getByLabelText("Link tải raw (tuỳ chọn)"), "https://raw/1");
+    await user.type(screen.getByLabelText("Link truyện tiếng Trung (tuỳ chọn)"), "https://x/y");
+    expect(screen.getByLabelText("Link tải raw (tuỳ chọn)")).toHaveValue("https://raw/1");
+    await user.click(screen.getByRole("button", { name: "Tạo và mở" }));
+    await waitFor(() => expect(createStory).toHaveBeenCalledWith("A", "a", "https://x/y", "https://raw/1"));
   });
 
   it("slug sai định dạng thì báo và khoá nút", async () => {

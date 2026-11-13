@@ -11,6 +11,7 @@ import { ExportPage } from "@/components/pages/export-page";
 import { ReplacePage } from "@/components/pages/replace-page";
 import { SettingsPage } from "@/components/pages/settings-page";
 import { StoryPage } from "@/components/pages/story-page";
+import { RawPage } from "@/components/pages/raw-page";
 import { TranslatePage } from "@/components/pages/translate-page";
 import { VnCheckPage } from "@/components/pages/vn-check-page";
 import { StoryPicker } from "@/components/story-picker";
@@ -28,6 +29,7 @@ import { useStoryStore, type Page } from "@/store/story";
 const PAGES: Record<Page, ComponentType> = {
   translate: TranslatePage,
   story: StoryPage,
+  raw: RawPage,
   vn: VnCheckPage,
   replace: ReplacePage,
   export: ExportPage,

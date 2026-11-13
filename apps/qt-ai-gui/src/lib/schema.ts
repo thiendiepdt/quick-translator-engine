@@ -618,3 +618,65 @@ export const vnHitViewSchema = z.object({
 });
 export const vnSummarySchema = z.object({ hits: z.number(), open: z.number(), scanned: z.number() });
 export const vnVerifyOutcomeSchema = z.object({ verified: z.number(), failed: z.number(), error: z.string().nullable().optional() });
+/** Trang Tải raw (Rust raw_cmds): extension, link tải raw, mẫu tên, mục lục, kết quả lượt tải. */
+export const rawExtSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  version: z.string(),
+  description: z.string(),
+  developer: z.object({ name: z.string(), url: z.string().nullable(), email: z.string().nullable() }),
+  license: z.string().nullable(),
+  hosts: z.array(z.string()),
+  dev: z.boolean(),
+});
+export const rawInfoSchema = z.object({
+  rawUrl: z.string(),
+  rawUrlIsDefault: z.boolean(),
+  sourceUrl: z.string(),
+  extension: rawExtSchema.nullable(),
+  extensionChoice: z.string(),
+  candidates: z.array(rawExtSchema),
+  installed: z.number(),
+  loadErrors: z.array(z.string()),
+  fileTemplate: z.string(),
+  defaultTemplate: z.string(),
+  guessedTemplate: z.string().nullable(),
+  effectiveTemplate: z.string(),
+  extensionsDir: z.string(),
+});
+export const rawTocSchema = z.object({
+  rows: z.array(
+    z.object({
+      index: z.number(),
+      id: z.string(),
+      title: z.string(),
+      locked: z.boolean(),
+      file: z.string().nullable(),
+      status: z.enum(["have", "missing", "locked"]),
+    }),
+  ),
+  by: z.enum(["ledger", "order", "empty"]),
+  lastIndex: z.number().nullable(),
+  mismatches: z.array(z.object({ index: z.number(), tocTitle: z.string(), fileId: z.string(), fileTitle: z.string() })),
+  unmatchedFiles: z.number(),
+  template: z.string(),
+  nextName: z.string().nullable(),
+  nextSortsAfter: z.boolean(),
+});
+export const rawSummarySchema = z.object({
+  saved: z.array(z.number()),
+  short: z.array(z.number()),
+  locked: z.array(z.number()),
+  failed: z.array(z.object({ index: z.number(), title: z.string(), reason: z.string() })),
+  cancelled: z.boolean(),
+});
+export const rawProgressSchema = z.object({
+  root: z.string(),
+  kind: z.enum(["toc", "chapter", "log"]),
+  done: z.number(),
+  total: z.number(),
+  index: z.number(),
+  title: z.string(),
+  status: z.string(),
+  message: z.string(),
+});

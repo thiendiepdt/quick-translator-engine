@@ -98,7 +98,10 @@ pub struct RawInfo {
     /// Truyện chưa đặt link riêng — đang theo link nguồn.
     pub raw_url_is_default: bool,
     pub source_url: String,
+    /// Extension đang dùng (đã chọn, hoặc ứng viên duy nhất).
     pub extension: Option<ExtSummary>,
+    /// Id extension người dùng đã chọn trong download.json (rỗng = tự chọn).
+    pub extension_choice: String,
     pub candidates: Vec<ExtSummary>,
     pub installed: usize,
     pub load_errors: Vec<String>,
@@ -122,6 +125,7 @@ fn info_inner(root: &Path, extensions: &Path) -> CmdResult<RawInfo> {
         raw_url_is_default: config.raw_url.trim().is_empty(),
         source_url: story.source_url.clone(),
         extension: pick(&installed, &raw_url, &config.extension).map(summary_of),
+        extension_choice: config.extension.clone(),
         candidates: candidates(&installed, &raw_url).into_iter().map(summary_of).collect(),
         installed: installed.len(),
         load_errors,

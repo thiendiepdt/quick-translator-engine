@@ -1,4 +1,4 @@
-import { Activity, ArrowLeft, BookUser, Download, FileType, Languages, LibraryBig, Moon, Replace, Settings2, ShieldAlert, Sun } from "lucide-react";
+import { Activity, ArrowLeft, BookUser, CloudDownload, Download, FileType, Languages, LibraryBig, Moon, Replace, Settings2, ShieldAlert, Sun } from "lucide-react";
 import { useEffect, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { useStoryStore, type Page } from "@/store/story";
 const ITEMS: Array<{ page: Page; label: string; icon: typeof Languages }> = [
   { page: "translate", label: "Dịch", icon: Languages },
   { page: "story", label: "Hồ sơ truyện", icon: BookUser },
+  { page: "raw", label: "Tải raw", icon: CloudDownload },
   { page: "vn", label: "Kiểm tra VN", icon: ShieldAlert },
   { page: "replace", label: "Tìm & thay (Ctrl+Shift+F)", icon: Replace },
   { page: "export", label: "Export", icon: Download },
