@@ -1,16 +1,11 @@
-//! Hàm host nhóm chung: log, progress, sleep. Các nhóm khác (http, html, crypto, encoding) gắn ở file riêng
-//! và nối lớp JS của mình vào `bindings_js()`.
+//! Hàm host nhóm chung: log, progress, sleep. Các nhóm khác (http, html, crypto, encoding) gắn ở file riêng,
+//! lớp JS của chúng chèn vào chỗ `/*BINDINGS*/` của prelude (thấy `host`, `define`, `freeze`).
 
 use super::{redact, HostState, LogLevel};
 use rquickjs::prelude::{Async, Opt};
 use rquickjs::{Ctx, Error, Function, Result};
 use std::rc::Rc;
 use std::time::Duration;
-
-/// Lớp JS của mọi nhóm API, chèn vào chỗ `/*BINDINGS*/` của prelude (thấy `host`, `define`, `freeze`).
-pub(crate) fn bindings_js() -> String {
-    String::new()
-}
 
 pub(crate) fn install(ctx: &Ctx<'_>, state: &Rc<HostState>) -> Result<()> {
     let globals = ctx.globals();
