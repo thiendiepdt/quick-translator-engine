@@ -4,6 +4,7 @@
 //! "Quét raw/" để chương mới vào hàng đợi dịch.
 
 use crate::error::{blocking, CmdResult, CommandError};
+use crate::ext_cmds::{config_view, store_for, story_settings_view, ExtConfigView, SettingView};
 use crate::sidecar::qt_ai_command;
 use crate::vn_cmds::{lexicon, refresh_quietly};
 use crate::AppState;
@@ -11,10 +12,11 @@ use qt_ai_core::commands::init::run_init;
 use qt_ai_core::raw_download::registry::{candidates, list_installed, pick, Installed};
 use qt_ai_core::raw_download::run::{download, effective_template, load_toc, ChapterResult, Event, Mode, RunOptions, Summary, TocView};
 use qt_ai_core::raw_download::template::{guess_template, validate_template, DEFAULT_TEMPLATE};
-use qt_ai_core::raw_download::{effective_raw_url, load_download, save_download};
+use qt_ai_core::raw_download::{effective_raw_url, load_download, save_download, set_story_settings};
 use qt_ai_core::story_fs::{list_raw_chapter_ids, load_story_config, story_paths};
 use qt_ext::TocItem;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -112,19 +114,31 @@ pub struct RawInfo {
     /// Mẫu sẽ dùng cho file mới.
     pub effective_template: String,
     pub extensions_dir: String,
+    /// Auth, cài đặt chung, phiên của extension đang dùng.
+    pub ext_config: Option<ExtConfigView>,
+    /// Trường `scope: "story"` của extension đang dùng, kèm giá trị của truyện.
+    pub story_settings: Vec<SettingView>,
 }
 
-fn info_inner(root: &Path, extensions: &Path) -> CmdResult<RawInfo> {
+fn info_inner(root: &Path, config_path: &Path) -> CmdResult<RawInfo> {
+    let extensions = &extensions_dir(config_path);
     let paths = story_paths(root);
     let story = load_story_config(&paths)?;
     let config = load_download(&paths);
     let raw_url = effective_raw_url(&config, &story);
     let (installed, load_errors) = list_installed(extensions);
     let ids = list_raw_chapter_ids(&paths)?;
+    let chosen = pick(&installed, &raw_url, &config.extension);
+    let ext_config = match chosen {
+        Some(ext) => Some(config_view(ext, &store_for(config_path, &ext.package.manifest.id))?),
+        None => None,
+    };
     Ok(RawInfo {
         raw_url_is_default: config.raw_url.trim().is_empty(),
         source_url: story.source_url.clone(),
-        extension: pick(&installed, &raw_url, &config.extension).map(summary_of),
+        ext_config,
+        story_settings: chosen.map(|ext| story_settings_view(&ext.package.manifest, &config)).unwrap_or_default(),
+        extension: chosen.map(summary_of),
         extension_choice: config.extension.clone(),
         candidates: candidates(&installed, &raw_url).into_iter().map(summary_of).collect(),
         installed: installed.len(),
@@ -156,7 +170,28 @@ pub fn save_inner(root: &Path, raw_url: &str, extension: &str, file_template: &s
     Ok(())
 }
 
-fn options_for(root: &Path, extensions: &Path, anchor: Option<usize>) -> CmdResult<RunOptions> {
+/// Cài đặt `scope: "story"` gửi từ trang Tải raw, cho đúng extension đang hiện.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StorySettingsInput {
+    pub extension: String,
+    pub values: Map<String, Value>,
+}
+
+fn save_story_settings(root: &Path, extensions: &Path, input: &StorySettingsInput) -> CmdResult<()> {
+    let (installed, _) = list_installed(extensions);
+    let Some(ext) = installed.iter().find(|e| e.package.manifest.id == input.extension) else {
+        return Err(CommandError::new("not_found", format!("Chưa cài extension {}.", input.extension)));
+    };
+    let paths = story_paths(root);
+    let mut config = load_download(&paths);
+    set_story_settings(&mut config, &ext.package.manifest, &input.values).map_err(|m| CommandError::new("invalid_state", m))?;
+    save_download(&paths, &config)?;
+    Ok(())
+}
+
+fn options_for(root: &Path, config_path: &Path, anchor: Option<usize>) -> CmdResult<RunOptions> {
+    let extensions = &extensions_dir(config_path);
     let paths = story_paths(root);
     let story = load_story_config(&paths)?;
     let config = load_download(&paths);
@@ -173,8 +208,10 @@ fn options_for(root: &Path, extensions: &Path, anchor: Option<usize>) -> CmdResu
             CommandError::new("invalid_state", "Chưa có extension nào khớp link tải raw này.")
         }
     })?;
+    let store = store_for(config_path, &extension.package.manifest.id);
     let mut opts = RunOptions::new(extension);
     opts.anchor = anchor.filter(|a| *a > 0);
+    opts.session.store = Some(store);
     Ok(opts)
 }
 
@@ -182,17 +219,28 @@ fn options_for(root: &Path, extensions: &Path, anchor: Option<usize>) -> CmdResu
 pub async fn raw_info<R: Runtime>(app: AppHandle<R>, root: String) -> CmdResult<RawInfo> {
     blocking(move || {
         let state = app.state::<AppState>();
-        info_inner(Path::new(&root), &extensions_dir(&state.config_path))
+        info_inner(Path::new(&root), &state.config_path)
     })
     .await
 }
 
 #[tauri::command]
-pub async fn raw_save<R: Runtime>(app: AppHandle<R>, root: String, raw_url: String, extension: String, file_template: String) -> CmdResult<RawInfo> {
+pub async fn raw_save<R: Runtime>(
+    app: AppHandle<R>,
+    root: String,
+    raw_url: String,
+    extension: String,
+    file_template: String,
+    story_settings: Option<StorySettingsInput>,
+) -> CmdResult<RawInfo> {
     blocking(move || {
         let state = app.state::<AppState>();
-        save_inner(Path::new(&root), &raw_url, &extension, &file_template)?;
-        info_inner(Path::new(&root), &extensions_dir(&state.config_path))
+        let path = Path::new(&root);
+        if let Some(input) = &story_settings {
+            save_story_settings(path, &extensions_dir(&state.config_path), input)?;
+        }
+        save_inner(path, &raw_url, &extension, &file_template)?;
+        info_inner(path, &state.config_path)
     })
     .await
 }
@@ -202,10 +250,10 @@ pub async fn raw_toc<R: Runtime>(app: AppHandle<R>, root: String, anchor: Option
     blocking(move || {
         let state = app.state::<AppState>();
         let path = Path::new(&root);
-        let opts = options_for(path, &extensions_dir(&state.config_path), anchor)?;
+        let opts = options_for(path, &state.config_path, anchor)?;
         let running = Running::start(&root)?;
         let (toc, view) = load_toc(path, &opts, running.cancel.clone())?;
-        let raw_url = info_inner(path, &extensions_dir(&state.config_path))?.raw_url;
+        let raw_url = info_inner(path, &state.config_path)?.raw_url;
         TOC_CACHE.lock().unwrap_or_else(|e| e.into_inner()).insert(root.clone(), (opts.extension.package.manifest.id.clone(), raw_url, toc));
         Ok(view)
     })
@@ -254,9 +302,9 @@ pub async fn raw_download<R: Runtime>(app: AppHandle<R>, root: String, mode: Str
             "single" => Mode::Single(ids.into_iter().next().ok_or_else(|| CommandError::new("invalid_state", "Thiếu chương cần tải."))?),
             other => return Err(CommandError::new("invalid_state", format!("Chế độ tải lạ: {other}"))),
         };
-        let opts = options_for(path, &extensions_dir(&state.config_path), anchor)?;
+        let opts = options_for(path, &state.config_path, anchor)?;
         let running = Running::start(&root)?;
-        let raw_url = info_inner(path, &extensions_dir(&state.config_path))?.raw_url;
+        let raw_url = info_inner(path, &state.config_path)?.raw_url;
         let cached = TOC_CACHE.lock().unwrap_or_else(|e| e.into_inner()).get(&root).cloned();
         let toc = cached.filter(|(ext, url, _)| *ext == opts.extension.package.manifest.id && *url == raw_url).map(|(_, _, toc)| toc);
         let emitter = app.clone();

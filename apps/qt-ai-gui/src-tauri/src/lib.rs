@@ -20,6 +20,7 @@ mod idiom_cmds;
 mod padding_cmds;
 mod process_cmds;
 mod raw_cmds;
+mod ext_cmds;
 
 use app_config::AppConfig;
 use session_registry::SessionRegistry;
@@ -216,6 +217,13 @@ pub fn run() {
             raw_cmds::raw_toc,
             raw_cmds::raw_download,
             raw_cmds::raw_download_cancel,
+            ext_cmds::ext_config,
+            ext_cmds::ext_save_auth,
+            ext_cmds::ext_clear_auth,
+            ext_cmds::ext_save_settings,
+            ext_cmds::ext_logout,
+            ext_cmds::ext_clear_cache,
+            ext_cmds::ext_login,
             idiom_cmds::idioms_refresh,
             idiom_cmds::idioms_save_user,
             padding_cmds::padding_get,
@@ -286,6 +294,7 @@ mod tests {
             include_str!("idiom_cmds.rs"),
             include_str!("process_cmds.rs"),
             include_str!("raw_cmds.rs"),
+            include_str!("ext_cmds.rs"),
         ]
         .join("\n");
         let heavy = [
@@ -358,6 +367,13 @@ mod tests {
             "raw_save",
             "raw_toc",
             "raw_download",
+            "ext_config",
+            "ext_save_auth",
+            "ext_clear_auth",
+            "ext_save_settings",
+            "ext_logout",
+            "ext_clear_cache",
+            "ext_login",
         ];
         for name in heavy {
             // Có AppHandle thì generic theo Runtime (mock runtime trong test gọi được), không thì không.
