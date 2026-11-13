@@ -2,6 +2,7 @@
 //! bộ đều bị chặn), cắt phản hồi quá 20 MB, giới hạn số luồng và giãn cách theo từng host, chờ 429 theo
 //! `Retry-After`. Lỗi không kèm query của URL vì query có thể chứa khoá.
 
+use crate::cookies::Jar;
 use crate::text::charset_from_content_type;
 use crate::{ExtError, HostPolicy, Limits};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue, CONTENT_TYPE, LOCATION, RETRY_AFTER};
@@ -27,6 +28,8 @@ pub struct HttpRequest {
     pub query: Vec<(String, String)>,
     pub body: Option<Vec<u8>>,
     pub timeout_ms: Option<u64>,
+    /// Không gửi và không nhận cookie của hũ (`cookies: false` phía JS).
+    pub no_cookies: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -46,6 +49,9 @@ struct HostGate {
 
 pub struct HttpClient {
     client: reqwest::Client,
+    /// Client không hũ cookie, cho request `cookies: false`.
+    plain: reqwest::Client,
+    jar: Arc<Jar>,
     policy: HostPolicy,
     limits: Limits,
     gates: Mutex<HashMap<String, Arc<HostGate>>>,
@@ -80,18 +86,27 @@ fn retry_after(headers: &HeaderMap) -> Duration {
 
 impl HttpClient {
     pub fn new(policy: HostPolicy, limits: Limits) -> Result<Self, ExtError> {
+        HttpClient::with_jar(policy, limits, Arc::new(Jar::default()))
+    }
+
+    pub(crate) fn with_jar(policy: HostPolicy, limits: Limits, jar: Arc<Jar>) -> Result<Self, ExtError> {
         install_crypto_provider();
-        let client = reqwest::Client::builder()
-            .redirect(reqwest::redirect::Policy::none())
-            .cookie_store(true)
-            .user_agent(DESKTOP_UA)
-            .gzip(true)
-            .brotli(true)
-            .deflate(true)
-            .connect_timeout(Duration::from_secs(20))
-            .build()
-            .map_err(|e| ExtError::Network(e.to_string()))?;
-        Ok(HttpClient { client, policy, limits, gates: Mutex::new(HashMap::new()) })
+        let builder = || {
+            reqwest::Client::builder()
+                .redirect(reqwest::redirect::Policy::none())
+                .user_agent(DESKTOP_UA)
+                .gzip(true)
+                .brotli(true)
+                .deflate(true)
+                .connect_timeout(Duration::from_secs(20))
+        };
+        let client = builder().cookie_provider(jar.clone()).build().map_err(|e| ExtError::Network(e.to_string()))?;
+        let plain = builder().build().map_err(|e| ExtError::Network(e.to_string()))?;
+        Ok(HttpClient { client, plain, jar, policy, limits, gates: Mutex::new(HashMap::new()) })
+    }
+
+    pub(crate) fn jar(&self) -> &Arc<Jar> {
+        &self.jar
     }
 
     pub fn policy(&self) -> &HostPolicy {
@@ -123,7 +138,7 @@ impl HttpClient {
         let timeout = request.timeout_ms.map(Duration::from_millis).unwrap_or(DEFAULT_TIMEOUT);
         let mut waited = 0;
         loop {
-            let (response, retry) = self.follow(method.clone(), url.clone(), &headers, request.body.clone(), timeout).await?;
+            let (response, retry) = self.follow(method.clone(), url.clone(), &headers, request.body.clone(), timeout, request.no_cookies).await?;
             match retry {
                 Some(wait) if waited < MAX_429_RETRIES => {
                     waited += 1;
@@ -135,7 +150,8 @@ impl HttpClient {
     }
 
     /// Một lượt gọi kèm redirect. Trả thêm thời gian chờ nếu phản hồi là 429.
-    async fn follow(&self, mut method: Method, mut url: Url, headers: &HeaderMap, mut body: Option<Vec<u8>>, timeout: Duration) -> Result<(HttpResponse, Option<Duration>), ExtError> {
+    async fn follow(&self, mut method: Method, mut url: Url, headers: &HeaderMap, mut body: Option<Vec<u8>>, timeout: Duration, no_cookies: bool) -> Result<(HttpResponse, Option<Duration>), ExtError> {
+        let client = if no_cookies { &self.plain } else { &self.client };
         for _ in 0..=MAX_REDIRECTS {
             self.policy.check(&url)?;
             let gate = self.gate(&url);
@@ -151,7 +167,7 @@ impl HttpClient {
                 }
                 *last = Some(Instant::now());
             }
-            let mut builder = self.client.request(method.clone(), url.clone()).headers(headers.clone()).timeout(timeout);
+            let mut builder = client.request(method.clone(), url.clone()).headers(headers.clone()).timeout(timeout);
             if let Some(bytes) = &body {
                 builder = builder.body(bytes.clone());
             }

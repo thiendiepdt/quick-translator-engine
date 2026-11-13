@@ -7,6 +7,7 @@ pub mod manifest;
 pub mod policy;
 pub mod text;
 pub mod net;
+mod cookies;
 pub mod package;
 mod engine;
 pub mod session;
@@ -19,7 +20,7 @@ pub use manifest::{check_setting, parse_manifest, AuthField, AuthScheme, AuthSpe
 pub use policy::HostPolicy;
 pub use net::{HttpClient, HttpRequest, HttpResponse};
 pub use package::Package;
-pub use store::{AuthState, AuthValues, ExtStore, SecretBackend};
+pub use store::{AuthState, AuthValues, ExtStore, LoginRecord, SecretBackend, SessionStatus};
 pub use session::{ChapterContent, ChapterFormat, ChapterOutcome, Session, SessionOptions, TocItem};
 pub use engine::{redact, EngineOptions, LogLevel, LogSink, ProgressSink};
 #[doc(hidden)]

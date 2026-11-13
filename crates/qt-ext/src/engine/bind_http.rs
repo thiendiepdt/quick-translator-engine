@@ -2,7 +2,7 @@
 //! trần 20 MB, giới hạn theo host, chờ 429). Body phản hồi giữ ở Rust (`RawResponse`), JS đọc qua `text()`,
 //! `json()`, `bytes()`.
 
-use super::{redact, HostState};
+use super::HostState;
 use crate::net::HttpRequest;
 use crate::text;
 use rquickjs::class::Trace;
@@ -46,7 +46,7 @@ pub(crate) const JS: &str = r#"
         bodyText = JSON.stringify(o.body);
         if (!headers.some(([k]) => k.toLowerCase() === "content-type")) headers.push(["Content-Type", "application/json"]);
       }
-      const options = { method: o.method || "GET", url: String(o.url), headers, query: pairs(o.query), timeout: o.timeout, bodyText };
+      const options = { method: o.method || "GET", url: String(o.url), headers, query: pairs(o.query), timeout: o.timeout, bodyText, cookies: o.cookies === false ? false : undefined };
       // Tham số tuỳ chọn phía Rust không nhận `undefined` truyền tường minh.
       const raw = await (bodyBytes === undefined ? host.http(JSON.stringify(options)) : host.http(JSON.stringify(options), bodyBytes));
       return new Response(raw, o.encoding);
@@ -70,6 +70,7 @@ struct RequestOptions {
     query: Vec<(String, String)>,
     timeout: Option<f64>,
     body_text: Option<String>,
+    cookies: Option<bool>,
 }
 
 #[derive(Trace, JsLifetime)]
@@ -145,12 +146,14 @@ pub(crate) fn install<'js>(ctx: &Ctx<'js>, state: &Rc<HostState>) -> Result<()> 
                     query: parsed.query,
                     body,
                     timeout_ms: parsed.timeout.filter(|t| *t > 0.0).map(|t| t.min(600_000.0) as u64),
+                    no_cookies: parsed.cookies == Some(false),
                 };
                 let result = tokio::select! {
                     result = st.http.send(request) => result,
                     _ = HostState::until_cancelled(st.cancel.clone()) => Err(crate::ExtError::Cancelled),
                 };
                 st.touch();
+                st.persist_cookies();
                 match result {
                     Ok(response) => Ok(RawResponse {
                         status: response.status,
@@ -159,7 +162,7 @@ pub(crate) fn install<'js>(ctx: &Ctx<'js>, state: &Rc<HostState>) -> Result<()> 
                         body: Rc::new(response.body),
                         charset: response.charset,
                     }),
-                    Err(error) => Err(Exception::throw_message(&ctx, &redact(&error.to_string(), &st.secrets))),
+                    Err(error) => Err(Exception::throw_message(&ctx, &st.redact(&error.to_string()))),
                 }
             }
         }),

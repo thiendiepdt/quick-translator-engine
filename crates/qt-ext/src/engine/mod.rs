@@ -7,14 +7,17 @@ pub(crate) mod bind_crypto;
 pub(crate) mod bind_html;
 pub(crate) mod bind_http;
 pub(crate) mod bind_misc;
+pub(crate) mod bind_store;
 pub(crate) mod loader;
 
+use crate::store::{Cache, SessionData};
 use crate::{ExtError, HttpClient, Package};
 use futures_util::stream::{FuturesUnordered, StreamExt};
 use rquickjs::function::Args;
 use rquickjs::promise::MaybePromise;
 use rquickjs::{AsyncContext, AsyncRuntime, CatchResultExt, CaughtError, Ctx, Function, Module, Object, Value};
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
+use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -78,17 +81,75 @@ fn label(name: &str) -> &'static str {
     }
 }
 
+/// Chỗ lưu `cache` và `session` của một lượt.
+pub(crate) struct Stores {
+    /// `None` = cache trong bộ nhớ, mất khi hết lượt.
+    pub cache: Option<PathBuf>,
+    pub session: Rc<SessionData>,
+}
+
+impl Stores {
+    pub fn memory() -> Stores {
+        Stores { cache: None, session: Rc::new(SessionData::open(None, "")) }
+    }
+}
+
 /// Trạng thái dùng chung giữa engine và các hàm host.
 pub(crate) struct HostState {
     pub activity: Rc<Cell<Instant>>,
     pub cancel: Arc<AtomicBool>,
-    pub secrets: Vec<String>,
+    /// Giá trị cần che; thêm được giữa lượt (token của `login`).
+    secrets: RefCell<Vec<String>>,
     pub log: LogSink,
     pub progress: ProgressSink,
     pub http: Rc<HttpClient>,
+    pub session: Rc<SessionData>,
+    cache_path: Option<PathBuf>,
+    cache: RefCell<Option<Cache>>,
 }
 
 impl HostState {
+    pub fn secrets(&self) -> Vec<String> {
+        self.secrets.borrow().clone()
+    }
+
+    pub fn redact(&self, text: &str) -> String {
+        redact(text, &self.secrets.borrow())
+    }
+
+    pub fn add_secrets(&self, values: impl IntoIterator<Item = String>) {
+        let mut list = self.secrets.borrow_mut();
+        for value in values {
+            if !value.is_empty() && !list.contains(&value) {
+                list.push(value);
+            }
+        }
+        // Chuỗi dài trước để chuỗi chứa chuỗi khác vẫn che hết.
+        list.sort_by_key(|s| std::cmp::Reverse(s.chars().count()));
+    }
+
+    /// Mở cache lần đầu dùng (file của extension, hoặc bộ nhớ).
+    pub fn with_cache<T>(&self, f: impl FnOnce(&Cache) -> Result<T, ExtError>) -> Result<T, ExtError> {
+        let mut slot = self.cache.borrow_mut();
+        if slot.is_none() {
+            *slot = Some(match &self.cache_path {
+                Some(path) => Cache::open(path)?,
+                None => Cache::memory()?,
+            });
+        }
+        f(slot.as_ref().expect("vừa mở"))
+    }
+
+    /// Hũ cookie có cookie mới thì lưu vào session data.
+    pub fn persist_cookies(&self) {
+        let jar = self.http.jar();
+        if jar.take_dirty() {
+            if let Err(error) = self.session.set_cookies(jar.snapshot()) {
+                (self.log)(LogLevel::Warn, format!("không lưu được cookie: {error}"));
+            }
+        }
+    }
+
     pub fn touch(&self) {
         self.activity.set(Instant::now());
     }
@@ -178,7 +239,7 @@ fn to_json<'js>(ctx: &Ctx<'js>, value: Value<'js>) -> Result<serde_json::Value, 
 }
 
 impl Engine {
-    pub(crate) async fn new(package: &Package, http: Rc<HttpClient>, opts: EngineOptions) -> Result<Engine, ExtError> {
+    pub(crate) async fn new(package: &Package, http: Rc<HttpClient>, opts: EngineOptions, stores: Stores) -> Result<Engine, ExtError> {
         let runtime = AsyncRuntime::new().map_err(|e| ExtError::Script(e.to_string()))?;
         runtime.set_memory_limit(opts.memory_limit).await;
         runtime.set_max_stack_size(STACK_LIMIT).await;
@@ -193,9 +254,20 @@ impl Engine {
         }
         runtime.set_loader(loader::MemResolver(package.files.clone()), loader::MemLoader(package.files.clone())).await;
         let context = AsyncContext::full(&runtime).await.map_err(|e| ExtError::Script(e.to_string()))?;
-        let state = Rc::new(HostState { activity, cancel: opts.cancel.clone(), secrets: opts.secrets.clone(), log: opts.log.clone(), progress: opts.progress.clone(), http });
+        let state = Rc::new(HostState {
+            activity,
+            cancel: opts.cancel.clone(),
+            secrets: RefCell::new(Vec::new()),
+            log: opts.log.clone(),
+            progress: opts.progress.clone(),
+            http,
+            session: stores.session,
+            cache_path: stores.cache,
+            cache: RefCell::new(None),
+        });
+        state.add_secrets(opts.secrets.iter().cloned());
 
-        let prelude = PRELUDE.replace("/*BINDINGS*/", &[bind_http::JS, bind_html::JS, bind_crypto::JS].concat());
+        let prelude = PRELUDE.replace("/*BINDINGS*/", &[bind_http::JS, bind_html::JS, bind_crypto::JS, bind_store::JS].concat());
         let setup_state = state.clone();
         context
             .with(|ctx| -> Result<(), ExtError> {
@@ -203,6 +275,7 @@ impl Engine {
                 bind_http::install(&ctx, &setup_state).map_err(|e| ExtError::Script(e.to_string()))?;
                 bind_html::install(&ctx, &setup_state).map_err(|e| ExtError::Script(e.to_string()))?;
                 bind_crypto::install(&ctx, &setup_state).map_err(|e| ExtError::Script(e.to_string()))?;
+                bind_store::install(&ctx, &setup_state).map_err(|e| ExtError::Script(e.to_string()))?;
                 ctx.eval::<(), _>(prelude).catch(&ctx).map_err(|e| map_caught(e, false, &[]))?;
                 Ok(())
             })
@@ -210,7 +283,7 @@ impl Engine {
 
         // Nạp main.js (chạy code ở mức module) dưới cùng giới hạn thời gian.
         state.touch();
-        let secrets = state.secrets.clone();
+        let secrets = state.secrets();
         let cancel = state.cancel.clone();
         let exports = context
             .async_with(async |ctx| -> Result<Vec<String>, ExtError> {
@@ -228,6 +301,10 @@ impl Engine {
 
     pub(crate) fn has_export(&self, name: &str) -> bool {
         self.exports.iter().any(|e| e == name)
+    }
+
+    pub(crate) fn state(&self) -> &HostState {
+        &self.state
     }
 
     /// Gọi một hàm export, chờ tối đa `limit`.
@@ -259,8 +336,7 @@ impl Engine {
         let tag = label(name);
         self.context
             .async_with(async |ctx| {
-                let secrets = state.secrets.clone();
-                let caught = |e: CaughtError<'_>, st: &HostState| map_caught(e, st.cancelled(), &secrets);
+                let caught = |e: CaughtError<'_>, st: &HostState| map_caught(e, st.cancelled(), &st.secrets());
                 let namespace: Object = match Module::import(&ctx, crate::package::ENTRY).catch(&ctx) {
                     Ok(promise) => match promise.into_future::<Object>().await.catch(&ctx) {
                         Ok(ns) => ns,
@@ -292,7 +368,6 @@ impl Engine {
                     let function = function.clone();
                     let freeze = freeze.clone();
                     let state = state.clone();
-                    let secrets = secrets.clone();
                     async move {
                         state.touch();
                         let work = async {
@@ -303,8 +378,8 @@ impl Engine {
                                 let frozen: Value = freeze.call((value,)).map_err(|e| ExtError::Script(e.to_string()))?;
                                 js_args.push_arg(frozen).map_err(|e| ExtError::Script(e.to_string()))?;
                             }
-                            let returned: Value = function.call_arg(js_args).catch(&ctx).map_err(|e| map_caught(e, state.cancelled(), &secrets))?;
-                            let value: Value = MaybePromise::from_value(returned).into_future::<Value>().await.catch(&ctx).map_err(|e| map_caught(e, state.cancelled(), &secrets))?;
+                            let returned: Value = function.call_arg(js_args).catch(&ctx).map_err(|e| map_caught(e, state.cancelled(), &state.secrets()))?;
+                            let value: Value = MaybePromise::from_value(returned).into_future::<Value>().await.catch(&ctx).map_err(|e| map_caught(e, state.cancelled(), &state.secrets()))?;
                             to_json(&ctx, value)
                         };
                         let cancel = HostState::until_cancelled(state.cancel.clone());
@@ -354,7 +429,7 @@ pub mod testing {
         let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().expect("tokio");
         runtime.block_on(async {
             let http = Rc::new(HttpClient::new(HostPolicy::new(&package.manifest.hosts, true), package.manifest.limits)?);
-            let engine = Engine::new(package, http, opts).await?;
+            let engine = Engine::new(package, http, opts, Stores::memory()).await?;
             engine.call(name, args, limit).await
         })
     }

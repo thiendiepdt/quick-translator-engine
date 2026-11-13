@@ -1,7 +1,7 @@
 //! Hàm host nhóm chung: log, progress, sleep. Các nhóm khác (http, html, crypto, encoding) gắn ở file riêng,
 //! lớp JS của chúng chèn vào chỗ `/*BINDINGS*/` của prelude (thấy `host`, `define`, `freeze`).
 
-use super::{redact, HostState, LogLevel};
+use super::{HostState, LogLevel};
 use rquickjs::prelude::{Async, Opt};
 use rquickjs::{Ctx, Error, Function, Result};
 use std::rc::Rc;
@@ -20,7 +20,7 @@ pub(crate) fn install(ctx: &Ctx<'_>, state: &Rc<HostState>) -> Result<()> {
                 "error" => LogLevel::Error,
                 _ => LogLevel::Info,
             };
-            (st.log)(level, redact(&message, &st.secrets));
+            (st.log)(level, st.redact(&message));
         })?,
     )?;
 
@@ -29,7 +29,7 @@ pub(crate) fn install(ctx: &Ctx<'_>, state: &Rc<HostState>) -> Result<()> {
         "__host_progress",
         Function::new(ctx.clone(), move |done: f64, total: f64, message: Opt<String>| {
             st.touch();
-            (st.progress)(done.max(0.0) as u64, total.max(0.0) as u64, message.0.map(|m| redact(&m, &st.secrets)));
+            (st.progress)(done.max(0.0) as u64, total.max(0.0) as u64, message.0.map(|m| st.redact(&m)));
         })?,
     )?;
 

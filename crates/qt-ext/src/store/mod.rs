@@ -13,6 +13,7 @@
 
 pub mod cache;
 pub mod secrets;
+pub mod session_data;
 
 use crate::manifest::{check_setting, FieldKind, Manifest, Scope, SettingKind};
 use crate::ExtError;
@@ -23,6 +24,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 pub use cache::Cache;
 pub use secrets::SecretBackend;
+pub use session_data::{LoginRecord, SessionData, SessionStatus};
 
 pub(crate) fn io_error(path: &Path) -> impl Fn(std::io::Error) -> ExtError + '_ {
     move |e| ExtError::Store(format!("{}: {e}", path.display()))
@@ -357,6 +359,11 @@ impl ExtStore {
             remove_if_exists(&PathBuf::from(format!("{}{suffix}", path.display())))?;
         }
         Ok(())
+    }
+
+    /// Trạng thái phiên đăng nhập và session data, theo auth hiện tại.
+    pub fn session_status(&self) -> SessionStatus {
+        SessionData::open(Some(self.session_path()), &self.auth_version()).status()
     }
 
     /// Dung lượng file cache trên đĩa.
