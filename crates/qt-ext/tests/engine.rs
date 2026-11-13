@@ -50,9 +50,7 @@ fn ngat_vong_lap_vo_han_va_vuot_ram() {
         export async function spin() { while (true) {} }
         export async function spinCatch() { try { while (true) {} } catch (e) { return "bắt được"; } }
         export async function hog() { const a = []; while (true) a.push(new Array(1e5).fill(1)); }"#)]);
-    let mut opts = EngineOptions::default();
-    opts.cpu_slice = Duration::from_millis(300);
-    opts.memory_limit = 32 * 1024 * 1024;
+    let opts = EngineOptions { cpu_slice: Duration::from_millis(300), memory_limit: 32 * 1024 * 1024, ..Default::default() };
     let t = Instant::now();
     assert_eq!(testing::call(&pkg, "spin", vec![], opts.clone()).unwrap_err(), ExtError::Interrupted);
     assert!(t.elapsed().as_millis() < 2000);
@@ -63,8 +61,7 @@ fn ngat_vong_lap_vo_han_va_vuot_ram() {
 #[test]
 fn cho_io_khong_tinh_vao_thoi_gian_chay_lien_tuc() {
     let pkg = common::package(&[("main.js", "export async function wait() { await sleep(500); await sleep(500); return 1; }")]);
-    let mut opts = EngineOptions::default();
-    opts.cpu_slice = Duration::from_millis(300);
+    let opts = EngineOptions { cpu_slice: Duration::from_millis(300), ..Default::default() };
     assert_eq!(testing::call(&pkg, "wait", vec![], opts).unwrap(), json!(1));
 }
 
@@ -82,9 +79,7 @@ fn khong_co_api_he_thong_va_che_khoa_trong_log() {
         export async function boom() { throw new Error("lộ sk-SECRET-123"); }"#)]);
     let logs = Arc::new(Mutex::new(Vec::new()));
     let sink = logs.clone();
-    let mut opts = EngineOptions::default();
-    opts.secrets = vec!["sk-SECRET-123".into()];
-    opts.log = Arc::new(move |_lvl, msg| sink.lock().unwrap().push(msg));
+    let opts = EngineOptions { secrets: vec!["sk-SECRET-123".into()], log: Arc::new(move |_lvl, msg| sink.lock().unwrap().push(msg)), ..Default::default() };
     let v = testing::call(&pkg, "probe", vec![], opts.clone()).unwrap();
     assert_eq!(v, json!(["undefined", "undefined", "undefined", "undefined", "undefined", "undefined", false]));
     assert_eq!(logs.lock().unwrap().as_slice(), ["khoá là *** {\"a\":1}"]);

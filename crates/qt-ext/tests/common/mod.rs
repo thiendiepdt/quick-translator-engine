@@ -7,6 +7,9 @@ use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+/// (status, header, body) của một lượt phản hồi.
+pub type Step = (u16, Vec<(String, String)>, String);
+
 #[derive(Clone)]
 pub struct Resp {
     pub status: u16,
@@ -36,7 +39,7 @@ impl Route {
     pub fn redirect(path: &str, to: &str) -> Route {
         Route { path: path.into(), responses: vec![Resp { status: 302, headers: vec![("Location".into(), to.into())], body: vec![] }], delay_ms: 0, echo: false }
     }
-    pub fn sequence(path: &str, list: Vec<(u16, Vec<(String, String)>, String)>) -> Route {
+    pub fn sequence(path: &str, list: Vec<Step>) -> Route {
         let responses = list.into_iter().map(|(status, headers, body)| Resp { status, headers, body: body.into_bytes() }).collect();
         Route { path: path.into(), responses, delay_ms: 0, echo: false }
     }
@@ -160,4 +163,32 @@ pub fn package(files: &[(&str, &str)]) -> qt_ext::Package {
         std::fs::write(path, text).unwrap();
     }
     qt_ext::Package::load_dir(dir.path(), true).unwrap()
+}
+
+fn gbk(text: &str) -> Vec<u8> {
+    encoding_rs::GBK.encode(text).0.into_owned()
+}
+
+/// Trang nguồn giả: mục lục GBK 2 trang (6 chương: chương 5 khoá, chương 6 link /c/err), chương 3 chậm 400 ms.
+pub fn demo_server() -> TestServer {
+    let page1 = r#"<div id="list"><a href="/c/1">第1章 起</a><a href="/c/2">第2章 承</a><a href="/c/3">第3章 转</a></div><a class="next" href="/book/1/list?page=2">下一页</a>"#;
+    let page2 = r#"<div id="list"><a href="/c/4">第4章 合</a><a class="vip" href="/c/5">第5章 VIP</a><a href="/c/err">第6章 坏</a></div>"#;
+    let mut routes = vec![
+        Route::bytes("/book/1/list?page=1", "text/html; charset=gbk", gbk(page1)),
+        Route::bytes("/book/1/list?page=2", "text/html", gbk(&format!("<meta charset=\"gbk\">{page2}"))),
+    ];
+    for n in 1..=5 {
+        let body = format!("<h1>第{n}章</h1><div id=\"content\"><p>天下大势，分久必合。</p><p>第{n}段</p></div>");
+        let route = Route::bytes(&format!("/c/{n}"), "text/html; charset=gbk", gbk(&body));
+        routes.push(if n == 3 { route.slow(400) } else { route });
+    }
+    TestServer::start(routes)
+}
+
+pub fn demo_package() -> qt_ext::Package {
+    qt_ext::Package::load_dir(&std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/demo"), true).unwrap()
+}
+
+pub fn session_opts() -> qt_ext::SessionOptions {
+    qt_ext::SessionOptions { allow_local: true, ..Default::default() }
 }

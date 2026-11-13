@@ -9,12 +9,14 @@ pub mod text;
 pub mod net;
 pub mod package;
 mod engine;
+pub mod session;
 
 pub use error::ExtError;
 pub use manifest::{parse_manifest, AuthField, AuthScheme, AuthSpec, Developer, FieldKind, Limits, Manifest, Permission, Scope, SettingField, SettingKind};
 pub use policy::HostPolicy;
 pub use net::{HttpClient, HttpRequest, HttpResponse};
 pub use package::Package;
+pub use session::{ChapterContent, ChapterFormat, ChapterOutcome, Session, SessionOptions, TocItem};
 pub use engine::{redact, EngineOptions, LogLevel, LogSink, ProgressSink};
 #[doc(hidden)]
 pub use engine::testing;
