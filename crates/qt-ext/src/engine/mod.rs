@@ -8,9 +8,11 @@ pub(crate) mod bind_html;
 pub(crate) mod bind_http;
 pub(crate) mod bind_misc;
 pub(crate) mod bind_store;
+pub(crate) mod bind_webview;
 pub(crate) mod loader;
 
 use crate::store::{Cache, SessionData};
+use crate::webview::WebviewContext;
 use crate::{ExtError, HttpClient, Package};
 use futures_util::stream::{FuturesUnordered, StreamExt};
 use rquickjs::function::Args;
@@ -86,11 +88,12 @@ pub(crate) struct Stores {
     /// `None` = cache trong bộ nhớ, mất khi hết lượt.
     pub cache: Option<PathBuf>,
     pub session: Rc<SessionData>,
+    pub webview: WebviewContext,
 }
 
 impl Stores {
     pub fn memory() -> Stores {
-        Stores { cache: None, session: Rc::new(SessionData::open(None, "")) }
+        Stores { cache: None, session: Rc::new(SessionData::open(None, "")), webview: WebviewContext::none() }
     }
 }
 
@@ -106,6 +109,11 @@ pub(crate) struct HostState {
     pub session: Rc<SessionData>,
     cache_path: Option<PathBuf>,
     cache: RefCell<Option<Cache>>,
+    pub webview: WebviewContext,
+    /// Số cửa sổ webview hiện đang mở (đang chờ người dùng).
+    pub interactive: Cell<u32>,
+    /// Tổng thời gian cửa sổ hiện đã mở — cộng vào giới hạn thời gian của lệnh.
+    pub interactive_time: Cell<Duration>,
 }
 
 impl HostState {
@@ -238,6 +246,27 @@ fn to_json<'js>(ctx: &Ctx<'js>, value: Value<'js>) -> Result<serde_json::Value, 
     }
 }
 
+/// Chờ `work` tối đa `limit`, không tính thời gian cửa sổ webview hiện đang mở (người dùng đăng nhập).
+async fn limited<T>(state: &HostState, limit: Duration, tag: &'static str, work: impl std::future::Future<Output = Result<T, ExtError>>) -> Result<T, ExtError> {
+    let start = tokio::time::Instant::now();
+    let mut work = std::pin::pin!(work);
+    loop {
+        let deadline = if state.interactive.get() > 0 {
+            tokio::time::Instant::now() + Duration::from_millis(200)
+        } else {
+            start + limit + state.interactive_time.get()
+        };
+        tokio::select! {
+            result = &mut work => return result,
+            _ = tokio::time::sleep_until(deadline) => {
+                if state.interactive.get() == 0 && tokio::time::Instant::now() >= start + limit + state.interactive_time.get() {
+                    return Err(ExtError::Timeout(tag));
+                }
+            }
+        }
+    }
+}
+
 impl Engine {
     pub(crate) async fn new(package: &Package, http: Rc<HttpClient>, opts: EngineOptions, stores: Stores) -> Result<Engine, ExtError> {
         let runtime = AsyncRuntime::new().map_err(|e| ExtError::Script(e.to_string()))?;
@@ -264,10 +293,13 @@ impl Engine {
             session: stores.session,
             cache_path: stores.cache,
             cache: RefCell::new(None),
+            webview: stores.webview,
+            interactive: Cell::new(0),
+            interactive_time: Cell::new(Duration::ZERO),
         });
         state.add_secrets(opts.secrets.iter().cloned());
 
-        let prelude = PRELUDE.replace("/*BINDINGS*/", &[bind_http::JS, bind_html::JS, bind_crypto::JS, bind_store::JS].concat());
+        let prelude = PRELUDE.replace("/*BINDINGS*/", &[bind_http::JS, bind_html::JS, bind_crypto::JS, bind_store::JS, bind_webview::JS].concat());
         let setup_state = state.clone();
         context
             .with(|ctx| -> Result<(), ExtError> {
@@ -276,6 +308,7 @@ impl Engine {
                 bind_html::install(&ctx, &setup_state).map_err(|e| ExtError::Script(e.to_string()))?;
                 bind_crypto::install(&ctx, &setup_state).map_err(|e| ExtError::Script(e.to_string()))?;
                 bind_store::install(&ctx, &setup_state).map_err(|e| ExtError::Script(e.to_string()))?;
+                bind_webview::install(&ctx, &setup_state).map_err(|e| ExtError::Script(e.to_string()))?;
                 ctx.eval::<(), _>(prelude).catch(&ctx).map_err(|e| map_caught(e, false, &[]))?;
                 Ok(())
             })
@@ -386,8 +419,10 @@ impl Engine {
                         let result = tokio::select! {
                             biased;
                             _ = cancel => Err(ExtError::Cancelled),
-                            timed = tokio::time::timeout(limit, work) => timed.unwrap_or(Err(ExtError::Timeout(tag))),
+                            result = limited(&state, limit, tag, work) => result,
                         };
+                        // Extension bắt được lỗi huỷ rồi trả kết quả (có thể là rác) — lượt đã huỷ thì bỏ.
+                        let result = if state.cancelled() { Err(ExtError::Cancelled) } else { result };
                         (index, result)
                     }
                 };

@@ -152,6 +152,11 @@ impl ExtStore {
         self.data_dir.join("cache.sqlite")
     }
 
+    /// Hồ sơ trình duyệt của webview (cookie giữ giữa các lần mở).
+    pub fn webview_dir(&self) -> PathBuf {
+        self.data_dir.join("webview")
+    }
+
     pub fn secret_kind(&self) -> &'static str {
         self.secrets.kind()
     }
@@ -348,9 +353,16 @@ impl ExtStore {
         write_atomic(&self.settings_file, json.as_bytes())
     }
 
-    /// Xoá session data (phiên login, cookie, giá trị `session.set`).
+    /// Xoá session data (phiên login, cookie, giá trị `session.set`) và hồ sơ webview.
     pub fn logout(&self) -> Result<(), ExtError> {
-        remove_if_exists(&self.session_path())
+        remove_if_exists(&self.session_path())?;
+        let dir = self.webview_dir();
+        match std::fs::remove_dir_all(&dir) {
+            Err(e) if e.kind() != std::io::ErrorKind::NotFound => {
+                Err(ExtError::Store(format!("không xoá được hồ sơ webview ({e}) — đóng cửa sổ của extension rồi thử lại")))
+            }
+            _ => Ok(()),
+        }
     }
 
     pub fn clear_cache(&self) -> Result<(), ExtError> {
@@ -471,9 +483,11 @@ mod tests {
         let (_dir, store, _m) = setup();
         assert_eq!(store.cache_bytes(), 0);
         write_atomic(&store.cache_path(), &[0u8; 100]).unwrap();
+        write_atomic(&store.webview_dir().join("EBWebView/Cookies"), b"x").unwrap();
         assert_eq!(store.cache_bytes(), 100);
         store.clear_cache().unwrap();
         assert_eq!(store.cache_bytes(), 0);
         store.logout().unwrap();
+        assert!(!store.webview_dir().exists(), "đăng xuất xoá hồ sơ webview");
     }
 }

@@ -2,6 +2,7 @@
 //! mới thì bật cờ để engine lưu lại vào session data sau request.
 
 use crate::store::session_data::Cookie;
+use crate::webview::WebviewCookie;
 use cookie_store::RawCookie;
 use reqwest::header::HeaderValue;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -28,6 +29,39 @@ impl Jar {
     /// Có cookie mới từ lần hỏi trước không.
     pub fn take_dirty(&self) -> bool {
         self.dirty.swap(false, Ordering::SeqCst)
+    }
+
+    /// Nạp cookie lấy từ webview (đã lọc theo `hosts`). Domain có dấu chấm đầu là cookie cả domain, không thì
+    /// chỉ đúng host đó.
+    pub fn insert(&self, cookies: &[WebviewCookie]) {
+        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
+        let mut store = self.store.write().unwrap_or_else(|e| e.into_inner());
+        for cookie in cookies {
+            let bad = |s: &str| s.chars().any(|c| c == ';' || c.is_control());
+            if cookie.name.is_empty() || bad(&cookie.name) || bad(&cookie.value) || bad(&cookie.domain) || bad(&cookie.path) {
+                continue;
+            }
+            let host = cookie.domain.trim_start_matches('.');
+            let path = if cookie.path.starts_with('/') { cookie.path.as_str() } else { "/" };
+            let Ok(url) = Url::parse(&format!("https://{host}{path}")) else {
+                continue;
+            };
+            let mut line = format!("{}={}; Path={path}", cookie.name, cookie.value);
+            if cookie.domain.starts_with('.') {
+                line.push_str(&format!("; Domain={host}"));
+            }
+            if let Some(expires) = cookie.expires {
+                line.push_str(&format!("; Max-Age={}", (expires - now).max(0)));
+            }
+            if cookie.secure {
+                line.push_str("; Secure");
+            }
+            if cookie.http_only {
+                line.push_str("; HttpOnly");
+            }
+            let _ = store.parse(&line, &url);
+        }
+        self.dirty.store(true, Ordering::SeqCst);
     }
 
     pub fn clear(&self) {

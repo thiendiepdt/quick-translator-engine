@@ -12,6 +12,7 @@ pub mod package;
 mod engine;
 pub mod session;
 pub mod store;
+pub mod webview;
 #[doc(hidden)]
 pub mod testkit;
 
@@ -21,6 +22,7 @@ pub use policy::HostPolicy;
 pub use net::{HttpClient, HttpRequest, HttpResponse};
 pub use package::Package;
 pub use store::{AuthState, AuthValues, ExtStore, LoginRecord, SecretBackend, SessionStatus};
+pub use webview::{ClosedBy, Collect, StorageKeys, Until, WebviewCookie, WebviewHost, WebviewOutcome, WebviewRequest};
 pub use session::{ChapterContent, ChapterFormat, ChapterOutcome, Session, SessionOptions, TocItem};
 pub use engine::{redact, EngineOptions, LogLevel, LogSink, ProgressSink};
 #[doc(hidden)]

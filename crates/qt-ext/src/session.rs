@@ -9,6 +9,8 @@ use crate::cookies::Jar;
 use crate::engine::{Engine, Stores};
 use crate::manifest::SettingKind;
 use crate::store::{AuthValues, ExtStore, LoginRecord, SessionData};
+use crate::webview::{WebviewContext, WebviewHost};
+use crate::Permission;
 use crate::{EngineOptions, ExtError, HostPolicy, HttpClient, Manifest, Package};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -67,6 +69,8 @@ pub struct SessionOptions {
     pub login_limit: Duration,
     /// Dữ liệu của extension (auth, cache, session data). `None` = không auth; cache và session chỉ trong bộ nhớ.
     pub store: Option<ExtStore>,
+    /// Mở cửa sổ trình duyệt cho `webview.open`; `None` (CLI) thì `webview.open` ném `NeedsInteraction`.
+    pub webview: Option<Arc<dyn WebviewHost>>,
 }
 
 impl Default for SessionOptions {
@@ -78,6 +82,7 @@ impl Default for SessionOptions {
             chapter_limit: Duration::from_secs(120),
             login_limit: Duration::from_secs(120),
             store: None,
+            webview: None,
         }
     }
 }
@@ -372,7 +377,14 @@ async fn build_runner<'a>(package: &'a Package, opts: &'a SessionOptions) -> Res
     let mut engine_opts = opts.engine.clone();
     engine_opts.secrets.extend(auth.iter().flat_map(|a| a.secret_values(manifest)));
     engine_opts.secrets.extend(session.login().and_then(|l| l.token));
-    let stores = Stores { cache: store.map(ExtStore::cache_path), session };
+    let webview = WebviewContext {
+        host: opts.webview.clone(),
+        extension_id: manifest.id.clone(),
+        extension_name: manifest.name.clone(),
+        allowed: manifest.has_permission(Permission::Webview),
+        profile_dir: store.map(ExtStore::webview_dir),
+    };
+    let stores = Stores { cache: store.map(ExtStore::cache_path), session, webview };
     let engine = Engine::new(package, http, engine_opts, stores).await?;
     Ok(Runner { engine, opts, manifest, auth })
 }

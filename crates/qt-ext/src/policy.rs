@@ -76,6 +76,29 @@ impl HostPolicy {
             Err(ExtError::HostDenied(name))
         }
     }
+
+    /// Cookie của `domain` có được gửi tới một host extension được gọi không: chính domain đó có trong `hosts`,
+    /// hoặc là domain cha của một host trong `hosts` (cookie `.example.com` gửi tới `www.example.com`).
+    pub fn allows_cookie_domain(&self, domain: &str) -> bool {
+        let domain = domain.trim().trim_start_matches('.').trim_end_matches('.').to_ascii_lowercase();
+        if domain.is_empty() {
+            return false;
+        }
+        let Ok(url) = Url::parse(&format!("https://{domain}/")) else {
+            return false;
+        };
+        if self.check(&url).is_ok() {
+            return true;
+        }
+        if is_local_name(&domain) || domain.parse::<IpAddr>().is_ok() || !domain.contains('.') {
+            return false;
+        }
+        let parent = format!(".{domain}");
+        self.patterns.iter().any(|pattern| match pattern.strip_prefix("*.") {
+            Some(root) => root == domain || root.ends_with(&parent),
+            None => pattern.ends_with(&parent),
+        })
+    }
 }
 
 #[cfg(test)]
@@ -98,6 +121,20 @@ mod tests {
         assert!(!ok("https://demo.test.evil.com/a"));
         assert!(!ok("ftp://demo.test/a"));
         assert!(ok("https://user:pw@demo.test/a"), "userinfo không đổi host");
+    }
+
+    #[test]
+    fn cookie_domain_theo_hosts() {
+        let p = HostPolicy::new(&["www.demo.test".into(), "*.cdn.test".into()], false);
+        assert!(p.allows_cookie_domain("www.demo.test"));
+        assert!(p.allows_cookie_domain(".demo.test"), "domain cha của host đã khai");
+        assert!(p.allows_cookie_domain("cdn.test"), "gốc của *.cdn.test");
+        assert!(p.allows_cookie_domain("img.cdn.test"));
+        assert!(!p.allows_cookie_domain("evil.test"));
+        assert!(!p.allows_cookie_domain("test"), "domain một nhãn (đuôi tên miền) không tính");
+        assert!(!p.allows_cookie_domain("other.demo.test"));
+        assert!(!p.allows_cookie_domain(""));
+        assert!(!HostPolicy::new(&["127.0.0.1".into()], false).allows_cookie_domain("127.0.0.1"));
     }
 
     #[test]
