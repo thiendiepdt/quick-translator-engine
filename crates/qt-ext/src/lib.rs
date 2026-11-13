@@ -10,6 +10,8 @@ pub mod net;
 pub mod package;
 mod engine;
 pub mod session;
+#[doc(hidden)]
+pub mod testkit;
 
 pub use error::ExtError;
 pub use manifest::{parse_manifest, AuthField, AuthScheme, AuthSpec, Developer, FieldKind, Limits, Manifest, Permission, Scope, SettingField, SettingKind};

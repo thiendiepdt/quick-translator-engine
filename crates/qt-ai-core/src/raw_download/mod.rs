@@ -8,6 +8,7 @@
 pub mod content;
 pub mod matching;
 pub mod registry;
+pub mod run;
 
 pub mod template;
 
