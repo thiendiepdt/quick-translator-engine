@@ -1,0 +1,38 @@
+[package]
+name = "qt-ext"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+description = "Chạy extension tải raw trong sandbox QuickJS: http, html, crypto, encoding có giới hạn"
+
+[dependencies]
+rquickjs = { version = "0.14", features = ["futures", "loader", "macro", "classes"] }
+tokio = { version = "1", features = ["rt", "time", "sync", "macros"] }
+futures-util = "0.3"
+# rustls + ring như qt-ai-core để build Windows không cần OpenSSL.
+reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider", "cookies", "gzip", "brotli", "deflate"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
+url = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+thiserror = "2"
+regex = "1"
+semver = "1"
+scraper = "0.29"
+ego-tree = "0.11"
+encoding_rs = "0.8"
+chardetng = "1"
+md-5 = "0.10"
+sha1 = "0.10"
+sha2 = "0.10"
+hmac = "0.12"
+aes = "0.8"
+cbc = { version = "0.1", features = ["alloc"] }
+ecb = { version = "0.1", features = ["alloc"] }
+aes-gcm = "0.10"
+base64 = "0.22"
+hex = "0.4"
+getrandom = "0.3"
+
+[dev-dependencies]
+tempfile = "3"

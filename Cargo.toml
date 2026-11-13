@@ -6,6 +6,7 @@ members = [
     "crates/qt-api",
     "crates/qt-lambda",
     "crates/qt-ai-core",
+    "crates/qt-ext",
     "apps/qt-gui/src-tauri",
     "apps/qt-ai-gui/src-tauri",
 ]
