@@ -250,7 +250,8 @@ pub async fn raw_toc<R: Runtime>(app: AppHandle<R>, root: String, anchor: Option
     blocking(move || {
         let state = app.state::<AppState>();
         let path = Path::new(&root);
-        let opts = options_for(path, &state.config_path, anchor)?;
+        let mut opts = options_for(path, &state.config_path, anchor)?;
+        opts.session.webview = Some(crate::ext_webview::host(&app));
         let running = Running::start(&root)?;
         let (toc, view) = load_toc(path, &opts, running.cancel.clone())?;
         let raw_url = info_inner(path, &state.config_path)?.raw_url;
@@ -302,7 +303,8 @@ pub async fn raw_download<R: Runtime>(app: AppHandle<R>, root: String, mode: Str
             "single" => Mode::Single(ids.into_iter().next().ok_or_else(|| CommandError::new("invalid_state", "Thiếu chương cần tải."))?),
             other => return Err(CommandError::new("invalid_state", format!("Chế độ tải lạ: {other}"))),
         };
-        let opts = options_for(path, &state.config_path, anchor)?;
+        let mut opts = options_for(path, &state.config_path, anchor)?;
+        opts.session.webview = Some(crate::ext_webview::host(&app));
         let running = Running::start(&root)?;
         let raw_url = info_inner(path, &state.config_path)?.raw_url;
         let cached = TOC_CACHE.lock().unwrap_or_else(|e| e.into_inner()).get(&root).cloned();

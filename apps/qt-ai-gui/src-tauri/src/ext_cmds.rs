@@ -256,6 +256,7 @@ pub async fn ext_login<R: Runtime>(app: AppHandle<R>, root: Option<String>, id: 
         with_ext(&app, &id, |installed, store| {
             let mut opts = RunOptions::new(installed.clone());
             opts.session.store = Some(store.clone());
+            opts.session.webview = Some(crate::ext_webview::host(&app));
             let record = login(root.as_deref().map(Path::new), &opts, Arc::new(AtomicBool::new(false)))?;
             Ok(ExtLoginView { config: config_view(installed, store)?, has_login: record.is_some() })
         })

@@ -21,6 +21,7 @@ mod padding_cmds;
 mod process_cmds;
 mod raw_cmds;
 mod ext_cmds;
+mod ext_webview;
 
 use app_config::AppConfig;
 use session_registry::SessionRegistry;
@@ -103,7 +104,7 @@ pub fn run() {
     // sau bấm Dịch truyện bản trước đang dịch thì vướng khoá phiên. Bản dev bỏ qua để chạy song song bản cài.
     #[cfg(all(desktop, not(debug_assertions)))]
     let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-        if let Some(window) = app.webview_windows().into_values().next() {
+        if let Some(window) = app.get_webview_window("main") {
             let _ = window.unminimize();
             let _ = window.show();
             let _ = window.set_focus();
@@ -121,6 +122,8 @@ pub fn run() {
             let base_dir = config_path.parent().map(|dir| dir.join("base")).unwrap_or_else(|| PathBuf::from("base"));
             std::env::set_var(qt_ai_core::base::BASE_DIR_ENV, &base_dir);
             idiom_cmds::refresh_in_background();
+            #[cfg(debug_assertions)]
+            ext_webview::selftest_from_env(app.handle());
             let config = AppConfig::load(&config_path);
             app.manage(AppState {
                 config_path,
@@ -132,8 +135,11 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
+            // Chỉ cửa sổ chính: cờ ẩn/hiện dùng chung, cửa sổ webview của extension đổi cỡ không được đụng vào.
             if let tauri::WindowEvent::Resized(_) = event {
-                sync_webview_visibility(window);
+                if window.label() == "main" {
+                    sync_webview_visibility(window);
+                }
             }
         })
         .invoke_handler(tauri::generate_handler![
