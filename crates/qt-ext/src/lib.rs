@@ -5,6 +5,7 @@
 pub mod error;
 pub mod manifest;
 pub mod policy;
+pub mod text;
 
 pub use error::ExtError;
 pub use manifest::{parse_manifest, AuthField, AuthScheme, AuthSpec, Developer, FieldKind, Limits, Manifest, Permission, Scope, SettingField, SettingKind};
