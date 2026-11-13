@@ -3586,6 +3586,7 @@ dependencies = [
  "flate2",
  "indexmap 2.14.0",
  "libc",
+ "qt-ext",
  "regex",
  "reqwest",
  "rusqlite",

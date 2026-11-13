@@ -38,5 +38,6 @@ pub mod zh_convert;
 pub mod zh_story;
 pub mod padding;
 pub mod idioms;
+pub mod raw_download;
 
 pub use error::{CoreError, Result};

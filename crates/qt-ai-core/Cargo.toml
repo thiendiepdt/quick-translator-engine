@@ -26,6 +26,8 @@ zhconv = { version = "0.4", default-features = false, features = ["compress", "m
 # Đọc file text GBK / Big5 / UTF-16 (raw tải từ web Trung, Đài): đoán mã hoá rồi giải mã.
 encoding_rs = "0.8"
 chardetng = "1"
+# Tải raw qua extension (sandbox QuickJS): Session chạy toc/chapter của extension.
+qt-ext = { path = "../qt-ext" }
 
 [target.'cfg(windows)'.dependencies]
 # Job Object KILL_ON_JOB_CLOSE: app chết thì agy chết theo (child_guard). Bản 0.61 đã có trong lock.
