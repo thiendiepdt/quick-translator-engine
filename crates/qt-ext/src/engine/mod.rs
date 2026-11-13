@@ -3,6 +3,7 @@
 //!
 //! Một `Engine` chỉ dùng trên một thread (AsyncRuntime không `Send`) — `Session` lo phần thread.
 
+pub(crate) mod bind_html;
 pub(crate) mod bind_http;
 pub(crate) mod bind_misc;
 pub(crate) mod loader;
@@ -193,12 +194,13 @@ impl Engine {
         let context = AsyncContext::full(&runtime).await.map_err(|e| ExtError::Script(e.to_string()))?;
         let state = Rc::new(HostState { activity, cancel: opts.cancel.clone(), secrets: opts.secrets.clone(), log: opts.log.clone(), progress: opts.progress.clone(), http });
 
-        let prelude = PRELUDE.replace("/*BINDINGS*/", &[bind_http::JS].concat());
+        let prelude = PRELUDE.replace("/*BINDINGS*/", &[bind_http::JS, bind_html::JS].concat());
         let setup_state = state.clone();
         context
             .with(|ctx| -> Result<(), ExtError> {
                 bind_misc::install(&ctx, &setup_state).map_err(|e| ExtError::Script(e.to_string()))?;
                 bind_http::install(&ctx, &setup_state).map_err(|e| ExtError::Script(e.to_string()))?;
+                bind_html::install(&ctx, &setup_state).map_err(|e| ExtError::Script(e.to_string()))?;
                 ctx.eval::<(), _>(prelude).catch(&ctx).map_err(|e| map_caught(e, false, &[]))?;
                 Ok(())
             })
