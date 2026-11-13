@@ -289,17 +289,54 @@ fn parse_settings(raw: Vec<RawField>) -> Result<Vec<SettingField>, ExtError> {
         if kind == SettingKind::Select && field.choices.is_empty() {
             return Err(bad(format!("{at}: kiểu select phải có choices")));
         }
-        settings.push(SettingField {
+        let setting = SettingField {
             key: non_empty(&field.key, &format!("{at}.key"))?,
             label: non_empty(&field.label, &format!("{at}.label"))?,
             kind,
             choices: field.choices,
-            default: field.default,
+            default: field.default.filter(|v| !v.is_null()),
             scope,
-        });
+        };
+        if let Some(default) = &setting.default {
+            check_setting(&setting, default).map_err(|e| bad(format!("{at}.default: {e}")))?;
+        }
+        settings.push(setting);
     }
     unique(settings.iter().map(|s| s.key.as_str()), "settings")?;
     Ok(settings)
+}
+
+/// Kiểm và chuẩn hoá giá trị của một trường cài đặt: text/secret nhận chuỗi, number nhận số hoặc chuỗi số,
+/// boolean nhận true/false, select nhận một mục trong `choices`.
+pub fn check_setting(field: &SettingField, value: &Value) -> Result<Value, String> {
+    let label = &field.label;
+    match field.kind {
+        SettingKind::Text | SettingKind::Secret => match value {
+            Value::String(s) => Ok(Value::String(s.clone())),
+            Value::Number(n) => Ok(Value::String(n.to_string())),
+            _ => Err(format!("{label}: phải là chữ")),
+        },
+        SettingKind::Number => match value {
+            Value::Number(_) => Ok(value.clone()),
+            Value::String(s) => {
+                let s = s.trim();
+                if let Ok(n) = s.parse::<i64>() {
+                    return Ok(Value::from(n));
+                }
+                s.parse::<f64>().ok().and_then(serde_json::Number::from_f64).map(Value::Number).ok_or_else(|| format!("{label}: phải là số"))
+            }
+            _ => Err(format!("{label}: phải là số")),
+        },
+        SettingKind::Boolean => match value {
+            Value::Bool(_) => Ok(value.clone()),
+            Value::String(s) if s == "true" || s == "false" => Ok(Value::Bool(s == "true")),
+            _ => Err(format!("{label}: phải là true hoặc false")),
+        },
+        SettingKind::Select => match value {
+            Value::String(s) if field.choices.contains(s) => Ok(value.clone()),
+            _ => Err(format!("{label}: phải là một trong {}", field.choices.join(", "))),
+        },
+    }
 }
 
 /// `allow_local`: chế độ developer — cho khai `localhost` / IP nội bộ để chạy thử với máy chủ giả.
@@ -441,6 +478,24 @@ mod tests {
         bad(r#"{"auth": {"schemes": [{"id":"a","label":"A","fields":[{"key":"x","label":"X","type":"number"}]}]}}"#, "text hoặc secret");
         bad(r#"{"developer": {"name": ""}}"#, "developer.name");
         bad(r#"{"description": " "}"#, "description");
+        bad(r#"{"settings": [{"key":"k","label":"K","type":"number","default":"x"}]}"#, "settings[0].default");
+        bad(r#"{"settings": [{"key":"k","label":"K","type":"select","choices":["a"],"default":"b"}]}"#, "settings[0].default");
+    }
+
+    #[test]
+    fn kiem_gia_tri_cai_dat() {
+        let field = |kind: SettingKind| SettingField { key: "k".into(), label: "K".into(), kind, choices: vec!["cn".into(), "global".into()], default: None, scope: Scope::Global };
+        let check = |kind, value: Value| check_setting(&field(kind), &value);
+        assert_eq!(check(SettingKind::Text, serde_json::json!("a")), Ok(serde_json::json!("a")));
+        assert_eq!(check(SettingKind::Secret, serde_json::json!(12)), Ok(serde_json::json!("12")));
+        assert!(check(SettingKind::Text, serde_json::json!(true)).is_err());
+        assert_eq!(check(SettingKind::Number, serde_json::json!(" 3 ")), Ok(serde_json::json!(3)));
+        assert_eq!(check(SettingKind::Number, serde_json::json!("1.5")), Ok(serde_json::json!(1.5)));
+        assert!(check(SettingKind::Number, serde_json::json!("ba")).is_err());
+        assert_eq!(check(SettingKind::Boolean, serde_json::json!("true")), Ok(serde_json::json!(true)));
+        assert!(check(SettingKind::Boolean, serde_json::json!(1)).is_err());
+        assert_eq!(check(SettingKind::Select, serde_json::json!("global")), Ok(serde_json::json!("global")));
+        assert!(check(SettingKind::Select, serde_json::json!("eu")).unwrap_err().contains("cn, global"));
     }
 
     #[test]

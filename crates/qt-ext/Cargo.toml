@@ -33,6 +33,14 @@ aes-gcm = "0.10"
 base64 = "0.22"
 hex = "0.4"
 getrandom = "0.3"
+# Cache của extension; cùng bản với qt-ai-core nên không build thêm SQLite.
+rusqlite = { version = "0.40.2", features = ["bundled"] }
+# Hũ cookie lưu trong session data; reqwest đã kéo bản này.
+cookie_store = "0.22"
+
+[target.'cfg(windows)'.dependencies]
+# Khoá của extension ở Windows Credential Manager.
+keyring = { version = "3.6", features = ["windows-native"] }
 
 [dev-dependencies]
 tempfile = "3"

@@ -32,4 +32,10 @@ pub enum ExtError {
     Extension { message: String, retry: bool },
     #[error("extension trả kết quả sai: {0}")]
     BadResult(String),
+    #[error("dữ liệu extension: {0}")]
+    Store(String),
+    #[error("extension cần auth — nhập ở \"Auth và cài đặt\" của extension")]
+    AuthMissing,
+    #[error("đăng nhập không được: {0}")]
+    LoginFailed(String),
 }
