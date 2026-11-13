@@ -629,6 +629,42 @@ export const rawExtSchema = z.object({
   hosts: z.array(z.string()),
   dev: z.boolean(),
 });
+/** Một trường cài đặt của extension (Rust `ext_cmds::SettingView`). Trường secret không có `value`. */
+export const extSettingSchema = z.object({
+  key: z.string(),
+  label: z.string(),
+  kind: z.enum(["text", "number", "boolean", "select", "secret"]),
+  choices: z.array(z.string()),
+  default: z.unknown(),
+  scope: z.enum(["global", "story"]),
+  value: z.unknown(),
+  filled: z.boolean(),
+});
+/** Auth, cài đặt chung, phiên và cache của một extension (Rust `ext_cmds::ExtConfigView`). */
+export const extConfigSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  auth: z
+    .object({
+      required: z.boolean(),
+      schemes: z.array(
+        z.object({
+          id: z.string(),
+          label: z.string(),
+          fields: z.array(z.object({ key: z.string(), label: z.string(), kind: z.enum(["text", "secret"]) })),
+        }),
+      ),
+      scheme: z.string().nullable(),
+      values: z.record(z.string(), z.unknown()),
+      filled: z.array(z.string()),
+    })
+    .nullable(),
+  settings: z.array(extSettingSchema),
+  session: z.object({ loggedIn: z.boolean(), expiresAt: z.number().nullable(), hasData: z.boolean() }),
+  secretStore: z.string(),
+  cacheBytes: z.number(),
+});
+export const extLoginSchema = z.object({ config: extConfigSchema, hasLogin: z.boolean() });
 export const rawInfoSchema = z.object({
   rawUrl: z.string(),
   rawUrlIsDefault: z.boolean(),
@@ -643,6 +679,8 @@ export const rawInfoSchema = z.object({
   guessedTemplate: z.string().nullable(),
   effectiveTemplate: z.string(),
   extensionsDir: z.string(),
+  extConfig: extConfigSchema.nullable(),
+  storySettings: z.array(extSettingSchema),
 });
 export const rawTocSchema = z.object({
   rows: z.array(

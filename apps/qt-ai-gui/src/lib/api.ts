@@ -28,6 +28,8 @@ import {
   replaceUndoInfoSchema,
   replaceUndoOutcomeSchema,
   paddingSettingsSchema,
+  extConfigSchema,
+  extLoginSchema,
   rawInfoSchema,
   rawProgressSchema,
   rawSummarySchema,
@@ -406,11 +408,33 @@ export type RawTocRow = RawToc["rows"][number];
 export type RawSummary = z.infer<typeof rawSummarySchema>;
 export type RawProgress = z.infer<typeof rawProgressSchema>;
 export type RawMode = "new" | "selected" | "single";
+export type ExtConfig = z.infer<typeof extConfigSchema>;
+export type ExtSetting = ExtConfig["settings"][number];
+export type ExtAuth = NonNullable<ExtConfig["auth"]>;
+export type ExtValues = Record<string, unknown>;
+const parseExtConfig = (v: unknown) => extConfigSchema.parse(v);
+/** Auth (không kèm giá trị secret), cài đặt chung, phiên, cache của extension. */
+export const extConfig = (id: string) => call("ext_config", { id }, parseExtConfig);
+/** Lưu auth cho một kiểu; trường secret để trống = giữ giá trị cũ. Đổi auth thì phiên cũ mất. */
+export const extSaveAuth = (id: string, scheme: string, values: ExtValues) => call("ext_save_auth", { id, scheme, values }, parseExtConfig);
+export const extClearAuth = (id: string) => call("ext_clear_auth", { id }, parseExtConfig);
+/** Lưu cài đặt chung: chỉ gửi khoá đổi; `null` = về mặc định; secret rỗng = giữ. */
+export const extSaveSettings = (id: string, values: ExtValues) => call("ext_save_settings", { id, values }, parseExtConfig);
+/** Xoá phiên đăng nhập, cookie, session data; auth đã nhập giữ nguyên. */
+export const extLogout = (id: string) => call("ext_logout", { id }, parseExtConfig);
+export const extClearCache = (id: string) => call("ext_clear_cache", { id }, parseExtConfig);
+/** Gọi `login` của extension ngay; `hasLogin = false` khi extension không có hàm này. */
+export const extLogin = (root: string | null, id: string) => call("ext_login", { root, id }, (v) => extLoginSchema.parse(v));
 /** Link tải raw, extension khớp link, mẫu tên file của truyện. */
 export const rawInfo = (root: string) => call("raw_info", { root }, (v) => rawInfoSchema.parse(v));
-/** Lưu link tải raw (bằng link nguồn thì truyện theo link nguồn), extension đã chọn, mẫu tên (trống = mặc định / đoán). */
-export const rawSave = (root: string, settings: { rawUrl: string; extension: string; fileTemplate: string }) =>
-  call("raw_save", { root, ...settings }, (v) => rawInfoSchema.parse(v));
+/**
+ * Lưu link tải raw (bằng link nguồn thì truyện theo link nguồn), extension đã chọn, mẫu tên (trống = mặc định / đoán).
+ * `storySettings`: đủ bộ trường `scope: "story"` của extension đang hiện (`null` = mặc định).
+ */
+export const rawSave = (
+  root: string,
+  settings: { rawUrl: string; extension: string; fileTemplate: string; storySettings?: { extension: string; values: ExtValues } },
+) => call("raw_save", { root, ...settings }, (v) => rawInfoSchema.parse(v));
 /** Gọi `toc` của extension rồi khớp với raw đã có. `anchor`: chương cuối đã có là mục số mấy (khi lệch tiêu đề). */
 export const rawToc = (root: string, anchor?: number) =>
   call("raw_toc", { root, anchor: anchor ?? null }, (v) => rawTocSchema.parse(v));

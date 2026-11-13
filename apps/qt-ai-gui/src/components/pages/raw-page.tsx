@@ -1,13 +1,16 @@
-import { CloudDownload, FolderOpen, ListTree, LoaderCircle, Square, TriangleAlert } from "lucide-react";
+import { CloudDownload, FolderOpen, KeyRound, ListTree, LoaderCircle, LogIn, Square, TriangleAlert } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { ExtConfigDialog } from "@/components/ext-config-dialog";
+import { ExtField } from "@/components/ext-fields";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
+  extLogin,
   onRawProgress,
   rawDownload,
   rawDownloadCancel,
@@ -22,6 +25,7 @@ import {
   type RawToc,
   type RawTocRow,
 } from "@/lib/api";
+import { authStatus, changedValues, initialDisplay, storyValues, type FieldDisplay } from "@/lib/ext";
 import { RAW_STATUS_LABELS, renderName, validateTemplate } from "@/lib/raw";
 import { useStoryStore } from "@/store/story";
 
@@ -45,16 +49,19 @@ export function RawPage() {
   const [toc, setToc] = useState<RawToc>();
   const [anchor, setAnchor] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [busy, setBusy] = useState<"toc" | "download" | "save" | undefined>();
+  const [busy, setBusy] = useState<"toc" | "download" | "save" | "login" | undefined>();
   const [progress, setProgress] = useState<Progress>();
   const [log, setLog] = useState<string[]>([]);
   const [summary, setSummary] = useState<RawSummary>();
+  const [storyDisplays, setStoryDisplays] = useState<Record<string, FieldDisplay>>({});
+  const [configOpen, setConfigOpen] = useState(false);
 
   function applyInfo(next: RawInfo) {
     setInfo(next);
     setUrl(next.rawUrl);
     setExtension(next.extensionChoice || next.extension?.id || "");
     setTemplate(next.fileTemplate);
+    setStoryDisplays({});
   }
 
   useEffect(() => {
@@ -88,7 +95,9 @@ export function RawPage() {
   }, [root]);
 
   const templateError = template.trim() ? validateTemplate(template) : null;
-  const dirty = !!info && (url.trim() !== info.rawUrl || extension !== (info.extensionChoice || info.extension?.id || "") || template.trim() !== info.fileTemplate);
+  const storyChanged = !!info && Object.keys(changedValues(info.storySettings, storyDisplays)).length > 0;
+  const dirty =
+    !!info && (url.trim() !== info.rawUrl || extension !== (info.extensionChoice || info.extension?.id || "") || template.trim() !== info.fileTemplate || storyChanged);
   const activeTemplate = template.trim() || info?.effectiveTemplate || "";
   const preview = useMemo(() => {
     if (templateError || !activeTemplate) return null;
@@ -103,9 +112,25 @@ export function RawPage() {
     if (!root || templateError) return;
     setBusy("save");
     try {
-      applyInfo(await rawSave(root, { rawUrl: url, extension, fileTemplate: template }));
+      const storySettings = storyChanged && info?.extConfig ? { extension: info.extConfig.id, values: storyValues(info.storySettings, storyDisplays) } : undefined;
+      applyInfo(await rawSave(root, { rawUrl: url, extension, fileTemplate: template, storySettings }));
       setToc(undefined);
       toast.success("Đã lưu cài đặt tải raw");
+    } catch (error) {
+      toast.error(message(error));
+    } finally {
+      setBusy(undefined);
+    }
+  }
+
+  async function login() {
+    if (!root || !info?.extConfig) return;
+    setBusy("login");
+    try {
+      const result = await extLogin(root, info.extConfig.id);
+      setInfo((current) => current && { ...current, extConfig: result.config });
+      if (result.hasLogin) toast.success("Đã đăng nhập");
+      else toast.success("Extension này không có bước đăng nhập — auth được dùng thẳng khi tải");
     } catch (error) {
       toast.error(message(error));
     } finally {
@@ -219,7 +244,23 @@ export function RawPage() {
                 ))}
               </ul>
             )}
+            {info.extConfig && <AuthLine config={info.extConfig} busy={!!busy} onLogin={() => void login()} onOpen={() => setConfigOpen(true)} />}
           </div>
+
+          {info.storySettings.length > 0 && (
+            <div className="flex flex-col gap-3">
+              <p className="text-sm font-medium">Cài đặt của truyện</p>
+              {info.storySettings.map((field) => (
+                <ExtField
+                  key={field.key}
+                  idPrefix="raw-story"
+                  field={field}
+                  value={storyDisplays[field.key] ?? initialDisplay(field)}
+                  onChange={(value) => setStoryDisplays((current) => ({ ...current, [field.key]: value }))}
+                />
+              ))}
+            </div>
+          )}
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="raw-template">Mẫu tên file</Label>
@@ -356,6 +397,34 @@ export function RawPage() {
           )}
         </section>
       </div>
+      {info.extConfig && (
+        <ExtConfigDialog
+          config={info.extConfig}
+          open={configOpen}
+          onOpenChange={setConfigOpen}
+          onChange={(config) => setInfo((current) => current && { ...current, extConfig: config })}
+        />
+      )}
+    </div>
+  );
+}
+
+/** Trạng thái auth của extension đang dùng + nút Đăng nhập, Auth và cài đặt. */
+function AuthLine({ config, busy, onLogin, onOpen }: { config: NonNullable<RawInfo["extConfig"]>; busy: boolean; onLogin: () => void; onOpen: () => void }) {
+  const missing = !!config.auth?.required && !config.auth.scheme;
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-sm">
+      <span aria-label="Trạng thái auth" className={missing ? "text-destructive" : "text-muted-foreground"}>
+        {authStatus(config)}
+      </span>
+      {config.auth && (
+        <Button variant="outline" size="sm" disabled={busy || missing} onClick={onLogin}>
+          <LogIn /> Đăng nhập
+        </Button>
+      )}
+      <Button variant="ghost" size="sm" onClick={onOpen}>
+        <KeyRound /> Auth và cài đặt…
+      </Button>
     </div>
   );
 }

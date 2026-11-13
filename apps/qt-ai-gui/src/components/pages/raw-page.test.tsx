@@ -3,10 +3,16 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { RawPage } from "@/components/pages/raw-page";
-import { rawDownload, rawInfo, rawSave, rawToc, rescanStory, type RawInfo, type RawToc } from "@/lib/api";
+import { extLogin, rawDownload, rawInfo, rawSave, rawToc, rescanStory, type ExtConfig, type RawInfo, type RawToc } from "@/lib/api";
 import { useStoryStore } from "@/store/story";
 
 vi.mock("@/lib/api", () => ({
+  extLogin: vi.fn(),
+  extSaveAuth: vi.fn(),
+  extClearAuth: vi.fn(),
+  extSaveSettings: vi.fn(),
+  extLogout: vi.fn(),
+  extClearCache: vi.fn(),
   rawInfo: vi.fn(),
   rawSave: vi.fn(),
   rawToc: vi.fn(),
@@ -43,6 +49,8 @@ const info: RawInfo = {
   guessedTemplate: "chuong-{chuong:4}",
   effectiveTemplate: "chuong-{chuong:4}",
   extensionsDir: "C:\\app\\extensions",
+  extConfig: null,
+  storySettings: [],
 };
 
 const toc: RawToc = {
@@ -137,5 +145,65 @@ describe("RawPage", () => {
     await user.type(anchor, "2");
     await user.click(within(alert).getByRole("button", { name: "Khớp lại" }));
     expect(rawToc).toHaveBeenLastCalledWith("D:\\lib\\demo", 2);
+  });
+
+  it("trạng thái auth, nút Đăng nhập; cài đặt của truyện lưu cùng nút Lưu", async () => {
+    const config: ExtConfig = {
+      id: ext.id,
+      name: "Demo",
+      auth: { required: true, schemes: [{ id: "apiKey", label: "API key", fields: [{ key: "apiKey", label: "API key", kind: "secret" }] }], scheme: "apiKey", values: {}, filled: ["apiKey"] },
+      settings: [],
+      session: { loggedIn: false, expiresAt: null, hasData: false },
+      secretStore: "keyring",
+      cacheBytes: 0,
+    };
+    vi.mocked(rawInfo).mockResolvedValue({
+      ...info,
+      extConfig: config,
+      storySettings: [
+        { key: "proxy", label: "Proxy riêng", kind: "text", choices: [], default: null, scope: "story", value: "p1", filled: false },
+        { key: "vip", label: "Tải chương VIP", kind: "boolean", choices: [], default: false, scope: "story", value: null, filled: false },
+      ],
+    });
+    vi.mocked(extLogin).mockReset().mockResolvedValue({ config: { ...config, session: { loggedIn: true, expiresAt: null, hasData: true } }, hasLogin: true });
+    const user = userEvent.setup();
+    render(<RawPage />);
+    expect(await screen.findByLabelText("Trạng thái auth")).toHaveTextContent("Đã nhập auth: API key");
+    await user.click(screen.getByRole("button", { name: "Đăng nhập" }));
+    expect(extLogin).toHaveBeenCalledWith("D:\\lib\\demo", ext.id);
+    expect(await screen.findByText("Đã đăng nhập (API key)")).toBeInTheDocument();
+
+    const proxy = screen.getByLabelText("Proxy riêng");
+    expect(proxy).toHaveValue("p1");
+    expect(screen.getByRole("button", { name: "Lưu" })).toBeDisabled();
+    await user.clear(proxy);
+    await user.type(proxy, "p2");
+    expect(screen.getByRole("button", { name: /Tải mục lục/ })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Lưu" }));
+    expect(rawSave).toHaveBeenCalledWith("D:\\lib\\demo", {
+      rawUrl: info.rawUrl,
+      extension: ext.id,
+      fileTemplate: "",
+      storySettings: { extension: ext.id, values: { proxy: "p2", vip: null } },
+    });
+  });
+
+  it("auth bắt buộc chưa nhập thì báo và khoá Đăng nhập", async () => {
+    const config: ExtConfig = {
+      id: ext.id,
+      name: "Demo",
+      auth: { required: true, schemes: [{ id: "apiKey", label: "API key", fields: [{ key: "apiKey", label: "API key", kind: "secret" }] }], scheme: null, values: {}, filled: [] },
+      settings: [],
+      session: { loggedIn: false, expiresAt: null, hasData: false },
+      secretStore: "keyring",
+      cacheBytes: 0,
+    };
+    vi.mocked(rawInfo).mockResolvedValue({ ...info, extConfig: config });
+    const user = userEvent.setup();
+    render(<RawPage />);
+    expect(await screen.findByLabelText("Trạng thái auth")).toHaveTextContent("Chưa nhập auth — extension này bắt buộc");
+    expect(screen.getByRole("button", { name: "Đăng nhập" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: /Auth và cài đặt/ }));
+    expect(await screen.findByRole("dialog")).toHaveTextContent("Auth và cài đặt — Demo");
   });
 });

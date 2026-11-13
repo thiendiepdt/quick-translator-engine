@@ -8,7 +8,7 @@ import { useStoryStore } from "@/store/story";
 
 vi.mock("@/lib/api", () => ({
   rawInfo: vi.fn(() =>
-    Promise.resolve({ rawUrl: "", rawUrlIsDefault: true, extensionChoice: "", fileTemplate: "", sourceUrl: "", extension: null, candidates: [], installed: 0, loadErrors: [], defaultTemplate: "", guessedTemplate: null, effectiveTemplate: "", extensionsDir: "" }),
+    Promise.resolve({ rawUrl: "", rawUrlIsDefault: true, extensionChoice: "", fileTemplate: "", sourceUrl: "", extension: null, candidates: [], installed: 0, loadErrors: [], defaultTemplate: "", guessedTemplate: null, effectiveTemplate: "", extensionsDir: "", extConfig: null, storySettings: [] }),
   ),
   rawSave: vi.fn(),
   saveStory: vi.fn(),
@@ -94,7 +94,7 @@ describe("StoryPage", () => {
   it("Link tải raw theo Link nguồn tới khi sửa; Lưu ghi qua rawSave", async () => {
     const user = userEvent.setup();
     const { rawSave } = await import("@/lib/api");
-    vi.mocked(rawSave).mockResolvedValue({ rawUrl: "https://raw/1", rawUrlIsDefault: false, extensionChoice: "", fileTemplate: "", sourceUrl: "", extension: null, candidates: [], installed: 0, loadErrors: [], defaultTemplate: "", guessedTemplate: null, effectiveTemplate: "", extensionsDir: "" });
+    vi.mocked(rawSave).mockResolvedValue({ rawUrl: "https://raw/1", rawUrlIsDefault: false, extensionChoice: "", fileTemplate: "", sourceUrl: "", extension: null, candidates: [], installed: 0, loadErrors: [], defaultTemplate: "", guessedTemplate: null, effectiveTemplate: "", extensionsDir: "", extConfig: null, storySettings: [] });
     render(<StoryPage />);
     const raw = screen.getByLabelText("Link tải raw");
     await waitFor(() => expect(raw).toBeEnabled());
