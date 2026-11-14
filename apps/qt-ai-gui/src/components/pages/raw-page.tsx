@@ -5,11 +5,13 @@ import { toast } from "sonner";
 import { ExtConfigDialog } from "@/components/ext-config-dialog";
 import { EXTENSIONS_CARD_ID } from "@/components/ext-manager";
 import { ExtField } from "@/components/ext-fields";
+import { ListSkeleton, RawLocalFiles } from "@/components/raw-local-files";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   extLogin,
   onRawProgress,
@@ -65,6 +67,10 @@ export function RawPage() {
   const [summary, setSummary] = useState<RawSummary>();
   const [storyDisplays, setStoryDisplays] = useState<Record<string, FieldDisplay>>({});
   const [configOpen, setConfigOpen] = useState(false);
+  /** Tab dưới nút tải: mục lục nguồn hay file raw đang có trong máy. */
+  const [tab, setTab] = useState<"toc" | "local">("toc");
+  /** Tăng sau mỗi lượt tải / dọn raw để tab "Raw trong máy" đọc lại. */
+  const [localVersion, setLocalVersion] = useState(0);
 
   function applyInfo(next: RawInfo) {
     setInfo(next);
@@ -209,6 +215,7 @@ export function RawPage() {
       toast.error(message(error));
     } finally {
       setBusy(undefined);
+      setLocalVersion((v) => v + 1);
     }
   }
 
@@ -257,6 +264,7 @@ export function RawPage() {
       setLastPicked(undefined);
       setAnchor("");
       toast.success(outcome.moved ? `Đã chuyển ${outcome.moved} file raw sang ${outcome.backup}` : "raw/ không có file chương nào");
+      setLocalVersion((v) => v + 1);
       const view = await loadRawToc(root, { force: true });
       setToc(view ?? undefined);
     } catch (error) {
@@ -449,7 +457,18 @@ export function RawPage() {
             </p>
           )}
 
-          {!toc && (busy === "toc" || !info) && <TocSkeleton label={info ? "Đang tải mục lục…" : "Đang đọc cài đặt tải raw…"} />}
+          <Tabs value={tab} onValueChange={(value) => setTab(value === "local" ? "local" : "toc")}>
+            <TabsList>
+              <TabsTrigger value="toc">Mục lục nguồn{toc ? ` (${toc.rows.length})` : ""}</TabsTrigger>
+              <TabsTrigger value="local">Raw trong máy</TabsTrigger>
+            </TabsList>
+            <TabsContent value="toc">
+          {!toc && (busy === "toc" || !info) && <ListSkeleton label={info ? "Đang tải mục lục…" : "Đang đọc cài đặt tải raw…"} />}
+          {!toc && busy !== "toc" && info && (
+            <p className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
+              Chưa có mục lục — {noExtension ? "cần extension khớp link tải raw." : "bấm Tải mục lục."}
+            </p>
+          )}
 
           {toc && (
             <div className="rounded-lg border">
@@ -535,6 +554,11 @@ export function RawPage() {
               </ul>
             </div>
           )}
+            </TabsContent>
+            <TabsContent value="local">
+              {root && <RawLocalFiles root={root} toc={toc} version={localVersion} newestFirst={newestFirst} onToggleOrder={() => setNewestFirst((v) => !v)} />}
+            </TabsContent>
+          </Tabs>
 
           {log.length > 0 && (
             <pre aria-label="Log tải raw" className="fine-scrollbar max-h-56 overflow-y-auto rounded-md bg-muted p-3 text-xs">
@@ -566,26 +590,6 @@ function SettingsSkeleton() {
         </div>
       ))}
     </section>
-  );
-}
-
-/** Chỗ mục lục trong lúc extension tải mục lục: vòng quay + vài dòng giả. */
-function TocSkeleton({ label }: { label: string }) {
-  return (
-    <div role="status" aria-label={label} className="rounded-lg border">
-      <div className="flex items-center gap-2 border-b px-4 py-2 text-sm text-muted-foreground">
-        <LoaderCircle className="size-4 animate-spin" /> {label}
-      </div>
-      <ul className="divide-y">
-        {[0, 1, 2, 3, 4, 5].map((i) => (
-          <li key={i} className="flex items-center gap-3 px-4 py-2">
-            <div className="size-5 shrink-0 animate-pulse rounded bg-muted" />
-            <div className="h-3 w-10 shrink-0 animate-pulse rounded bg-muted" />
-            <div className="h-3 flex-1 animate-pulse rounded bg-muted" style={{ maxWidth: `${70 - i * 7}%` }} />
-          </li>
-        ))}
-      </ul>
-    </div>
   );
 }
 

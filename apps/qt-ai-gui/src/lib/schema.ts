@@ -810,6 +810,11 @@ export const rawTocSchema = z.object({
   nextName: z.string().nullable(),
   nextSortsAfter: z.boolean(),
 });
+/** File chương trong raw/ (tab "Raw trong máy"); `chars` null = không đọc được file. */
+export const rawFilesSchema = z.object({
+  dir: z.string(),
+  files: z.array(z.object({ id: z.string(), title: z.string(), chars: z.number().nullable() })),
+});
 export const rawSummarySchema = z.object({
   saved: z.array(z.number()),
   short: z.array(z.number()),

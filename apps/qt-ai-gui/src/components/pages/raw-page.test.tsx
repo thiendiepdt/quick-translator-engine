@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { RawPage } from "@/components/pages/raw-page";
-import { extLogin, rawClear, rawDownload, rawInfo, rawSave, rawToc, rescanStory, type ExtConfig, type RawInfo, type RawToc } from "@/lib/api";
+import { extLogin, rawClear, rawDownload, rawFiles, rawInfo, rawSave, rawToc, rescanStory, revealFolder, type ExtConfig, type RawInfo, type RawToc } from "@/lib/api";
 import { resetRawChecks, useRawNew } from "@/store/raw-check";
 import { useStoryStore } from "@/store/story";
 
@@ -20,6 +20,8 @@ vi.mock("@/lib/api", () => ({
   rawDownload: vi.fn(),
   rawDownloadCancel: vi.fn(),
   rawClear: vi.fn(),
+  rawFiles: vi.fn(),
+  revealFolder: vi.fn(),
   onRawProgress: vi.fn(() => Promise.resolve(() => undefined)),
   rescanStory: vi.fn(),
 }));
@@ -124,6 +126,51 @@ describe("RawPage", () => {
     giveToc(toc);
     expect(await screen.findByRole("listitem", { name: "Mục 1" })).toBeInTheDocument();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("tab Raw trong máy: file trong raw/, khớp mục số mấy, trạng thái dịch, lọc, Xem nhảy sang trang Dịch", async () => {
+    const user = userEvent.setup();
+    const select = vi.fn();
+    const setPage = vi.fn();
+    useStoryStore.setState({
+      select,
+      setPage,
+      snapshot: { chapters: [{ id: "chuong-0001", status: "done", reviewRound: 0, reason: null, warnings: [] }] },
+    } as never);
+    vi.mocked(rawFiles)
+      .mockReset()
+      .mockResolvedValueOnce({
+        dir: "D:\\lib\\demo\\raw",
+        files: [
+          { id: "chuong-0001", title: "第1章 起", chars: 3120 },
+          { id: "le", title: "番外", chars: null },
+        ],
+      })
+      .mockResolvedValue({ dir: "D:\\lib\\demo\\raw", files: [] });
+    render(<RawPage />);
+    await screen.findByRole("listitem", { name: "Mục 1" });
+    expect(rawFiles).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("tab", { name: "Raw trong máy" }));
+    const first = await screen.findByRole("listitem", { name: "File chuong-0001" });
+    expect(within(first).getByText("mục 1")).toBeInTheDocument();
+    expect(within(first).getByText("3.120 chữ")).toBeInTheDocument();
+    expect(within(first).getByText("Xong")).toBeInTheDocument();
+    const odd = screen.getByRole("listitem", { name: "File le" });
+    expect(within(odd).getByText("không đọc được")).toBeInTheDocument();
+    expect(within(odd).getByRole("button", { name: "Xem le ở trang Dịch" })).toBeDisabled();
+    expect(screen.getByText(/2 file · 3\.120 chữ/)).toBeInTheDocument();
+
+    // Mới → cũ mặc định: file sau lên trước.
+    expect(screen.getAllByRole("listitem").map((li) => li.getAttribute("aria-label"))).toEqual(["File le", "File chuong-0001"]);
+    await user.type(screen.getByLabelText("Lọc raw theo tên file / tiêu đề"), "起");
+    expect(screen.queryByRole("listitem", { name: "File le" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Mở thư mục raw/ }));
+    expect(revealFolder).toHaveBeenCalledWith("D:\\lib\\demo\\raw");
+    await user.click(within(first).getByRole("button", { name: "Xem chuong-0001 ở trang Dịch" }));
+    expect(select).toHaveBeenCalledWith("chuong-0001");
+    expect(setPage).toHaveBeenCalledWith("translate");
   });
 
   it("mục lục mặc định xếp mới đến cũ, bấm để đổi chiều", async () => {

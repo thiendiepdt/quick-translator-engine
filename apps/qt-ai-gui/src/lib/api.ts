@@ -40,6 +40,7 @@ import {
   rawProgressSchema,
   rawSummarySchema,
   rawTocSchema,
+  rawFilesSchema,
   shortChaptersSchema,
   idiomsInfoSchema,
   processOverviewSchema,
@@ -411,6 +412,7 @@ export type RawInfo = z.infer<typeof rawInfoSchema>;
 export type RawExt = RawInfo["candidates"][number];
 export type RawToc = z.infer<typeof rawTocSchema>;
 export type RawTocRow = RawToc["rows"][number];
+export type RawFiles = z.infer<typeof rawFilesSchema>;
 export type RawSummary = z.infer<typeof rawSummarySchema>;
 export type RawProgress = z.infer<typeof rawProgressSchema>;
 export type RawMode = "new" | "selected" | "single";
@@ -509,6 +511,8 @@ export const rawDownloadCancel = (root: string) => call("raw_download_cancel", {
 /** Dọn raw cũ: chuyển mọi file chương trong raw/ sang work/raw-backup/xoa-<thời điểm>/, xoá sổ chương, quét lại raw/. */
 export const rawClear = (root: string) =>
   call("raw_clear", { root }, (v) => z.object({ moved: z.number(), backup: z.string() }).parse(v));
+/** File chương đang có trong raw/: tiêu đề, số chữ (tab "Raw trong máy"). */
+export const rawFiles = (root: string) => call("raw_files", { root }, (v) => rawFilesSchema.parse(v));
 /** Nghe tiến độ tải raw (mục lục, từng chương, log); trả hàm huỷ nghe. */
 export const onRawProgress = (handler: (progress: RawProgress) => void) =>
   listen("raw-download-progress", (event) => {

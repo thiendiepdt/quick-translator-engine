@@ -15,7 +15,7 @@ pub mod template;
 
 use crate::error::{CoreError, Result};
 use crate::story::StoryConfig;
-use crate::story_fs::{list_raw_chapter_ids, write_atomic, StoryPaths};
+use crate::story_fs::{list_raw_chapter_ids, read_raw_chapter, write_atomic, StoryPaths};
 use registry::{pick, Installed};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
@@ -171,6 +171,44 @@ pub fn source_label(paths: &StoryPaths, installed: &[Installed]) -> Option<Sourc
     Some(SourceLabel { label: host, extension: false, url: raw })
 }
 
+/// Một file chương trong `raw/` (tab "Raw trong máy" của trang Tải raw).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RawFile {
+    /// Tên file bỏ `.txt`.
+    pub id: String,
+    /// Dòng đầu không trống (tiêu đề chương).
+    pub title: String,
+    /// Số ký tự không tính khoảng trắng; `None` khi không đọc được file (không phải UTF-8…).
+    pub chars: Option<usize>,
+}
+
+fn raw_file(paths: &StoryPaths, id: &str) -> RawFile {
+    match read_raw_chapter(paths, id) {
+        Ok(text) => {
+            let title = text.lines().map(|l| l.trim().trim_start_matches('\u{feff}')).find(|l| !l.is_empty()).unwrap_or("").to_string();
+            RawFile { id: id.to_string(), title, chars: Some(text.chars().filter(|&c| !c.is_whitespace() && c != '\u{feff}').count()) }
+        }
+        Err(_) => RawFile { id: id.to_string(), title: String::new(), chars: None },
+    }
+}
+
+/// File chương trong `raw/`, xếp như hàng đợi dịch. Đọc song song theo khối: truyện 2.510 chương lần đầu (đĩa chưa
+/// cache) đọc tuần tự mất ~1,1 s.
+pub fn list_raw_files(paths: &StoryPaths) -> Result<Vec<RawFile>> {
+    let ids = list_raw_chapter_ids(paths)?;
+    let threads = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4).clamp(1, 8);
+    let size = ids.len().div_ceil(threads).max(1);
+    std::thread::scope(|scope| {
+        let workers: Vec<_> = ids.chunks(size).map(|part| scope.spawn(move || part.iter().map(|id| raw_file(paths, id)).collect::<Vec<_>>())).collect();
+        let mut all = Vec::with_capacity(ids.len());
+        for worker in workers {
+            all.extend(worker.join().map_err(|_| CoreError::Internal("luồng đọc raw bị lỗi".into()))?);
+        }
+        Ok(all)
+    })
+}
+
 /// Kết quả dọn raw cũ.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -312,6 +350,27 @@ nội dung")).unwrap();
         assert_eq!(source_url_in_head(br#"{"name":"a","sourceUrl":null}"#).as_deref(), Some(""));
         assert_eq!(source_url_in_head(br#"{"name":"a","summary":"long"#), None, "chưa tới khoá");
         assert_eq!(source_url_in_head(br#"{"name":"a","sourceUrl":"https://cut"#), None, "giá trị bị cắt ngang");
+    }
+
+    #[test]
+    fn liet_ke_file_raw_tieu_de_so_chu() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = story_paths(dir.path());
+        assert!(list_raw_files(&paths).unwrap().is_empty(), "chưa có raw/");
+        std::fs::create_dir_all(&paths.raw_dir).unwrap();
+        std::fs::write(paths.raw_dir.join("0010_b.txt"), "\u{feff}\n  第10章 乙  \n\n正文 内容").unwrap();
+        std::fs::write(paths.raw_dir.join("0002_a.txt"), "第2章 甲\n文").unwrap();
+        std::fs::write(paths.raw_dir.join("0003_c.txt"), [0xffu8, 0xfe, 0x00]).unwrap();
+        std::fs::write(paths.raw_dir.join("ghi-chu.md"), "x").unwrap();
+        let files = list_raw_files(&paths).unwrap();
+        assert_eq!(
+            files,
+            vec![
+                RawFile { id: "0002_a".into(), title: "第2章 甲".into(), chars: Some(5) },
+                RawFile { id: "0003_c".into(), title: String::new(), chars: None },
+                RawFile { id: "0010_b".into(), title: "第10章 乙".into(), chars: Some(9) },
+            ]
+        );
     }
 
     #[test]

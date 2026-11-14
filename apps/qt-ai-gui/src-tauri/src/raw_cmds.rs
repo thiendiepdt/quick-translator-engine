@@ -12,7 +12,9 @@ use qt_ai_core::commands::init::run_init;
 use qt_ai_core::raw_download::registry::{candidates, list_installed, pick, Installed};
 use qt_ai_core::raw_download::run::{download, effective_template, load_toc, ChapterResult, Event, Mode, RunOptions, Summary, TocView};
 use qt_ai_core::raw_download::template::{guess_template, validate_template, DEFAULT_TEMPLATE};
-use qt_ai_core::raw_download::{clear_raw, effective_raw_url, load_download, save_download, set_story_settings, source_label, ClearOutcome};
+use qt_ai_core::raw_download::{
+    clear_raw, effective_raw_url, list_raw_files, load_download, save_download, set_story_settings, source_label, ClearOutcome, RawFile,
+};
 use qt_ai_core::story_fs::{list_raw_chapter_ids, load_story_config, story_paths};
 use qt_ext::{LogLevel, TocItem};
 use serde::{Deserialize, Serialize};
@@ -382,6 +384,25 @@ pub async fn raw_clear<R: Runtime>(app: AppHandle<R>, root: String) -> CmdResult
         run_init(path, &qt_ai_command())?;
         refresh_quietly(path, &lexicon());
         Ok(outcome)
+    })
+    .await
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RawFilesView {
+    /// Thư mục `raw/` (nút mở thư mục).
+    pub dir: String,
+    pub files: Vec<RawFile>,
+}
+
+/// Tab "Raw trong máy": file chương đang có trong `raw/`, tiêu đề và số chữ.
+#[tauri::command]
+pub async fn raw_files(root: String) -> CmdResult<RawFilesView> {
+    blocking(move || {
+        let paths = story_paths(Path::new(&root));
+        let files = list_raw_files(&paths)?;
+        Ok(RawFilesView { dir: paths.raw_dir.display().to_string(), files })
     })
     .await
 }
