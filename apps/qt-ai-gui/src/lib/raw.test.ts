@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { renderName, toggleSelection, validateTemplate } from "@/lib/raw";
+import { renderName, stvStoryId, TEMPLATE_PRESETS, toggleSelection, validateTemplate } from "@/lib/raw";
 
 describe("mẫu tên file raw", () => {
   it("kiểm mẫu cùng luật Rust", () => {
@@ -18,6 +18,32 @@ describe("mẫu tên file raw", () => {
     expect(renderName("{chuong:4} {chapterTitle}", { index: 1, id: "", title: "第1章 何以?:*  为家 " })).toBe("0001 第1章 何以 为家");
     expect(renderName("{chuong:4}_{chapterTitle}...", { index: 1, id: "", title: "a" })).toBe("0001_a");
     expect(Array.from(renderName("{chuong:4}_{chapterTitle}", { index: 1, id: "", title: "长".repeat(300) }))).toHaveLength(120);
+  });
+});
+
+describe("mẫu có sẵn của các tool tải truyện", () => {
+  const parts = { index: 1, id: "7445", title: "第1章 起" };
+  const names = (url: string) =>
+    Object.fromEntries(
+      TEMPLATE_PRESETS.map((preset) => {
+        const template = preset.template(url);
+        expect(validateTemplate(template)).toBeNull();
+        return [preset.label, renderName(template, parts)];
+      }),
+    );
+
+  it("ra đúng tên file như tool đó đặt", () => {
+    expect(names("https://fanqienovel.com/page/7445623259162542654")).toEqual({
+      "Web Downloader": "0001_7445",
+      "Novel Reader": "0001 第1章 起",
+      "DTH": "0001 - 第1章 起",
+    });
+  });
+
+  it("Web Downloader: link STV thì <mã truyện>_0001_<tiêu đề>", () => {
+    expect(names("https://sangtacviet.vip/truyen/qidian/1/730611/")["Web Downloader"]).toBe("730611_0001_第1章 起");
+    expect(stvStoryId("http://14.225.254.182/truyen/fanqie/1/7445/")).toBe("7445");
+    expect(stvStoryId("https://www.qimao.com/shuku/142631/")).toBeNull();
   });
 });
 

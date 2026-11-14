@@ -62,6 +62,42 @@ export function insertAt(text: string, token: string, start: number, end: number
   return { text: text.slice(0, from) + token + text.slice(to), caret: from + token.length };
 }
 
+/** Mã truyện trong link SangTacViet: `…/truyen/qidian/1/1036370336/` → `1036370336`. */
+export function stvStoryId(url: string): string | null {
+  return /\/truyen\/[^/]+\/\d+\/(\d+)/.exec(url)?.[1] ?? null;
+}
+
+export interface TemplatePreset {
+  label: string;
+  /** Tên file tool đó tạo ra cho link `url` (hiện ở tooltip). */
+  example: (url: string) => string;
+  /** Mẫu cho link tải raw `url`. */
+  template: (url: string) => string;
+}
+
+/**
+ * Mẫu đặt tên của các tool tải truyện khác, để chương tải về nối đúng thứ tự file raw cũ:
+ * - Web Downloader (book-downloader): fanqie, qimao `0001_<mã chương>`; stv `<mã truyện>_0001_<tiêu đề>` (mã
+ *   truyện lấy từ link, ghi thẳng vào mẫu như mẫu đoán từ tên file cũ).
+ * - Novel Reader (app đọc truyện): `0001 <tiêu đề>`.
+ * - DTH (dichtienghoa-app, mẫu mặc định `{thu_tu} - {ten_chuong}`): `0001 - <tiêu đề>`.
+ */
+export const TEMPLATE_PRESETS: TemplatePreset[] = [
+  {
+    label: "Web Downloader",
+    example: (url) => {
+      const id = stvStoryId(url);
+      return id ? `${id}_0001_第1章 标题.txt (link STV)` : "0001_<mã chương>.txt (fanqie, qimao; link STV thì <mã truyện>_0001_<tiêu đề>.txt)";
+    },
+    template: (url) => {
+      const id = stvStoryId(url);
+      return id ? `${id}_{chuong:4}_{chapterTitle}` : "{chuong:4}_{chapter-id}";
+    },
+  },
+  { label: "Novel Reader", example: () => "0001 第1章 标题.txt", template: () => "{chuong:4} {chapterTitle}" },
+  { label: "DTH", example: () => "0001 - 第1章 标题.txt", template: () => "{chuong:4} - {chapterTitle}" },
+];
+
 export const RAW_STATUS_LABELS = { have: "Đã có", missing: "Chưa có", locked: "Khoá" } as const;
 
 /**

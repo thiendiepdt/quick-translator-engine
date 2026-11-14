@@ -29,7 +29,7 @@ import {
 } from "@/lib/api";
 import { authStatus, changedValues, initialDisplay, storyValues, type FieldDisplay } from "@/lib/ext";
 import { cn } from "@/lib/utils";
-import { insertAt, RAW_STATUS_LABELS, renderName, TEMPLATE_TOKENS, toggleSelection, validateTemplate } from "@/lib/raw";
+import { insertAt, RAW_STATUS_LABELS, renderName, TEMPLATE_PRESETS, TEMPLATE_TOKENS, toggleSelection, validateTemplate } from "@/lib/raw";
 import { forgetRawToc, loadRawToc, noteRawInfo, rawConfigured, rememberRawToc } from "@/store/raw-check";
 import { useStoryStore } from "@/store/story";
 
@@ -401,6 +401,27 @@ export function RawPage() {
                   {token}
                 </button>
               ))}
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Mẫu đặt tên của các tool tải truyện">
+              <span className="text-xs text-muted-foreground">Mẫu có sẵn:</span>
+              {TEMPLATE_PRESETS.map((preset) => {
+                const value = preset.template(url);
+                const active = template.trim() === value;
+                return (
+                  <Button
+                    key={preset.label}
+                    type="button"
+                    variant={active ? "secondary" : "outline"}
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    aria-pressed={active}
+                    title={`${value} — tên file kiểu ${preset.example(url)}`}
+                    onClick={() => setTemplate(value)}
+                  >
+                    {preset.label}
+                  </Button>
+                );
+              })}
             </div>
             {templateError ? (
               <p className="text-xs text-destructive">{templateError}</p>

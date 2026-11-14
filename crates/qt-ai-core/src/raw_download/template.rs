@@ -125,6 +125,17 @@ pub fn guess_template(existing: &[String]) -> Option<String> {
             return Some(format!("{}_{{chuong:{}}}_{{chapterTitle}}", prefixes[0], width(&digits)));
         }
     }
+    // DTH (mặc định `{thu_tu} - {ten_chuong}`) và Novel Reader (`0001 <tiêu đề>`).
+    static DASHED: OnceLock<Regex> = OnceLock::new();
+    static SPACED: OnceLock<Regex> = OnceLock::new();
+    let dashed = DASHED.get_or_init(|| Regex::new(r"^(\d+) - .+$").expect("regex"));
+    let spaced = SPACED.get_or_init(|| Regex::new(r"^(\d+) .+$").expect("regex"));
+    if let Some(digits) = all(dashed, 1) {
+        return Some(format!("{{chuong:{}}} - {{chapterTitle}}", width(&digits)));
+    }
+    if let Some(digits) = all(spaced, 1) {
+        return Some(format!("{{chuong:{}}} {{chapterTitle}}", width(&digits)));
+    }
     None
 }
 
@@ -179,6 +190,12 @@ mod tests {
         assert_eq!(guess_template(&pair).as_deref(), Some("{chuong:4}_{chapter-id}"));
         let triple = vec!["142631_0001_第1章 蓝田公子".to_string(), "142631_0002_第2章 狼心如铁".to_string()];
         assert_eq!(guess_template(&triple).as_deref(), Some("142631_{chuong:4}_{chapterTitle}"));
+        let dth = vec!["0001 - 第1章 起".to_string(), "0002 - 第2章 承 - 下".to_string()];
+        assert_eq!(guess_template(&dth).as_deref(), Some("{chuong:4} - {chapterTitle}"));
+        let reader = vec!["0001 第1章 起".to_string(), "0002 第2章 承".to_string()];
+        assert_eq!(guess_template(&reader).as_deref(), Some("{chuong:4} {chapterTitle}"));
+        let half = vec!["0001 - 第1章 起".to_string(), "0002 第2章 承".to_string()];
+        assert_eq!(guess_template(&half).as_deref(), Some("{chuong:4} {chapterTitle}"), "lẫn hai kiểu thì theo kiểu chung hơn");
         let mixed = vec!["chuong-0001".to_string(), "0002_1".to_string()];
         assert_eq!(guess_template(&mixed), None);
         assert_eq!(guess_template(&[]), None);
