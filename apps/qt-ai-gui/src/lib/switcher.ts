@@ -62,10 +62,13 @@ export function mergeCandidates(input: {
 }
 
 /** Lọc theo tên hoặc đường dẫn, không phân biệt hoa thường; trống = giữ nguyên. */
-export function filterByQuery<T extends { root: string; name: string | null }>(items: T[], query: string): T[] {
+export function filterByQuery<T extends { root: string; name: string | null; source?: { label: string } }>(items: T[], query: string): T[] {
   const q = query.trim().toLowerCase();
   if (!q) return items;
-  return items.filter((item) => (item.name ?? "").toLowerCase().includes(q) || item.root.toLowerCase().includes(q));
+  return items.filter(
+    (item) =>
+      (item.name ?? "").toLowerCase().includes(q) || item.root.toLowerCase().includes(q) || (item.source?.label ?? "").toLowerCase().includes(q),
+  );
 }
 
 export function filterCards(cards: SwitcherCard[], query: string): SwitcherCard[] {

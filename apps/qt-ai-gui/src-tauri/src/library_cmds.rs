@@ -280,7 +280,9 @@ pub async fn library_list<R: Runtime>(app: AppHandle<R>, root: Option<String>) -
     blocking(move || {
         let state = app.state::<AppState>();
         let library = root.or_else(|| state.config.lock().unwrap().library_root.clone());
-        Ok(list_library(library.as_deref().map(Path::new), &state.summaries))
+        let mut rows = list_library(library.as_deref().map(Path::new), &state.summaries);
+        crate::raw_cmds::label_sources(&mut rows, &state.config_path);
+        Ok(rows)
     })
     .await
 }
@@ -344,7 +346,9 @@ pub async fn library_rescan<R: Runtime>(app: AppHandle<R>) -> CmdResult<LibraryR
                 refresh_quietly(&path, &lexicon);
             }
         }
-        Ok(LibraryRescan { report, stories: list_library(Some(library), &state.summaries) })
+        let mut stories = list_library(Some(library), &state.summaries);
+        crate::raw_cmds::label_sources(&mut stories, &state.config_path);
+        Ok(LibraryRescan { report, stories })
     })
     .await
 }

@@ -62,7 +62,8 @@ pub async fn vn_scan_library<R: Runtime>(app: AppHandle<R>) -> CmdResult<VnLibra
             let scan = scan_library(&roots, &lexicon(), library_threads(), &CANCEL, &mut |done, root| {
                 let _ = app.emit(VN_LIBRARY_EVENT, &VnLibraryProgress { done, total, root: root.display().to_string() });
             });
-            let stories = crate::library_cmds::list_library(Some(&library), &state.summaries);
+            let mut stories = crate::library_cmds::list_library(Some(&library), &state.summaries);
+            crate::raw_cmds::label_sources(&mut stories, &state.config_path);
             Ok(VnLibraryScan { scanned: scan.scanned, total, failed: scan.failed, cancelled: scan.cancelled, stories })
         })();
         RUNNING.store(false, Ordering::SeqCst);

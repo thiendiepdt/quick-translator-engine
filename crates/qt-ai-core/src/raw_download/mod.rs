@@ -16,6 +16,7 @@ pub mod template;
 use crate::error::{CoreError, Result};
 use crate::story::StoryConfig;
 use crate::story_fs::{list_raw_chapter_ids, write_atomic, StoryPaths};
+use registry::{pick, Installed};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
@@ -86,6 +87,76 @@ pub fn effective_raw_url(config: &DownloadConfig, story: &StoryConfig) -> String
     } else {
         raw.to_string()
     }
+}
+
+/// Nhãn nguồn của truyện ở màn chọn truyện: tên extension sẽ tải raw, hoặc tên miền khi chưa có extension.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SourceLabel {
+    pub label: String,
+    /// Có extension khớp link tải raw (tải raw được).
+    pub extension: bool,
+    pub url: String,
+}
+
+/// Nguồn con trong link SangTacViet (`/truyen/qidian/1/123/` → `qidian`).
+fn stv_source(url: &url::Url) -> Option<String> {
+    let host = url.host_str()?;
+    if !(host.contains("sangtacviet") || host == "14.225.254.182" || host == "103.82.20.93") {
+        return None;
+    }
+    let mut segments = url.path_segments()?;
+    (segments.next()? == "truyen").then_some(())?;
+    segments.next().filter(|s| !s.is_empty()).map(str::to_string)
+}
+
+/// `"sourceUrl": "…"` trong đoạn đầu story.json (app ghi nó là khoá thứ hai).
+fn source_url_in_head(head: &[u8]) -> Option<String> {
+    const KEY: &[u8] = b"\"sourceUrl\"";
+    let at = head.windows(KEY.len()).position(|w| w == KEY)?;
+    if at > 0 && head[at - 1] == b'\\' {
+        return None;
+    }
+    let rest = head[at + KEY.len()..].trim_ascii_start().strip_prefix(b":")?.trim_ascii_start();
+    let value = serde_json::Deserializer::from_slice(rest).into_iter::<Value>().next()?.ok()?;
+    Some(value.as_str().unwrap_or("").to_string())
+}
+
+/// Chỉ lấy `sourceUrl` của story.json cho danh sách truyện: file có khi vài MB vì glossary (thư viện 126 truyện ~30 MB),
+/// đọc hết để parse thì mất 120–500 ms. Đọc 8 KB đầu là đủ; không thấy khoá thì mới parse cả file.
+fn story_source_url(paths: &StoryPaths) -> Option<String> {
+    use std::io::Read;
+    let mut head = Vec::with_capacity(8192);
+    std::fs::File::open(&paths.story_json).ok()?.take(8192).read_to_end(&mut head).ok()?;
+    if let Some(found) = source_url_in_head(&head) {
+        return Some(found);
+    }
+    #[derive(Deserialize)]
+    struct OnlySource {
+        #[serde(rename = "sourceUrl", default)]
+        source_url: Option<Value>,
+    }
+    let text = std::fs::read_to_string(&paths.story_json).ok()?;
+    let parsed: OnlySource = serde_json::from_str(text.trim_start_matches('\u{feff}')).ok()?;
+    Some(parsed.source_url.as_ref().and_then(Value::as_str).unwrap_or("").to_string())
+}
+
+/// Nhãn nguồn của truyện từ link tải raw (mặc định là link nguồn); `None` khi truyện không có link.
+pub fn source_label(paths: &StoryPaths, installed: &[Installed]) -> Option<SourceLabel> {
+    let story = StoryConfig { source_url: story_source_url(paths)?, ..StoryConfig::empty() };
+    let config = load_download(paths);
+    let raw = effective_raw_url(&config, &story);
+    let parsed = url::Url::parse(&raw).ok();
+    if let Some(ext) = pick(installed, &raw, &config.extension) {
+        let name = &ext.package.manifest.name;
+        let label = match parsed.as_ref().and_then(stv_source) {
+            Some(sub) => format!("{name} · {sub}"),
+            None => name.clone(),
+        };
+        return Some(SourceLabel { label, extension: true, url: raw });
+    }
+    let host = parsed?.host_str()?.trim_start_matches("www.").to_string();
+    Some(SourceLabel { label: host, extension: false, url: raw })
 }
 
 /// Kết quả dọn raw cũ.
@@ -169,6 +240,57 @@ nội dung")).unwrap();
         let after = load_download(&paths);
         assert!(after.chapters.is_empty());
         assert_eq!(after.raw_url, "https://a/b", "giữ link và cài đặt khác");
+    }
+
+    #[test]
+    fn nhan_nguon_ten_extension_hoac_ten_mien() {
+        let dir = tempfile::tempdir().unwrap();
+        let story_dir = dir.path().join("truyen");
+        let paths = story_paths(&story_dir);
+        let ext_dir = dir.path().join("extensions");
+        let dev = dir.path().join("dev");
+        std::fs::create_dir_all(&dev).unwrap();
+        let manifest = serde_json::json!({
+            "id": "org.test.stv", "name": "SangTacViet", "version": "1.0.0", "apiVersion": 1, "description": "d",
+            "developer": { "name": "dev" }, "match": [r"^https://sangtacviet\.vip/truyen/"], "hosts": ["sangtacviet.vip"],
+            "permissions": []
+        });
+        std::fs::write(dev.join("manifest.json"), manifest.to_string()).unwrap();
+        std::fs::write(dev.join("main.js"), "export async function toc() { return []; }").unwrap();
+        registry::Registry::new(&ext_dir).add_dev(&dev).unwrap();
+        let (installed, errors) = registry::list_installed(&ext_dir);
+        assert!(errors.is_empty(), "{errors:?}");
+
+        let write_story = |url: &str| {
+            std::fs::create_dir_all(&story_dir).unwrap();
+            let story = StoryConfig { source_url: url.into(), ..StoryConfig::empty() };
+            crate::story_fs::save_story_config(&paths, &story).unwrap();
+        };
+        write_story("https://sangtacviet.vip/truyen/qidian/1/1036370336/");
+        let label = source_label(&paths, &installed).unwrap();
+        assert_eq!((label.label.as_str(), label.extension), ("SangTacViet · qidian", true));
+
+        write_story("https://www.69shuba.com/book/123.htm");
+        let label = source_label(&paths, &installed).unwrap();
+        assert_eq!((label.label.as_str(), label.extension), ("69shuba.com", false), "không có extension → tên miền");
+
+        write_story("");
+        assert_eq!(source_label(&paths, &installed), None, "chưa có link");
+
+        // story.json không do app ghi: sourceUrl nằm sau glossary dài → parse cả file.
+        let glossary: serde_json::Map<String, Value> = (0..2000).map(|i| (format!("từ{i}"), Value::from("nghĩa dài dài"))).collect();
+        let late = serde_json::json!({ "name": "x", "glossary": glossary, "sourceUrl": "https://www.qimao.com/shuku/1/" });
+        std::fs::write(&paths.story_json, late.to_string()).unwrap();
+        assert!(std::fs::metadata(&paths.story_json).unwrap().len() > 8192);
+        assert_eq!(source_label(&paths, &installed).unwrap().label, "qimao.com");
+    }
+
+    #[test]
+    fn doc_source_url_o_dau_file() {
+        assert_eq!(source_url_in_head(br#"{ "name": "a", "sourceUrl" : "https://x/1" , "#).as_deref(), Some("https://x/1"));
+        assert_eq!(source_url_in_head(br#"{"name":"a","sourceUrl":null}"#).as_deref(), Some(""));
+        assert_eq!(source_url_in_head(br#"{"name":"a","summary":"long"#), None, "chưa tới khoá");
+        assert_eq!(source_url_in_head(br#"{"name":"a","sourceUrl":"https://cut"#), None, "giá trị bị cắt ngang");
     }
 
     #[test]

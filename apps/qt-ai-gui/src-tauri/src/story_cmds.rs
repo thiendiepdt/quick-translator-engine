@@ -114,6 +114,9 @@ pub struct RecentSummary {
     /// Chương lỗi / bỏ qua — không tự được dịch lại, màn chọn truyện nhắc bằng chip và lọc được.
     pub error: Option<usize>,
     pub skipped: Option<usize>,
+    /// Nguồn tải raw (extension sẽ dùng, hoặc tên miền khi chưa có extension) — gắn ở lệnh trả danh sách.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source: Option<qt_ai_core::raw_download::SourceLabel>,
 }
 
 /// Tóm tắt từng folder gần đây; folder hỏng/mất → chỉ có root (UI hiện mờ).
@@ -158,7 +161,9 @@ pub async fn recent_summaries<R: Runtime>(app: AppHandle<R>) -> CmdResult<Vec<Re
     blocking(move || {
         let state = app.state::<AppState>();
         let roots = state.config.lock().unwrap().recent.clone();
-        Ok(summarize_recent(&roots, &state.summaries))
+        let mut rows = summarize_recent(&roots, &state.summaries);
+        crate::raw_cmds::label_sources(&mut rows, &state.config_path);
+        Ok(rows)
     })
     .await
 }

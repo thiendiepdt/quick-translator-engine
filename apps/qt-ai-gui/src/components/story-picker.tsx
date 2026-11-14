@@ -101,6 +101,21 @@ function StoryRow({
             <>
               <p className="flex items-center gap-2 truncate font-medium">
                 <span className="truncate">{item.name}</span>
+                {item.source && (
+                  <span
+                    title={
+                      item.source.extension
+                        ? `Tải raw qua extension ${item.source.label} — ${item.source.url}`
+                        : `Chưa có extension cho nguồn này — ${item.source.url}`
+                    }
+                    className={cn(
+                      "max-w-48 shrink-0 truncate rounded-full px-2 py-0.5 text-[11px] font-medium",
+                      item.source.extension ? "bg-primary/10 text-primary" : "border text-muted-foreground",
+                    )}
+                  >
+                    {item.source.label}
+                  </span>
+                )}
                 {(item.vnFlags ?? 0) > 0 && (
                   <span
                     title={`${item.vnFlags} chỗ nhạy cảm về Việt Nam chưa xác minh`}

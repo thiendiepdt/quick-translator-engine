@@ -12,7 +12,7 @@ use qt_ai_core::commands::init::run_init;
 use qt_ai_core::raw_download::registry::{candidates, list_installed, pick, Installed};
 use qt_ai_core::raw_download::run::{download, effective_template, load_toc, ChapterResult, Event, Mode, RunOptions, Summary, TocView};
 use qt_ai_core::raw_download::template::{guess_template, validate_template, DEFAULT_TEMPLATE};
-use qt_ai_core::raw_download::{clear_raw, effective_raw_url, load_download, save_download, set_story_settings, ClearOutcome};
+use qt_ai_core::raw_download::{clear_raw, effective_raw_url, load_download, save_download, set_story_settings, source_label, ClearOutcome};
 use qt_ai_core::story_fs::{list_raw_chapter_ids, load_story_config, story_paths};
 use qt_ext::{LogLevel, TocItem};
 use serde::{Deserialize, Serialize};
@@ -90,6 +90,14 @@ fn summary_of(ext: &Installed) -> ExtSummary {
         license: m.license.clone(),
         hosts: m.hosts.clone(),
         dev: ext.dev,
+    }
+}
+
+/// Gắn nhãn nguồn cho danh sách truyện (đọc danh sách extension một lần).
+pub fn label_sources(rows: &mut [crate::story_cmds::RecentSummary], config_path: &Path) {
+    let (installed, _) = list_installed(&extensions_dir(config_path));
+    for row in rows.iter_mut().filter(|r| r.name.is_some()) {
+        row.source = source_label(&story_paths(Path::new(&row.root)), &installed);
     }
 }
 

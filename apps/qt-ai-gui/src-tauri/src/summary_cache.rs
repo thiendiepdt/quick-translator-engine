@@ -38,6 +38,7 @@ pub fn summarize_uncached(root: &Path) -> RecentSummary {
                 vn_flags: qt_ai_core::vn_check::flag_count(&paths),
                 error: Some(counts.error),
                 skipped: Some(counts.skipped),
+                source: None,
             }
         }
         _ => RecentSummary {
@@ -49,6 +50,7 @@ pub fn summarize_uncached(root: &Path) -> RecentSummary {
             vn_flags: None,
             error: None,
             skipped: None,
+            source: None,
         },
     }
 }

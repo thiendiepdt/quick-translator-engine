@@ -463,6 +463,8 @@ export const recentSummarySchema = z.object({
   /** Chương lỗi / bỏ qua (không tự được dịch lại); null = folder hỏng. */
   error: z.number().nullable().optional(),
   skipped: z.number().nullable().optional(),
+  /** Nguồn tải raw: tên extension sẽ dùng (`extension`), không thì tên miền của link; thiếu = truyện chưa có link. */
+  source: z.object({ label: z.string(), extension: z.boolean(), url: z.string() }).optional(),
 });
 
 /** Kết quả quét raw/ của cả thư viện (Rust `library_rescan`). */
