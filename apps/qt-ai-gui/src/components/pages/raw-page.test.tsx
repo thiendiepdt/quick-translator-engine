@@ -250,11 +250,12 @@ describe("RawPage", () => {
     expect(screen.getByRole("button", { name: "Lưu" })).toBeEnabled();
   });
 
-  it("mẫu có sẵn đặt cả mẫu; Web Downloader theo link (STV thì kèm mã truyện)", async () => {
+  it("mẫu có sẵn đặt cả mẫu; STV Web Downloader lấy mã truyện từ link, link không phải STV thì tắt", async () => {
     const user = userEvent.setup();
     render(<RawPage />);
     const template = await screen.findByLabelText<HTMLInputElement>("Mẫu tên file");
-    await user.click(screen.getByRole("button", { name: "Web Downloader" }));
+    expect(screen.getByRole("button", { name: "STV Web Downloader" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Chinese Web Downloader" }));
     expect(template).toHaveValue("{chuong:4}_{chapter-id}");
     await user.click(screen.getByRole("button", { name: "DTH" }));
     expect(template).toHaveValue("{chuong:4} - {chapterTitle}");
@@ -263,7 +264,7 @@ describe("RawPage", () => {
     const link = screen.getByLabelText("Link tải raw");
     await user.clear(link);
     await user.type(link, "https://sangtacviet.vip/truyen/qidian/1/730611/");
-    await user.click(screen.getByRole("button", { name: "Web Downloader" }));
+    await user.click(screen.getByRole("button", { name: "STV Web Downloader" }));
     expect(template).toHaveValue("730611_{chuong:4}_{chapterTitle}");
   });
 

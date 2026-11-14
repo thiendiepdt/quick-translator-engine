@@ -417,20 +417,22 @@ export function RawPage() {
               <span className="text-xs text-muted-foreground">Mẫu có sẵn:</span>
               {TEMPLATE_PRESETS.map((preset) => {
                 const value = preset.template(url);
-                const active = template.trim() === value;
+                const active = value !== null && template.trim() === value;
+                // Nút tắt không nhận chuột (pointer-events-none) nên lời giải thích đặt ở span bọc ngoài.
                 return (
-                  <Button
-                    key={preset.label}
-                    type="button"
-                    variant={active ? "secondary" : "outline"}
-                    size="sm"
-                    className="h-7 px-2 text-xs"
-                    aria-pressed={active}
-                    title={`${value} — tên file kiểu ${preset.example(url)}`}
-                    onClick={() => setTemplate(value)}
-                  >
-                    {preset.label}
-                  </Button>
+                  <span key={preset.label} title={value === null ? preset.unavailable : `${value} — tên file kiểu ${preset.example(url)}`}>
+                    <Button
+                      type="button"
+                      variant={active ? "secondary" : "outline"}
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      disabled={value === null}
+                      aria-pressed={active}
+                      onClick={() => value !== null && setTemplate(value)}
+                    >
+                      {preset.label}
+                    </Button>
+                  </span>
                 );
               })}
             </div>

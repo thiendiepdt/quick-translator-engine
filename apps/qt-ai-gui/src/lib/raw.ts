@@ -71,28 +71,30 @@ export interface TemplatePreset {
   label: string;
   /** Tên file tool đó tạo ra cho link `url` (hiện ở tooltip). */
   example: (url: string) => string;
-  /** Mẫu cho link tải raw `url`. */
-  template: (url: string) => string;
+  /** Mẫu cho link tải raw `url`; `null` khi không dựng được (vd. mẫu STV mà link không phải STV). */
+  template: (url: string) => string | null;
+  /** Vì sao nút tắt khi `template` trả `null`. */
+  unavailable?: string;
 }
 
 /**
  * Mẫu đặt tên của các tool tải truyện khác, để chương tải về nối đúng thứ tự file raw cũ:
- * - Web Downloader (book-downloader): fanqie, qimao `0001_<mã chương>`; stv `<mã truyện>_0001_<tiêu đề>` (mã
- *   truyện lấy từ link, ghi thẳng vào mẫu như mẫu đoán từ tên file cũ).
+ * - Chinese Web Downloader (book-downloader, trang fanqie / qimao): `0001_<mã chương>`.
+ * - STV Web Downloader (book-downloader, trang SangTacViet): `<mã truyện>_0001_<tiêu đề>` (mã truyện lấy từ link,
+ *   ghi thẳng vào mẫu như mẫu đoán từ tên file cũ).
  * - Novel Reader (app đọc truyện): `0001 <tiêu đề>`.
  * - DTH (dichtienghoa-app, mẫu mặc định `{thu_tu} - {ten_chuong}`): `0001 - <tiêu đề>`.
  */
 export const TEMPLATE_PRESETS: TemplatePreset[] = [
+  { label: "Chinese Web Downloader", example: () => "0001_<mã chương>.txt (fanqie, qimao)", template: () => "{chuong:4}_{chapter-id}" },
   {
-    label: "Web Downloader",
-    example: (url) => {
-      const id = stvStoryId(url);
-      return id ? `${id}_0001_第1章 标题.txt (link STV)` : "0001_<mã chương>.txt (fanqie, qimao; link STV thì <mã truyện>_0001_<tiêu đề>.txt)";
-    },
+    label: "STV Web Downloader",
+    example: (url) => `${stvStoryId(url) ?? "<mã truyện>"}_0001_第1章 标题.txt`,
     template: (url) => {
       const id = stvStoryId(url);
-      return id ? `${id}_{chuong:4}_{chapterTitle}` : "{chuong:4}_{chapter-id}";
+      return id ? `${id}_{chuong:4}_{chapterTitle}` : null;
     },
+    unavailable: "Cần link tải raw của SangTacViet (…/truyen/<nguồn>/1/<mã truyện>/) để lấy mã truyện",
   },
   { label: "Novel Reader", example: () => "0001 第1章 标题.txt", template: () => "{chuong:4} {chapterTitle}" },
   { label: "DTH", example: () => "0001 - 第1章 标题.txt", template: () => "{chuong:4} - {chapterTitle}" },

@@ -27,21 +27,22 @@ describe("mẫu có sẵn của các tool tải truyện", () => {
     Object.fromEntries(
       TEMPLATE_PRESETS.map((preset) => {
         const template = preset.template(url);
-        expect(validateTemplate(template)).toBeNull();
-        return [preset.label, renderName(template, parts)];
+        if (template !== null) expect(validateTemplate(template)).toBeNull();
+        return [preset.label, template && renderName(template, parts)];
       }),
     );
 
   it("ra đúng tên file như tool đó đặt", () => {
     expect(names("https://fanqienovel.com/page/7445623259162542654")).toEqual({
-      "Web Downloader": "0001_7445",
+      "Chinese Web Downloader": "0001_7445",
+      "STV Web Downloader": null,
       "Novel Reader": "0001 第1章 起",
       "DTH": "0001 - 第1章 起",
     });
   });
 
-  it("Web Downloader: link STV thì <mã truyện>_0001_<tiêu đề>", () => {
-    expect(names("https://sangtacviet.vip/truyen/qidian/1/730611/")["Web Downloader"]).toBe("730611_0001_第1章 起");
+  it("STV Web Downloader: <mã truyện>_0001_<tiêu đề>, mã truyện lấy từ link STV", () => {
+    expect(names("https://sangtacviet.vip/truyen/qidian/1/730611/")["STV Web Downloader"]).toBe("730611_0001_第1章 起");
     expect(stvStoryId("http://14.225.254.182/truyen/fanqie/1/7445/")).toBe("7445");
     expect(stvStoryId("https://www.qimao.com/shuku/142631/")).toBeNull();
   });
