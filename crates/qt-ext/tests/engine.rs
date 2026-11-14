@@ -115,7 +115,8 @@ fn import_ra_ngoai_goi_bi_chan() {
 #[test]
 fn progress_va_log_goi_thieu_tham_so() {
     let pkg = common::package(&[("main.js", "export async function toc() { progress(1, 2); progress(3); progress(4, 5, 'trang 4'); log.info(); return 1; }")]);
-    let seen: Arc<Mutex<Vec<(u64, u64, Option<String>)>>> = Arc::default();
+    type Seen = Vec<(u64, u64, Option<String>)>;
+    let seen: Arc<Mutex<Seen>> = Arc::default();
     let sink = seen.clone();
     let opts = EngineOptions { progress: Arc::new(move |d, t, m| sink.lock().unwrap().push((d, t, m))), ..Default::default() };
     assert_eq!(testing::call(&pkg, "toc", vec![], opts).unwrap(), json!(1));
