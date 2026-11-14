@@ -83,7 +83,8 @@ export interface TemplatePreset {
  * - STV Web Downloader (book-downloader, trang SangTacViet): `<mã truyện>_0001_<tiêu đề>` (mã truyện lấy từ link,
  *   ghi thẳng vào mẫu như mẫu đoán từ tên file cũ).
  * - Novel Reader (app đọc truyện): `0001 <tiêu đề>`.
- * - DTH (dichtienghoa-app, mẫu mặc định `{thu_tu} - {ten_chuong}`): `0001 - <tiêu đề>`.
+ * - DTH (dichtienghoa-app, mẫu mặc định `{thu_tu} - {ten_chuong}`): `0001 - <tiêu đề>`; bản không dấu cách
+ *   `0001-<tiêu đề>`.
  */
 export const TEMPLATE_PRESETS: TemplatePreset[] = [
   { label: "Chinese Web Downloader", example: () => "0001_<mã chương>.txt (fanqie, qimao)", template: () => "{chuong:4}_{chapter-id}" },
@@ -98,6 +99,8 @@ export const TEMPLATE_PRESETS: TemplatePreset[] = [
   },
   { label: "Novel Reader", example: () => "0001 第1章 标题.txt", template: () => "{chuong:4} {chapterTitle}" },
   { label: "DTH", example: () => "0001 - 第1章 标题.txt", template: () => "{chuong:4} - {chapterTitle}" },
+  // DTH cho người dùng tự đổi mẫu; hay gặp kiểu bỏ dấu cách quanh gạch ngang.
+  { label: "DTH không cách", example: () => "0001-第1章 标题.txt", template: () => "{chuong:4}-{chapterTitle}" },
 ];
 
 export const RAW_STATUS_LABELS = { have: "Đã có", missing: "Chưa có", locked: "Khoá" } as const;

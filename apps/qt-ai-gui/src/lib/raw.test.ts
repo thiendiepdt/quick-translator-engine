@@ -38,6 +38,7 @@ describe("mẫu có sẵn của các tool tải truyện", () => {
       "STV Web Downloader": null,
       "Novel Reader": "0001 第1章 起",
       "DTH": "0001 - 第1章 起",
+      "DTH không cách": "0001-第1章 起",
     });
   });
 
