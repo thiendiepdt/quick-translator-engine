@@ -56,6 +56,12 @@ describe("raw-check", () => {
     expect(with_({ rawUrl: "https://www.book.qq.com/x", candidates: [], extension: null, installed: 3 })).toBe("chưa có extension tải raw cho book.qq.com");
     expect(with_({ candidates: [info.extension!, info.extension!], extension: null })).toBe("có 2 extension khớp link, chưa chọn cái nào");
     expect(with_({ extConfig: null })).toBeNull();
+    const account = { title: "Tài khoản QQ阅读", required: true, help: null };
+    const session = (over: object) => ({ loggedIn: false, expiresAt: null, hasData: false, account: null, guest: false, ...over });
+    const withAccount = (over: object) => with_({ extConfig: { ...info.extConfig!, auth: null, account, session: session(over) } });
+    expect(withAccount({})).toBe("chưa đăng nhập Tài khoản QQ阅读");
+    expect(withAccount({ loggedIn: true, guest: true })).toBe("chưa đăng nhập Tài khoản QQ阅读");
+    expect(withAccount({ loggedIn: true })).toBeNull();
   });
 
   it("đổi extension / kho / auth thì bỏ kết quả đã nhớ, tải lại", async () => {

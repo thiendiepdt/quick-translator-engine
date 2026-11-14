@@ -3,12 +3,13 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { RawPage } from "@/components/pages/raw-page";
-import { extLogin, rawClear, rawDownload, rawFiles, rawInfo, rawSave, rawToc, rescanStory, revealFolder, type ExtConfig, type RawInfo, type RawToc } from "@/lib/api";
+import { extAccountCheck, extLogin, rawClear, rawDownload, rawFiles, rawInfo, rawSave, rawToc, rescanStory, revealFolder, type ExtConfig, type RawInfo, type RawToc } from "@/lib/api";
 import { resetRawChecks, useRawNew } from "@/store/raw-check";
 import { useStoryStore } from "@/store/story";
 
 vi.mock("@/lib/api", () => ({
   extLogin: vi.fn(),
+  extAccountCheck: vi.fn(),
   extSaveAuth: vi.fn(),
   extClearAuth: vi.fn(),
   extSaveSettings: vi.fn(),
@@ -317,10 +318,11 @@ describe("RawPage", () => {
       name: "Demo",
       auth: { required: true, schemes: [{ id: "apiKey", label: "API key", fields: [{ key: "apiKey", label: "API key", kind: "secret" }] }], scheme: "apiKey", values: {}, filled: ["apiKey"] },
       settings: [],
-      session: { loggedIn: false, expiresAt: null, hasData: false },
+      session: { loggedIn: false, expiresAt: null, hasData: false, account: null, guest: false },
       secretStore: "keyring",
       cacheBytes: 0,
       sharedAuth: null,
+      account: null,
     };
     vi.mocked(rawInfo).mockResolvedValue({
       ...info,
@@ -330,7 +332,7 @@ describe("RawPage", () => {
         { key: "vip", label: "Tải chương VIP", kind: "boolean", choices: [], default: false, scope: "story", value: null, filled: false },
       ],
     });
-    vi.mocked(extLogin).mockReset().mockResolvedValue({ config: { ...config, session: { loggedIn: true, expiresAt: null, hasData: true } }, hasLogin: true });
+    vi.mocked(extLogin).mockReset().mockResolvedValue({ config: { ...config, session: { loggedIn: true, expiresAt: null, hasData: true, account: null, guest: false } }, hasLogin: true });
     const user = userEvent.setup();
     render(<RawPage />);
     expect(await screen.findByLabelText("Trạng thái auth")).toHaveTextContent("Đã nhập auth: API key");
@@ -353,16 +355,45 @@ describe("RawPage", () => {
     });
   });
 
+  it("extension có tài khoản trang nguồn: dòng API key không có nút Đăng nhập, dòng tài khoản thì có", async () => {
+    const config: ExtConfig = {
+      id: ext.id,
+      name: "Demo",
+      auth: { required: true, schemes: [{ id: "apiKey", label: "API key", fields: [{ key: "apiKey", label: "API key", kind: "secret" }] }], scheme: "apiKey", values: {}, filled: ["apiKey"] },
+      settings: [],
+      session: { loggedIn: true, expiresAt: null, hasData: true, account: null, guest: true },
+      secretStore: "keyring",
+      cacheBytes: 0,
+      sharedAuth: null,
+      account: { title: "Tài khoản QQ阅读", required: false, help: null },
+    };
+    vi.mocked(rawInfo).mockResolvedValue({ ...info, extConfig: config });
+    vi.mocked(extAccountCheck).mockReset().mockResolvedValue({ config, status: { loggedIn: false, name: null, message: null, checked: true }, checkedAt: 0 });
+    vi.mocked(extLogin).mockReset().mockResolvedValue({ config: { ...config, session: { ...config.session, guest: false, account: "1234567" } }, hasLogin: true });
+    const user = userEvent.setup();
+    render(<RawPage />);
+    expect(await screen.findByLabelText("Trạng thái auth")).toHaveTextContent("Đã nhập auth: API key");
+    expect(await screen.findByLabelText("Trạng thái Tài khoản QQ阅读")).toHaveTextContent("chưa đăng nhập");
+    expect(screen.getAllByRole("button", { name: /Đăng nhập/ })).toHaveLength(1);
+
+    vi.mocked(extAccountCheck).mockResolvedValue({ config, status: { loggedIn: true, name: "1234567", message: null, checked: true }, checkedAt: 0 });
+    await user.click(screen.getByRole("button", { name: "Đăng nhập Tài khoản QQ阅读" }));
+    expect(extLogin).toHaveBeenCalledWith("D:\\lib\\demo", ext.id);
+    await waitFor(() => expect(screen.getByLabelText("Trạng thái Tài khoản QQ阅读")).toHaveTextContent("đã đăng nhập: 1234567"));
+    expect(extAccountCheck).toHaveBeenCalledTimes(2);
+  });
+
   it("auth bắt buộc chưa nhập thì báo và khoá Đăng nhập", async () => {
     const config: ExtConfig = {
       id: ext.id,
       name: "Demo",
       auth: { required: true, schemes: [{ id: "apiKey", label: "API key", fields: [{ key: "apiKey", label: "API key", kind: "secret" }] }], scheme: null, values: {}, filled: [] },
       settings: [],
-      session: { loggedIn: false, expiresAt: null, hasData: false },
+      session: { loggedIn: false, expiresAt: null, hasData: false, account: null, guest: false },
       secretStore: "keyring",
       cacheBytes: 0,
       sharedAuth: null,
+      account: null,
     };
     vi.mocked(rawInfo).mockResolvedValue({ ...info, extConfig: config });
     const user = userEvent.setup();

@@ -10,11 +10,22 @@ const config = (over: Partial<ExtConfig>): ExtConfig => ({
   name: "X",
   auth: { required: true, schemes: [{ id: "apiKey", label: "API key", fields: [] }], scheme: null, values: {}, filled: [] },
   settings: [],
-  session: { loggedIn: false, expiresAt: null, hasData: false },
+  session: { loggedIn: false, expiresAt: null, hasData: false, account: null, guest: false },
   secretStore: "keyring",
   cacheBytes: 0,
   sharedAuth: null,
+  account: null,
   ...over,
+});
+
+describe("authStatus với tài khoản trang nguồn", () => {
+  it("phiên là của tài khoản (dòng riêng) — dòng auth chỉ nói API key", () => {
+    const account = { title: "Tài khoản QQ阅读", required: false, help: null };
+    const withAuth = { scheme: "apiKey", values: {}, filled: [], required: true, schemes: [{ id: "apiKey", label: "API key", fields: [] }] };
+    const session = { loggedIn: true, expiresAt: null, hasData: true, account: null, guest: true };
+    expect(authStatus(config({ auth: withAuth, session, account }))).toBe("Đã nhập auth: API key");
+    expect(authStatus(config({ auth: withAuth, session }))).toBe("Đã đăng nhập (API key)");
+  });
 });
 
 describe("ext", () => {
@@ -39,8 +50,8 @@ describe("ext", () => {
     expect(authStatus(config({}))).toBe("Chưa nhập auth — extension này bắt buộc");
     const filled = config({ auth: { required: false, schemes: [{ id: "apiKey", label: "API key", fields: [] }], scheme: "apiKey", values: {}, filled: ["apiKey"] } });
     expect(authStatus(filled)).toBe("Đã nhập auth: API key");
-    expect(authStatus({ ...filled, session: { loggedIn: true, expiresAt: null, hasData: true } })).toBe("Đã đăng nhập (API key)");
-    expect(authStatus({ ...filled, session: { loggedIn: true, expiresAt: new Date(2026, 10, 14, 9, 5).getTime(), hasData: true } })).toBe("Đã đăng nhập (API key), hết hạn 09:05 14/11");
+    expect(authStatus({ ...filled, session: { loggedIn: true, expiresAt: null, hasData: true, account: null, guest: false } })).toBe("Đã đăng nhập (API key)");
+    expect(authStatus({ ...filled, session: { loggedIn: true, expiresAt: new Date(2026, 10, 14, 9, 5).getTime(), hasData: true, account: null, guest: false } })).toBe("Đã đăng nhập (API key), hết hạn 09:05 14/11");
     expect(authStatus(config({ auth: null }))).toBe("Extension không cần auth");
     expect(formatBytes(2048)).toBe("2 KB");
     expect(formatBytes(3 * 1024 * 1024)).toBe("3.0 MB");

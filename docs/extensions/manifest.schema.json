@@ -78,6 +78,17 @@
         }
       }
     },
+    "account": {
+      "type": "object",
+      "required": ["title"],
+      "description": "Tài khoản trang nguồn đăng nhập qua hàm login (thường mở webview), khác auth. App hiện riêng một dòng: tình trạng, hướng dẫn, nút Đăng nhập / Kiểm tra / Đăng xuất.",
+      "properties": {
+        "title": { "type": "string", "minLength": 1, "description": "Ví dụ \"Tài khoản QQ阅读\"." },
+        "required": { "type": "boolean", "description": "Bắt buộc đăng nhập mới tải được. Mặc định false (chưa đăng nhập vẫn tải được một phần, vd. chương miễn phí)." },
+        "help": { "type": "string", "description": "Hướng dẫn ngắn: bấm Đăng nhập thì sao, đăng nhập bằng gì, chưa đăng nhập thì tải được gì." }
+      },
+      "additionalProperties": false
+    },
     "settings": {
       "type": "array",
       "items": {

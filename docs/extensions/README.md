@@ -87,6 +87,7 @@ có module hệ thống, không có npm. Thư mục bắt đầu bằng dấu ch
 | `hosts` | có | domain extension được gọi tới (cả `http` lẫn webview, kiểm ở mọi bước redirect). `*.` ở đầu = mọi subdomain, không gồm chính tên gốc. Không IP, không cổng. `localhost` / `127.0.0.1` chỉ được khi nạp thư mục ở chế độ developer. |
 | `permissions` | không | hiện chỉ có `"webview"`. |
 | `auth` | không | các kiểu đăng nhập, xếp theo thứ tự ưu tiên (thường API key trước). Trường `type` là `text` hoặc `secret`. |
+| `account` | không | tài khoản trang nguồn đăng nhập qua `login` (thường mở webview), khác `auth`: `{ "title": "Tài khoản QQ阅读", "required": false, "help": "…" }`. Xem [Tài khoản trang nguồn](#tài-khoản-trang-nguồn). |
 | `settings` | không | trường cài đặt người dùng điền. `type`: `text`, `number`, `boolean`, `select` (cần `choices`), `secret`. `scope: "story"` = mỗi truyện một giá trị (sửa ở trang Tải raw); `secret` không được `scope: "story"`. `default` phải đúng kiểu. |
 | `limits` | không | `concurrency` (mặc định 1, trần 8): số chương tải song song, cũng là số request song song tới mỗi domain. `delayMs` (mặc định 0): giãn cách giữa hai request tới cùng domain. |
 
@@ -100,6 +101,7 @@ export async function toc(ctx) { … }            // bắt buộc
 export async function chapter(ctx, ch) { … }    // bắt buộc
 export async function chapters(ctx, list) { … } // tuỳ chọn, tải gộp
 export async function login(ctx) { … }          // tuỳ chọn
+export async function account(ctx) { … }        // tuỳ chọn, kiểm tài khoản trang nguồn
 ```
 
 **`toc(ctx)`** trả mục lục theo đúng thứ tự đọc:
@@ -131,10 +133,55 @@ app không gọi `chapter`.
 `Date.now() + 3600 * 1000` (số nhỏ hơn 1e11 coi là giây). App lưu kết quả và đưa lại qua `ctx.session`. App gọi
 `login` trước lượt tải khi chưa có phiên hoặc phiên còn dưới 30 giây, và khi người dùng bấm **Đăng nhập**.
 `login` ném lỗi thì lượt tải báo "đăng nhập không được: …". Đăng nhập chỉ cần cookie (server đặt cookie) thì trả
-`{}`: cookie đã vào hũ cookie của `http`.
+`{}`: cookie đã vào hũ cookie của `http`. Extension có khối `account` trả thêm `account: "tên tài khoản"` khi đăng
+nhập được, hoặc `guest: true` cho phiên khách (chưa đăng nhập, vẫn tải được phần miễn phí).
+
+**`account(ctx)`** (tuỳ chọn, cho extension có khối `account`): kiểm tài khoản trang nguồn còn đăng nhập không, trả
+`{ loggedIn, name?, message? }`. App gọi khi người dùng mở trang Tải raw (nhớ kết quả 10 phút) và khi bấm
+**Kiểm tra**; `ctx.request.mode` là `"account"`, `ctx.session` là phiên đã lưu (hoặc `null`). Hàm này **không được mở
+webview** — chỉ hỏi máy chủ phiên còn sống không. Báo `loggedIn: false` (hoặc ném `AuthExpired`) khi phiên không
+phải phiên khách thì app xoá phiên, lượt tải sau gọi lại `login`. Không có hàm này thì app suy từ phiên đã lưu.
 
 Mọi hàm có thể là `async`. Biến toàn cục của module dùng chung trong cả lượt (một lượt = một lần bấm Tải mục lục
 hoặc Tải chương), các chương chạy song song trên cùng môi trường JS.
+
+### Tài khoản trang nguồn
+
+Nguồn cần đăng nhập tài khoản của chính trang nguồn (QQ阅读, Qidian…) qua cửa sổ webview thì khai thêm khối `account`
+— khác `auth` (API key, mật khẩu người dùng gõ vào app):
+
+```json
+"account": {
+  "title": "Tài khoản QQ阅读",
+  "required": false,
+  "help": "Bấm Đăng nhập: cửa sổ book.qq.com mở ra, đăng nhập bằng QQ hoặc WeChat. Chưa đăng nhập vẫn tải được chương miễn phí."
+}
+```
+
+Trang Tải raw hiện một dòng riêng: "Tài khoản QQ阅读: đã đăng nhập: <tên> / chưa đăng nhập — <message>", `help`, nút
+**Đăng nhập Tài khoản QQ阅读** (gọi `login`, `ctx.request.mode = "login"`), **Kiểm tra** (gọi `account`), **Đăng xuất**.
+`required: true` mà chưa đăng nhập (hoặc đang phiên khách) thì icon Tải raw có chấm cảnh báo và app không tự tải mục
+lục nền khi mở truyện (tránh bật cửa sổ đăng nhập bất ngờ).
+
+Mẫu: `login` ngoài nút Đăng nhập mà chưa từng đăng nhập thì trả phiên khách, không mở cửa sổ:
+
+```js
+export async function login(ctx) {
+  if (ctx.request.mode !== "login" && !(await session.get("account"))) return { guest: true };
+  const r = await webview.open({ url: "https://nguon.com/login", until: { cookie: "sid" }, collect: { cookies: true } });
+  const sid = r.cookies.find((c) => c.name === "sid");
+  if (!sid) throw new ExtensionError("chưa đăng nhập xong");
+  const me = (await http.get("https://nguon.com/api/me")).json();
+  await session.set("account", me.name);
+  return { token: sid.value, account: me.name };
+}
+
+export async function account(ctx) {
+  if (!ctx.session || ctx.session.guest) return { loggedIn: false, message: "đang tải kiểu khách — chỉ chương miễn phí" };
+  const me = await http.get("https://nguon.com/api/me");
+  return me.ok ? { loggedIn: true, name: me.json().name } : { loggedIn: false, message: "phiên đã hết hạn — bấm Đăng nhập" };
+}
+```
 
 ## `ctx`
 
@@ -145,9 +192,9 @@ ctx = {
   sourceUrl: "https://…",      // link nguồn của truyện
   rawUrl: "https://…",         // link tải raw (mặc định bằng link nguồn)
   story: { name: "…", chapterCount: 12, current: { index: 12, id: "…" | null, title: "…" } | null },
-  request: { mode: "toc" | "new" | "selected" | "single" | "login" | "test", ids: ["…"] },
+  request: { mode: "toc" | "new" | "selected" | "single" | "login" | "account" | "test", ids: ["…"] },
   auth: { scheme: "apiKey", values: { apiKey: "…" } } | null,
-  session: { token: "…", expiresAt: 1700000000000, data: … } | null,
+  session: { token: "…", expiresAt: 1700000000000, data: …, account: "tên" | null, guest: false } | null,
   settings: { server: "cn", proxy: "" }   // mặc định → cài đặt chung → cài đặt của truyện
 }
 ```

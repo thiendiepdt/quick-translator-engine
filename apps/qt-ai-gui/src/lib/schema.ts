@@ -664,11 +664,27 @@ export const extConfigSchema = z.object({
   /** Đang dùng API key chung của kho. */
   sharedAuth: z.object({ repository: z.string(), name: z.string() }).nullable().default(null),
   settings: z.array(extSettingSchema),
-  session: z.object({ loggedIn: z.boolean(), expiresAt: z.number().nullable(), hasData: z.boolean() }),
+  session: z.object({
+    loggedIn: z.boolean(),
+    expiresAt: z.number().nullable(),
+    hasData: z.boolean(),
+    /** Tên tài khoản của phiên (login trả `account`). */
+    account: z.string().nullable().default(null),
+    /** Phiên khách: chưa đăng nhập tài khoản trang nguồn. */
+    guest: z.boolean().default(false),
+  }),
+  /** Tài khoản trang nguồn (khối `account` của manifest) — hiện riêng với auth ở trang Tải raw. */
+  account: z.object({ title: z.string(), required: z.boolean(), help: z.string().nullable() }).nullable().default(null),
   secretStore: z.string(),
   cacheBytes: z.number(),
 });
 export const extLoginSchema = z.object({ config: extConfigSchema, hasLogin: z.boolean() });
+/** Kiểm tài khoản trang nguồn (Rust `ext_account_check`). `checked` = extension tự kiểm (có hàm `account`). */
+export const extAccountSchema = z.object({
+  config: extConfigSchema,
+  status: z.object({ loggedIn: z.boolean(), name: z.string().nullable(), message: z.string().nullable(), checked: z.boolean() }),
+  checkedAt: z.number(),
+});
 /** Cài và quản lý extension (Rust ext_manage_cmds). */
 const extDeveloperSchema = z.object({ name: z.string(), url: z.string().nullable(), email: z.string().nullable() });
 export const extSourceSchema = z.discriminatedUnion("kind", [

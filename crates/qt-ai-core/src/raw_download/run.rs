@@ -10,7 +10,7 @@ use super::{effective_raw_url, load_download, save_download, DownloadConfig};
 use crate::error::{CoreError, Result};
 use crate::story::StoryConfig;
 use crate::story_fs::{list_raw_chapter_ids, load_story_config, read_raw_chapter, resolve_root, story_paths, write_atomic, StoryPaths};
-use qt_ext::{check_setting, ChapterFormat, ExtError, LoginRecord, RequestLog, Scope, Session, SessionOptions, TocItem};
+use qt_ext::{check_setting, AccountStatus, ChapterFormat, ExtError, LoginRecord, RequestLog, Scope, Session, SessionOptions, TocItem};
 use serde::Serialize;
 use serde_json::{json, Map, Value};
 use std::collections::HashSet;
@@ -284,19 +284,31 @@ pub fn load_toc(root: &Path, opts: &RunOptions, cancel: Arc<AtomicBool>) -> Resu
 /// Nút "Đăng nhập": gọi `login` của extension ngay. `root` = truyện đang mở (để `ctx` có link và cài đặt của
 /// truyện); `None` khi đăng nhập từ trang quản lý extension. `None` trả về = extension không có hàm `login`.
 pub fn login(root: Option<&Path>, opts: &RunOptions, cancel: Arc<AtomicBool>) -> Result<Option<LoginRecord>> {
+    let ctx = command_ctx(root, opts, "login")?;
+    start_session(opts, &cancel)?.login(&ctx).map_err(ext_error)
+}
+
+/// `ctx` cho lệnh không gắn lượt tải (Đăng nhập, Kiểm tra tài khoản): có truyện thì kèm link và cài đặt của truyện.
+fn command_ctx(root: Option<&Path>, opts: &RunOptions, mode: &str) -> Result<Value> {
     let global = global_settings(opts)?;
-    let ctx = match root {
+    Ok(match root {
         Some(root) => {
             let story = load_story(root)?;
-            build_ctx(&story, &opts.extension, &global, current_of(&story, None, None), "login", &[])
+            build_ctx(&story, &opts.extension, &global, current_of(&story, None, None), mode, &[])
         }
         None => json!({
             "sourceUrl": "", "rawUrl": "", "story": Value::Null,
-            "request": { "mode": "login", "ids": [] },
+            "request": { "mode": mode, "ids": [] },
             "settings": settings_for(&opts.extension, &DownloadConfig::default(), &global),
         }),
-    };
-    start_session(opts, &cancel)?.login(&ctx).map_err(ext_error)
+    })
+}
+
+/// Nút "Kiểm tra" tài khoản trang nguồn: gọi `account` của extension (không mở cửa sổ đăng nhập); extension không
+/// có hàm đó thì theo phiên đã lưu.
+pub fn check_account(root: Option<&Path>, opts: &RunOptions, cancel: Arc<AtomicBool>) -> Result<AccountStatus> {
+    let ctx = command_ctx(root, opts, "account")?;
+    start_session(opts, &cancel)?.account(&ctx).map_err(ext_error)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]

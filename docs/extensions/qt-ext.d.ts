@@ -46,6 +46,19 @@ interface QtLoginResult {
   /** Mốc hết hạn, ms từ 1970 (Date.now() + …). Nhỏ hơn 1e11 thì coi là giây. */
   expiresAt?: number;
   data?: QtJson;
+  /** Tên tài khoản hiện cho người dùng (extension có khối `account`). */
+  account?: string;
+  /** Phiên khách: chưa đăng nhập tài khoản trang nguồn, vẫn tải được phần không cần tài khoản. */
+  guest?: boolean;
+}
+
+/** Kết quả hàm `account(ctx)`: tài khoản trang nguồn còn đăng nhập không. */
+interface QtAccountStatus {
+  loggedIn: boolean;
+  /** Tên tài khoản để hiện. */
+  name?: string;
+  /** Nhắn người dùng, vd. "đang tải kiểu khách — chỉ chương miễn phí". */
+  message?: string;
 }
 
 interface QtCtx {
@@ -56,9 +69,15 @@ interface QtCtx {
     readonly chapterCount: number;
     readonly current: { readonly index: number; readonly id: string | null; readonly title: string } | null;
   };
-  readonly request: { readonly mode: "toc" | "new" | "selected" | "single" | "login" | "test"; readonly ids: readonly string[] };
+  readonly request: { readonly mode: "toc" | "new" | "selected" | "single" | "login" | "account" | "test"; readonly ids: readonly string[] };
   readonly auth: { readonly scheme: string; readonly values: Readonly<Record<string, string>> } | null;
-  readonly session: { readonly token: string | null; readonly expiresAt: number | null; readonly data: QtJson } | null;
+  readonly session: {
+    readonly token: string | null;
+    readonly expiresAt: number | null;
+    readonly data: QtJson;
+    readonly account: string | null;
+    readonly guest: boolean;
+  } | null;
   readonly settings: Readonly<Record<string, QtJson>>;
 }
 

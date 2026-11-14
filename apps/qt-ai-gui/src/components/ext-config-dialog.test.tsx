@@ -40,10 +40,11 @@ const config: ExtConfig = {
     { key: "fullWidth", label: "Giữ dấu câu toàn khổ", kind: "boolean", choices: [], default: true, scope: "global", value: null, filled: false },
     { key: "token", label: "Token", kind: "secret", choices: [], default: null, scope: "global", value: null, filled: true },
   ],
-  session: { loggedIn: true, expiresAt: null, hasData: true },
+  session: { loggedIn: true, expiresAt: null, hasData: true, account: null, guest: false },
   secretStore: "keyring",
   cacheBytes: 2048,
   sharedAuth: null,
+  account: null,
 };
 
 describe("ExtConfigDialog", () => {

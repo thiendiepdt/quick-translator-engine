@@ -6,10 +6,10 @@ use crate::error::{blocking, CmdResult, CommandError};
 use crate::raw_cmds::extensions_dir;
 use crate::AppState;
 use qt_ai_core::raw_download::registry::{Installed, Registry};
-use qt_ai_core::raw_download::run::{login, RunOptions};
+use qt_ai_core::raw_download::run::{check_account, login, RunOptions};
 use qt_ai_core::raw_download::repository::Repositories;
 use qt_ai_core::raw_download::DownloadConfig;
-use qt_ext::{check_setting, AuthSpec, AuthState, ExtError, ExtStore, FieldKind, Manifest, Scope, SessionStatus, SettingField, SettingKind};
+use qt_ext::{check_setting, AccountStatus, AuthSpec, AuthState, ExtError, ExtStore, FieldKind, Manifest, Scope, SessionStatus, SettingField, SettingKind};
 use serde::Serialize;
 use serde_json::{Map, Value};
 use std::path::{Path, PathBuf};
@@ -100,9 +100,19 @@ pub struct ExtConfigView {
     /// Cài đặt chung (trường `scope: "story"` sửa ở trang Tải raw).
     pub settings: Vec<SettingView>,
     pub session: SessionStatus,
+    /// Tài khoản trang nguồn (khối `account` của manifest): đăng nhập qua `login`, hiện riêng với auth.
+    pub account: Option<AccountView>,
     /// "keyring" = Credential Manager; khác thì khoá đang nằm trong file.
     pub secret_store: &'static str,
     pub cache_bytes: u64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AccountView {
+    pub title: String,
+    pub required: bool,
+    pub help: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -178,6 +188,7 @@ pub fn config_view(installed: &Installed, store: &ExtStore) -> CmdResult<ExtConf
         shared_auth,
         settings,
         session: store.session_status(),
+        account: m.account.as_ref().map(|a| AccountView { title: a.title.clone(), required: a.required, help: a.help.clone() }),
         secret_store: store.secret_kind(),
         cache_bytes: store.cache_bytes(),
     })
@@ -280,6 +291,33 @@ pub struct ExtLoginView {
     pub config: ExtConfigView,
     /// Extension có hàm `login` không (không có thì auth dùng thẳng khi tải).
     pub has_login: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExtAccountView {
+    pub config: ExtConfigView,
+    pub status: AccountStatus,
+    /// Mốc kiểm (ms từ 1970).
+    pub checked_at: i64,
+}
+
+/// Kiểm tài khoản trang nguồn của extension (nút "Kiểm tra", mở trang Tải raw): không mở cửa sổ đăng nhập.
+#[tauri::command]
+pub async fn ext_account_check<R: Runtime>(app: AppHandle<R>, root: Option<String>, id: String) -> CmdResult<ExtAccountView> {
+    blocking(move || {
+        with_ext(&app, &id, |installed, store| {
+            let mut opts = RunOptions::new(installed.clone());
+            opts.session.store = Some(store.clone());
+            if let Some(root) = &root {
+                crate::raw_cmds::wire_events(&mut opts, &app, root);
+            }
+            let status = check_account(root.as_deref().map(Path::new), &opts, Arc::new(AtomicBool::new(false)))?;
+            let checked_at = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as i64).unwrap_or(0);
+            Ok(ExtAccountView { config: config_view(installed, store)?, status, checked_at })
+        })
+    })
+    .await
 }
 
 /// Gọi `login` của extension ngay. `root`: truyện đang mở (ctx có link và cài đặt của truyện).

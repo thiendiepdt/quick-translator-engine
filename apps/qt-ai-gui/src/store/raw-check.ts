@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-import { rawInfo, rawToc, type RawInfo, type RawToc } from "@/lib/api";
+import { extAccountCheck, rawInfo, rawToc, type ExtAccount, type RawInfo, type RawToc } from "@/lib/api";
 
 /** Mục lục tải gần nhất theo truyện; trong khoảng này trang Tải raw dùng lại, khỏi gọi extension lần nữa. */
 const FRESH_MS = 5 * 60_000;
@@ -33,6 +33,10 @@ export function rawProblem(info: RawInfo): string | null {
   if (!info.extension) return `có ${info.candidates.length} extension khớp link, chưa chọn cái nào`;
   const auth = info.extConfig?.auth;
   if (auth?.required && !auth.scheme) return `${info.extension.name} chưa nhập API key / đăng nhập`;
+  // Tài khoản trang nguồn bắt buộc mà chưa đăng nhập: không tự tải mục lục nền (lượt tải sẽ mở cửa sổ đăng nhập).
+  const account = info.extConfig?.account;
+  const session = info.extConfig?.session;
+  if (account?.required && (!session?.loggedIn || session.guest)) return `chưa đăng nhập ${account.title}`;
   return null;
 }
 
@@ -111,14 +115,37 @@ export function forgetRawToc(root: string): void {
   useRawNew.getState().setCount(root, null);
 }
 
+/** Kết quả kiểm tài khoản trang nguồn theo extension; trong 10 phút mở lại trang Tải raw thì dùng lại. */
+const ACCOUNT_FRESH_MS = 10 * 60_000;
+const accountChecks = new Map<string, { at: number; promise: Promise<ExtAccount> }>();
+
+/** Kiểm tài khoản của extension `id` (dùng lại lần kiểm chưa quá 10 phút, trừ khi `force`). */
+export function loadAccountCheck(root: string, id: string, force = false): Promise<ExtAccount> {
+  const hit = accountChecks.get(id);
+  if (hit && !force && Date.now() - hit.at < ACCOUNT_FRESH_MS) return hit.promise;
+  const promise = extAccountCheck(root, id);
+  accountChecks.set(id, { at: Date.now(), promise });
+  promise.catch(() => {
+    if (accountChecks.get(id)?.promise === promise) accountChecks.delete(id);
+  });
+  return promise;
+}
+
+/** Đăng nhập / đăng xuất xong: bỏ kết quả kiểm cũ. */
+export function forgetAccountCheck(id: string): void {
+  accountChecks.delete(id);
+}
+
 /** Cài / gỡ / bật tắt extension, thêm / bỏ kho, đổi auth: bỏ mọi kết quả đã nhớ, thanh bên kiểm lại. */
 export function invalidateRawChecks(): void {
   entries.clear();
+  accountChecks.clear();
   useRawNew.setState((state) => ({ epoch: state.epoch + 1 }));
 }
 
 /** Cho test. */
 export function resetRawChecks(): void {
   entries.clear();
+  accountChecks.clear();
   useRawNew.setState({ counts: {}, problems: {}, epoch: 0 });
 }

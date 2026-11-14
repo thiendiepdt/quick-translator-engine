@@ -70,7 +70,8 @@ function formatTime(ms: number): string {
 export function authStatus(config: ExtConfig): string {
   const auth = config.auth;
   const scheme = auth?.schemes.find((s) => s.id === auth.scheme)?.label;
-  if (config.session.loggedIn) {
+  // Extension có tài khoản trang nguồn: phiên là của tài khoản (hiện ở dòng riêng), dòng này chỉ nói về auth.
+  if (config.session.loggedIn && !config.account) {
     const until = config.session.expiresAt ? `, hết hạn ${formatTime(config.session.expiresAt)}` : "";
     return `Đã đăng nhập${scheme ? ` (${scheme})` : ""}${until}`;
   }

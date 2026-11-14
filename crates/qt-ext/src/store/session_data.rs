@@ -23,7 +23,7 @@ pub type Cookie = cookie_store::Cookie<'static>;
 static WRITE_LOCK: Mutex<()> = Mutex::new(());
 
 /// Kết quả `login` của extension.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LoginRecord {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -33,6 +33,12 @@ pub struct LoginRecord {
     pub expires_at: Option<i64>,
     #[serde(default)]
     pub data: Value,
+    /// Tên tài khoản để hiện cho người dùng (extension có khối `account`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub account: Option<String>,
+    /// Phiên khách: chưa đăng nhập tài khoản trang nguồn, vẫn tải được phần không cần tài khoản.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub guest: bool,
 }
 
 impl LoginRecord {
@@ -42,7 +48,7 @@ impl LoginRecord {
 
     /// `ctx.session` đưa cho extension.
     pub fn to_json(&self) -> Value {
-        serde_json::json!({ "token": self.token, "expiresAt": self.expires_at, "data": self.data })
+        serde_json::json!({ "token": self.token, "expiresAt": self.expires_at, "data": self.data, "account": self.account, "guest": self.guest })
     }
 }
 
@@ -53,6 +59,10 @@ pub struct SessionStatus {
     pub expires_at: Option<i64>,
     /// Có gì trong session data (phiên, cookie, giá trị).
     pub has_data: bool,
+    /// Tên tài khoản của phiên (theo `login`).
+    pub account: Option<String>,
+    /// Phiên khách (chưa đăng nhập tài khoản trang nguồn).
+    pub guest: bool,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -192,8 +202,10 @@ impl SessionData {
         let login = self.login();
         SessionStatus {
             logged_in: login.is_some(),
-            expires_at: login.and_then(|l| l.expires_at),
+            expires_at: login.as_ref().and_then(|l| l.expires_at),
             has_data: !file.values.is_empty() || file.login.is_some() || !file.cookies.is_empty(),
+            account: login.as_ref().and_then(|l| l.account.clone()),
+            guest: login.is_some_and(|l| l.guest),
         }
     }
 }
@@ -260,13 +272,13 @@ mod tests {
         let data = SessionData::open(Some(path.clone()), "v");
         assert_eq!(data.status(), SessionStatus::default());
         let far = now_ms() + 3_600_000;
-        data.set_login(LoginRecord { token: Some("tk".into()), expires_at: Some(far), data: json!({ "uid": 7 }) }).unwrap();
+        data.set_login(LoginRecord { token: Some("tk".into()), expires_at: Some(far), data: json!({ "uid": 7 }), ..Default::default() }).unwrap();
         data.set("giu", json!(true), None).unwrap();
         assert_eq!(data.login().unwrap().token.as_deref(), Some("tk"));
-        assert_eq!(data.status(), SessionStatus { logged_in: true, expires_at: Some(far), has_data: true });
+        assert_eq!(data.status(), SessionStatus { logged_in: true, expires_at: Some(far), has_data: true, ..Default::default() });
         assert_eq!(SessionData::open(Some(path.clone()), "v").login().unwrap().data, json!({ "uid": 7 }));
 
-        data.set_login(LoginRecord { token: Some("tk".into()), expires_at: Some(now_ms() + 10_000), data: Value::Null }).unwrap();
+        data.set_login(LoginRecord { token: Some("tk".into()), expires_at: Some(now_ms() + 10_000), ..Default::default() }).unwrap();
         assert!(data.login().is_none(), "còn dưới 30 giây coi như hết hạn");
 
         data.clear_login().unwrap();

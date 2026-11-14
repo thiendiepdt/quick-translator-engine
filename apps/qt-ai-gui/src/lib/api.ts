@@ -32,6 +32,7 @@ import {
   extInspectionSchema,
   extListItemSchema,
   extLoginSchema,
+  extAccountSchema,
   extTestReportSchema,
   repoAuthSchema,
   repoRefreshSchema,
@@ -417,6 +418,7 @@ export type RawSummary = z.infer<typeof rawSummarySchema>;
 export type RawProgress = z.infer<typeof rawProgressSchema>;
 export type RawMode = "new" | "selected" | "single";
 export type ExtConfig = z.infer<typeof extConfigSchema>;
+export type ExtAccount = z.infer<typeof extAccountSchema>;
 export type ExtSetting = ExtConfig["settings"][number];
 export type ExtAuth = NonNullable<ExtConfig["auth"]>;
 export type ExtValues = Record<string, unknown>;
@@ -433,6 +435,8 @@ export const extLogout = (id: string) => call("ext_logout", { id }, parseExtConf
 export const extClearCache = (id: string) => call("ext_clear_cache", { id }, parseExtConfig);
 /** Gọi `login` của extension ngay; `hasLogin = false` khi extension không có hàm này. */
 export const extLogin = (root: string | null, id: string) => call("ext_login", { root, id }, (v) => extLoginSchema.parse(v));
+/** Kiểm tài khoản trang nguồn: gọi `account` của extension (không mở cửa sổ đăng nhập). */
+export const extAccountCheck = (root: string | null, id: string) => call("ext_account_check", { root, id }, (v) => extAccountSchema.parse(v));
 export type ExtListItem = z.infer<typeof extListItemSchema>;
 export type ExtInspection = z.infer<typeof extInspectionSchema>;
 export type ExtTestReport = z.infer<typeof extTestReportSchema>;

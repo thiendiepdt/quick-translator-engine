@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { ExtConfigDialog } from "@/components/ext-config-dialog";
 import { EXTENSIONS_CARD_ID } from "@/components/ext-manager";
 import { ExtField } from "@/components/ext-fields";
+import { AccountLine } from "@/components/raw-account-line";
 import { ListSkeleton, RawLocalFiles } from "@/components/raw-local-files";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,7 +31,7 @@ import {
 import { authStatus, changedValues, initialDisplay, storyValues, type FieldDisplay } from "@/lib/ext";
 import { cn } from "@/lib/utils";
 import { insertAt, RAW_STATUS_LABELS, renderName, TEMPLATE_PRESETS, TEMPLATE_TOKENS, toggleSelection, validateTemplate } from "@/lib/raw";
-import { forgetRawToc, loadRawToc, noteRawInfo, rawConfigured, rememberRawToc } from "@/store/raw-check";
+import { forgetAccountCheck, forgetRawToc, loadRawToc, noteRawInfo, rawConfigured, rememberRawToc } from "@/store/raw-check";
 import { useStoryStore } from "@/store/story";
 
 const MAX_LOG = 200;
@@ -178,8 +179,9 @@ export function RawPage() {
     setBusy("login");
     try {
       const result = await extLogin(root, info.extConfig.id);
+      forgetAccountCheck(info.extConfig.id);
       setInfo((current) => current && { ...current, extConfig: result.config });
-      if (result.hasLogin) toast.success("Đã đăng nhập");
+      if (result.hasLogin) toast.success(result.config.account ? `Đã đăng nhập ${result.config.account.title}` : "Đã đăng nhập");
       else toast.success("Extension này không có bước đăng nhập — auth được dùng thẳng khi tải");
     } catch (error) {
       toast.error(message(error));
@@ -357,6 +359,15 @@ export function RawPage() {
               </ul>
             )}
             {info.extConfig && <AuthLine config={info.extConfig} busy={!!busy} onLogin={() => void login()} onOpen={() => setConfigOpen(true)} />}
+            {info.extConfig?.account && root && (
+              <AccountLine
+                root={root}
+                config={info.extConfig}
+                busy={!!busy}
+                onLogin={() => void login()}
+                onConfig={(config) => setInfo((current) => current && { ...current, extConfig: config })}
+              />
+            )}
           </div>
 
           {info.storySettings.length > 0 && (
@@ -661,7 +672,8 @@ function AuthLine({ config, busy, onLogin, onOpen }: { config: NonNullable<RawIn
       <span aria-label="Trạng thái auth" className={missing ? "text-destructive" : "text-muted-foreground"}>
         {authStatus(config)}
       </span>
-      {config.auth && (
+      {/* Có tài khoản trang nguồn thì nút Đăng nhập nằm ở dòng tài khoản. */}
+      {config.auth && !config.account && (
         <Button variant="outline" size="sm" disabled={busy || missing} onClick={onLogin}>
           <LogIn /> Đăng nhập
         </Button>

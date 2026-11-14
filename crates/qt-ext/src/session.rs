@@ -87,10 +87,24 @@ impl Default for SessionOptions {
     }
 }
 
+/// Tình trạng tài khoản trang nguồn (hàm `account` của extension, hoặc theo phiên đã lưu khi không có hàm đó).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AccountStatus {
+    pub logged_in: bool,
+    /// Tên tài khoản để hiện.
+    pub name: Option<String>,
+    /// Lời extension nhắn người dùng (vd. "đang tải kiểu khách — chỉ chương miễn phí").
+    pub message: Option<String>,
+    /// `true` = extension tự kiểm (hàm `account`); `false` = suy từ phiên đã lưu.
+    pub checked: bool,
+}
+
 enum Command {
     Toc { ctx: Value, reply: mpsc::Sender<Result<Vec<TocItem>, ExtError>> },
     Chapters { ctx: Value, items: Vec<(usize, TocItem)>, reply: mpsc::Sender<ChapterOutcome> },
     Login { ctx: Value, reply: mpsc::Sender<Result<Option<LoginRecord>, ExtError>> },
+    Account { ctx: Value, reply: mpsc::Sender<Result<AccountStatus, ExtError>> },
 }
 
 pub struct Session {
@@ -169,9 +183,18 @@ fn parse_content(value: Value, at: &str) -> Result<ChapterContent, ExtError> {
 /// `expiresAt` nhỏ hơn mốc này coi là giây (Date.now() / 1000), lớn hơn là mili giây.
 const SECONDS_BELOW: f64 = 1e11;
 
+fn text_field(object: &serde_json::Map<String, Value>, key: &str, at: &str) -> Result<Option<String>, ExtError> {
+    match object.get(key) {
+        None | Some(Value::Null) => Ok(None),
+        Some(Value::String(s)) => Ok(Some(s.trim().to_string()).filter(|s| !s.is_empty())),
+        Some(Value::Number(n)) => Ok(Some(n.to_string())),
+        Some(_) => Err(bad(format!("{at}: {key} phải là chuỗi"))),
+    }
+}
+
 fn parse_login(value: Value) -> Result<LoginRecord, ExtError> {
     let object = match value {
-        Value::Null => return Ok(LoginRecord { token: None, expires_at: None, data: Value::Null }),
+        Value::Null => return Ok(LoginRecord::default()),
         Value::Object(object) => object,
         _ => return Err(ExtError::LoginFailed("login phải trả về object { token, expiresAt?, data? }".into())),
     };
@@ -189,7 +212,25 @@ fn parse_login(value: Value) -> Result<LoginRecord, ExtError> {
         }
         Some(_) => return Err(ExtError::LoginFailed("login: expiresAt phải là số (Date.now() + …)".into())),
     };
-    Ok(LoginRecord { token, expires_at, data: object.get("data").cloned().unwrap_or(Value::Null) })
+    let account = text_field(&object, "account", "login").map_err(|e| ExtError::LoginFailed(e.to_string()))?;
+    let guest = match object.get("guest") {
+        None | Some(Value::Null) => false,
+        Some(Value::Bool(b)) => *b,
+        Some(_) => return Err(ExtError::LoginFailed("login: guest phải là true/false".into())),
+    };
+    Ok(LoginRecord { token, expires_at, data: object.get("data").cloned().unwrap_or(Value::Null), account, guest })
+}
+
+/// Kết quả hàm `account(ctx)`: `{ loggedIn, name?, message? }`.
+fn parse_account(value: Value) -> Result<AccountStatus, ExtError> {
+    let Value::Object(object) = value else {
+        return Err(bad("account phải trả về object { loggedIn, name?, message? }".into()));
+    };
+    let logged_in = match object.get("loggedIn") {
+        Some(Value::Bool(b)) => *b,
+        _ => return Err(bad("account: loggedIn phải là true/false".into())),
+    };
+    Ok(AccountStatus { logged_in, name: text_field(&object, "name", "account")?, message: text_field(&object, "message", "account")?, checked: true })
 }
 
 /// Lỗi của `login` → lỗi báo người dùng. Huỷ và "cần mở app" giữ nguyên.
@@ -311,6 +352,32 @@ impl Runner<'_> {
         Ok(Some(record))
     }
 
+    /// Kiểm tài khoản trang nguồn, không bao giờ gọi `login` (không mở cửa sổ). Có hàm `account` thì gọi nó với
+    /// phiên đã lưu; nó báo chưa đăng nhập (hoặc ném `AuthExpired`) mà phiên đã lưu không phải phiên khách thì xoá
+    /// phiên để lượt tải sau đăng nhập lại. Không có hàm `account` thì suy từ phiên đã lưu.
+    async fn account(&self, base: &Value) -> Result<AccountStatus, ExtError> {
+        let record = self.session().login();
+        let from_record = || AccountStatus {
+            logged_in: record.as_ref().is_some_and(|r| !r.guest),
+            name: record.as_ref().and_then(|r| r.account.clone()),
+            message: None,
+            checked: false,
+        };
+        if !self.engine.has_export("account") {
+            return Ok(from_record());
+        }
+        let status = match self.engine.call("account", vec![self.ctx(base, true)], self.opts.login_limit).await {
+            Ok(value) => parse_account(value)?,
+            Err(ExtError::AuthExpired(message)) => AccountStatus { logged_in: false, name: None, message: Some(message), checked: true },
+            Err(error) => return Err(error),
+        };
+        if !status.logged_in && record.as_ref().is_some_and(|r| !r.guest) {
+            self.engine.state().http.jar().clear();
+            self.session().clear_login()?;
+        }
+        Ok(status)
+    }
+
     /// Sau `AuthExpired`: xoá phiên (login và cookie, giữ giá trị `session.set`) rồi đăng nhập lại.
     async fn relogin(&self, base: &Value) -> Result<(), ExtError> {
         self.engine.state().http.jar().clear();
@@ -423,6 +490,9 @@ impl Session {
                             Command::Login { ctx, reply } => {
                                 let _ = reply.send(runner.login(&ctx, true).await);
                             }
+                            Command::Account { ctx, reply } => {
+                                let _ = reply.send(runner.account(&ctx).await);
+                            }
                         }
                     }
                 });
@@ -442,6 +512,13 @@ impl Session {
     pub fn login(&self, ctx: &Value) -> Result<Option<LoginRecord>, ExtError> {
         let (reply, result) = mpsc::channel();
         self.commands.send(Command::Login { ctx: ctx.clone(), reply }).map_err(|_| ExtError::Cancelled)?;
+        result.recv().unwrap_or(Err(ExtError::Cancelled))
+    }
+
+    /// Kiểm tài khoản trang nguồn (nút "Kiểm tra"); không mở cửa sổ đăng nhập.
+    pub fn account(&self, ctx: &Value) -> Result<AccountStatus, ExtError> {
+        let (reply, result) = mpsc::channel();
+        self.commands.send(Command::Account { ctx: ctx.clone(), reply }).map_err(|_| ExtError::Cancelled)?;
         result.recv().unwrap_or(Err(ExtError::Cancelled))
     }
 

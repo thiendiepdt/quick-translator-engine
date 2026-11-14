@@ -3,7 +3,7 @@
 mod common;
 
 use common::{package, Route, TestServer};
-use qt_ext::{EngineOptions, ExtError, ExtStore, SecretBackend, Session, SessionOptions, TocItem};
+use qt_ext::{AccountStatus, EngineOptions, ExtError, ExtStore, SecretBackend, Session, SessionOptions, TocItem};
 use serde_json::{json, Map, Value};
 use std::sync::{Arc, Mutex};
 
@@ -184,6 +184,60 @@ fn nut_dang_nhap() {
 
     let no_login = [("main.js", "export async function toc() { return []; }\nexport async function chapter() { return { content: 'x' }; }")];
     assert_eq!(Session::start(package(&no_login), env.opts()).unwrap().login(&json!({})), Ok(None));
+}
+
+const ACCOUNT_MAIN: &str = r#"
+    export async function login(ctx) {
+      if (ctx.request && ctx.request.mode === "login") return { token: "tk", account: "Nguyễn A" };
+      return { guest: true };
+    }
+    export async function account(ctx) {
+      const s = ctx.session;
+      if (!s || s.guest) return { loggedIn: false, message: "đang dùng kiểu khách" };
+      if (ctx.expired) throw new AuthExpired("phiên hết hạn");
+      return { loggedIn: true, name: s.account };
+    }
+    export async function toc() { return [{ id: 1, title: "a" }]; }
+    export async function chapter() { return { content: "x" }; }"#;
+
+#[test]
+fn tai_khoan_trang_nguon_kiem_khong_mo_dang_nhap() {
+    let env = env();
+    let manifest = manifest(json!({ "account": { "title": "Tài khoản Nguồn" } }));
+    let files = [("manifest.json", manifest.as_str()), ("main.js", ACCOUNT_MAIN)];
+    let session = Session::start(package(&files), env.opts()).unwrap();
+
+    let status = session.account(&json!({})).unwrap();
+    assert_eq!(status, AccountStatus { logged_in: false, name: None, message: Some("đang dùng kiểu khách".into()), checked: true });
+    assert!(!env.store.session_status().logged_in, "kiểm tài khoản không tự gọi login");
+
+    session.toc(&json!({})).unwrap();
+    assert!(env.store.session_status().guest, "lượt tải chưa đăng nhập → phiên khách");
+    assert!(!session.account(&json!({})).unwrap().logged_in);
+    assert!(env.store.session_status().guest, "phiên khách không bị xoá khi kiểm");
+
+    session.login(&json!({ "request": { "mode": "login" } })).unwrap();
+    let saved = env.store.session_status();
+    assert_eq!((saved.account.as_deref(), saved.guest), (Some("Nguyễn A"), false));
+    assert_eq!(session.account(&json!({})).unwrap().name.as_deref(), Some("Nguyễn A"));
+
+    let expired = session.account(&json!({ "expired": true })).unwrap();
+    assert_eq!((expired.logged_in, expired.message.as_deref()), (false, Some("phiên hết hạn")));
+    assert!(!env.store.session_status().logged_in, "phiên chết phía máy chủ → xoá để lượt sau đăng nhập lại");
+}
+
+#[test]
+fn khong_co_ham_account_thi_theo_phien_da_luu() {
+    let server = TestServer::start(vec![Route::ok("/login", "ok")]);
+    let env = env();
+    let manifest = auth_manifest(false);
+    let files = [("manifest.json", manifest.as_str()), ("main.js", LOGIN_MAIN)];
+    env.save_key(&files, "key-1");
+    let session = Session::start(package(&files), env.opts()).unwrap();
+    assert_eq!(session.account(&json!({})).unwrap(), AccountStatus::default());
+    session.login(&json!({ "base": server.url("") })).unwrap();
+    assert_eq!(session.account(&json!({})).unwrap(), AccountStatus { logged_in: true, ..Default::default() });
+    assert_eq!(server.hits("/login"), 1, "kiểm không gọi login");
 }
 
 const EXPIRING_MAIN: &str = r#"

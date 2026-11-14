@@ -51,6 +51,18 @@ pub struct AuthSpec {
     pub schemes: Vec<AuthScheme>,
 }
 
+/// Tài khoản trang nguồn đăng nhập qua `login` (thường là webview), khác API key / auth: giao diện hiện riêng
+/// một dòng "<title>: đã / chưa đăng nhập" với nút Đăng nhập, Kiểm tra, Đăng xuất.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AccountSpec {
+    /// Ví dụ "Tài khoản QQ阅读".
+    pub title: String,
+    /// Bắt buộc đăng nhập mới tải được (chưa đăng nhập thì icon Tải raw có chấm cảnh báo).
+    pub required: bool,
+    /// Hướng dẫn ngắn: bấm Đăng nhập thì sao, đăng nhập bằng gì, chưa đăng nhập thì tải được gì.
+    pub help: Option<String>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SettingKind {
     Text,
@@ -102,6 +114,7 @@ pub struct Manifest {
     pub hosts: Vec<String>,
     pub permissions: Vec<Permission>,
     pub auth: Option<AuthSpec>,
+    pub account: Option<AccountSpec>,
     pub settings: Vec<SettingField>,
     pub limits: Limits,
     match_regexes: Vec<Regex>,
@@ -167,6 +180,15 @@ struct RawAuth {
 }
 
 #[derive(Deserialize)]
+struct RawAccount {
+    #[serde(default)]
+    title: String,
+    #[serde(default)]
+    required: bool,
+    help: Option<String>,
+}
+
+#[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct RawLimits {
     concurrency: Option<i64>,
@@ -195,6 +217,7 @@ struct RawManifest {
     #[serde(default)]
     permissions: Vec<String>,
     auth: Option<RawAuth>,
+    account: Option<RawAccount>,
     #[serde(default)]
     settings: Vec<RawField>,
     limits: Option<RawLimits>,
@@ -387,6 +410,14 @@ pub fn parse_manifest(json: &str, allow_local: bool) -> Result<Manifest, ExtErro
             other => return Err(bad(format!("permissions \"{other}\": chỉ có webview"))),
         }
     }
+    let account = match raw.account {
+        None => None,
+        Some(a) => Some(AccountSpec {
+            title: non_empty(&a.title, "account.title")?,
+            required: a.required,
+            help: a.help.map(|h| h.trim().to_string()).filter(|h| !h.is_empty()),
+        }),
+    };
     let limits = raw.limits.map(|l| Limits {
         concurrency: l.concurrency.unwrap_or(1).clamp(1, MAX_CONCURRENCY as i64) as usize,
         delay_ms: l.delay_ms.unwrap_or(0).max(0) as u64,
@@ -405,6 +436,7 @@ pub fn parse_manifest(json: &str, allow_local: bool) -> Result<Manifest, ExtErro
         hosts: raw.hosts.iter().map(|h| h.trim().to_string()).collect(),
         permissions,
         auth: raw.auth.map(parse_auth).transpose()?,
+        account,
         settings: parse_settings(raw.settings)?,
         limits: limits.unwrap_or_default(),
         match_regexes,
@@ -486,6 +518,16 @@ mod tests {
         bad(r#"{"description": " "}"#, "description");
         bad(r#"{"settings": [{"key":"k","label":"K","type":"number","default":"x"}]}"#, "settings[0].default");
         bad(r#"{"settings": [{"key":"k","label":"K","type":"select","choices":["a"],"default":"b"}]}"#, "settings[0].default");
+        bad(r#"{"account": {"required": true}}"#, "account.title");
+    }
+
+    #[test]
+    fn doc_khoi_account() {
+        let mut v: Value = serde_json::from_str(OK).unwrap();
+        v["account"] = serde_json::json!({ "title": " Tài khoản QQ阅读 ", "help": "  " });
+        let m = parse_manifest(&v.to_string(), false).unwrap();
+        assert_eq!(m.account, Some(AccountSpec { title: "Tài khoản QQ阅读".into(), required: false, help: None }));
+        assert!(parse_manifest(OK, false).unwrap().account.is_none());
     }
 
     #[test]
