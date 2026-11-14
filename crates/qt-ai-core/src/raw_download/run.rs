@@ -10,14 +10,14 @@ use super::{effective_raw_url, load_download, save_download, DownloadConfig};
 use crate::error::{CoreError, Result};
 use crate::story::StoryConfig;
 use crate::story_fs::{list_raw_chapter_ids, load_story_config, read_raw_chapter, resolve_root, story_paths, write_atomic, StoryPaths};
-use qt_ext::{check_setting, ChapterFormat, ExtError, LoginRecord, Scope, Session, SessionOptions, TocItem};
+use qt_ext::{check_setting, ChapterFormat, ExtError, LoginRecord, RequestLog, Scope, Session, SessionOptions, TocItem};
 use serde::Serialize;
 use serde_json::{json, Map, Value};
 use std::collections::HashSet;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Mode {
@@ -297,6 +297,101 @@ pub fn login(root: Option<&Path>, opts: &RunOptions, cancel: Arc<AtomicBool>) ->
         }),
     };
     start_session(opts, &cancel)?.login(&ctx).map_err(ext_error)
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TestLog {
+    pub level: &'static str,
+    pub message: String,
+}
+
+/// Kết quả Chạy thử (chế độ developer): kết quả thô, thời gian, từng request, log. Không ghi gì vào truyện.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TestReport {
+    pub ok: bool,
+    pub ms: u64,
+    pub result: Value,
+    pub error: Option<String>,
+    pub requests: Vec<RequestLog>,
+    pub logs: Vec<TestLog>,
+}
+
+type Recorded = (Arc<Mutex<Vec<RequestLog>>>, Arc<Mutex<Vec<TestLog>>>);
+
+fn recording(opts: &RunOptions) -> (RunOptions, Recorded) {
+    let requests: Arc<Mutex<Vec<RequestLog>>> = Arc::default();
+    let logs: Arc<Mutex<Vec<TestLog>>> = Arc::default();
+    let mut opts = opts.clone();
+    let sink = requests.clone();
+    opts.session.engine.on_request = Some(Arc::new(move |r| sink.lock().unwrap_or_else(|e| e.into_inner()).push(r)));
+    let sink = logs.clone();
+    opts.session.engine.log = Arc::new(move |level, message| sink.lock().unwrap_or_else(|e| e.into_inner()).push(TestLog { level: level.as_str(), message }));
+    let sink = logs.clone();
+    opts.session.engine.progress = Arc::new(move |done, total, message| {
+        let text = format!("progress {done}/{total}{}", message.map(|m| format!(" {m}")).unwrap_or_default());
+        sink.lock().unwrap_or_else(|e| e.into_inner()).push(TestLog { level: "info", message: text });
+    });
+    (opts, (requests, logs))
+}
+
+fn test_ctx(opts: &RunOptions, url: &str) -> Result<Value> {
+    let global = global_settings(opts)?;
+    Ok(json!({
+        "sourceUrl": url, "rawUrl": url,
+        "story": { "name": "", "chapterCount": 0, "current": Value::Null },
+        "request": { "mode": "test", "ids": [] },
+        "settings": settings_for(&opts.extension, &DownloadConfig::default(), &global),
+    }))
+}
+
+fn report(start: Instant, outcome: std::result::Result<Value, String>, recorded: Recorded) -> TestReport {
+    fn take<T>(m: &Mutex<Vec<T>>) -> Vec<T> {
+        std::mem::take(&mut *m.lock().unwrap_or_else(|e| e.into_inner()))
+    }
+    let (ok, result, error) = match outcome {
+        Ok(value) => (true, value, None),
+        Err(error) => (false, Value::Null, Some(error)),
+    };
+    TestReport { ok, ms: start.elapsed().as_millis() as u64, result, error, requests: take(&recorded.0), logs: take(&recorded.1) }
+}
+
+/// Chạy thử `toc` với một link (không cần truyện).
+pub fn test_toc(opts: &RunOptions, url: &str, cancel: Arc<AtomicBool>) -> Result<TestReport> {
+    let (opts, recorded) = recording(opts);
+    let ctx = test_ctx(&opts, url)?;
+    let start = Instant::now();
+    let outcome = start_session(&opts, &cancel)
+        .map_err(|e| e.to_string())
+        .and_then(|session| session.toc(&ctx).map_err(|e| e.to_string()))
+        .map(|toc| serde_json::to_value(toc).unwrap_or(Value::Null));
+    Ok(report(start, outcome, recorded))
+}
+
+/// Chạy thử `chapter` cho một mục của mục lục (`index` từ 1).
+pub fn test_chapter(opts: &RunOptions, url: &str, item: TocItem, index: usize, cancel: Arc<AtomicBool>) -> Result<TestReport> {
+    let (opts, recorded) = recording(opts);
+    let ctx = test_ctx(&opts, url)?;
+    let start = Instant::now();
+    let outcome = start_session(&opts, &cancel).map_err(|e| e.to_string()).and_then(|session| {
+        let mut result = Err("không có kết quả".to_string());
+        let title = item.title.clone();
+        session.chapters(&ctx, &[(index, item)], &mut |o| result = o.result.map_err(|e| e.to_string()));
+        result.map(|c| {
+            let html = c.format == ChapterFormat::Html;
+            let prepared = prepare(&c.content, html, c.title.as_deref().unwrap_or(&title));
+            json!({
+                "title": c.title,
+                "format": if html { "html" } else { "text" },
+                "content": c.content,
+                "saved": prepared.as_ref().map(|p| p.text.clone()),
+                "chars": prepared.as_ref().map(|p| p.body_chars),
+                "short": prepared.as_ref().is_some_and(|p| p.short),
+            })
+        })
+    });
+    Ok(report(start, outcome, recorded))
 }
 
 fn backup_name(stem: &str) -> String {

@@ -24,6 +24,6 @@ pub use package::{extract_zip, fetch_zip, sha256_hex, Package};
 pub use store::{AuthState, AuthValues, ExtStore, LoginRecord, SecretBackend, SessionStatus};
 pub use webview::{ClosedBy, Collect, StorageKeys, Until, WebviewCookie, WebviewHost, WebviewOutcome, WebviewRequest};
 pub use session::{ChapterContent, ChapterFormat, ChapterOutcome, Session, SessionOptions, TocItem};
-pub use engine::{redact, EngineOptions, LogLevel, LogSink, ProgressSink};
+pub use engine::{redact, EngineOptions, LogLevel, LogSink, ProgressSink, RequestLog, RequestSink};
 #[doc(hidden)]
 pub use engine::testing;

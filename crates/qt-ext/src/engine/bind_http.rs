@@ -2,7 +2,7 @@
 //! trần 20 MB, giới hạn theo host, chờ 429). Body phản hồi giữ ở Rust (`RawResponse`), JS đọc qua `text()`,
 //! `json()`, `bytes()`.
 
-use super::HostState;
+use super::{HostState, RequestLog};
 use crate::net::HttpRequest;
 use crate::text;
 use rquickjs::class::Trace;
@@ -139,6 +139,18 @@ pub(crate) fn install<'js>(ctx: &Ctx<'js>, state: &Rc<HostState>) -> Result<()> 
                 st.touch();
                 let parsed: RequestOptions = serde_json::from_str(&options).map_err(|e| Exception::throw_type(&ctx, &format!("http.request: {e}")))?;
                 let body = bytes.or_else(|| parsed.body_text.map(String::into_bytes));
+                let shown = st.on_request.as_ref().map(|_| {
+                    let url = match url::Url::parse(parsed.url.trim()) {
+                        Ok(mut url) => {
+                            if !parsed.query.is_empty() {
+                                url.query_pairs_mut().extend_pairs(&parsed.query);
+                            }
+                            url.to_string()
+                        }
+                        Err(_) => parsed.url.clone(),
+                    };
+                    (parsed.method.trim().to_ascii_uppercase(), st.redact(&url), std::time::Instant::now())
+                });
                 let request = HttpRequest {
                     method: parsed.method,
                     url: parsed.url,
@@ -154,6 +166,13 @@ pub(crate) fn install<'js>(ctx: &Ctx<'js>, state: &Rc<HostState>) -> Result<()> 
                 };
                 st.touch();
                 st.persist_cookies();
+                if let (Some(sink), Some((method, url, start))) = (&st.on_request, shown) {
+                    let (status, error) = match &result {
+                        Ok(response) => (Some(response.status), None),
+                        Err(error) => (None, Some(st.redact(&error.to_string()))),
+                    };
+                    sink(RequestLog { method: if method.is_empty() { "GET".into() } else { method }, url, status, ms: start.elapsed().as_millis() as u64, error });
+                }
                 match result {
                     Ok(response) => Ok(RawResponse {
                         status: response.status,

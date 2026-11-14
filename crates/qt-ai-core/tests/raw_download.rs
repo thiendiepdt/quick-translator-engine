@@ -6,7 +6,7 @@ mod common;
 use qt_ai_core::commands::init::run_init;
 use qt_ai_core::raw_download::matching::MatchedBy;
 use qt_ai_core::raw_download::registry::Installed;
-use qt_ai_core::raw_download::run::{download, load_toc, login, ChapterResult, Event, Mode, RowStatus, RunOptions};
+use qt_ai_core::raw_download::run::{download, load_toc, login, test_chapter, test_toc, ChapterResult, Event, Mode, RowStatus, RunOptions};
 use qt_ai_core::raw_download::{load_download, save_download, set_story_settings, DownloadConfig};
 use qt_ai_core::story_fs::{load_story_config, save_story_config, story_paths};
 use qt_ext::testkit::{demo_extension_dir, demo_server, TestServer};
@@ -231,4 +231,29 @@ fn auth_login_cai_dat_chung_va_truyen_auth_expired() {
     assert!(record.token.unwrap().starts_with("t-key-1-"));
     assert_eq!(server.hits("/login"), 3);
     assert!(store.session_status().logged_in);
+}
+
+#[test]
+fn chay_thu_toc_va_chapter_khong_can_truyen() {
+    let server = demo_server();
+    let opts = options();
+    let url = server.url("/book/1");
+    let toc = test_toc(&opts, &url, no_cancel()).unwrap();
+    assert!(toc.ok, "{toc:?}");
+    assert_eq!(toc.result.as_array().unwrap().len(), 6);
+    assert_eq!(toc.requests.len(), 2, "mục lục 2 trang");
+    assert!(toc.requests.iter().all(|r| r.status == Some(200) && r.method == "GET"));
+    assert!(toc.requests[1].url.ends_with("/book/1/list?page=2"), "{:?}", toc.requests[1]);
+    assert!(toc.logs.iter().any(|l| l.message.contains("trang mục lục 2")), "{:?}", toc.logs);
+
+    let items: Vec<qt_ext::TocItem> = serde_json::from_value(toc.result.clone()).unwrap();
+    let one = test_chapter(&opts, &url, items[0].clone(), 1, no_cancel()).unwrap();
+    assert!(one.ok, "{one:?}");
+    assert!(one.result["content"].as_str().unwrap().contains("天下大势"));
+    assert_eq!(one.result["saved"], serde_json::json!("第1章\n\n天下大势，分久必合。\n第1段\n"));
+    assert_eq!(one.requests.len(), 1);
+
+    let bad = test_chapter(&opts, &url, items[5].clone(), 6, no_cancel()).unwrap();
+    assert!(!bad.ok);
+    assert_eq!(bad.error.as_deref(), Some("hỏng"));
 }

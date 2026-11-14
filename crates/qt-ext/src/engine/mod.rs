@@ -37,6 +37,28 @@ pub enum LogLevel {
 
 pub type LogSink = Arc<dyn Fn(LogLevel, String) + Send + Sync>;
 pub type ProgressSink = Arc<dyn Fn(u64, u64, Option<String>) + Send + Sync>;
+pub type RequestSink = Arc<dyn Fn(RequestLog) + Send + Sync>;
+
+impl LogLevel {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            LogLevel::Info => "info",
+            LogLevel::Warn => "warn",
+            LogLevel::Error => "error",
+        }
+    }
+}
+
+/// Một request `http` của extension (Chạy thử, log chi tiết của extension dev). URL đã che khoá.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RequestLog {
+    pub method: String,
+    pub url: String,
+    pub status: Option<u16>,
+    pub ms: u64,
+    pub error: Option<String>,
+}
 
 #[derive(Clone)]
 pub struct EngineOptions {
@@ -48,6 +70,8 @@ pub struct EngineOptions {
     pub secrets: Vec<String>,
     pub log: LogSink,
     pub progress: ProgressSink,
+    /// Ghi lại từng request `http` (chỉ khi cần: Chạy thử, extension dev).
+    pub on_request: Option<RequestSink>,
 }
 
 impl Default for EngineOptions {
@@ -59,6 +83,7 @@ impl Default for EngineOptions {
             secrets: Vec::new(),
             log: Arc::new(|_, _| {}),
             progress: Arc::new(|_, _, _| {}),
+            on_request: None,
         }
     }
 }
@@ -105,6 +130,7 @@ pub(crate) struct HostState {
     secrets: RefCell<Vec<String>>,
     pub log: LogSink,
     pub progress: ProgressSink,
+    pub on_request: Option<RequestSink>,
     pub http: Rc<HttpClient>,
     pub session: Rc<SessionData>,
     cache_path: Option<PathBuf>,
@@ -289,6 +315,7 @@ impl Engine {
             secrets: RefCell::new(Vec::new()),
             log: opts.log.clone(),
             progress: opts.progress.clone(),
+            on_request: opts.on_request.clone(),
             http,
             session: stores.session,
             cache_path: stores.cache,
