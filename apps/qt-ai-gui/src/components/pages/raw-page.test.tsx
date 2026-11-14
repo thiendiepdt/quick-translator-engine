@@ -103,6 +103,28 @@ describe("RawPage", () => {
     expect(rawDownload).toHaveBeenLastCalledWith("D:\\lib\\demo", "selected", ["3", "4"], 1);
   });
 
+  it("chọn nhiều bằng Shift, bấm tên chương, Chọn hết / Bỏ chọn", async () => {
+    const user = userEvent.setup();
+    render(<RawPage />);
+    await user.click(await screen.findByRole("button", { name: /Tải mục lục/ }));
+    await user.click(await screen.findByLabelText("Chọn 第1章 起"));
+    await user.keyboard("{Shift>}");
+    await user.click(screen.getByLabelText("Chọn 第4章 合"));
+    await user.keyboard("{/Shift}");
+    expect(screen.getByRole("button", { name: "Tải đã chọn (4)" })).toBeEnabled();
+
+    await user.keyboard("{Shift>}");
+    await user.click(screen.getByText("第2章 承"));
+    await user.keyboard("{/Shift}");
+    expect(screen.getByRole("button", { name: "Tải đã chọn (1)" })).toBeEnabled();
+    expect(screen.getByLabelText("Chọn 第1章 起")).toBeChecked();
+
+    await user.click(screen.getByRole("button", { name: "Chọn hết" }));
+    expect(screen.getByRole("button", { name: "Tải đã chọn (4)" })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "Bỏ chọn" }));
+    expect(screen.getByRole("button", { name: "Tải đã chọn (0)" })).toBeDisabled();
+  });
+
   it("mẫu sai chặn Lưu; sửa link thì phải Lưu trước khi tải", async () => {
     vi.mocked(rawInfo).mockResolvedValue({ ...info, fileTemplate: "{chuong:4}_{chapter-id}", effectiveTemplate: "{chuong:4}_{chapter-id}" });
     const user = userEvent.setup();

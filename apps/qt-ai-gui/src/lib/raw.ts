@@ -47,3 +47,20 @@ export function renderName(template: string, parts: { index: number; id: string;
 }
 
 export const RAW_STATUS_LABELS = { have: "Đã có", missing: "Chưa có", locked: "Khoá" } as const;
+
+/**
+ * Chọn chương như book-downloader: bấm thường bật / tắt một chương. Giữ Shift thì áp cho cả dải từ chương bấm
+ * trước (`last`) tới chương này: chương này đang chưa chọn thì chọn cả dải, đang chọn thì bỏ cả dải.
+ */
+export function toggleSelection(selected: ReadonlySet<string>, order: readonly string[], id: string, last: string | undefined, shift: boolean): Set<string> {
+  const next = new Set(selected);
+  const on = !selected.has(id);
+  const from = last === undefined ? -1 : order.indexOf(last);
+  const to = order.indexOf(id);
+  const range = shift && from !== -1 && to !== -1 ? order.slice(Math.min(from, to), Math.max(from, to) + 1) : [id];
+  for (const each of range) {
+    if (on) next.add(each);
+    else next.delete(each);
+  }
+  return next;
+}

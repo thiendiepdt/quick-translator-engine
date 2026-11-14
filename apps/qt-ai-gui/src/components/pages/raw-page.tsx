@@ -26,7 +26,7 @@ import {
   type RawTocRow,
 } from "@/lib/api";
 import { authStatus, changedValues, initialDisplay, storyValues, type FieldDisplay } from "@/lib/ext";
-import { RAW_STATUS_LABELS, renderName, validateTemplate } from "@/lib/raw";
+import { RAW_STATUS_LABELS, renderName, toggleSelection, validateTemplate } from "@/lib/raw";
 import { useStoryStore } from "@/store/story";
 
 const MAX_LOG = 200;
@@ -50,6 +50,8 @@ export function RawPage() {
   const [toc, setToc] = useState<RawToc>();
   const [anchor, setAnchor] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  /** Chương bấm gần nhất — mốc của dải khi giữ Shift. */
+  const [lastPicked, setLastPicked] = useState<string>();
   const [busy, setBusy] = useState<"toc" | "download" | "save" | "login" | undefined>();
   const [progress, setProgress] = useState<Progress>();
   const [log, setLog] = useState<string[]>([]);
@@ -147,6 +149,7 @@ export function RawPage() {
       const view = await rawToc(root, anchorNumber);
       setToc(view);
       setSelected(new Set());
+      setLastPicked(undefined);
       if (view.lastIndex && !anchor) setAnchor(String(view.lastIndex));
     } catch (error) {
       toast.error(message(error));
@@ -165,6 +168,7 @@ export function RawPage() {
       const result = await rawDownload(root, mode, ids, anchorNumber);
       setSummary(result);
       setSelected(new Set());
+      setLastPicked(undefined);
       setSnapshot(await rescanStory(root));
       toast.success(result.cancelled ? `Đã huỷ — tải được ${result.saved.length} chương` : `Đã tải ${result.saved.length} chương`);
     } catch (error) {
@@ -179,13 +183,15 @@ export function RawPage() {
     requestAnimationFrame(() => document.getElementById(EXTENSIONS_CARD_ID)?.scrollIntoView({ block: "start" }));
   }
 
-  function toggle(row: RawTocRow) {
-    setSelected((current) => {
-      const next = new Set(current);
-      if (next.has(row.id)) next.delete(row.id);
-      else next.add(row.id);
-      return next;
-    });
+  function toggle(row: RawTocRow, shift: boolean) {
+    const order = toc?.rows.map((r) => r.id) ?? [];
+    setSelected((current) => toggleSelection(current, order, row.id, lastPicked, shift));
+    setLastPicked(row.id);
+  }
+
+  function selectAll(on: boolean) {
+    setSelected(on && toc ? new Set(toc.rows.map((r) => r.id)) : new Set());
+    setLastPicked(undefined);
   }
 
   if (!info) {
@@ -369,16 +375,42 @@ export function RawPage() {
 
           {toc && (
             <div className="rounded-lg border">
-              <p className="border-b px-4 py-2 text-sm text-muted-foreground">
-                {toc.rows.length} chương · đã có {toc.rows.filter((r) => r.status === "have").length} · khoá {toc.rows.filter((r) => r.locked).length}
-                {toc.by === "order" ? " · khớp chương cũ theo thứ tự" : ""}
-              </p>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b px-4 py-2 text-sm text-muted-foreground">
+                <span>
+                  {toc.rows.length} chương · đã có {toc.rows.filter((r) => r.status === "have").length} · khoá {toc.rows.filter((r) => r.locked).length}
+                  {toc.by === "order" ? " · khớp chương cũ theo thứ tự" : ""}
+                </span>
+                <span className="ml-auto flex items-center gap-1">
+                  <span className="text-xs">Giữ Shift khi bấm để chọn cả dải</span>
+                  <Button variant="ghost" size="sm" onClick={() => selectAll(true)}>
+                    Chọn hết
+                  </Button>
+                  <Button variant="ghost" size="sm" disabled={selected.size === 0} onClick={() => selectAll(false)}>
+                    Bỏ chọn
+                  </Button>
+                </span>
+              </div>
               <ul className="divide-y text-sm">
                 {toc.rows.map((row) => (
-                  <li key={row.id} aria-label={`Mục ${row.index}`} className="flex items-center gap-3 px-4 py-1.5">
-                    <input type="checkbox" aria-label={`Chọn ${row.title}`} checked={selected.has(row.id)} onChange={() => toggle(row)} />
-                    <span className="w-12 shrink-0 text-right font-mono text-xs text-muted-foreground">{row.index}</span>
-                    <span className="min-w-0 flex-1 truncate">{row.title}</span>
+                  <li
+                    key={row.id}
+                    aria-label={`Mục ${row.index}`}
+                    className="flex items-center gap-3 px-4 py-1.5"
+                    // Shift + bấm không bôi đen chữ.
+                    onMouseDown={(e) => e.shiftKey && e.preventDefault()}
+                  >
+                    <input
+                      type="checkbox"
+                      aria-label={`Chọn ${row.title}`}
+                      checked={selected.has(row.id)}
+                      onChange={(e) => toggle(row, "shiftKey" in e.nativeEvent && (e.nativeEvent as MouseEvent).shiftKey)}
+                    />
+                    <span className="w-12 shrink-0 cursor-pointer select-none text-right font-mono text-xs text-muted-foreground" onClick={(e) => toggle(row, e.shiftKey)}>
+                      {row.index}
+                    </span>
+                    <span className="min-w-0 flex-1 cursor-pointer select-none truncate" onClick={(e) => toggle(row, e.shiftKey)}>
+                      {row.title}
+                    </span>
                     <Badge variant={row.status === "have" ? "secondary" : row.status === "locked" ? "outline" : "default"}>{RAW_STATUS_LABELS[row.status]}</Badge>
                     <Button
                       variant="ghost"
