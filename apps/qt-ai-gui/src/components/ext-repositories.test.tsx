@@ -50,6 +50,7 @@ const repo: RepoView = {
   addedAt: 1,
   refreshedAt: 1,
   error: null,
+  authFilled: false,
 };
 
 const installed = (id: string, version: string) => ({ id, version }) as ExtListItem;
@@ -101,20 +102,21 @@ describe("ExtRepositories", () => {
     expect(screen.getByRole("listitem", { name: "Trong kho: Ixdzs" })).toBeInTheDocument();
   });
 
-  it("API key của kho nhập một lần ở form của kho", async () => {
+  it("API key của kho nhập một lần; lưu xong đóng hộp và dòng kho báo đã nhập", async () => {
     const user = userEvent.setup();
-    vi.mocked(repoList).mockResolvedValue([repo]);
+    vi.mocked(repoList).mockResolvedValueOnce([repo]).mockResolvedValue([{ ...repo, authFilled: true }]);
     render(<ExtRepositories installed={[]} busy={false} onInstall={() => Promise.resolve()} onUpdateAll={() => Promise.resolve()} />);
-    await user.click(await screen.findByRole("button", { name: /API key của kho/ }));
+    const row = await screen.findByRole("listitem", { name: `Kho ${repo.name}` });
+    expect(row).toHaveTextContent("Chưa nhập API key");
+    await user.click(within(row).getByRole("button", { name: /API key của kho/ }));
     const dialog = await screen.findByRole("dialog");
     expect(dialog).toHaveTextContent(`API key của kho — ${repo.name}`);
     await user.type(within(dialog).getByLabelText("API key (userId:secretKey)"), "u1:s1");
     await user.click(within(dialog).getByRole("button", { name: "Lưu auth" }));
     expect(repoSaveAuth).toHaveBeenCalledWith(repo.id, "apiKey", { apiKey: "u1:s1" });
-    await waitFor(() => expect(within(dialog).getByLabelText("API key (userId:secretKey)")).toHaveAttribute("placeholder", "Đã lưu — để trống để giữ"));
-
-    await user.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(await within(row).findByText("Đã nhập API key")).toBeInTheDocument();
+
     await user.click(screen.getByRole("button", { name: /^Làm mới$/ }));
     expect(repoRefresh).toHaveBeenCalledWith(repo.id);
   });

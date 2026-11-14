@@ -17,10 +17,31 @@ fn repos<R: Runtime>(app: &AppHandle<R>) -> Repositories {
     Repositories::new(&extensions_dir(&app.state::<AppState>().config_path))
 }
 
+/// Kho cho giao diện, kèm việc đã nhập API key chung chưa (không gửi giá trị key).
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RepoItem {
+    #[serde(flatten)]
+    pub repo: RepoView,
+    pub auth_filled: bool,
+}
+
+fn items<R: Runtime>(app: &AppHandle<R>, repos: &Repositories) -> Vec<RepoItem> {
+    let root = config_root(&app.state::<AppState>().config_path);
+    repos
+        .list()
+        .into_iter()
+        .map(|repo| {
+            let auth_filled = repo.has_auth && repos.repo_auth(&root, &repo.id).is_some_and(|a| matches!(a.values(None), Ok(Some(_))));
+            RepoItem { repo, auth_filled }
+        })
+        .collect()
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RepoRefreshView {
-    pub repositories: Vec<RepoView>,
+    pub repositories: Vec<RepoItem>,
     /// Kho làm mới lỗi ("<id>: <lỗi>"); bản cũ vẫn giữ.
     pub errors: Vec<String>,
 }
@@ -35,17 +56,17 @@ pub struct RepoAuthView {
 }
 
 #[tauri::command]
-pub async fn repo_list<R: Runtime>(app: AppHandle<R>) -> CmdResult<Vec<RepoView>> {
-    blocking(move || Ok(repos(&app).list())).await
+pub async fn repo_list<R: Runtime>(app: AppHandle<R>) -> CmdResult<Vec<RepoItem>> {
+    blocking(move || Ok(items(&app, &repos(&app)))).await
 }
 
 /// Thêm kho từ link `index.json` (hoặc thư mục chứa nó). Chỉ đọc danh sách, chưa cài gì.
 #[tauri::command]
-pub async fn repo_add<R: Runtime>(app: AppHandle<R>, url: String) -> CmdResult<Vec<RepoView>> {
+pub async fn repo_add<R: Runtime>(app: AppHandle<R>, url: String) -> CmdResult<Vec<RepoItem>> {
     blocking(move || {
         let repos = repos(&app);
         repos.add(&url).map_err(store_error)?;
-        Ok(repos.list())
+        Ok(items(&app, &repos))
     })
     .await
 }
@@ -59,18 +80,18 @@ pub async fn repo_refresh<R: Runtime>(app: AppHandle<R>, id: Option<String>) -> 
             Some(id) => repos.refresh(&id).err().map(|e| vec![format!("{id}: {e}")]).unwrap_or_default(),
             None => repos.refresh_all(),
         };
-        Ok(RepoRefreshView { repositories: repos.list(), errors })
+        Ok(RepoRefreshView { repositories: items(&app, &repos), errors })
     })
     .await
 }
 
 /// Gỡ kho: xoá khỏi danh sách và xoá API key chung; extension đã cài từ kho giữ nguyên.
 #[tauri::command]
-pub async fn repo_remove<R: Runtime>(app: AppHandle<R>, id: String) -> CmdResult<Vec<RepoView>> {
+pub async fn repo_remove<R: Runtime>(app: AppHandle<R>, id: String) -> CmdResult<Vec<RepoItem>> {
     blocking(move || {
         let repos = repos(&app);
         repos.remove(&id, &config_root(&app.state::<AppState>().config_path)).map_err(store_error)?;
-        Ok(repos.list())
+        Ok(items(&app, &repos))
     })
     .await
 }

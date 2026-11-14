@@ -751,6 +751,8 @@ export const repoViewSchema = z.object({
   addedAt: z.number(),
   refreshedAt: z.number(),
   error: z.string().nullable(),
+  /** Đã nhập API key chung của kho (giá trị key không gửi lên). */
+  authFilled: z.boolean().default(false),
 });
 export const repoRefreshSchema = z.object({ repositories: z.array(repoViewSchema), errors: z.array(z.string()) });
 export const repoAuthSchema = z.object({ id: z.string(), name: z.string(), auth: extAuthSchema, secretStore: z.string() });

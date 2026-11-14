@@ -98,12 +98,18 @@ export function ExtRepositories({ installed, busy, onInstall, onUpdateAll }: Pro
     if (found) setAuth(found);
   }
 
-  async function saveAuth(task: () => Promise<RepoAuth>, done: string) {
+  /** Lưu xong thì đóng hộp (dòng kho hiện "Đã nhập API key"); xoá thì giữ hộp mở để nhập key mới. */
+  async function saveAuth(task: () => Promise<RepoAuth>, done: string, close: boolean) {
     const next = await run(task);
     if (!next) return;
-    setAuth(next);
-    setAuthVersion((v) => v + 1);
+    if (close) {
+      setAuth(undefined);
+    } else {
+      setAuth(next);
+      setAuthVersion((v) => v + 1);
+    }
     toast.success(done);
+    repoList().then(setRepos, () => undefined);
   }
 
   const rows = useMemo(() => {
@@ -139,6 +145,14 @@ export function ExtRepositories({ installed, busy, onInstall, onUpdateAll }: Pro
           <li key={repo.id} aria-label={`Kho ${repo.name}`} className="flex flex-col gap-1 rounded-md border p-3 text-sm">
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-medium">{repo.name}</span>
+              {repo.hasAuth &&
+                (repo.authFilled ? (
+                  <Badge variant="secondary">Đã nhập API key</Badge>
+                ) : (
+                  <Badge variant="outline" className="text-destructive">
+                    {repo.authRequired ? "Chưa nhập API key" : "Chưa nhập API key (tuỳ chọn)"}
+                  </Badge>
+                ))}
               <span className="text-xs text-muted-foreground">
                 {repo.extensions.length} extension · {repo.maintainer.url ? <a href={repo.maintainer.url}>{repo.maintainer.name}</a> : repo.maintainer.name} · làm mới {formatTime(repo.refreshedAt)}
               </span>
@@ -233,8 +247,8 @@ export function ExtRepositories({ installed, busy, onInstall, onUpdateAll }: Pro
                 key={authVersion}
                 auth={auth.auth}
                 busy={disabled}
-                onSave={(scheme, values) => void saveAuth(() => repoSaveAuth(auth.id, scheme, values), "Đã lưu API key của kho")}
-                onClear={() => void saveAuth(() => repoClearAuth(auth.id), "Đã xoá API key của kho")}
+                onSave={(scheme, values) => void saveAuth(() => repoSaveAuth(auth.id, scheme, values), "Đã lưu API key của kho", true)}
+                onClear={() => void saveAuth(() => repoClearAuth(auth.id), "Đã xoá API key của kho", false)}
               />
             </>
           )}
