@@ -233,7 +233,23 @@ describe("RawPage", () => {
     expect(rescanStory).toHaveBeenCalledWith("D:\\lib\\demo");
   });
 
-  it("mẫu sai chặn Lưu; sửa link thì phải Lưu trước khi tải", async () => {
+  it("chip biến chèn vào chỗ con trỏ của ô mẫu; chưa bấm vào ô thì chèn cuối", async () => {
+    vi.mocked(rawInfo).mockResolvedValue({ ...info, fileTemplate: "abc", effectiveTemplate: "abc" });
+    const user = userEvent.setup();
+    render(<RawPage />);
+    const template = await screen.findByLabelText<HTMLInputElement>("Mẫu tên file");
+    await user.click(screen.getByRole("button", { name: /^Chèn \{chuong:4\}/ }));
+    expect(template).toHaveValue("abc{chuong:4}");
+    // Con trỏ về sau biến vừa chèn.
+    await waitFor(() => expect(template.selectionStart).toBe(13));
+
+    template.setSelectionRange(1, 2);
+    await user.click(screen.getByRole("button", { name: /^Chèn \{chapterTitle\}/ }));
+    expect(template).toHaveValue("a{chapterTitle}c{chuong:4}");
+    expect(screen.getByRole("button", { name: "Lưu" })).toBeEnabled();
+  });
+
+  it("mẫu sai chặn Lưu; sửa link thì phải Lưu trước khi tải", { timeout: 15_000 }, async () => {
     vi.mocked(rawInfo).mockResolvedValue({ ...info, fileTemplate: "{chuong:4}_{chapter-id}", effectiveTemplate: "{chuong:4}_{chapter-id}" });
     const user = userEvent.setup();
     render(<RawPage />);

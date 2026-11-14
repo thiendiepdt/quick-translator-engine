@@ -46,6 +46,22 @@ export function renderName(template: string, parts: { index: number; id: string;
   return sanitizeName(rendered) || String(parts.index).padStart(4, "0");
 }
 
+/** Biến của mẫu tên file — hàng chip dưới ô "Mẫu tên file", bấm để chèn vào chỗ con trỏ. */
+export const TEMPLATE_TOKENS = [
+  { token: "{chuong:4}", hint: "Số thứ tự chương, đủ 4 chữ số (0001) — bắt buộc có số thứ tự" },
+  { token: "{chuong}", hint: "Số thứ tự chương, không thêm số 0 (1)" },
+  { token: "{chapterTitle}", hint: "Tiêu đề chương theo mục lục" },
+  { token: "{chapter-id}", hint: "Mã chương bên trang nguồn" },
+  { token: "{volume}", hint: "Tên quyển (nguồn có chia quyển)" },
+] as const;
+
+/** Chèn `token` vào `text` thay đoạn [start, end); trả chuỗi mới và vị trí con trỏ sau token. */
+export function insertAt(text: string, token: string, start: number, end: number): { text: string; caret: number } {
+  const from = Math.max(0, Math.min(start, text.length));
+  const to = Math.max(from, Math.min(end, text.length));
+  return { text: text.slice(0, from) + token + text.slice(to), caret: from + token.length };
+}
+
 export const RAW_STATUS_LABELS = { have: "Đã có", missing: "Chưa có", locked: "Khoá" } as const;
 
 /**

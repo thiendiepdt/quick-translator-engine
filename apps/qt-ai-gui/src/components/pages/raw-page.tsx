@@ -1,5 +1,5 @@
 import { ArrowDownUp, CloudDownload, KeyRound, ListTree, LoaderCircle, LogIn, Puzzle, Square, Trash2, TriangleAlert } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { ExtConfigDialog } from "@/components/ext-config-dialog";
@@ -29,7 +29,7 @@ import {
 } from "@/lib/api";
 import { authStatus, changedValues, initialDisplay, storyValues, type FieldDisplay } from "@/lib/ext";
 import { cn } from "@/lib/utils";
-import { RAW_STATUS_LABELS, renderName, toggleSelection, validateTemplate } from "@/lib/raw";
+import { insertAt, RAW_STATUS_LABELS, renderName, TEMPLATE_TOKENS, toggleSelection, validateTemplate } from "@/lib/raw";
 import { forgetRawToc, loadRawToc, rawConfigured, rememberRawToc } from "@/store/raw-check";
 import { useStoryStore } from "@/store/story";
 
@@ -51,6 +51,9 @@ export function RawPage() {
   const [url, setUrl] = useState("");
   const [extension, setExtension] = useState("");
   const [template, setTemplate] = useState("");
+  const templateInput = useRef<HTMLInputElement>(null);
+  /** Đã bấm vào ô mẫu: chip chèn vào chỗ con trỏ; chưa thì chèn vào cuối. */
+  const templateTouched = useRef(false);
   const [toc, setToc] = useState<RawToc>();
   const [anchor, setAnchor] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -219,6 +222,19 @@ export function RawPage() {
     }
   }
 
+  function insertToken(token: string) {
+    const el = templateInput.current;
+    const end = template.length;
+    const at = templateTouched.current && el ? { start: el.selectionStart ?? end, end: el.selectionEnd ?? end } : { start: end, end };
+    const next = insertAt(template, token, at.start, at.end);
+    setTemplate(next.text);
+    templateTouched.current = true;
+    requestAnimationFrame(() => {
+      templateInput.current?.focus();
+      templateInput.current?.setSelectionRange(next.caret, next.caret);
+    });
+  }
+
   function openExtensions() {
     setPage("settings");
     requestAnimationFrame(() => document.getElementById(EXTENSIONS_CARD_ID)?.scrollIntoView({ block: "start" }));
@@ -357,12 +373,30 @@ export function RawPage() {
             <Label htmlFor="raw-template">Mẫu tên file</Label>
             <Input
               id="raw-template"
+              ref={templateInput}
               value={template}
+              onFocus={() => (templateTouched.current = true)}
               onChange={(e) => setTemplate(e.target.value)}
               placeholder={info.effectiveTemplate}
               className="font-mono"
               aria-invalid={!!templateError}
             />
+            <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Chèn biến vào mẫu tên file">
+              {TEMPLATE_TOKENS.map(({ token, hint }) => (
+                <button
+                  key={token}
+                  type="button"
+                  title={hint}
+                  aria-label={`Chèn ${token} — ${hint}`}
+                  // Giữ con trỏ trong ô mẫu khi bấm chip.
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => insertToken(token)}
+                  className="rounded-full border bg-muted/50 px-2 py-0.5 font-mono text-xs text-foreground transition-colors hover:border-primary hover:bg-primary/10 hover:text-primary"
+                >
+                  {token}
+                </button>
+              ))}
+            </div>
             {templateError ? (
               <p className="text-xs text-destructive">{templateError}</p>
             ) : (
