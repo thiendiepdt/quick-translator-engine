@@ -21,6 +21,7 @@ mod padding_cmds;
 mod process_cmds;
 mod raw_cmds;
 mod ext_cmds;
+mod ext_manage_cmds;
 mod ext_webview;
 
 use app_config::AppConfig;
@@ -230,6 +231,16 @@ pub fn run() {
             ext_cmds::ext_logout,
             ext_cmds::ext_clear_cache,
             ext_cmds::ext_login,
+            ext_manage_cmds::ext_list,
+            ext_manage_cmds::ext_inspect_file,
+            ext_manage_cmds::ext_inspect_url,
+            ext_manage_cmds::ext_install,
+            ext_manage_cmds::ext_uninstall,
+            ext_manage_cmds::ext_set_enabled,
+            ext_manage_cmds::ext_check_update,
+            ext_manage_cmds::ext_add_dev,
+            ext_manage_cmds::ext_test_toc,
+            ext_manage_cmds::ext_test_chapter,
             idiom_cmds::idioms_refresh,
             idiom_cmds::idioms_save_user,
             padding_cmds::padding_get,
@@ -301,6 +312,7 @@ mod tests {
             include_str!("process_cmds.rs"),
             include_str!("raw_cmds.rs"),
             include_str!("ext_cmds.rs"),
+            include_str!("ext_manage_cmds.rs"),
         ]
         .join("\n");
         let heavy = [
@@ -380,6 +392,16 @@ mod tests {
             "ext_logout",
             "ext_clear_cache",
             "ext_login",
+            "ext_list",
+            "ext_inspect_file",
+            "ext_inspect_url",
+            "ext_install",
+            "ext_uninstall",
+            "ext_set_enabled",
+            "ext_check_update",
+            "ext_add_dev",
+            "ext_test_toc",
+            "ext_test_chapter",
         ];
         for name in heavy {
             // Có AppHandle thì generic theo Runtime (mock runtime trong test gọi được), không thì không.

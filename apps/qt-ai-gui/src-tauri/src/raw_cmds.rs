@@ -14,7 +14,7 @@ use qt_ai_core::raw_download::run::{download, effective_template, load_toc, Chap
 use qt_ai_core::raw_download::template::{guess_template, validate_template, DEFAULT_TEMPLATE};
 use qt_ai_core::raw_download::{effective_raw_url, load_download, save_download, set_story_settings};
 use qt_ai_core::story_fs::{list_raw_chapter_ids, load_story_config, story_paths};
-use qt_ext::TocItem;
+use qt_ext::{LogLevel, TocItem};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::collections::HashMap;
@@ -252,6 +252,7 @@ pub async fn raw_toc<R: Runtime>(app: AppHandle<R>, root: String, anchor: Option
         let path = Path::new(&root);
         let mut opts = options_for(path, &state.config_path, anchor)?;
         opts.session.webview = Some(crate::ext_webview::host(&app));
+        wire_events(&mut opts, &app, &root);
         let running = Running::start(&root)?;
         let (toc, view) = load_toc(path, &opts, running.cancel.clone())?;
         let raw_url = info_inner(path, &state.config_path)?.raw_url;
@@ -274,6 +275,40 @@ pub struct RawProgress {
     /// "saved" | "short" | "locked" | "failed" (kind = chapter)
     pub status: &'static str,
     pub message: String,
+}
+
+fn log_line(root: &str, message: String) -> RawProgress {
+    RawProgress { root: root.to_string(), kind: "log", done: 0, total: 0, index: 0, title: String::new(), status: "", message }
+}
+
+/// `log.*` và `progress()` của extension vào log trang Tải raw; extension dev thêm từng request.
+pub fn wire_events<R: Runtime>(opts: &mut RunOptions, app: &AppHandle<R>, root: &str) {
+    let (emitter, owner) = (app.clone(), root.to_string());
+    opts.session.engine.log = Arc::new(move |level, message| {
+        let head = match level {
+            LogLevel::Info => "",
+            LogLevel::Warn => "Cảnh báo: ",
+            LogLevel::Error => "Lỗi: ",
+        };
+        let _ = emitter.emit(RAW_EVENT, &log_line(&owner, format!("[extension] {head}{message}")));
+    });
+    let (emitter, owner) = (app.clone(), root.to_string());
+    opts.session.engine.progress = Arc::new(move |done, total, message| {
+        let count = if total > 0 { format!("{done}/{total}") } else { done.to_string() };
+        let tail = message.map(|m| format!(" — {m}")).unwrap_or_default();
+        let _ = emitter.emit(RAW_EVENT, &log_line(&owner, format!("[extension] tiến độ {count}{tail}")));
+    });
+    if opts.extension.dev {
+        let (emitter, owner) = (app.clone(), root.to_string());
+        opts.session.engine.on_request = Some(Arc::new(move |r| {
+            let result = match (r.status, &r.error) {
+                (Some(status), _) => status.to_string(),
+                (None, Some(error)) => format!("lỗi: {error}"),
+                (None, None) => "?".into(),
+            };
+            let _ = emitter.emit(RAW_EVENT, &log_line(&owner, format!("[dev] {} {} → {result} ({} ms)", r.method, r.url, r.ms)));
+        }));
+    }
 }
 
 fn progress_of(root: &str, event: Event) -> RawProgress {
@@ -305,6 +340,7 @@ pub async fn raw_download<R: Runtime>(app: AppHandle<R>, root: String, mode: Str
         };
         let mut opts = options_for(path, &state.config_path, anchor)?;
         opts.session.webview = Some(crate::ext_webview::host(&app));
+        wire_events(&mut opts, &app, &root);
         let running = Running::start(&root)?;
         let raw_url = info_inner(path, &state.config_path)?.raw_url;
         let cached = TOC_CACHE.lock().unwrap_or_else(|e| e.into_inner()).get(&root).cloned();

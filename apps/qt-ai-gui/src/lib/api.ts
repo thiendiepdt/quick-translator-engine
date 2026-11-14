@@ -29,7 +29,10 @@ import {
   replaceUndoOutcomeSchema,
   paddingSettingsSchema,
   extConfigSchema,
+  extInspectionSchema,
+  extListItemSchema,
   extLoginSchema,
+  extTestReportSchema,
   rawInfoSchema,
   rawProgressSchema,
   rawSummarySchema,
@@ -425,6 +428,44 @@ export const extLogout = (id: string) => call("ext_logout", { id }, parseExtConf
 export const extClearCache = (id: string) => call("ext_clear_cache", { id }, parseExtConfig);
 /** Gọi `login` của extension ngay; `hasLogin = false` khi extension không có hàm này. */
 export const extLogin = (root: string | null, id: string) => call("ext_login", { root, id }, (v) => extLoginSchema.parse(v));
+export type ExtListItem = z.infer<typeof extListItemSchema>;
+export type ExtInspection = z.infer<typeof extInspectionSchema>;
+export type ExtTestReport = z.infer<typeof extTestReportSchema>;
+export interface ExtTestTocItem {
+  id: string;
+  title: string;
+  locked?: boolean;
+  volume?: string;
+  data?: unknown;
+}
+const parseExtList = (v: unknown) => z.array(extListItemSchema).parse(v);
+const parseInspection = (v: unknown) => extInspectionSchema.parse(v);
+const parseTestReport = (v: unknown) => extTestReportSchema.parse(v);
+/** Extension đã cài, kể cả đang tắt và nạp lỗi. */
+export const extList = () => call("ext_list", {}, parseExtList);
+/** Kiểm gói zip trên máy (chưa cài) — để hiện hộp xin quyền. */
+export const extInspectFile = (path: string) => call("ext_inspect_file", { path }, parseInspection);
+/** Tải gói từ link https rồi kiểm (chưa cài). */
+export const extInspectUrl = (url: string) => call("ext_inspect_url", { url }, parseInspection);
+/** Cài gói vừa kiểm (người dùng đã đồng ý quyền). */
+export const extInstall = (sha256: string) => call("ext_install", { sha256 }, parseExtList);
+/** Gỡ extension: xoá gói, cài đặt, auth, session, cache, hồ sơ webview. */
+export const extUninstall = (id: string) => call("ext_uninstall", { id }, parseExtList);
+export const extSetEnabled = (id: string, enabled: boolean) => call("ext_set_enabled", { id, enabled }, parseExtList);
+/** Tải lại gói từ link đã cài; `null` = đang là bản mới nhất. */
+export const extCheckUpdate = (id: string) => call("ext_check_update", { id }, (v) => extInspectionSchema.nullable().parse(v));
+/** Chế độ developer: chạy extension từ thư mục đang viết. */
+export const extAddDev = (dir: string) => call("ext_add_dev", { dir }, parseExtList);
+/** Chạy thử `toc` với một link; không ghi gì vào truyện. */
+export const extTestToc = (id: string, url: string) => call("ext_test_toc", { id, url }, parseTestReport);
+/** Chạy thử `chapter` cho một mục của mục lục (`index` từ 1). */
+export const extTestChapter = (id: string, url: string, item: ExtTestTocItem, index: number) =>
+  call("ext_test_chapter", { id, url, item, index }, parseTestReport);
+
+export async function pickZipFile(): Promise<string | undefined> {
+  const selected = await open({ directory: false, multiple: false, title: "Chọn gói extension (.zip)", filters: [{ name: "Extension", extensions: ["zip"] }] });
+  return typeof selected === "string" ? selected : undefined;
+}
 /** Link tải raw, extension khớp link, mẫu tên file của truyện. */
 export const rawInfo = (root: string) => call("raw_info", { root }, (v) => rawInfoSchema.parse(v));
 /**

@@ -3617,6 +3617,7 @@ dependencies = [
 name = "qt-ai-gui"
 version = "1.0.31"
 dependencies = [
+ "base64 0.22.1",
  "encoding_rs",
  "qt-ai-core",
  "qt-ext",

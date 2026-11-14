@@ -665,6 +665,69 @@ export const extConfigSchema = z.object({
   cacheBytes: z.number(),
 });
 export const extLoginSchema = z.object({ config: extConfigSchema, hasLogin: z.boolean() });
+/** Cài và quản lý extension (Rust ext_manage_cmds). */
+const extDeveloperSchema = z.object({ name: z.string(), url: z.string().nullable(), email: z.string().nullable() });
+export const extSourceSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("file"), path: z.string() }),
+  z.object({ kind: z.literal("link"), url: z.string() }),
+  z.object({ kind: z.literal("dev"), dir: z.string() }),
+  z.object({ kind: z.literal("manual") }),
+]);
+export const extListItemSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  version: z.string(),
+  description: z.string(),
+  developer: extDeveloperSchema.nullable(),
+  license: z.string().nullable(),
+  homepage: z.string().nullable(),
+  hosts: z.array(z.string()),
+  permissions: z.array(z.string()),
+  authRequired: z.boolean(),
+  configurable: z.boolean(),
+  enabled: z.boolean(),
+  dev: z.boolean(),
+  source: extSourceSchema,
+  installedAt: z.number(),
+  updatedAt: z.number(),
+  icon: z.string().nullable(),
+  error: z.string().nullable(),
+});
+export const extInspectionSchema = z.object({
+  sha256: z.string(),
+  id: z.string(),
+  name: z.string(),
+  version: z.string(),
+  currentVersion: z.string().nullable(),
+  description: z.string(),
+  developer: extDeveloperSchema,
+  license: z.string().nullable(),
+  homepage: z.string().nullable(),
+  hosts: z.array(z.string()),
+  newHosts: z.array(z.string()),
+  permissions: z.array(z.string()),
+  newPermissions: z.array(z.string()),
+  authRequired: z.boolean(),
+  newer: z.boolean(),
+  needsConsent: z.boolean(),
+  icon: z.string().nullable(),
+});
+export const extTestReportSchema = z.object({
+  ok: z.boolean(),
+  ms: z.number(),
+  result: z.unknown(),
+  error: z.string().nullable(),
+  requests: z.array(z.object({ method: z.string(), url: z.string(), status: z.number().nullable(), ms: z.number(), error: z.string().nullable() })),
+  logs: z.array(z.object({ level: z.string(), message: z.string() })),
+});
+/** Một mục mục lục trong kết quả Chạy thử `toc`. */
+export const extTestTocItemSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  locked: z.boolean().optional(),
+  volume: z.string().optional(),
+  data: z.unknown().optional(),
+});
 export const rawInfoSchema = z.object({
   rawUrl: z.string(),
   rawUrlIsDefault: z.boolean(),

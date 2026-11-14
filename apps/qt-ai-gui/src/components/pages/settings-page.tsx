@@ -10,6 +10,7 @@ import { BasePromptDialog } from "@/components/base-prompt-dialog";
 import { BaseRulesDialog } from "@/components/base-rules-dialog";
 import { Choice } from "@/components/choice";
 import { EffortTable } from "@/components/effort-table";
+import { ExtensionManager } from "@/components/ext-manager";
 import { PalettePicker } from "@/components/palette-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -492,6 +493,13 @@ export function SettingsPage() {
             description="Chương có thành ngữ nào trong bảng thì AI dịch theo cách ghi (nhiều cách ngăn bằng /), chỉ diễn đạt lại khi cách đó làm câu gượng; bản dịch không theo thì cảnh báo khi chốt chương. Bảng chung cập nhật trên GitHub, app tải lại mỗi lần mở; bảng của bạn đè lên: thêm câu mới, sửa hoặc tắt câu của bảng chung. Dùng chung mọi truyện."
           >
             <IdiomSettingsEditor />
+          </Card>
+          <Card
+            id="extensions"
+            title="Extension tải raw"
+            description="Extension tải chương raw từ trang nguồn cho trang Tải raw. Cài từ file .zip hoặc link https; app hiện domain và quyền extension xin trước khi cài, bản cập nhật xin thêm thì hỏi lại."
+          >
+            <ExtensionManager />
           </Card>
           <AgyDataCard />
           <form id={FORM_ID} onSubmit={(e) => void submit(e)} className="flex flex-col gap-6">

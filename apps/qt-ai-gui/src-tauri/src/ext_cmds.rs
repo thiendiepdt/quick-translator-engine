@@ -5,7 +5,7 @@
 use crate::error::{blocking, CmdResult, CommandError};
 use crate::raw_cmds::extensions_dir;
 use crate::AppState;
-use qt_ai_core::raw_download::registry::{list_installed, Installed};
+use qt_ai_core::raw_download::registry::{Installed, Registry};
 use qt_ai_core::raw_download::run::{login, RunOptions};
 use qt_ai_core::raw_download::DownloadConfig;
 use qt_ext::{check_setting, ExtError, ExtStore, FieldKind, Manifest, Scope, SessionStatus, SettingField, SettingKind};
@@ -29,8 +29,14 @@ pub fn store_error(error: ExtError) -> CommandError {
     CommandError::new("invalid_state", error.to_string())
 }
 
-fn find(config_path: &Path, id: &str) -> CmdResult<Installed> {
-    list_installed(&extensions_dir(config_path)).0.into_iter().find(|e| e.package.manifest.id == id).ok_or_else(|| CommandError::new("not_found", format!("Chưa cài extension {id}.")))
+/// Extension đã cài theo id, kể cả đang tắt (trang quản lý mở Auth / Chạy thử được).
+pub(crate) fn find(config_path: &Path, id: &str) -> CmdResult<Installed> {
+    let (_, loaded) = Registry::new(&extensions_dir(config_path))
+        .list_all()
+        .into_iter()
+        .find(|(entry, _)| entry.id == id)
+        .ok_or_else(|| CommandError::new("not_found", format!("Chưa cài extension {id}.")))?;
+    loaded.map_err(|error| CommandError::new("invalid_state", format!("Extension {id} nạp lỗi: {error}")))
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -257,6 +263,9 @@ pub async fn ext_login<R: Runtime>(app: AppHandle<R>, root: Option<String>, id: 
             let mut opts = RunOptions::new(installed.clone());
             opts.session.store = Some(store.clone());
             opts.session.webview = Some(crate::ext_webview::host(&app));
+            if let Some(root) = &root {
+                crate::raw_cmds::wire_events(&mut opts, &app, root);
+            }
             let record = login(root.as_deref().map(Path::new), &opts, Arc::new(AtomicBool::new(false)))?;
             Ok(ExtLoginView { config: config_view(installed, store)?, has_login: record.is_some() })
         })
