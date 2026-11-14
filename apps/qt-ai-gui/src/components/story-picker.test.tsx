@@ -195,14 +195,14 @@ describe("StoryPicker · Thư viện", () => {
     const user = userEvent.setup();
     useStoryStore.setState({ screen: "picker", config: { ...config, libraryRoot: "D:\\lib", recent: [] } });
     vi.mocked(libraryList).mockResolvedValue([
-      { root: "D:\\lib\\a", name: "Truyện A", done: 1, total: 9, source: { label: "Qimao 七猫", extension: true, url: "https://www.qimao.com/shuku/1/" } },
+      { root: "D:\\lib\\a", name: "Truyện A", done: 1, total: 9, source: { label: "Qimao", extension: true, url: "https://www.qimao.com/shuku/1/" } },
       { root: "D:\\lib\\b", name: "Truyện B", done: 1, total: 9, source: { label: "69shuba.com", extension: false, url: "https://www.69shuba.com/book/2.htm" } },
       { root: "D:\\lib\\c", name: "Truyện C", done: 1, total: 9 },
       // Đủ dài (> 8) để có ô tìm.
       ...Array.from({ length: 6 }, (_, i) => ({ root: `D:\\lib\\x${i}`, name: `Truyện phụ ${i}`, done: 0, total: 1 })),
     ]);
     render(<StoryPicker />);
-    expect(await screen.findByText("Qimao 七猫")).toHaveAttribute("title", "Tải raw qua extension Qimao 七猫 — https://www.qimao.com/shuku/1/");
+    expect(await screen.findByText("Qimao")).toHaveAttribute("title", "Tải raw qua extension Qimao — https://www.qimao.com/shuku/1/");
     expect(screen.getByText("69shuba.com")).toHaveAttribute("title", expect.stringContaining("Chưa có extension"));
 
     await user.type(screen.getByLabelText("Tìm truyện trong thư viện"), "qimao");

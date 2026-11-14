@@ -141,6 +141,18 @@ fn story_source_url(paths: &StoryPaths) -> Option<String> {
     Some(parsed.source_url.as_ref().and_then(Value::as_str).unwrap_or("").to_string())
 }
 
+/// Tên extension bỏ chữ Hán cho chip gọn ("Fanqie 番茄" → "Fanqie"); tên toàn chữ Hán thì giữ nguyên.
+fn short_name(name: &str) -> String {
+    let cjk = |c: char| matches!(c as u32, 0x2E80..=0x9FFF | 0xF900..=0xFAFF | 0xFE30..=0xFE4F | 0xFF00..=0xFFEF | 0x20000..=0x3FFFF);
+    let kept: String = name.chars().filter(|&c| !cjk(c)).collect();
+    let kept = kept.split_whitespace().collect::<Vec<_>>().join(" ");
+    if kept.chars().any(char::is_alphanumeric) {
+        kept
+    } else {
+        name.trim().to_string()
+    }
+}
+
 /// Nhãn nguồn của truyện từ link tải raw (mặc định là link nguồn); `None` khi truyện không có link.
 pub fn source_label(paths: &StoryPaths, installed: &[Installed]) -> Option<SourceLabel> {
     let story = StoryConfig { source_url: story_source_url(paths)?, ..StoryConfig::empty() };
@@ -148,10 +160,10 @@ pub fn source_label(paths: &StoryPaths, installed: &[Installed]) -> Option<Sourc
     let raw = effective_raw_url(&config, &story);
     let parsed = url::Url::parse(&raw).ok();
     if let Some(ext) = pick(installed, &raw, &config.extension) {
-        let name = &ext.package.manifest.name;
+        let name = short_name(&ext.package.manifest.name);
         let label = match parsed.as_ref().and_then(stv_source) {
             Some(sub) => format!("{name} · {sub}"),
-            None => name.clone(),
+            None => name,
         };
         return Some(SourceLabel { label, extension: true, url: raw });
     }
@@ -283,6 +295,15 @@ nội dung")).unwrap();
         std::fs::write(&paths.story_json, late.to_string()).unwrap();
         assert!(std::fs::metadata(&paths.story_json).unwrap().len() > 8192);
         assert_eq!(source_label(&paths, &installed).unwrap().label, "qimao.com");
+    }
+
+    #[test]
+    fn ten_extension_bo_chu_han() {
+        assert_eq!(short_name("Fanqie 番茄"), "Fanqie");
+        assert_eq!(short_name("Qimao 七猫"), "Qimao");
+        assert_eq!(short_name("七猫 Qimao（官方）"), "Qimao");
+        assert_eq!(short_name("SangTacViet"), "SangTacViet");
+        assert_eq!(short_name("番茄小说"), "番茄小说", "toàn chữ Hán thì giữ");
     }
 
     #[test]
