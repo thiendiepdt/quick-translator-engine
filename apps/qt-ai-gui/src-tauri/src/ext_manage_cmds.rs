@@ -8,7 +8,7 @@ use crate::raw_cmds::{extensions_dir, DeveloperView};
 use crate::AppState;
 use base64::Engine as _;
 use qt_ai_core::raw_download::registry::{Inspection, Registry, Source};
-use qt_ai_core::raw_download::repository::Repositories;
+use qt_ai_core::raw_download::repository::{Repositories, UpdateReport};
 use qt_ai_core::raw_download::run::{test_chapter, test_toc, RunOptions, TestReport};
 use qt_ext::{fetch_zip, Package, Permission, TocItem};
 use serde::Serialize;
@@ -288,6 +288,16 @@ pub async fn ext_check_update<R: Runtime>(app: AppHandle<R>, id: String) -> CmdR
         }
         PENDING.lock().unwrap_or_else(|e| e.into_inner()).insert(inspection.sha256.clone(), entry.source.clone());
         Ok(Some(inspection_view(&inspection)))
+    })
+    .await
+}
+
+/// Mở app: tự cập nhật extension cài từ kho / link lên bản mới (bản xin thêm domain / quyền thì chỉ báo).
+#[tauri::command]
+pub async fn ext_auto_update<R: Runtime>(app: AppHandle<R>) -> CmdResult<UpdateReport> {
+    blocking(move || {
+        let repos = Repositories::new(&extensions_dir(&app.state::<AppState>().config_path));
+        Ok(repos.auto_update(&registry(&app)))
     })
     .await
 }

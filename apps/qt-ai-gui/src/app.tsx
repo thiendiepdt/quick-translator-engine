@@ -21,6 +21,7 @@ import { useSessionEvents } from "@/hooks/use-session-events";
 import { useStoryChecked } from "@/hooks/use-story-checked";
 import { useThemeSync } from "@/hooks/use-theme";
 import { useUndoFallback } from "@/hooks/use-undo-fallback";
+import { useExtAutoUpdate } from "@/hooks/use-ext-auto-update";
 import { useUpdateCheck } from "@/hooks/use-update-check";
 import { useWhatsNew } from "@/hooks/use-whats-new";
 import { agyStatus, appConfigGet, appConfigSet, pickAgyFile } from "@/lib/api";
@@ -51,6 +52,8 @@ export default function App() {
   useThemeSync();
   useUndoFallback();
   useUpdateCheck();
+  // Mở app: tự cập nhật extension tải raw (chạy nền).
+  useExtAutoUpdate(config ? config.autoUpdateExtensions : undefined);
   // Dấu hiệu đã dùng app trước bản có "Có gì mới" (chưa có khoá last-seen): config.json trên đĩa đã có truyện gần đây
   // hoặc thư viện. Không dùng khoá palette/theme trong localStorage: useThemeSync ghi chúng ngay khi config nạp,
   // nên máy cài mới cũng có trước khi kịp kiểm tra.

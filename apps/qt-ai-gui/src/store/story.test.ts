@@ -260,6 +260,7 @@ describe("openStory/closeStory", () => {
       lineNumbers: false,
       resumeOnQuota: false,
       useMcp: true,
+      autoUpdateExtensions: true,
     };
     useStoryStore.getState().setConfig(config);
     useStoryStore.getState().openStory(snapshot);

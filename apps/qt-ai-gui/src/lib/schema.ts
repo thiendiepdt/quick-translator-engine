@@ -429,6 +429,8 @@ export const appConfigSchema = z.object({
   resumeOnQuota: z.boolean().default(false),
   /** Agent gọi qt-ai qua tool MCP thay vì lệnh terminal (đỡ lag DWM trên Windows 10); mặc định bật. */
   useMcp: z.boolean().default(true),
+  /** Mở app thì tự cập nhật extension tải raw (trừ bản xin thêm domain / quyền); mặc định bật. */
+  autoUpdateExtensions: z.boolean().default(true),
 });
 
 /** "builtin" = bản cứng trong binary; "file" = người dùng đã sửa ở Cài đặt → Bản mặc định. */
@@ -849,4 +851,12 @@ export const rawProgressSchema = z.object({
   title: z.string(),
   status: z.string(),
   message: z.string(),
+});
+
+/** Kết quả tự cập nhật extension lúc mở app (Rust `ext_auto_update`). */
+const extUpdateItemSchema = z.object({ id: z.string(), name: z.string(), from: z.string(), to: z.string() });
+export const extUpdateReportSchema = z.object({
+  updated: z.array(extUpdateItemSchema),
+  needsConsent: z.array(extUpdateItemSchema),
+  failed: z.array(z.string()),
 });

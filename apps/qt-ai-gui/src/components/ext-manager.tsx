@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
+  appConfigSet,
   extAddDev,
   extCheckUpdate,
   extConfig,
@@ -31,6 +32,7 @@ import {
   type ExtListItem,
 } from "@/lib/api";
 import { invalidateRawChecks } from "@/store/raw-check";
+import { useStoryStore } from "@/store/story";
 
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
@@ -53,6 +55,35 @@ function sourceLabel(item: ExtListItem): string {
 }
 
 /** Cài đặt → Extension tải raw: cài từ file zip / link, xin quyền, bật/tắt, cập nhật, auth, chạy thử, gỡ. */
+/** Ô "Tự cập nhật extension khi mở app" — lưu ngay vào cấu hình app (không qua nút Lưu của trang). */
+function AutoUpdateToggle() {
+  const config = useStoryStore((s) => s.config);
+  const setConfig = useStoryStore((s) => s.setConfig);
+  if (!config) return null;
+
+  async function toggle(on: boolean) {
+    if (!config) return;
+    try {
+      setConfig(await appConfigSet({ ...config, autoUpdateExtensions: on }));
+    } catch (error) {
+      toast.error(message(error));
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="flex items-center gap-2 text-sm font-medium">
+        <input type="checkbox" checked={config.autoUpdateExtensions} onChange={(e) => void toggle(e.target.checked)} />
+        Tự cập nhật extension khi mở app
+      </label>
+      <p className="text-xs text-muted-foreground">
+        Extension cài từ kho hoặc từ link tự lên bản mới mỗi lần mở app. Bản mới xin thêm domain hoặc quyền thì không tự cài
+        — app báo để bạn bấm Cập nhật và đồng ý. Bản Dev và bản cài từ file không tự cập nhật.
+      </p>
+    </div>
+  );
+}
+
 export function ExtensionManager() {
   const [items, setItems] = useState<ExtListItem[]>();
   const [link, setLink] = useState("");
@@ -232,6 +263,7 @@ export function ExtensionManager() {
 
   return (
     <div className="flex flex-col gap-4">
+      <AutoUpdateToggle />
       <div className={`flex flex-col gap-3 rounded-md border border-dashed p-3 ${dragging ? "bg-muted" : ""}`}>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => void fromFile()} disabled={busy}>

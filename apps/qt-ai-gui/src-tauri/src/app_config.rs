@@ -107,6 +107,9 @@ pub struct AppConfig {
     /// rác trong DWM, dịch lâu là cả máy lag (xem `qt_ai_core::mcp_config`). Mặc định bật; config cũ chưa có
     /// khoá này cũng là bật.
     pub use_mcp: bool,
+    /// Mở app thì tự cập nhật extension tải raw (cài từ kho / link) lên bản mới, trừ bản xin thêm domain / quyền.
+    /// Mặc định bật; config cũ chưa có khoá này cũng là bật.
+    pub auto_update_extensions: bool,
 }
 
 /// Số phiên agy tối đa mỗi lần Bắt đầu. 500 phiên × 10 chương/phiên ≈ 5.000 chương — đủ cho truyện dài nhất
@@ -132,6 +135,7 @@ impl Default for AppConfig {
             line_numbers: true,
             resume_on_quota: false,
             use_mcp: true,
+            auto_update_extensions: true,
         }
     }
 }
@@ -185,8 +189,10 @@ mod tests {
         let path = dir.path().join("config.json");
         std::fs::write(&path, r#"{"agyPath":null,"model":null,"maxSessions":500,"recent":[]}"#).unwrap();
         assert!(AppConfig::load(&path).use_mcp);
-        std::fs::write(&path, r#"{"useMcp":false}"#).unwrap();
+        assert!(AppConfig::load(&path).auto_update_extensions);
+        std::fs::write(&path, r#"{"useMcp":false,"autoUpdateExtensions":false}"#).unwrap();
         assert!(!AppConfig::load(&path).use_mcp);
+        assert!(!AppConfig::load(&path).auto_update_extensions);
     }
 
     #[test]

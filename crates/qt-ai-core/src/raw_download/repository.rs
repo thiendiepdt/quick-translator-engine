@@ -225,6 +225,28 @@ pub struct RepoRecord {
     pub refreshed_at: i64,
 }
 
+/// Một extension trong lượt tự cập nhật.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateItem {
+    pub id: String,
+    pub name: String,
+    pub from: String,
+    pub to: String,
+}
+
+/// Kết quả tự cập nhật lúc mở app.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateReport {
+    /// Đã cài bản mới.
+    pub updated: Vec<UpdateItem>,
+    /// Bản mới xin thêm domain / quyền: không tự cài, người dùng tự bấm Cập nhật để đồng ý.
+    pub needs_consent: Vec<UpdateItem>,
+    /// Lỗi từng kho / extension ("<id>: <lỗi>") — thường là mất mạng; giữ bản đang cài.
+    pub failed: Vec<String>,
+}
+
 /// Kho cho giao diện.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -410,6 +432,46 @@ impl Repositories {
         let record = record.clone();
         self.save_records(&records)?;
         Ok(self.view(&record))
+    }
+
+    /// Tự cập nhật lúc mở app: làm mới mọi kho, rồi mọi extension cài từ kho hoặc từ link có bản mới hơn thì tải,
+    /// kiểm sha256 / manifest như cài tay, và cài luôn nếu không xin thêm domain / quyền. Bản Dev, bản cài từ file
+    /// bỏ qua. Lỗi (mất mạng, gói hỏng) chỉ ghi lại, giữ bản đang cài.
+    pub fn auto_update(&self, registry: &Registry) -> UpdateReport {
+        let mut report = UpdateReport { failed: self.refresh_all(), ..Default::default() };
+        for entry in registry.entries() {
+            let found: Result<Option<(Inspection, Source)>, ExtError> = match &entry.source {
+                Source::Repository { repository, .. } => match self.entry(repository, &entry.id) {
+                    Ok(latest) if is_newer(&latest.version, &entry.version) => self.inspect_entry(registry, repository, &entry.id).map(Some),
+                    Ok(_) => Ok(None),
+                    Err(error) => Err(error),
+                },
+                Source::Link { url } => (self.fetch)(url).and_then(|bytes| registry.inspect(&bytes)).and_then(|inspection| {
+                    if inspection.package.manifest.id != entry.id {
+                        return Err(repo_error(format!("link giờ trả extension {}", inspection.package.manifest.id)));
+                    }
+                    Ok(inspection.newer.then(|| (inspection, entry.source.clone())))
+                }),
+                _ => Ok(None),
+            };
+            match found {
+                Ok(None) => {}
+                Ok(Some((inspection, source))) => {
+                    let manifest = &inspection.package.manifest;
+                    let item = UpdateItem { id: entry.id.clone(), name: manifest.name.clone(), from: entry.version.clone(), to: manifest.version.to_string() };
+                    if inspection.needs_consent {
+                        report.needs_consent.push(item);
+                    } else {
+                        match registry.install(&inspection.sha256, source) {
+                            Ok(_) => report.updated.push(item),
+                            Err(error) => report.failed.push(format!("{}: {error}", entry.id)),
+                        }
+                    }
+                }
+                Err(error) => report.failed.push(format!("{}: {error}", entry.id)),
+            }
+        }
+        report
     }
 
     /// Làm mới mọi kho; trả lỗi của từng kho ("<id>: <lỗi>").
@@ -671,6 +733,41 @@ mod tests {
         assert!(repos.refresh("org.kho").unwrap_err().to_string().contains("kho khác"));
         assert_eq!(repos.list()[0].extensions.len(), 2, "giữ index cũ");
         assert!(repos.refresh_all().len() == 1);
+    }
+
+    #[test]
+    fn tu_cap_nhat_khi_mo_app_cai_ban_moi_khong_them_quyen() {
+        let dir = tempfile::tempdir().unwrap();
+        let secrets = SecretBackend::memory();
+        let kho = Kho::new();
+        let hosts_a: &[&str] = &["a.test"];
+        let hosts_b: &[&str] = &["b.test"];
+        let hosts_c: &[&str] = &["c.test"];
+        kho.publish("org.kho", &[("org.kho.a", "1.0.0", hosts_a, true), ("org.kho.b", "1.0.0", hosts_b, true), ("org.kho.c", "1.0.0", hosts_c, true)], vec![]);
+        let repos = kho.repos(dir.path(), &secrets);
+        let registry = Registry::new(dir.path());
+        repos.add(BASE).unwrap();
+        for id in ["org.kho.a", "org.kho.b", "org.kho.c"] {
+            let (inspection, source) = repos.inspect_entry(&registry, "org.kho", id).unwrap();
+            registry.install(&inspection.sha256, source).unwrap();
+        }
+        assert_eq!(repos.auto_update(&registry), UpdateReport::default(), "chưa có bản mới");
+
+        let hosts_b2: &[&str] = &["b.test", "cdn.b.test"];
+        kho.publish("org.kho", &[("org.kho.a", "1.0.1", hosts_a, true), ("org.kho.b", "1.1.0", hosts_b2, true), ("org.kho.c", "1.0.0", hosts_c, true)], vec![]);
+        let report = repos.auto_update(&registry);
+        let item = |id: &str, from: &str, to: &str| UpdateItem { id: id.into(), name: id.into(), from: from.into(), to: to.into() };
+        assert_eq!(report.updated, vec![item("org.kho.a", "1.0.0", "1.0.1")]);
+        assert_eq!(report.needs_consent, vec![item("org.kho.b", "1.0.0", "1.1.0")], "thêm domain → chờ người dùng đồng ý");
+        assert!(report.failed.is_empty(), "{:?}", report.failed);
+        let version = |id: &str| registry.entries().into_iter().find(|e| e.id == id).unwrap().version;
+        assert_eq!((version("org.kho.a"), version("org.kho.b"), version("org.kho.c")), ("1.0.1".into(), "1.0.0".into(), "1.0.0".into()));
+
+        // Mất mạng: chỉ ghi lỗi, giữ bản đang cài.
+        kho.files.lock().unwrap().clear();
+        let offline = repos.auto_update(&registry);
+        assert!(offline.updated.is_empty() && !offline.failed.is_empty());
+        assert_eq!(version("org.kho.a"), "1.0.1");
     }
 
     #[test]

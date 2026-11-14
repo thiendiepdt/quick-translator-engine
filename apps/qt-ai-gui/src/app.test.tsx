@@ -13,6 +13,7 @@ vi.mock("@/lib/api", () => ({
   zhStoryConvert: vi.fn(),
   zhStoryUndo: vi.fn(),
   agyStatus: vi.fn(),
+  extAutoUpdate: vi.fn(() => Promise.resolve({ updated: [], needsConsent: [], failed: [] })),
   appConfigGet: vi.fn(),
   appConfigSet: vi.fn(),
   pickAgyFile: vi.fn(),

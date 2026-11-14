@@ -33,6 +33,7 @@ import {
   extListItemSchema,
   extLoginSchema,
   extAccountSchema,
+  extUpdateReportSchema,
   extTestReportSchema,
   repoAuthSchema,
   repoRefreshSchema,
@@ -435,6 +436,8 @@ export const extLogout = (id: string) => call("ext_logout", { id }, parseExtConf
 export const extClearCache = (id: string) => call("ext_clear_cache", { id }, parseExtConfig);
 /** Gọi `login` của extension ngay; `hasLogin = false` khi extension không có hàm này. */
 export const extLogin = (root: string | null, id: string) => call("ext_login", { root, id }, (v) => extLoginSchema.parse(v));
+/** Mở app: tự cập nhật extension cài từ kho / link (bản xin thêm domain / quyền thì chỉ báo). */
+export const extAutoUpdate = () => call("ext_auto_update", undefined, (v) => extUpdateReportSchema.parse(v));
 /** Kiểm tài khoản trang nguồn: gọi `account` của extension (không mở cửa sổ đăng nhập). */
 export const extAccountCheck = (root: string | null, id: string) => call("ext_account_check", { root, id }, (v) => extAccountSchema.parse(v));
 export type ExtListItem = z.infer<typeof extListItemSchema>;

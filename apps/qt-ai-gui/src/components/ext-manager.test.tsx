@@ -3,7 +3,9 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ExtensionManager } from "@/components/ext-manager";
-import { extCheckUpdate, extInspectUrl, extInstall, extList, extTestToc, extUninstall, type ExtInspection, type ExtListItem } from "@/lib/api";
+import { appConfigSet, extCheckUpdate, extInspectUrl, extInstall, extList, extTestToc, extUninstall, type ExtInspection, type ExtListItem } from "@/lib/api";
+import { appConfigSchema } from "@/lib/schema";
+import { useStoryStore } from "@/store/story";
 
 vi.mock("@tauri-apps/api/webview", () => ({
   getCurrentWebview: () => ({ onDragDropEvent: () => Promise.resolve(() => undefined) }),
@@ -24,6 +26,7 @@ vi.mock("@/lib/api", () => ({
   pickZipFile: vi.fn(),
   repoList: vi.fn(() => Promise.resolve([])),
   repoInspect: vi.fn(),
+  appConfigSet: vi.fn((config: unknown) => Promise.resolve(config)),
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
@@ -128,6 +131,17 @@ describe("ExtensionManager", () => {
     vi.mocked(extCheckUpdate).mockResolvedValueOnce({ ...inspection, sha256: "def", version: "1.2.1", currentVersion: "1.2.0", newHosts: [], needsConsent: false });
     await user.click(within(row).getByRole("button", { name: /Kiểm tra cập nhật/ }));
     await waitFor(() => expect(extInstall).toHaveBeenCalledWith("def"));
+  });
+
+  it("ô tự cập nhật khi mở app: mặc định bật, bỏ tick thì lưu ngay vào cấu hình app", async () => {
+    const user = userEvent.setup();
+    useStoryStore.setState({ config: appConfigSchema.parse({ agyPath: null, model: null, maxSessions: 50, recent: [] }) });
+    render(<ExtensionManager />);
+    const box = screen.getByLabelText("Tự cập nhật extension khi mở app");
+    expect(box).toBeChecked();
+    await user.click(box);
+    await waitFor(() => expect(appConfigSet).toHaveBeenCalledWith(expect.objectContaining({ autoUpdateExtensions: false })));
+    expect(screen.getByLabelText("Tự cập nhật extension khi mở app")).not.toBeChecked();
   });
 
   it("gỡ hỏi lại trước", async () => {
