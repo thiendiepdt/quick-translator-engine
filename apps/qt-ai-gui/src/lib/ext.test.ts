@@ -13,6 +13,7 @@ const config = (over: Partial<ExtConfig>): ExtConfig => ({
   session: { loggedIn: false, expiresAt: null, hasData: false },
   secretStore: "keyring",
   cacheBytes: 0,
+  sharedAuth: null,
   ...over,
 });
 

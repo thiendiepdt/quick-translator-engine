@@ -51,7 +51,16 @@ export function ExtConfigDialog({ config, open, onOpenChange, onChange }: Props)
             Máy này không có kho khoá — khoá đang lưu trong file ở thư mục dữ liệu của extension.
           </p>
         )}
-        {config.auth && (
+        {config.sharedAuth ? (
+          <section aria-label="Auth dùng chung" className="flex flex-col gap-1 text-sm">
+            <h3 className="font-medium">Auth</h3>
+            <p>
+              Dùng API key chung của kho <strong>{config.sharedAuth.name}</strong>
+              {config.auth?.scheme ? " (đã nhập)" : " — chưa nhập"}. Sửa ở Cài đặt → Extension tải raw → Kho extension.
+            </p>
+          </section>
+        ) : (
+          config.auth && (
           <AuthForm
             key={`auth-${version}`}
             auth={config.auth}
@@ -59,6 +68,7 @@ export function ExtConfigDialog({ config, open, onOpenChange, onChange }: Props)
             onSave={(scheme, values) => void act("Đã lưu auth", () => extSaveAuth(config.id, scheme, values))}
             onClear={() => void act("Đã xoá auth", () => extClearAuth(config.id))}
           />
+          )
         )}
         {config.settings.length > 0 && (
           <SettingsForm key={`settings-${version}`} fields={config.settings} busy={busy} onSave={(values) => void act("Đã lưu cài đặt", () => extSaveSettings(config.id, values))} />
@@ -82,7 +92,7 @@ export function ExtConfigDialog({ config, open, onOpenChange, onChange }: Props)
   );
 }
 
-function AuthForm({ auth, busy, onSave, onClear }: { auth: ExtAuth; busy: boolean; onSave: (scheme: string, values: ExtValues) => void; onClear: () => void }) {
+export function AuthForm({ auth, busy, onSave, onClear }: { auth: ExtAuth; busy: boolean; onSave: (scheme: string, values: ExtValues) => void; onClear: () => void }) {
   const [scheme, setScheme] = useState(auth.scheme ?? auth.schemes[0]?.id ?? "");
   const [displays, setDisplays] = useState<Record<string, FieldDisplay>>({});
   const current = auth.schemes.find((s) => s.id === scheme) ?? auth.schemes[0];

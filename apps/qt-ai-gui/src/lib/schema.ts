@@ -640,25 +640,27 @@ export const extSettingSchema = z.object({
   value: z.unknown(),
   filled: z.boolean(),
 });
+/** Form auth vẽ từ spec (Rust `ext_cmds::AuthView`). */
+export const extAuthSchema = z.object({
+  required: z.boolean(),
+  schemes: z.array(
+    z.object({
+      id: z.string(),
+      label: z.string(),
+      fields: z.array(z.object({ key: z.string(), label: z.string(), kind: z.enum(["text", "secret"]) })),
+    }),
+  ),
+  scheme: z.string().nullable(),
+  values: z.record(z.string(), z.unknown()),
+  filled: z.array(z.string()),
+});
 /** Auth, cài đặt chung, phiên và cache của một extension (Rust `ext_cmds::ExtConfigView`). */
 export const extConfigSchema = z.object({
   id: z.string(),
   name: z.string(),
-  auth: z
-    .object({
-      required: z.boolean(),
-      schemes: z.array(
-        z.object({
-          id: z.string(),
-          label: z.string(),
-          fields: z.array(z.object({ key: z.string(), label: z.string(), kind: z.enum(["text", "secret"]) })),
-        }),
-      ),
-      scheme: z.string().nullable(),
-      values: z.record(z.string(), z.unknown()),
-      filled: z.array(z.string()),
-    })
-    .nullable(),
+  auth: extAuthSchema.nullable(),
+  /** Đang dùng API key chung của kho. */
+  sharedAuth: z.object({ repository: z.string(), name: z.string() }).nullable().default(null),
   settings: z.array(extSettingSchema),
   session: z.object({ loggedIn: z.boolean(), expiresAt: z.number().nullable(), hasData: z.boolean() }),
   secretStore: z.string(),
@@ -671,6 +673,7 @@ export const extSourceSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("file"), path: z.string() }),
   z.object({ kind: z.literal("link"), url: z.string() }),
   z.object({ kind: z.literal("dev"), dir: z.string() }),
+  z.object({ kind: z.literal("repository"), repository: z.string(), url: z.string() }),
   z.object({ kind: z.literal("manual") }),
 ]);
 export const extListItemSchema = z.object({
@@ -711,7 +714,46 @@ export const extInspectionSchema = z.object({
   newer: z.boolean(),
   needsConsent: z.boolean(),
   icon: z.string().nullable(),
+  /** Cài từ kho dùng API key chung: tên kho. */
+  sharedAuthRepo: z.string().nullable().default(null),
 });
+/** Kho extension (Rust `repository::RepoView`). */
+const repoPersonSchema = z.object({ name: z.string(), url: z.string().nullable().optional(), email: z.string().nullable().optional() });
+export const repoEntrySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  version: z.string(),
+  description: z.string(),
+  developer: repoPersonSchema.nullable(),
+  license: z.string().nullable(),
+  homepage: z.string().nullable(),
+  hosts: z.array(z.string()),
+  permissions: z.array(z.string()),
+  authRequired: z.boolean(),
+  sharedAuth: z.boolean(),
+  url: z.string(),
+  sha256: z.string(),
+  size: z.number().nullable(),
+  icon: z.string().nullable(),
+  updatedAt: z.string().nullable(),
+});
+export const repoViewSchema = z.object({
+  id: z.string(),
+  url: z.string(),
+  name: z.string(),
+  description: z.string(),
+  maintainer: repoPersonSchema,
+  homepage: z.string().nullable(),
+  hasAuth: z.boolean(),
+  authRequired: z.boolean(),
+  extensions: z.array(repoEntrySchema),
+  warnings: z.array(z.string()),
+  addedAt: z.number(),
+  refreshedAt: z.number(),
+  error: z.string().nullable(),
+});
+export const repoRefreshSchema = z.object({ repositories: z.array(repoViewSchema), errors: z.array(z.string()) });
+export const repoAuthSchema = z.object({ id: z.string(), name: z.string(), auth: extAuthSchema, secretStore: z.string() });
 export const extTestReportSchema = z.object({
   ok: z.boolean(),
   ms: z.number(),

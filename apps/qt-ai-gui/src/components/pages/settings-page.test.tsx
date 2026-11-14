@@ -23,6 +23,7 @@ vi.mock("@/lib/api", () => ({
   ),
   agyStatus: vi.fn(),
   extList: vi.fn(() => Promise.resolve([])),
+  repoList: vi.fn(() => Promise.resolve([])),
   appConfigSet: vi.fn((config: unknown) => Promise.resolve(config)),
   baseGet: vi.fn(),
   baseReset: vi.fn(),

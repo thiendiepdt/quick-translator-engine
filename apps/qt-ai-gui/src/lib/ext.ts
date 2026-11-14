@@ -78,3 +78,21 @@ export function authStatus(config: ExtConfig): string {
   if (!scheme) return auth.required ? "Chưa nhập auth — extension này bắt buộc" : "Chưa nhập auth";
   return `Đã nhập auth: ${scheme}`;
 }
+
+/** So semver `a` với `b`: dương khi `a` mới hơn. Bản có hậu tố (-beta) xếp trước bản chính cùng số. */
+export function compareVersions(a: string, b: string): number {
+  const parse = (v: string) => {
+    const [core = "", pre] = v.split("+")[0]?.split("-", 2) ?? [];
+    return { parts: core.split(".").map((n) => Number(n) || 0), pre: pre ?? null };
+  };
+  const x = parse(a);
+  const y = parse(b);
+  for (let i = 0; i < 3; i++) {
+    const d = (x.parts[i] ?? 0) - (y.parts[i] ?? 0);
+    if (d !== 0) return d;
+  }
+  if (x.pre === y.pre) return 0;
+  if (x.pre === null) return 1;
+  if (y.pre === null) return -1;
+  return x.pre < y.pre ? -1 : 1;
+}

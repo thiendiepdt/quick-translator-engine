@@ -33,6 +33,9 @@ import {
   extListItemSchema,
   extLoginSchema,
   extTestReportSchema,
+  repoAuthSchema,
+  repoRefreshSchema,
+  repoViewSchema,
   rawInfoSchema,
   rawProgressSchema,
   rawSummarySchema,
@@ -461,6 +464,26 @@ export const extTestToc = (id: string, url: string) => call("ext_test_toc", { id
 /** Chạy thử `chapter` cho một mục của mục lục (`index` từ 1). */
 export const extTestChapter = (id: string, url: string, item: ExtTestTocItem, index: number) =>
   call("ext_test_chapter", { id, url, item, index }, parseTestReport);
+
+export type RepoView = z.infer<typeof repoViewSchema>;
+export type RepoEntry = RepoView["extensions"][number];
+export type RepoAuth = z.infer<typeof repoAuthSchema>;
+const parseRepos = (v: unknown) => z.array(repoViewSchema).parse(v);
+const parseRepoAuth = (v: unknown) => repoAuthSchema.parse(v);
+/** Kho extension đã thêm, kèm danh sách extension của từng kho (bản đã lưu). */
+export const repoList = () => call("repo_list", {}, parseRepos);
+/** Thêm kho từ link `index.json` hoặc thư mục chứa nó (chưa cài gì). */
+export const repoAdd = (url: string) => call("repo_add", { url }, parseRepos);
+/** Làm mới một kho, hoặc mọi kho khi không có `id`. */
+export const repoRefresh = (id?: string) => call("repo_refresh", { id: id ?? null }, (v) => repoRefreshSchema.parse(v));
+/** Gỡ kho và API key chung của kho; extension đã cài giữ nguyên. */
+export const repoRemove = (id: string) => call("repo_remove", { id }, parseRepos);
+export const repoAuth = (id: string) => call("repo_auth", { id }, parseRepoAuth);
+/** Lưu API key chung của kho; ô secret trống = giữ. */
+export const repoSaveAuth = (id: string, scheme: string, values: ExtValues) => call("repo_save_auth", { id, scheme, values }, parseRepoAuth);
+export const repoClearAuth = (id: string) => call("repo_clear_auth", { id }, parseRepoAuth);
+/** Tải gói của một extension trong kho, kiểm sha256, chờ đồng ý quyền (rồi `extInstall`). */
+export const repoInspect = (repoId: string, extId: string) => call("repo_inspect", { repoId, extId }, parseInspection);
 
 export async function pickZipFile(): Promise<string | undefined> {
   const selected = await open({ directory: false, multiple: false, title: "Chọn gói extension (.zip)", filters: [{ name: "Extension", extensions: ["zip"] }] });

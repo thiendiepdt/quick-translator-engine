@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { ExtConfigDialog } from "@/components/ext-config-dialog";
 import { ExtPermissionDialog } from "@/components/ext-permission-dialog";
+import { ExtRepositories, type RepoTarget } from "@/components/ext-repositories";
 import { ExtTestDialog } from "@/components/ext-test-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ import {
   extUninstall,
   pickFolder,
   pickZipFile,
+  repoInspect,
   type ExtConfig,
   type ExtInspection,
   type ExtListItem,
@@ -41,6 +43,8 @@ function sourceLabel(item: ExtListItem): string {
       return `Cài từ link ${item.source.url}`;
     case "dev":
       return `Thư mục dev ${item.source.dir}`;
+    case "repository":
+      return `Từ kho ${item.source.repository}`;
     case "manual":
       return "Đặt tay vào thư mục extension";
   }
@@ -133,6 +137,42 @@ export function ExtensionManager() {
     toast.success(target.currentVersion ? `Đã cập nhật ${target.name} lên ${target.version}` : `Đã cài ${target.name} ${target.version}`);
   }
 
+  /** Cài mới thì luôn hỏi quyền; cập nhật không thêm domain / quyền thì cài luôn. */
+  async function installFromRepo({ repoId, entry }: RepoTarget) {
+    const found = await run(() => repoInspect(repoId, entry.id));
+    if (!found) return;
+    if (found.currentVersion && !found.needsConsent) {
+      const next = await run(() => extInstall(found.sha256));
+      if (next) {
+        setItems(next);
+        toast.success(`Đã cập nhật ${found.name} lên ${found.version}`);
+      }
+    } else {
+      setPending(found);
+    }
+  }
+
+  /** Cập nhật mọi extension có bản mới; bản nào xin thêm domain / quyền thì để người dùng tự bấm Cập nhật. */
+  async function updateAll(targets: RepoTarget[]) {
+    let updated = 0;
+    const needConsent: string[] = [];
+    for (const { repoId, entry } of targets) {
+      const found = await run(() => repoInspect(repoId, entry.id));
+      if (!found) continue;
+      if (found.needsConsent) {
+        needConsent.push(found.name);
+        continue;
+      }
+      const next = await run(() => extInstall(found.sha256));
+      if (next) {
+        setItems(next);
+        updated += 1;
+      }
+    }
+    if (updated) toast.success(`Đã cập nhật ${updated} extension`);
+    if (needConsent.length) toast.error(`${needConsent.join(", ")} xin thêm domain hoặc quyền — bấm Cập nhật ở từng extension để xem và đồng ý`);
+  }
+
   async function addDev() {
     const dir = await pickFolder("Chọn thư mục extension đang viết");
     if (!dir) return;
@@ -201,6 +241,12 @@ export function ExtensionManager() {
         <p className="text-xs text-muted-foreground">Hoặc kéo thả file .zip vào đây.</p>
       </div>
 
+      <section aria-label="Kho extension" className="flex flex-col gap-2">
+        <h3 className="text-sm font-semibold">Kho extension</h3>
+        <ExtRepositories installed={items ?? []} busy={busy} onInstall={installFromRepo} onUpdateAll={updateAll} />
+      </section>
+
+      <h3 className="text-sm font-semibold">Đã cài</h3>
       {items && items.length === 0 && <p className="text-sm text-muted-foreground">Chưa cài extension nào.</p>}
       <ul className="flex flex-col gap-3">
         {items?.map((item) => (
@@ -238,7 +284,7 @@ export function ExtensionManager() {
               <Switch aria-label={`Bật ${item.name}`} checked={item.enabled} disabled={busy} onCheckedChange={(checked) => void toggle(item, checked)} />
             </div>
             <div className="flex flex-wrap gap-2">
-              {item.source.kind === "link" && (
+              {(item.source.kind === "link" || item.source.kind === "repository") && (
                 <Button variant="outline" size="sm" disabled={busy} onClick={() => void checkUpdate(item)}>
                   <RefreshCw /> Kiểm tra cập nhật
                 </Button>

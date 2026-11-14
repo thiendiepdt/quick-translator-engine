@@ -157,6 +157,7 @@ describe("RawPage", () => {
       session: { loggedIn: false, expiresAt: null, hasData: false },
       secretStore: "keyring",
       cacheBytes: 0,
+      sharedAuth: null,
     };
     vi.mocked(rawInfo).mockResolvedValue({
       ...info,
@@ -198,6 +199,7 @@ describe("RawPage", () => {
       session: { loggedIn: false, expiresAt: null, hasData: false },
       secretStore: "keyring",
       cacheBytes: 0,
+      sharedAuth: null,
     };
     vi.mocked(rawInfo).mockResolvedValue({ ...info, extConfig: config });
     const user = userEvent.setup();

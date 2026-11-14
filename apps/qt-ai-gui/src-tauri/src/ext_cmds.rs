@@ -7,8 +7,9 @@ use crate::raw_cmds::extensions_dir;
 use crate::AppState;
 use qt_ai_core::raw_download::registry::{Installed, Registry};
 use qt_ai_core::raw_download::run::{login, RunOptions};
+use qt_ai_core::raw_download::repository::Repositories;
 use qt_ai_core::raw_download::DownloadConfig;
-use qt_ext::{check_setting, ExtError, ExtStore, FieldKind, Manifest, Scope, SessionStatus, SettingField, SettingKind};
+use qt_ext::{check_setting, AuthSpec, AuthState, ExtError, ExtStore, FieldKind, Manifest, Scope, SessionStatus, SettingField, SettingKind};
 use serde::Serialize;
 use serde_json::{Map, Value};
 use std::path::{Path, PathBuf};
@@ -21,8 +22,9 @@ pub fn config_root(config_path: &Path) -> PathBuf {
     config_path.parent().map(Path::to_path_buf).unwrap_or_default()
 }
 
+/// Dữ liệu của extension; cài từ kho và được kho cho dùng chung thì auth là auth chung của kho.
 pub fn store_for(config_path: &Path, id: &str) -> ExtStore {
-    ExtStore::new(&config_root(config_path), id)
+    Repositories::new(&extensions_dir(config_path)).ext_store(&config_root(config_path), id)
 }
 
 pub fn store_error(error: ExtError) -> CommandError {
@@ -93,12 +95,40 @@ pub struct ExtConfigView {
     pub id: String,
     pub name: String,
     pub auth: Option<AuthView>,
+    /// Đang dùng auth chung của kho: auth chỉ xem ở đây, sửa ở phần kho.
+    pub shared_auth: Option<SharedAuthView>,
     /// Cài đặt chung (trường `scope: "story"` sửa ở trang Tải raw).
     pub settings: Vec<SettingView>,
     pub session: SessionStatus,
     /// "keyring" = Credential Manager; khác thì khoá đang nằm trong file.
     pub secret_store: &'static str,
     pub cache_bytes: u64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SharedAuthView {
+    pub repository: String,
+    pub name: String,
+}
+
+/// Form auth vẽ từ spec (của manifest hoặc của kho) và trạng thái đã nhập.
+pub fn auth_view(spec: &AuthSpec, state: AuthState) -> AuthView {
+    AuthView {
+        required: spec.required,
+        schemes: spec
+            .schemes
+            .iter()
+            .map(|s| SchemeView {
+                id: s.id.clone(),
+                label: s.label.clone(),
+                fields: s.fields.iter().map(|f| FieldView { key: f.key.clone(), label: f.label.clone(), kind: if f.kind == FieldKind::Secret { "secret" } else { "text" } }).collect(),
+            })
+            .collect(),
+        scheme: state.scheme,
+        values: state.text,
+        filled: state.filled,
+    }
 }
 
 fn setting_kind(kind: SettingKind) -> &'static str {
@@ -126,27 +156,14 @@ fn setting_view(field: &SettingField, value: Value, filled: bool) -> SettingView
 
 pub fn config_view(installed: &Installed, store: &ExtStore) -> CmdResult<ExtConfigView> {
     let m: &Manifest = &installed.package.manifest;
-    let auth = match &m.auth {
+    let auth = match store.auth_spec(m) {
         None => None,
-        Some(spec) => {
-            let state = store.auth_state(m).map_err(store_error)?;
-            Some(AuthView {
-                required: spec.required,
-                schemes: spec
-                    .schemes
-                    .iter()
-                    .map(|s| SchemeView {
-                        id: s.id.clone(),
-                        label: s.label.clone(),
-                        fields: s.fields.iter().map(|f| FieldView { key: f.key.clone(), label: f.label.clone(), kind: if f.kind == FieldKind::Secret { "secret" } else { "text" } }).collect(),
-                    })
-                    .collect(),
-                scheme: state.scheme,
-                values: state.text,
-                filled: state.filled,
-            })
-        }
+        Some(spec) => Some(auth_view(spec, store.auth_state(m).map_err(store_error)?)),
     };
+    let shared_auth = store.shared_auth().and_then(|a| a.repository_id()).map(|repository| {
+        let name = config_root_repos(store).into_iter().find(|r| r.id == repository).map(|r| r.name).unwrap_or_else(|| repository.to_string());
+        SharedAuthView { repository: repository.to_string(), name }
+    });
     let (values, filled) = store.settings_state(m).map_err(store_error)?;
     let settings = m
         .settings
@@ -158,6 +175,7 @@ pub fn config_view(installed: &Installed, store: &ExtStore) -> CmdResult<ExtConf
         id: m.id.clone(),
         name: m.name.clone(),
         auth,
+        shared_auth,
         settings,
         session: store.session_status(),
         secret_store: store.secret_kind(),
@@ -179,6 +197,12 @@ pub fn story_settings_view(manifest: &Manifest, download: &DownloadConfig) -> Ve
         .collect()
 }
 
+/// Tên các kho (để ghi "Dùng API key chung của kho <tên>"). Thư mục extension suy từ thư mục dữ liệu của store.
+fn config_root_repos(store: &ExtStore) -> Vec<qt_ai_core::raw_download::repository::RepoView> {
+    let root = store.data_dir().parent().and_then(Path::parent).map(Path::to_path_buf).unwrap_or_default();
+    Repositories::new(&root.join("extensions")).list()
+}
+
 fn with_ext<R: Runtime, T>(app: &AppHandle<R>, id: &str, f: impl FnOnce(&Installed, &ExtStore) -> CmdResult<T>) -> CmdResult<T> {
     let state = app.state::<AppState>();
     let installed = find(&state.config_path, id)?;
@@ -195,6 +219,9 @@ pub async fn ext_config<R: Runtime>(app: AppHandle<R>, id: String) -> CmdResult<
 pub async fn ext_save_auth<R: Runtime>(app: AppHandle<R>, id: String, scheme: String, values: Map<String, Value>) -> CmdResult<ExtConfigView> {
     blocking(move || {
         with_ext(&app, &id, |installed, store| {
+            if store.shared_auth().is_some() {
+                return Err(CommandError::new("invalid_state", "Extension này dùng API key chung của kho — sửa ở Cài đặt → Extension tải raw → Kho extension."));
+            }
             store.save_auth(&installed.package.manifest, &scheme, &values).map_err(store_error)?;
             config_view(installed, store)
         })

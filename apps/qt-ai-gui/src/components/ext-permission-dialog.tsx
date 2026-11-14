@@ -61,7 +61,11 @@ export function ExtPermissionDialog({ inspection, busy, onCancel, onConfirm }: P
                 {update && inspection.newPermissions.includes("webview") ? " (quyền mới)" : ""}.
               </p>
             )}
-            {inspection.authRequired && <p className="text-sm">Cần nhập API key hoặc tài khoản trước khi dùng.</p>}
+            {inspection.sharedAuthRepo ? (
+              <p className="text-sm">Dùng API key chung của kho {inspection.sharedAuthRepo} (nhập một lần ở phần kho).</p>
+            ) : (
+              inspection.authRequired && <p className="text-sm">Cần nhập API key hoặc tài khoản trước khi dùng.</p>
+            )}
             {update && !inspection.newer && <p className="text-sm text-destructive">Bản này không mới hơn bản đang cài.</p>}
             <DialogFooter>
               <Button variant="outline" onClick={onCancel}>

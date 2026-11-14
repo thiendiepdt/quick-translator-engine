@@ -189,6 +189,14 @@ pub fn parse_index(text: &str, index_url: &Url) -> Result<(RepoIndex, Vec<String
     Ok((index, warnings))
 }
 
+/// `candidate` mới hơn `current` (semver; đọc không được thì coi là mới hơn để người dùng tự quyết).
+pub fn is_newer(candidate: &str, current: &str) -> bool {
+    match (semver::Version::parse(candidate), semver::Version::parse(current)) {
+        (Ok(candidate), Ok(current)) => candidate > current,
+        _ => true,
+    }
+}
+
 /// Link người dùng dán → link `index.json` (thư mục thì thêm `index.json`).
 pub fn index_url(input: &str) -> Result<Url, ExtError> {
     let mut text = input.trim().to_string();

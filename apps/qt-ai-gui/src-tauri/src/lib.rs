@@ -22,6 +22,7 @@ mod process_cmds;
 mod raw_cmds;
 mod ext_cmds;
 mod ext_manage_cmds;
+mod repo_cmds;
 mod ext_webview;
 
 use app_config::AppConfig;
@@ -241,6 +242,14 @@ pub fn run() {
             ext_manage_cmds::ext_add_dev,
             ext_manage_cmds::ext_test_toc,
             ext_manage_cmds::ext_test_chapter,
+            repo_cmds::repo_list,
+            repo_cmds::repo_add,
+            repo_cmds::repo_refresh,
+            repo_cmds::repo_remove,
+            repo_cmds::repo_auth,
+            repo_cmds::repo_save_auth,
+            repo_cmds::repo_clear_auth,
+            repo_cmds::repo_inspect,
             idiom_cmds::idioms_refresh,
             idiom_cmds::idioms_save_user,
             padding_cmds::padding_get,
@@ -313,6 +322,7 @@ mod tests {
             include_str!("raw_cmds.rs"),
             include_str!("ext_cmds.rs"),
             include_str!("ext_manage_cmds.rs"),
+            include_str!("repo_cmds.rs"),
         ]
         .join("\n");
         let heavy = [
@@ -402,6 +412,14 @@ mod tests {
             "ext_add_dev",
             "ext_test_toc",
             "ext_test_chapter",
+            "repo_list",
+            "repo_add",
+            "repo_refresh",
+            "repo_remove",
+            "repo_auth",
+            "repo_save_auth",
+            "repo_clear_auth",
+            "repo_inspect",
         ];
         for name in heavy {
             // Có AppHandle thì generic theo Runtime (mock runtime trong test gọi được), không thì không.

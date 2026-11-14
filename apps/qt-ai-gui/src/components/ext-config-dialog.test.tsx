@@ -43,6 +43,7 @@ const config: ExtConfig = {
   session: { loggedIn: true, expiresAt: null, hasData: true },
   secretStore: "keyring",
   cacheBytes: 2048,
+  sharedAuth: null,
 };
 
 describe("ExtConfigDialog", () => {

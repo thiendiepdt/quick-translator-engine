@@ -8,6 +8,7 @@ use crate::raw_cmds::{extensions_dir, DeveloperView};
 use crate::AppState;
 use base64::Engine as _;
 use qt_ai_core::raw_download::registry::{Inspection, Registry, Source};
+use qt_ai_core::raw_download::repository::Repositories;
 use qt_ai_core::raw_download::run::{test_chapter, test_toc, RunOptions, TestReport};
 use qt_ext::{fetch_zip, Package, Permission, TocItem};
 use serde::Serialize;
@@ -67,6 +68,8 @@ pub struct InspectionView {
     pub newer: bool,
     pub needs_consent: bool,
     pub icon: Option<String>,
+    /// Cài từ kho mà kho cho dùng API key chung: tên kho.
+    pub shared_auth_repo: Option<String>,
 }
 
 fn permissions_of(package: &Package) -> Vec<String> {
@@ -160,7 +163,25 @@ fn inspection_view(i: &Inspection) -> InspectionView {
         newer: i.newer,
         needs_consent: i.needs_consent,
         icon: icon_of(&i.package),
+        shared_auth_repo: None,
     }
+}
+
+/// Nhớ nguồn cài của gói vừa kiểm tới khi người dùng bấm Cài.
+pub(crate) fn remember(sha256: &str, source: Source) {
+    PENDING.lock().unwrap_or_else(|e| e.into_inner()).insert(sha256.to_string(), source);
+}
+
+/// Kiểm gói của một extension trong kho (chưa cài).
+pub(crate) fn inspect_from_repo(registry: &Registry, repos: &Repositories, repo_id: &str, ext_id: &str) -> CmdResult<InspectionView> {
+    let (inspection, source) = repos.inspect_entry(registry, repo_id, ext_id).map_err(store_error)?;
+    remember(&inspection.sha256, source);
+    let mut view = inspection_view(&inspection);
+    let entry = repos.entry(repo_id, ext_id).map_err(store_error)?;
+    if entry.shared_auth {
+        view.shared_auth_repo = Some(repos.list().into_iter().find(|r| r.id == repo_id).map(|r| r.name).unwrap_or_else(|| repo_id.to_string()));
+    }
+    Ok(view)
 }
 
 fn inspect(registry: &Registry, bytes: &[u8], source: Source) -> CmdResult<InspectionView> {
@@ -240,8 +261,17 @@ pub async fn ext_check_update<R: Runtime>(app: AppHandle<R>, id: String) -> CmdR
     blocking(move || {
         let registry = registry(&app);
         let entry = registry.entries().into_iter().find(|e| e.id == id).ok_or_else(|| CommandError::new("not_found", format!("Chưa cài extension {id}.")))?;
+        if let Source::Repository { repository, .. } = &entry.source {
+            let repos = Repositories::new(&extensions_dir(&app.state::<AppState>().config_path));
+            repos.refresh(repository).map_err(store_error)?;
+            let latest = repos.entry(repository, &id).map_err(store_error)?;
+            if !qt_ai_core::raw_download::repository::is_newer(&latest.version, &entry.version) {
+                return Ok(None);
+            }
+            return inspect_from_repo(&registry, &repos, repository, &id).map(Some);
+        }
         let Source::Link { url } = &entry.source else {
-            return Err(CommandError::new("invalid_state", "Chỉ kiểm tra cập nhật được với extension cài từ link."));
+            return Err(CommandError::new("invalid_state", "Chỉ kiểm tra cập nhật được với extension cài từ link hoặc từ kho."));
         };
         let bytes = fetch_zip(url).map_err(store_error)?;
         let inspection = registry.inspect(&bytes).map_err(store_error)?;

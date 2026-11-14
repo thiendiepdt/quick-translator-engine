@@ -22,6 +22,8 @@ vi.mock("@/lib/api", () => ({
   extTestChapter: vi.fn(),
   pickFolder: vi.fn(),
   pickZipFile: vi.fn(),
+  repoList: vi.fn(() => Promise.resolve([])),
+  repoInspect: vi.fn(),
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
@@ -66,6 +68,7 @@ const inspection: ExtInspection = {
   newer: true,
   needsConsent: true,
   icon: null,
+  sharedAuthRepo: null,
 };
 
 describe("ExtensionManager", () => {
