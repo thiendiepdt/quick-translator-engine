@@ -3,7 +3,7 @@
 
 use crate::error::{blocking, CmdResult, CommandError};
 use crate::ext_cmds::{auth_view, config_root, store_error, AuthView};
-use crate::ext_manage_cmds::{inspect_from_repo, InspectionView};
+use crate::ext_manage_cmds::{inspect_from_repo, png_data_url, InspectionView};
 use crate::raw_cmds::extensions_dir;
 use crate::AppState;
 use qt_ai_core::raw_download::registry::Registry;
@@ -31,8 +31,12 @@ fn items<R: Runtime>(app: &AppHandle<R>, repos: &Repositories) -> Vec<RepoItem> 
     repos
         .list()
         .into_iter()
-        .map(|repo| {
+        .map(|mut repo| {
             let auth_filled = repo.has_auth && repos.repo_auth(&root, &repo.id).is_some_and(|a| matches!(a.values(None), Ok(Some(_))));
+            // Icon: bản đã tải về lúc thêm / làm mới kho (link https bị CSP chặn); chưa có thì giao diện hiện chữ cái đầu.
+            for entry in &mut repo.extensions {
+                entry.icon = repos.icon(&repo.id, &entry.id).map(|bytes| png_data_url(&bytes));
+            }
             RepoItem { repo, auth_filled }
         })
         .collect()

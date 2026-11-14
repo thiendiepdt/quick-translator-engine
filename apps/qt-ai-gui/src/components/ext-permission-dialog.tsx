@@ -1,3 +1,4 @@
+import { ExtIcon } from "@/components/ext-icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -20,7 +21,7 @@ export function ExtPermissionDialog({ inspection, busy, onCancel, onConfirm }: P
           <>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                {inspection.icon && <img src={inspection.icon} alt="" className="size-6 rounded" />}
+                <ExtIcon icon={inspection.icon} name={inspection.name} className="size-6 text-xs" />
                 {update ? `Cập nhật ${inspection.name}` : `Cài ${inspection.name}`}
               </DialogTitle>
               <DialogDescription>{inspection.description}</DialogDescription>

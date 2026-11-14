@@ -78,8 +78,13 @@ fn permissions_of(package: &Package) -> Vec<String> {
     }).collect()
 }
 
+/// Ảnh PNG → data URL (CSP của giao diện chỉ cho ảnh của app và `data:`).
+pub fn png_data_url(bytes: &[u8]) -> String {
+    format!("data:image/png;base64,{}", base64::engine::general_purpose::STANDARD.encode(bytes))
+}
+
 fn icon_of(package: &Package) -> Option<String> {
-    package.icon.as_ref().map(|bytes| format!("data:image/png;base64,{}", base64::engine::general_purpose::STANDARD.encode(bytes)))
+    package.icon.as_deref().map(png_data_url)
 }
 
 fn developer_of(package: &Package) -> DeveloperView {

@@ -17,6 +17,9 @@ pub const FORMAT_VERSION: u64 = 1;
 pub const MAX_INDEX: usize = 2 * 1024 * 1024;
 const RECORDS: &str = "repositories.json";
 const CACHE_DIR: &str = ".repos";
+/// Icon trong kho tối đa 256 KB, phải là PNG.
+const ICON_MAX: usize = 256 * 1024;
+const PNG_SIGNATURE: &[u8] = b"\x89PNG\r\n\x1a\n";
 
 static ID: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[a-z0-9]+(\.[a-z0-9-]+)+$").expect("regex id"));
 static SHA256: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[0-9a-f]{64}$").expect("regex sha256"));
@@ -282,6 +285,38 @@ impl Repositories {
         crate::story_fs::write_atomic(&self.records_path(), &format!("{json}\n")).map_err(|e| repo_error(e.to_string()))
     }
 
+    fn icon_dir(&self, repo_id: &str) -> PathBuf {
+        self.dir.join(CACHE_DIR).join("icons").join(repo_id)
+    }
+
+    /// Tải icon của mọi extension trong kho về máy (giao diện không tải ảnh từ mạng — CSP chỉ cho ảnh của app và
+    /// `data:`). Song song; icon lỗi, quá 256 KB hay không phải PNG thì bỏ, không làm hỏng lượt thêm / làm mới kho.
+    fn save_icons(&self, repo_id: &str, index: &RepoIndex) {
+        let dir = self.icon_dir(repo_id);
+        let _ = std::fs::remove_dir_all(&dir);
+        let wanted: Vec<(&str, &str)> = index.extensions.iter().filter_map(|e| e.icon.as_deref().map(|url| (e.id.as_str(), url))).collect();
+        if wanted.is_empty() || std::fs::create_dir_all(&dir).is_err() {
+            return;
+        }
+        std::thread::scope(|scope| {
+            for (ext_id, url) in wanted {
+                let (dir, fetch) = (&dir, &self.fetch);
+                scope.spawn(move || {
+                    if let Ok(bytes) = fetch(url) {
+                        if bytes.len() <= ICON_MAX && bytes.starts_with(PNG_SIGNATURE) {
+                            let _ = std::fs::write(dir.join(format!("{ext_id}.png")), bytes);
+                        }
+                    }
+                });
+            }
+        });
+    }
+
+    /// Icon PNG đã tải của extension `ext_id` trong kho `repo_id`.
+    pub fn icon(&self, repo_id: &str, ext_id: &str) -> Option<Vec<u8>> {
+        std::fs::read(self.icon_dir(repo_id).join(format!("{ext_id}.png"))).ok()
+    }
+
     fn save_cache(&self, id: &str, text: &str) -> Result<(), ExtError> {
         let path = self.cache_path(id);
         if let Some(dir) = path.parent() {
@@ -352,6 +387,7 @@ impl Repositories {
             return Err(repo_error(format!("đã có kho {} (id {}, link {})", index.name, index.id, existing.url)));
         }
         self.save_cache(&index.id, &text)?;
+        self.save_icons(&index.id, &index);
         let stamp = now();
         let record = RepoRecord { id: index.id.clone(), url: url.to_string(), added_at: stamp, refreshed_at: stamp };
         records.push(record.clone());
@@ -369,6 +405,7 @@ impl Repositories {
             return Err(repo_error(format!("link kho giờ trả kho khác (id {})", index.id)));
         }
         self.save_cache(id, &text)?;
+        self.save_icons(id, &index);
         record.refreshed_at = now();
         let record = record.clone();
         self.save_records(&records)?;
@@ -406,6 +443,7 @@ impl Repositories {
         }
         let _ = std::fs::remove_dir_all(config_root.join("extension-data").join(format!("repo-{id}")));
         let _ = std::fs::remove_file(self.cache_path(id));
+        let _ = std::fs::remove_dir_all(self.icon_dir(id));
         records.retain(|r| r.id != id);
         self.save_records(&records)
     }
@@ -556,6 +594,45 @@ mod tests {
     }
 
     #[test]
+    fn icon_trong_kho_tai_ve_may_bo_icon_hong() {
+        let dir = tempfile::tempdir().unwrap();
+        let secrets = SecretBackend::memory();
+        let kho = Kho::new();
+        let sha = "a".repeat(64);
+        let png = [PNG_SIGNATURE, b"rest"].concat();
+        kho.put("icons/a.png", png.clone());
+        kho.put("icons/b.png", b"<html>404</html>".to_vec());
+        let index = |with_icons: bool| {
+            let icon = |path: &str| if with_icons { Value::from(path) } else { Value::Null };
+            serde_json::json!({
+                "formatVersion": 1, "id": "org.kho", "name": "Kho", "maintainer": { "name": "dev" },
+                "extensions": [
+                    { "id": "org.kho.a", "version": "1.0.0", "url": "a.zip", "sha256": sha, "icon": icon("icons/a.png") },
+                    { "id": "org.kho.b", "version": "1.0.0", "url": "b.zip", "sha256": sha, "icon": icon("icons/b.png") },
+                    { "id": "org.kho.c", "version": "1.0.0", "url": "c.zip", "sha256": sha, "icon": icon("icons/khong-co.png") }
+                ]
+            })
+            .to_string()
+            .into_bytes()
+        };
+        kho.put("index.json", index(true));
+        let repos = kho.repos(dir.path(), &secrets);
+        repos.add(BASE).unwrap();
+        assert_eq!(repos.icon("org.kho", "org.kho.a"), Some(png.clone()));
+        assert_eq!(repos.icon("org.kho", "org.kho.b"), None, "không phải PNG");
+        assert_eq!(repos.icon("org.kho", "org.kho.c"), None, "404");
+
+        kho.put("index.json", index(false));
+        repos.refresh("org.kho").unwrap();
+        assert_eq!(repos.icon("org.kho", "org.kho.a"), None, "kho bỏ icon → xoá bản đã tải");
+        kho.put("index.json", index(true));
+        repos.refresh("org.kho").unwrap();
+        assert_eq!(repos.icon("org.kho", "org.kho.a"), Some(png));
+        repos.remove("org.kho", dir.path()).unwrap();
+        assert!(!dir.path().join(CACHE_DIR).join("icons").join("org.kho").exists());
+    }
+
+    #[test]
     fn them_kho_cai_tu_kho_kiem_sha_va_cap_nhat() {
         let dir = tempfile::tempdir().unwrap();
         let secrets = SecretBackend::memory();
@@ -566,6 +643,7 @@ mod tests {
 
         let view = repos.add(BASE).unwrap();
         assert_eq!((view.id.as_str(), view.extensions.len(), view.has_auth), ("org.kho", 2, true));
+        assert_eq!(repos.icon("org.kho", "org.kho.a"), None, "kho không khai icon");
         assert!(repos.add(&format!("{BASE}index.json")).unwrap_err().to_string().contains("đã có kho"));
 
         let (inspection, source) = repos.inspect_entry(&registry, "org.kho", "org.kho.a").unwrap();

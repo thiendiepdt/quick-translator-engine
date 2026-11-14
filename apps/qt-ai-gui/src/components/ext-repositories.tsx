@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { AuthForm } from "@/components/ext-config-dialog";
+import { ExtIcon } from "@/components/ext-icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -211,7 +212,7 @@ export function ExtRepositories({ installed, busy, onInstall, onUpdateAll }: Pro
           <ul className="flex flex-col gap-2">
             {rows.map(({ repo, entry, have, status }) => (
               <li key={`${repo.id}/${entry.id}`} aria-label={`Trong kho: ${entry.name}`} className="flex items-start gap-3 rounded-md border p-3 text-sm">
-                {entry.icon ? <img src={entry.icon} alt="" className="size-8 rounded" /> : <div className="size-8 rounded bg-muted" />}
+                <ExtIcon icon={entry.icon} name={entry.name} />
                 <div className="min-w-0 flex-1">
                   <p className="flex flex-wrap items-center gap-2 font-medium">
                     {entry.name} <span className="font-normal text-muted-foreground">{entry.version}</span>

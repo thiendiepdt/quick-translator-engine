@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { ExtConfigDialog } from "@/components/ext-config-dialog";
+import { ExtIcon } from "@/components/ext-icon";
 import { ExtPermissionDialog } from "@/components/ext-permission-dialog";
 import { ExtRepositories, type RepoTarget } from "@/components/ext-repositories";
 import { ExtTestDialog } from "@/components/ext-test-dialog";
@@ -263,7 +264,7 @@ export function ExtensionManager() {
         {items?.map((item) => (
           <li key={item.id} aria-label={item.name} className="flex flex-col gap-2 rounded-md border p-3 text-sm">
             <div className="flex items-start gap-3">
-              {item.icon ? <img src={item.icon} alt="" className="size-8 rounded" /> : <div className="size-8 rounded bg-muted" />}
+              <ExtIcon icon={item.icon} name={item.name} />
               <div className="min-w-0 flex-1">
                 <p className="flex flex-wrap items-center gap-2 font-medium">
                   {item.name} <span className="font-normal text-muted-foreground">{item.version}</span>
