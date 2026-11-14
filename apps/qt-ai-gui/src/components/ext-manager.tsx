@@ -30,6 +30,9 @@ import {
 
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
+/** id của Card "Extension tải raw" trong Cài đặt (trang Tải raw dẫn tới đây). */
+export const EXTENSIONS_CARD_ID = "extensions";
+
 function sourceLabel(item: ExtListItem): string {
   switch (item.source.kind) {
     case "file":

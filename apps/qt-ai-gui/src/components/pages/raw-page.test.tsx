@@ -20,7 +20,6 @@ vi.mock("@/lib/api", () => ({
   rawDownloadCancel: vi.fn(),
   onRawProgress: vi.fn(() => Promise.resolve(() => undefined)),
   rescanStory: vi.fn(),
-  revealFolder: vi.fn(),
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
@@ -76,7 +75,7 @@ describe("RawPage", () => {
     vi.mocked(rawToc).mockReset().mockResolvedValue(toc);
     vi.mocked(rawDownload).mockReset().mockResolvedValue({ saved: [2, 4], short: [4], locked: [], failed: [], cancelled: false });
     vi.mocked(rescanStory).mockReset().mockResolvedValue({} as never);
-    useStoryStore.setState({ root: "D:\\lib\\demo", setSnapshot: vi.fn() } as never);
+    useStoryStore.setState({ root: "D:\\lib\\demo", setSnapshot: vi.fn(), setPage: vi.fn() } as never);
   });
 
   it("mục lục có trạng thái; Tải chương mới bỏ chương khoá; tải lẻ và tải đã chọn gửi đúng id", async () => {
@@ -129,7 +128,9 @@ describe("RawPage", () => {
     vi.mocked(rawInfo).mockResolvedValue({ ...info, extension: null, candidates: [], installed: 0, loadErrors: ["hong: manifest: id …"] });
     const user = userEvent.setup();
     const { unmount } = render(<RawPage />);
-    expect(await screen.findByText(/Chưa có extension nào khớp link này/)).toHaveTextContent("C:\\app\\extensions");
+    expect(await screen.findByText(/Chưa có extension nào khớp link này/)).toHaveTextContent("0 extension đang bật");
+    await user.click(screen.getByRole("button", { name: /Cài extension ở Cài đặt/ }));
+    expect(useStoryStore.getState().setPage).toHaveBeenCalledWith("settings");
     expect(screen.getByText(/Không nạp được hong/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Tải mục lục/ })).toBeDisabled();
     unmount();

@@ -1,8 +1,9 @@
-import { CloudDownload, FolderOpen, KeyRound, ListTree, LoaderCircle, LogIn, Square, TriangleAlert } from "lucide-react";
+import { CloudDownload, KeyRound, ListTree, LoaderCircle, LogIn, Puzzle, Square, TriangleAlert } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { ExtConfigDialog } from "@/components/ext-config-dialog";
+import { EXTENSIONS_CARD_ID } from "@/components/ext-manager";
 import { ExtField } from "@/components/ext-fields";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,7 +19,6 @@ import {
   rawSave,
   rawToc,
   rescanStory,
-  revealFolder,
   type RawInfo,
   type RawMode,
   type RawSummary,
@@ -42,6 +42,7 @@ const message = (error: unknown) => (error instanceof Error ? error.message : St
 export function RawPage() {
   const root = useStoryStore((s) => s.root);
   const setSnapshot = useStoryStore((s) => s.setSnapshot);
+  const setPage = useStoryStore((s) => s.setPage);
   const [info, setInfo] = useState<RawInfo>();
   const [url, setUrl] = useState("");
   const [extension, setExtension] = useState("");
@@ -173,6 +174,11 @@ export function RawPage() {
     }
   }
 
+  function openExtensions() {
+    setPage("settings");
+    requestAnimationFrame(() => document.getElementById(EXTENSIONS_CARD_ID)?.scrollIntoView({ block: "start" }));
+  }
+
   function toggle(row: RawTocRow) {
     setSelected((current) => {
       const next = new Set(current);
@@ -214,11 +220,10 @@ export function RawPage() {
             {noExtension ? (
               <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
                 <p>
-                  Chưa có extension nào khớp link này ({info.installed} extension đã cài). Đặt extension đã giải nén vào{" "}
-                  <code className="break-all">{info.extensionsDir}\&lt;id&gt;\pkg\</code>, rồi mở lại trang này.
+                  Chưa có extension nào khớp link này ({info.installed} extension đang bật).
                 </p>
-                <Button variant="link" className="h-auto p-0" onClick={() => void revealFolder(info.extensionsDir)}>
-                  <FolderOpen /> Mở thư mục extension
+                <Button variant="link" className="h-auto p-0" onClick={openExtensions}>
+                  <Puzzle /> Cài extension ở Cài đặt → Extension tải raw
                 </Button>
               </div>
             ) : info.candidates.length === 1 ? (

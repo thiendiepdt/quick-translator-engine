@@ -10,7 +10,7 @@ import { BasePromptDialog } from "@/components/base-prompt-dialog";
 import { BaseRulesDialog } from "@/components/base-rules-dialog";
 import { Choice } from "@/components/choice";
 import { EffortTable } from "@/components/effort-table";
-import { ExtensionManager } from "@/components/ext-manager";
+import { EXTENSIONS_CARD_ID, ExtensionManager } from "@/components/ext-manager";
 import { PalettePicker } from "@/components/palette-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -495,7 +495,7 @@ export function SettingsPage() {
             <IdiomSettingsEditor />
           </Card>
           <Card
-            id="extensions"
+            id={EXTENSIONS_CARD_ID}
             title="Extension tải raw"
             description="Extension tải chương raw từ trang nguồn cho trang Tải raw. Cài từ file .zip hoặc link https; app hiện domain và quyền extension xin trước khi cài, bản cập nhật xin thêm thì hỏi lại."
           >
