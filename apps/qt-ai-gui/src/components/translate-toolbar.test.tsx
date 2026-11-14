@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -358,7 +358,7 @@ describe("TranslateToolbar · chọn model agy", () => {
         counts: { total: 1, queued: 1, translating: 0, done: 0, error: 0, skipped: 0, withWarnings: 0 },
         chapters: [{ id: "c1", status: "queued", reviewRound: 0, reason: null, warnings: [] }],
       } as never,
-      agy: { found: true, path: "agy", version: "1.3.2", models, message: null },
+      agy: { found: true, path: "agy", version: "1.3.2", models, message: null, defaultModel: null },
     });
     vi.mocked(sessionStart).mockReset().mockResolvedValue({ running: [ROOT] });
   });
@@ -377,6 +377,35 @@ describe("TranslateToolbar · chọn model agy", () => {
     useStoryStore.setState({ config: { ...agyConfig, model: "gemini-3.8-flash" } });
     render(<TranslateToolbar />);
     expect(screen.getByRole("combobox", { name: "Model" })).toHaveTextContent("gemini-3.8-flash (agy không còn model này)");
+  });
+
+  it("model mức Low / Medium hiện cảnh báo chất lượng dịch; chọn bản High thì hết", async () => {
+    const user = userEvent.setup();
+    useStoryStore.setState({ config: { ...agyConfig, model: "gemini-3.8-flash-low" } });
+    render(<TranslateToolbar />);
+    expect(screen.getByRole("alert")).toHaveTextContent("Gemini 3.8 Flash (Low) đang ở mức suy nghĩ Low — chất lượng dịch giảm khá nhiều");
+    await user.click(screen.getByRole("combobox", { name: "Model" }));
+    await user.click(await screen.findByRole("option", { name: "Gemini 3.8 Flash (High)" }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("nút trong cảnh báo sang Cài đặt để đổi model mặc định", async () => {
+    const user = userEvent.setup();
+    useStoryStore.setState({ config: { ...agyConfig, model: "gemini-3.8-flash-low" }, page: "translate" });
+    render(<TranslateToolbar />);
+    await user.click(within(screen.getByRole("alert")).getByRole("button", { name: "Đổi model mặc định…" }));
+    expect(useStoryStore.getState().page).toBe("settings");
+  });
+
+  it("để trống model thì cảnh báo theo model mặc định của agy; động cơ API thì không cảnh báo", () => {
+    const agy = { found: true, path: "agy", version: "1.3.2", models, message: null, defaultModel: { id: "gemini-3.8-flash-medium", label: "Gemini 3.8 Flash (Medium)" } };
+    useStoryStore.setState({ agy });
+    const { unmount } = render(<TranslateToolbar />);
+    expect(screen.getByRole("alert")).toHaveTextContent("Gemini 3.8 Flash (Medium) (model mặc định của agy) đang ở mức suy nghĩ Medium");
+    unmount();
+    useStoryStore.setState({ config: { ...agyConfig, engine: "api" } });
+    render(<TranslateToolbar />);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });
 

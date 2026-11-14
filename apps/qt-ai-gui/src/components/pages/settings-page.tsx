@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { BookA, FileText, FolderSearch, ListChecks, LoaderCircle, Trash2 } from "lucide-react";
+import { BookA, FileText, FolderSearch, ListChecks, LoaderCircle, Trash2, TriangleAlert } from "lucide-react";
 import { useEffect, useState, type ComponentProps, type ReactNode } from "react";
-import { useForm, type FieldPath, type FieldPathValue, type UseFormReturn } from "react-hook-form";
+import { useForm, useWatch, type FieldPath, type FieldPathValue, type UseFormReturn } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -33,6 +33,7 @@ import {
 } from "@/lib/api";
 import { useAppVersion } from "@/lib/app-version";
 import { apiSettingsFromForm, engineFormFromConfig, engineFormSchema } from "@/lib/engine-form";
+import { activeModel, MODEL_SETTING_ID, QUICK_MODELS, weakModelWarning } from "@/lib/models";
 import { READING_WIDTH_LABELS, READING_WIDTHS } from "@/lib/reading";
 import { DEFAULT_API_MODELS, GEMINI_EFFORTS, OPENAI_EFFORTS } from "@/lib/schema";
 import { THEME_MODE_LABELS, THEME_MODES } from "@/lib/theme";
@@ -40,6 +41,7 @@ import {
   API_PROVIDER_LABELS,
   ENGINE_LABELS,
   type AgyDataStats,
+  type AgyStatus,
   type ApiProvider,
   type BaseKind,
   type Engine,
@@ -106,6 +108,48 @@ function SaveBar({ dirty, running, saving, onReset }: { dirty: boolean; running:
         </div>
       </div>
     </footer>
+  );
+}
+
+/** Dưới ô Model mặc định: chip chọn nhanh, model agy đang dùng khi để trống, cảnh báo model mức Low / Medium. */
+function ModelHelp({ form, agy }: { form: UseFormReturn<SettingsForm>; agy: AgyStatus | undefined }) {
+  // Form nạp giá trị bằng reset() trong effect: lần vẽ đầu ô chưa có giá trị.
+  const value: unknown = useWatch({ control: form.control, name: "model" });
+  const chosen = typeof value === "string" ? value.trim() : "";
+  const onPick = (id: string) => form.setValue("model", id, { shouldDirty: true });
+  const warning = weakModelWarning(activeModel(chosen, agy));
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div role="group" aria-label="Chọn nhanh model" className="flex flex-wrap items-center gap-1.5">
+        <span className="text-xs text-muted-foreground">Chọn nhanh:</span>
+        {QUICK_MODELS.map((id) => (
+          <button
+            key={id}
+            type="button"
+            aria-pressed={chosen === id}
+            onClick={() => onPick(id)}
+            className={cn(
+              "rounded-full border px-2 py-0.5 font-mono text-xs transition-colors hover:border-primary hover:bg-primary/10 hover:text-primary",
+              chosen === id ? "border-primary bg-primary/10 text-primary" : "bg-muted/50 text-foreground",
+            )}
+          >
+            {id}
+          </button>
+        ))}
+      </div>
+      {!chosen && (
+        <p className="text-xs text-muted-foreground">
+          {agy?.defaultModel
+            ? `Đang để trống: agy dùng ${agy.defaultModel.label} (model mặc định trong cài đặt của agy).`
+            : "Đang để trống: agy tự chọn model (không đọc được model mặc định trong cài đặt của agy)."}
+        </p>
+      )}
+      {warning && (
+        <p role="alert" className="flex items-start gap-1.5 text-xs text-status-warning">
+          <TriangleAlert className="mt-0.5 size-3.5 shrink-0" /> {warning}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -522,7 +566,10 @@ export function SettingsPage() {
                   {agy?.found ? `Đang dùng: ${agy.path}${agy.version ? ` (${agy.version})` : ""}` : "Chưa tìm thấy agy."}
                 </p>
               </div>
-              {field("model", "Model mặc định", "Trống = model mặc định của agy; danh sách ở dropdown trang Dịch.")}
+              <div id={MODEL_SETTING_ID} className="flex scroll-mt-6 flex-col gap-1.5">
+                {field("model", "Model mặc định", "Trống = model mặc định của agy; danh sách ở dropdown trang Dịch.")}
+                <ModelHelp form={form} agy={agy} />
+              </div>
               {field("maxSessions", "Số phiên tối đa mỗi lần Bắt đầu", "Chỉ áp dụng cho agy: mỗi phiên là một lượt agy dịch tối đa số chương mỗi phiên (500 phiên × 10 chương ≈ 5.000 chương). Cầu dao khi agy chạy vòng vô hạn; dịch bằng API key không giới hạn. Mặc định 500.", {
                 type: "number",
                 min: 1,

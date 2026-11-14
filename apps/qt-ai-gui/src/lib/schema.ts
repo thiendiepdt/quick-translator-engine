@@ -317,6 +317,8 @@ export const agyStatusSchema = z.object({
   /** `id` đưa vào `--model`; `label` chỉ hiển thị (agy 1.3 liệt kê `id<TAB>nhãn`). */
   models: z.array(z.object({ id: z.string(), label: z.string() })),
   message: z.string().nullable(),
+  /** Model agy dùng khi app không truyền `--model` (khoá `model` trong settings.json của agy); null = agy tự chọn. */
+  defaultModel: z.object({ id: z.string(), label: z.string() }).nullable().default(null),
 });
 
 /** Một tên tiêu đề lặp ở từ hai chương raw trở lên (Rust `titles::TitleGroup`). */

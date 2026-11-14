@@ -72,7 +72,7 @@ export default function App() {
         } catch (error) {
           // Dò hỏng → hiện màn "Chưa thấy agy" có nút thử lại thay vì xoay vô hạn.
           const message = error instanceof Error ? error.message : "Không dò được agy";
-          setAgy({ found: false, path: null, version: null, models: [], message });
+          setAgy({ found: false, path: null, version: null, models: [], message, defaultModel: null });
         }
       }
     } catch (error) {

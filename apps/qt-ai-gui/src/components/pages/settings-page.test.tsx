@@ -132,6 +132,30 @@ describe("SettingsPage · Động cơ dịch", () => {
     await waitFor(() => expect(appConfigSet).toHaveBeenCalledWith(expect.objectContaining({ resumeOnQuota: true })));
   });
 
+  it("model mặc định: trống thì nói model mặc định của agy (cảnh báo nếu Medium); chip chọn nhanh điền ô rồi Lưu", async () => {
+    const user = userEvent.setup();
+    vi.mocked(appConfigSet).mockClear();
+    useStoryStore.setState({
+      agy: {
+        found: true,
+        path: "agy",
+        version: "1.3.2",
+        message: null,
+        models: [{ id: "gemini-4-hydrogen-high", label: "Gemini 4 Hydrogen (High)" }],
+        defaultModel: { id: "gemini-3.8-flash-medium", label: "Gemini 3.8 Flash (Medium)" },
+      },
+    });
+    render(<SettingsPage />);
+    expect(screen.getByText("Đang để trống: agy dùng Gemini 3.8 Flash (Medium) (model mặc định trong cài đặt của agy).")).toBeInTheDocument();
+    expect(screen.getByText(/\(model mặc định của agy\) đang ở mức suy nghĩ Medium — chất lượng dịch giảm khá nhiều/)).toBeInTheDocument();
+
+    await user.click(within(screen.getByRole("group", { name: "Chọn nhanh model" })).getByRole("button", { name: "gemini-4-hydrogen-high" }));
+    expect(screen.getByLabelText("Model mặc định")).toHaveValue("gemini-4-hydrogen-high");
+    expect(screen.queryByText(/chất lượng dịch giảm khá nhiều/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Lưu App + Truyện này" }));
+    await waitFor(() => expect(appConfigSet).toHaveBeenCalledWith(expect.objectContaining({ model: "gemini-4-hydrogen-high" })));
+  });
+
   it("ô 'Gọi qt-ai qua MCP' mặc định bật; bỏ tick rồi Lưu thì ghi useMcp false vào AppConfig", async () => {
     const user = userEvent.setup();
     vi.mocked(appConfigSet).mockClear();

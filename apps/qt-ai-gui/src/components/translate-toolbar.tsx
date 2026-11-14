@@ -11,6 +11,7 @@ import { ZhStoryBanner, ZhStoryDialog } from "@/components/zh-story-dialog";
 import { chaptersPadAll, chaptersRetryIds, rescanStory, sessionStart, sessionStop, storySnapshot } from "@/lib/api";
 import { chapterGaps, filterChapters, hasHanLeft } from "@/lib/chapters";
 import { LINK_LABEL } from "@/lib/dock";
+import { activeModel, MODEL_SETTING_ID, weakModelWarning } from "@/lib/models";
 import { clockLabel, engineLabel, isAbnormalStop, STATUS_LABELS, stopReasonBrief, stopReasonLabel } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { selectCurrentProgress, selectCurrentSession, selectCurrentShort, useStoryStore } from "@/store/story";
@@ -82,6 +83,16 @@ export function TranslateToolbar() {
   }
 
   /** Sang Cài đặt và cuộn tới thẻ Chương ngắn (trang mới render ở frame sau). */
+  /** Sang Cài đặt, cuộn tới ô Model mặc định và đặt con trỏ vào đó. */
+  function openModelSettings() {
+    setPage("settings");
+    requestAnimationFrame(() => {
+      const block = document.getElementById(MODEL_SETTING_ID);
+      block?.scrollIntoView({ block: "center" });
+      block?.querySelector("input")?.focus({ preventScroll: true });
+    });
+  }
+
   function openPaddingSettings() {
     setPage("settings");
     requestAnimationFrame(() => document.getElementById(PADDING_CARD_ID)?.scrollIntoView({ block: "start" }));
@@ -96,6 +107,8 @@ export function TranslateToolbar() {
   }
   const [model, setModel] = useState<string | undefined>(config?.model ?? undefined);
   const staleModel = !!model && !!agy?.models.length && !agy.models.some((item) => item.id === model);
+  // Model mức Low / Medium (kể cả model mặc định của agy khi để trống) dịch kém hẳn: nhắc ngay dưới thanh công cụ.
+  const weakModel = config?.engine === "api" ? null : weakModelWarning(activeModel(model, agy));
   const [busy, setBusy] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [retryingGaps, setRetryingGaps] = useState(false);
@@ -310,6 +323,17 @@ export function TranslateToolbar() {
           )}
         </Button>
       </div>
+      {weakModel && (
+        <div role="alert" className="mt-2 flex flex-wrap items-start gap-x-2 gap-y-1 text-xs text-status-warning">
+          <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
+          <span className="min-w-0 flex-1">
+            {weakModel} Đổi ở ô Model bên trên cho lần dịch này, hoặc đổi model mặc định.
+          </span>
+          <Button type="button" variant="outline" size="sm" className="h-6 shrink-0 px-2 text-xs" onClick={openModelSettings}>
+            Đổi model mặc định…
+          </Button>
+        </div>
+      )}
       <div className="mt-3 flex items-center gap-3">
         <div
           className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted"

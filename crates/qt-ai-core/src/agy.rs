@@ -61,6 +61,17 @@ pub fn agy_models(agy: &Path) -> Result<Vec<AgyModel>> {
     Ok(parse_models(&run_capture(agy, &["models"])?))
 }
 
+/// Tra giá trị `model` (id hoặc nhãn, không phân biệt hoa thường) trong danh sách `agy models`; không thấy thì
+/// giữ nguyên làm cả id lẫn nhãn.
+pub fn resolve_model(models: &[AgyModel], value: &str) -> AgyModel {
+    let value = value.trim();
+    models
+        .iter()
+        .find(|m| m.id.eq_ignore_ascii_case(value) || m.label.eq_ignore_ascii_case(value))
+        .cloned()
+        .unwrap_or_else(|| AgyModel { id: value.to_string(), label: value.to_string() })
+}
+
 pub fn parse_models(output: &str) -> Vec<AgyModel> {
     output
         .lines()
@@ -73,4 +84,18 @@ pub fn parse_models(output: &str) -> Vec<AgyModel> {
             valid.then(|| AgyModel { id: id.to_string(), label: if label.is_empty() { id.to_string() } else { label.to_string() } })
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tra_model_theo_id_hoac_nhan() {
+        let models = parse_models("Fetching available models...\ngemini-4-hydrogen-high\tGemini 4 Hydrogen (High)\ngemini-3.8-flash-medium\tGemini 3.8 Flash (Medium)\n");
+        assert_eq!(resolve_model(&models, "Gemini 4 Hydrogen (High)").id, "gemini-4-hydrogen-high");
+        assert_eq!(resolve_model(&models, "GEMINI-3.8-FLASH-MEDIUM").label, "Gemini 3.8 Flash (Medium)");
+        let unknown = resolve_model(&models, " Model lạ ");
+        assert_eq!((unknown.id.as_str(), unknown.label.as_str()), ("Model lạ", "Model lạ"));
+    }
 }

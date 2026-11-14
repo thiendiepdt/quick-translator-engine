@@ -27,6 +27,14 @@ pub fn default_data_dir() -> Option<PathBuf> {
     dir.is_dir().then_some(dir)
 }
 
+/// Model mặc định người dùng chọn trong agy: khoá `model` trong `settings.json` của agy CLI (agy ghi nhãn hiển thị,
+/// vd "Gemini 4 Hydrogen (High)"; bản tay có thể là id). `None` khi không có file / khoá — agy tự chọn.
+pub fn settings_model(data_dir: &Path) -> Option<String> {
+    let text = fs::read_to_string(data_dir.join("settings.json")).ok()?;
+    let value: serde_json::Value = serde_json::from_str(text.trim_start_matches('\u{feff}')).ok()?;
+    value.get("model")?.as_str().map(str::trim).filter(|s| !s.is_empty()).map(str::to_string)
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Conversation {
     pub id: String,
@@ -386,6 +394,18 @@ pub fn quota_reset_since(data_dir: &Path, root: &Path, since: SystemTime) -> Opt
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn doc_model_mac_dinh_trong_settings_cua_agy() {
+        let dir = tempfile::tempdir().unwrap();
+        assert_eq!(super::settings_model(dir.path()), None, "chưa có settings.json");
+        std::fs::write(dir.path().join("settings.json"), "\u{feff}{ \"model\": \" Gemini 4 Hydrogen (High) \", \"trustedWorkspaces\": [] }").unwrap();
+        assert_eq!(super::settings_model(dir.path()).as_deref(), Some("Gemini 4 Hydrogen (High)"));
+        std::fs::write(dir.path().join("settings.json"), r#"{ "model": "" }"#).unwrap();
+        assert_eq!(super::settings_model(dir.path()), None);
+        std::fs::write(dir.path().join("settings.json"), "{ hỏng").unwrap();
+        assert_eq!(super::settings_model(dir.path()), None);
+    }
+
     use super::*;
 
     #[test]

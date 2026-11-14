@@ -1,7 +1,7 @@
 use crate::app_config::AppConfig;
 use crate::error::{blocking, CmdResult};
 use crate::AppState;
-use qt_ai_core::agy::{agy_models, agy_version, find_agy, AgyModel};
+use qt_ai_core::agy::{agy_models, agy_version, find_agy, resolve_model, AgyModel};
 use qt_ai_core::agy_data::{self, CleanReport, DataStats, Scope};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
@@ -15,18 +15,22 @@ pub struct AgyStatus {
     pub version: Option<String>,
     pub models: Vec<AgyModel>,
     pub message: Option<String>,
+    /// Model agy dùng khi app không truyền `--model`: theo `settings.json` của agy CLI. `None` = không đọc được
+    /// (agy tự chọn).
+    pub default_model: Option<AgyModel>,
 }
 
 pub fn probe_agy(configured: Option<&Path>) -> AgyStatus {
     let path: PathBuf = match find_agy(configured) {
         Ok(path) => path,
         Err(error) => {
-            return AgyStatus { found: false, path: None, version: None, models: vec![], message: Some(error.to_string()) }
+            return AgyStatus { found: false, path: None, version: None, models: vec![], message: Some(error.to_string()), default_model: None }
         }
     };
     let version = agy_version(&path).ok();
     let models = agy_models(&path).unwrap_or_default();
-    AgyStatus { found: true, path: Some(path.display().to_string()), version, models, message: None }
+    let default_model = agy_data::default_data_dir().and_then(|dir| agy_data::settings_model(&dir)).map(|value| resolve_model(&models, &value));
+    AgyStatus { found: true, path: Some(path.display().to_string()), version, models, message: None, default_model }
 }
 
 /// Không truyền `configured` thì dùng agy_path trong config app.
