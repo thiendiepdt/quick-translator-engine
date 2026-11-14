@@ -28,6 +28,8 @@ encoding_rs = "0.8"
 chardetng = "1"
 # Tải raw qua extension (sandbox QuickJS): Session chạy toc/chapter của extension.
 qt-ext = { path = "../qt-ext" }
+# So phiên bản extension khi cập nhật.
+semver = "1"
 
 [target.'cfg(windows)'.dependencies]
 # Job Object KILL_ON_JOB_CLOSE: app chết thì agy chết theo (child_guard). Bản 0.61 đã có trong lock.
