@@ -1,0 +1,17 @@
+{
+  "$schema": "../../manifest.schema.json",
+  "id": "io.github.example.html-gbk",
+  "name": "Mẫu HTML GBK",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "description": "Mẫu: trang HTML thường, mục lục nhiều trang, mã hoá GBK, chương VIP bị khoá",
+  "developer": { "name": "Tên bạn", "url": "https://github.com/ten-ban" },
+  "license": "MIT",
+  "homepage": "https://github.com/ten-ban/qt-ext-html-gbk",
+  "match": ["^https://(www\\.)?truyen-mau\\.example/book/\\d+"],
+  "hosts": ["truyen-mau.example", "www.truyen-mau.example"],
+  "settings": [
+    { "key": "maxPages", "label": "Số trang mục lục tối đa", "type": "number", "default": 50 }
+  ],
+  "limits": { "concurrency": 3, "delayMs": 200 }
+}

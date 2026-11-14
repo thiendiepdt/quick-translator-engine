@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "module": "es2022",
+    "moduleResolution": "bundler",
+    "lib": ["es2022"],
+    "types": [],
+    "checkJs": true,
+    "noEmit": true
+  },
+  "include": ["qt-ext.d.ts", "examples/**/*.js"]
+}

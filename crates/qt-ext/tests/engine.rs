@@ -111,3 +111,13 @@ fn import_ra_ngoai_goi_bi_chan() {
     assert!(matches!(testing::call(&pkg, "esc", vec![], Default::default()), Err(ExtError::Script(m)) if m.contains("trong gói")));
     assert!(matches!(testing::call(&pkg, "bare", vec![], Default::default()), Err(ExtError::Script(m)) if m.contains("trong gói")));
 }
+
+#[test]
+fn progress_va_log_goi_thieu_tham_so() {
+    let pkg = common::package(&[("main.js", "export async function toc() { progress(1, 2); progress(3); progress(4, 5, 'trang 4'); log.info(); return 1; }")]);
+    let seen: Arc<Mutex<Vec<(u64, u64, Option<String>)>>> = Arc::default();
+    let sink = seen.clone();
+    let opts = EngineOptions { progress: Arc::new(move |d, t, m| sink.lock().unwrap().push((d, t, m))), ..Default::default() };
+    assert_eq!(testing::call(&pkg, "toc", vec![], opts).unwrap(), json!(1));
+    assert_eq!(*seen.lock().unwrap(), vec![(1, 2, None), (3, 0, None), (4, 5, Some("trang 4".into()))]);
+}

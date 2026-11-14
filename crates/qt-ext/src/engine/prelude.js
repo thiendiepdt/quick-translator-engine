@@ -58,8 +58,11 @@
   });
   define("log", log);
   define("console", freeze({ log: log.info, info: log.info, warn: log.warn, error: log.error }));
+  // Tham số tuỳ chọn phía Rust không nhận `undefined` truyền tường minh.
   define("progress", (done, total, message) =>
-    host.progress(Number(done) || 0, Number(total) || 0, message == null ? undefined : String(message)));
+    message == null
+      ? host.progress(Number(done) || 0, Number(total) || 0)
+      : host.progress(Number(done) || 0, Number(total) || 0, String(message)));
   define("sleep", (ms) => host.sleep(Math.max(0, Math.floor(Number(ms) || 0))));
 
   // Lớp JS của từng nhóm API (http, html, crypto, encoding) chèn vào đây lúc dựng engine.

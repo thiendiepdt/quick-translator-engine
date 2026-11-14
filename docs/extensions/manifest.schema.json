@@ -1,0 +1,108 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "manifest.json của extension tải raw (VNCVT AI Translator, apiVersion 1)",
+  "type": "object",
+  "required": ["id", "name", "version", "apiVersion", "description", "developer", "match", "hosts"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(\\.[a-z0-9-]+)+$",
+      "description": "Tên miền đảo ngược, chữ thường, ví dụ io.github.ten-ban.ten-nguon. Không đổi giữa các bản."
+    },
+    "name": { "type": "string", "minLength": 1 },
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$",
+      "description": "semver; bản cập nhật phải lớn hơn."
+    },
+    "apiVersion": { "type": "integer", "const": 1 },
+    "description": { "type": "string", "minLength": 1 },
+    "developer": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "url": { "type": "string" },
+        "email": { "type": "string" }
+      }
+    },
+    "license": { "type": "string" },
+    "homepage": { "type": "string" },
+    "match": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Regex trên link tải raw; khớp thì app chọn extension này."
+    },
+    "hosts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^(\\*\\.)?[a-z0-9-]+(\\.[a-z0-9-]+)*$",
+        "description": "Domain được gọi tới; *. ở đầu = mọi subdomain. Không IP, không cổng; localhost / 127.0.0.1 chỉ ở chế độ developer."
+      }
+    },
+    "permissions": { "type": "array", "items": { "enum": ["webview"] } },
+    "auth": {
+      "type": "object",
+      "required": ["schemes"],
+      "properties": {
+        "required": { "type": "boolean" },
+        "schemes": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Theo thứ tự ưu tiên.",
+          "items": {
+            "type": "object",
+            "required": ["id", "label", "fields"],
+            "properties": {
+              "id": { "type": "string", "minLength": 1 },
+              "label": { "type": "string", "minLength": 1 },
+              "fields": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "required": ["key", "label", "type"],
+                  "properties": {
+                    "key": { "type": "string", "minLength": 1 },
+                    "label": { "type": "string", "minLength": 1 },
+                    "type": { "enum": ["text", "secret"] }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "settings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["key", "label", "type"],
+        "properties": {
+          "key": { "type": "string", "minLength": 1 },
+          "label": { "type": "string", "minLength": 1 },
+          "type": { "enum": ["text", "number", "boolean", "select", "secret"] },
+          "choices": { "type": "array", "items": { "type": "string" } },
+          "default": {},
+          "scope": { "enum": ["global", "story"], "description": "story: mỗi truyện một giá trị; secret không được story." }
+        },
+        "allOf": [
+          { "if": { "properties": { "type": { "const": "select" } } }, "then": { "required": ["choices"], "properties": { "choices": { "minItems": 1 } } } },
+          { "if": { "properties": { "type": { "const": "secret" } } }, "then": { "properties": { "scope": { "const": "global" } } } }
+        ]
+      }
+    },
+    "limits": {
+      "type": "object",
+      "properties": {
+        "concurrency": { "type": "integer", "minimum": 1, "maximum": 8, "description": "Mặc định 1, app chặn trần 8." },
+        "delayMs": { "type": "integer", "minimum": 0, "description": "Giãn cách giữa hai request tới cùng domain." }
+      }
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "$schema": "../../manifest.schema.json",
+  "id": "io.github.example.api-key",
+  "name": "Mẫu API key",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "description": "Mẫu: nguồn có API JSON, đăng nhập bằng API key lấy token có hạn, session data, cache mục lục",
+  "developer": { "name": "Tên bạn", "url": "https://github.com/ten-ban", "email": "ban@example.com" },
+  "license": "MIT",
+  "match": ["^https://(www\\.)?truyen-mau\\.example/novel/\\d+"],
+  "hosts": ["api.truyen-mau.example"],
+  "auth": {
+    "required": true,
+    "schemes": [
+      { "id": "apiKey", "label": "API key", "fields": [{ "key": "apiKey", "label": "API key", "type": "secret" }] }
+    ]
+  },
+  "settings": [
+    { "key": "apiBase", "label": "Địa chỉ API", "type": "text", "default": "https://api.truyen-mau.example" },
+    { "key": "lang", "label": "Chữ", "type": "select", "choices": ["zh-CN", "zh-TW"], "default": "zh-CN" }
+  ],
+  "limits": { "concurrency": 3, "delayMs": 200 }
+}
