@@ -401,6 +401,7 @@ export function RawPage() {
                   >
                     <input
                       type="checkbox"
+                      className="size-5 shrink-0 cursor-pointer accent-primary"
                       aria-label={`Chọn ${row.title}`}
                       checked={selected.has(row.id)}
                       onChange={(e) => toggle(row, "shiftKey" in e.nativeEvent && (e.nativeEvent as MouseEvent).shiftKey)}
