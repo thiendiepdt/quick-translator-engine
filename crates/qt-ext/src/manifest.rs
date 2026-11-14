@@ -238,6 +238,12 @@ fn unique<'a>(keys: impl Iterator<Item = &'a str>, field: &str) -> Result<(), Ex
     Ok(())
 }
 
+/// Đọc một khối `auth` (cùng cú pháp với manifest) — cho auth chung của kho.
+pub fn parse_auth_value(value: &Value) -> Result<AuthSpec, ExtError> {
+    let raw: RawAuth = serde_json::from_value(value.clone()).map_err(|e| bad(format!("auth: {e}")))?;
+    parse_auth(raw)
+}
+
 fn parse_auth(raw: RawAuth) -> Result<AuthSpec, ExtError> {
     if raw.schemes.is_empty() {
         return Err(bad("auth.schemes phải có ít nhất một kiểu đăng nhập"));

@@ -17,11 +17,11 @@ pub mod webview;
 pub mod testkit;
 
 pub use error::ExtError;
-pub use manifest::{check_setting, parse_manifest, AuthField, AuthScheme, AuthSpec, Developer, FieldKind, Limits, Manifest, Permission, Scope, SettingField, SettingKind};
+pub use manifest::{check_setting, parse_auth_value, parse_manifest, AuthField, AuthScheme, AuthSpec, Developer, FieldKind, Limits, Manifest, Permission, Scope, SettingField, SettingKind};
 pub use policy::HostPolicy;
 pub use net::{HttpClient, HttpRequest, HttpResponse};
 pub use package::{extract_zip, fetch_zip, sha256_hex, Package};
-pub use store::{AuthState, AuthValues, ExtStore, LoginRecord, SecretBackend, SessionStatus};
+pub use store::{AuthState, AuthStore, AuthValues, ExtStore, LoginRecord, SecretBackend, SessionStatus};
 pub use webview::{ClosedBy, Collect, StorageKeys, Until, WebviewCookie, WebviewHost, WebviewOutcome, WebviewRequest};
 pub use session::{ChapterContent, ChapterFormat, ChapterOutcome, Session, SessionOptions, TocItem};
 pub use engine::{redact, EngineOptions, LogLevel, LogSink, ProgressSink, RequestLog, RequestSink};

@@ -375,7 +375,8 @@ async fn build_runner<'a>(package: &'a Package, opts: &'a SessionOptions) -> Res
     let jar = Arc::new(Jar::from_cookies(session.cookies()));
     let http = Rc::new(HttpClient::with_jar(HostPolicy::new(&manifest.hosts, opts.allow_local), manifest.limits, jar)?);
     let mut engine_opts = opts.engine.clone();
-    engine_opts.secrets.extend(auth.iter().flat_map(|a| a.secret_values(manifest)));
+    let spec = store.and_then(|s| s.auth_spec(manifest)).or(manifest.auth.as_ref());
+    engine_opts.secrets.extend(auth.iter().flat_map(|a| a.secret_values(spec)));
     engine_opts.secrets.extend(session.login().and_then(|l| l.token));
     let webview = WebviewContext {
         host: opts.webview.clone(),
