@@ -16,6 +16,7 @@ chương trình, và chỉ gọi mạng tới các domain đã khai trong `manif
 - [Giới hạn](#giới-hạn)
 - [Chạy thử khi đang viết](#chạy-thử-khi-đang-viết)
 - [Đóng gói và phát hành](#đóng-gói-và-phát-hành)
+- [Kho extension](#kho-extension)
 
 Gợi ý code trong VS Code: chép [`qt-ext.d.ts`](qt-ext.d.ts) và [`jsconfig.json`](jsconfig.json) vào thư mục
 extension, sửa `"include"` của jsconfig thành `["qt-ext.d.ts", "**/*.js"]`. jsconfig bỏ thư viện kiểu của trình
@@ -306,3 +307,46 @@ Muốn nạp thư mục cho extension đã cài cùng `id` thì gỡ bản đã 
    định, dùng link `…/releases/latest/download/ten-nguon.zip`.
 
 Bản cập nhật giữ nguyên `id`. Thêm domain vào `hosts` hoặc thêm quyền thì người dùng được hỏi lại.
+
+## Kho extension
+
+Có nhiều extension thì đăng một **kho**: một file `index.json` công khai qua `https://` liệt kê mọi extension.
+Người dùng thêm kho một lần (Cài đặt → Extension tải raw → **Thêm kho**), rồi cài, **Cập nhật** từng cái hoặc
+**Cập nhật hết** từ danh sách "Có trong kho". Link kho là link `index.json` hoặc thư mục chứa nó.
+
+```json
+{
+  "formatVersion": 1,
+  "id": "io.github.ten-ban.kho",
+  "name": "Kho của tên bạn",
+  "description": "…",
+  "maintainer": { "name": "ten-ban", "url": "https://github.com/ten-ban" },
+  "auth": {
+    "required": true,
+    "schemes": [{ "id": "apiKey", "label": "API key", "fields": [{ "key": "apiKey", "label": "API key", "type": "secret" }] }]
+  },
+  "extensions": [
+    {
+      "id": "io.github.ten-ban.ten-nguon", "name": "Tên nguồn", "version": "1.2.0", "apiVersion": 1,
+      "description": "…", "developer": { "name": "ten-ban" }, "hosts": ["api.ten-nguon.com"], "permissions": [],
+      "authRequired": true, "sharedAuth": true,
+      "url": "extensions/io.github.ten-ban.ten-nguon/1.2.0.zip", "sha256": "…64 ký tự hex…", "size": 2408,
+      "icon": "extensions/io.github.ten-ban.ten-nguon/icon.png"
+    }
+  ]
+}
+```
+
+- `url`, `icon` tương đối với link `index.json` hoặc tuyệt đối; phải là `https://`. App tải gói, so `sha256` với
+  `index.json` (lệch thì từ chối), rồi kiểm `id`, `version` trong manifest của gói khớp kho. Các trường mô tả khác
+  chỉ để hiện danh sách; lúc cài app dùng manifest trong gói.
+- Mục sai (thiếu trường, version không phải semver, sha256 sai dạng, link không https) bị bỏ qua, app hiện cảnh
+  báo; cả file sai thì app giữ bản cũ.
+- **API key dùng chung**: kho khai `auth` (cùng cú pháp manifest) và đánh dấu `sharedAuth: true` cho extension
+  dùng chung. Người dùng nhập key một lần ở **API key của kho…**; mọi extension đó nhận key qua `ctx.auth` như bình
+  thường. Chỉ extension cài từ chính kho đó mới nhận key chung; cài cùng `id` từ file hay thư mục dev thì dùng auth
+  riêng. Kiểu auth trong manifest của extension nên giống hệt `auth` của kho, để cài lẻ từ file vẫn chạy.
+- Mỗi bản là một file zip mới đặt tên theo `version`; giữ file cũ để ai đang cài vẫn cài lại được. Ghi `index.json`
+  sau cùng, sau khi zip đã lên, để kho không bao giờ trỏ tới gói chưa có.
+- Gỡ kho trong app xoá API key chung; extension đã cài từ kho giữ nguyên.
+
