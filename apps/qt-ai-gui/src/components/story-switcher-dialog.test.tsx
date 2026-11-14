@@ -37,6 +37,15 @@ describe("mergeCandidates / filterCards", () => {
     expect(cards.find((c) => c.root === "D:\\lib\\rac")?.openable).toBe(false);
     expect(cards.find((c) => c.root === "D:\\lib\\ngoai")?.name).toBe("Ngoài"); // tên từ store khi đĩa không có
     expect(filterCards(cards, "ngo")).toHaveLength(1);
+    const sourced = mergeCandidates({
+      running: [],
+      names: {},
+      progress: {},
+      library: [{ ...library[0], source: { label: "Fanqie", extension: true, url: "https://fanqienovel.com/page/1" } }, library[1]],
+      recent: [],
+    });
+    expect(sourced[0].source?.label).toBe("Fanqie");
+    expect(filterCards(sourced, "fanqie").map((c) => c.root)).toEqual([library[0].root]); // tìm theo nguồn
     expect(filterCards(cards, "truyen-0")).toHaveLength(5); // 00–03 + 05 (01 ở gần đây đã khử trùng)
   });
 });
@@ -95,5 +104,16 @@ describe("StorySwitcherDialog", () => {
     expect(await screen.findByText("Lỗi 2")).toBeInTheDocument();
     expect(screen.getByText("Bỏ qua 1")).toBeInTheDocument();
     expect(screen.getAllByText(/^(Lỗi|Bỏ qua) \d+$/)).toHaveLength(2);
+  });
+
+  it("thẻ truyện hiện nhãn nguồn như màn chọn truyện", async () => {
+    vi.mocked(libraryList).mockResolvedValue([
+      { root: "D:\\lib\\x", name: "X", done: 1, total: 4, source: { label: "Fanqie", extension: true, url: "https://fanqienovel.com/page/1" } },
+      { root: "D:\\lib\\y", name: "Y", done: 4, total: 4, source: { label: "book.qq.com", extension: false, url: "https://book.qq.com/book-detail/2" } },
+      { root: "D:\\lib\\z", name: "Z", done: 4, total: 4 },
+    ]);
+    render(<StorySwitcherDialog open onOpenChange={() => undefined} onPick={() => undefined} />);
+    expect(await screen.findByText("Fanqie")).toHaveAttribute("title", "Tải raw qua extension Fanqie — https://fanqienovel.com/page/1");
+    expect(screen.getByText("book.qq.com")).toHaveAttribute("title", expect.stringContaining("Chưa có extension"));
   });
 });

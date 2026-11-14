@@ -2,6 +2,7 @@ import { Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { IssueChips } from "@/components/issue-chips";
+import { SourceChip } from "@/components/source-chip";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -83,7 +84,7 @@ export function StorySwitcherDialog({ open, onOpenChange, onPick }: Props) {
               setQuery(e.target.value);
               setLimit(PAGE_SIZE);
             }}
-            placeholder="Tìm theo tên hoặc folder…"
+            placeholder="Tìm theo tên, folder hoặc nguồn…"
             aria-label="Tìm truyện"
             className="pl-8"
           />
@@ -121,7 +122,10 @@ export function StorySwitcherDialog({ open, onOpenChange, onPick }: Props) {
                         )}
                         <IssueChips error={card.error} skipped={card.skipped} className="px-1.5 py-0" />
                       </div>
-                      <span className="truncate font-mono text-[11px] text-muted-foreground">{card.root}</span>
+                      <div className="flex min-w-0 items-center gap-2">
+                        {card.source && <SourceChip source={card.source} className="max-w-32 px-1.5 py-0" />}
+                        <span className="min-w-0 truncate font-mono text-[11px] text-muted-foreground">{card.root}</span>
+                      </div>
                       {card.total !== null ? (
                         <div className="flex items-center gap-2">
                           <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
