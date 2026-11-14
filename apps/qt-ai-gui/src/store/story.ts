@@ -118,6 +118,13 @@ interface StoryState extends PerStory {
   openProcesses: (focus?: string) => void;
   closeProcesses: () => void;
   setPage: (page: Page) => void;
+  /** Trang Cài đặt có thay đổi chưa lưu: rời trang (đổi trang, đổi / đóng truyện, công cụ riêng) thì hỏi trước. */
+  settingsDirty: boolean;
+  setSettingsDirty: (dirty: boolean) => void;
+  /** Lệnh rời trang đang chờ người dùng trả lời hộp "Lưu / Bỏ thay đổi / Ở lại" của trang Cài đặt. */
+  pendingLeave: (() => void) | null;
+  /** `go`: chạy lệnh rời trang đang chờ; không thì ở lại. */
+  resolveLeave: (go: boolean) => void;
   setSnapshot: (snapshot: StorySnapshot) => void;
   /** Đang nhắc chương lệch tiến độ (banner) thì hỏi lại Rust cho con số mới — gọi sau phiên dừng, dịch lại, xoá, reset.
    * Không nhắc gì thì bỏ qua: các việc đó không làm phát sinh chương lệch, khỏi đọc lại cả out/. */
@@ -257,6 +264,11 @@ function enterStory(state: StoryState, snapshot: StorySnapshot, page: Page): Par
   };
 }
 
+/** Đang ở trang Cài đặt với thay đổi chưa lưu: lệnh rời trang phải hỏi trước. */
+function leavingUnsaved(state: StoryState): boolean {
+  return state.settingsDirty && state.screen === "workbench" && state.page === "settings";
+}
+
 export const useStoryStore = create<StoryState>()((set, get) => ({
   screen: "picker",
   toolFrom: "picker",
@@ -278,15 +290,41 @@ export const useStoryStore = create<StoryState>()((set, get) => ({
   // và lần appConfigSet kế tiếp (đổi theme, settings…) đẩy recent cũ đè lên đĩa, mất truyện vừa mở.
   // Phiên/tiến độ/log của truyện khác giữ nguyên — nhiều truyện chạy song song.
   openStory: (snapshot) => set((state) => enterStory(state, snapshot, "translate")),
-  switchStory: (snapshot) => set((state) => enterStory(state, snapshot, state.page)),
-  closeStory: () =>
-    set((state) => ({ screen: "picker", root: undefined, snapshot: undefined, selectedId: undefined, views: rememberView(state) })),
-  openConverter: () => set((state) => (state.screen === "converter" ? {} : { screen: "converter", toolFrom: state.screen })),
+  switchStory: (snapshot) => {
+    const go = () => set((state) => enterStory(state, snapshot, state.page));
+    if (leavingUnsaved(get())) set({ pendingLeave: go });
+    else go();
+  },
+  closeStory: () => {
+    const go = () =>
+      set((state) => ({ screen: "picker", root: undefined, snapshot: undefined, selectedId: undefined, views: rememberView(state) }));
+    if (leavingUnsaved(get())) set({ pendingLeave: go });
+    else go();
+  },
+  openConverter: () => {
+    const go = () => set((state) => (state.screen === "converter" ? {} : { screen: "converter", toolFrom: state.screen }));
+    if (leavingUnsaved(get())) set({ pendingLeave: go });
+    else go();
+  },
   // Về màn trước; truyện đã đóng trong lúc đó (không còn root) thì về màn chọn truyện.
   closeConverter: () => set((state) => ({ screen: state.toolFrom === "workbench" && state.root ? "workbench" : "picker" })),
   openProcesses: (focus) => set({ processes: { focus: focus ?? null } }),
   closeProcesses: () => set({ processes: undefined }),
-  setPage: (page) => set({ page }),
+  setPage: (page) => {
+    if (page !== "settings" && leavingUnsaved(get())) set({ pendingLeave: () => set({ page }) });
+    else set({ page });
+  },
+  settingsDirty: false,
+  setSettingsDirty: (dirty) => set({ settingsDirty: dirty }),
+  pendingLeave: null,
+  resolveLeave: (go) => {
+    const pending = get().pendingLeave;
+    set({ pendingLeave: null });
+    if (go && pending) {
+      set({ settingsDirty: false });
+      pending();
+    }
+  },
   setSnapshot: (snapshot) =>
     set((state) => ({
       snapshot: keepProgressDrift(state.snapshot, snapshot),

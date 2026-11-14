@@ -1,10 +1,10 @@
 import { getVersion } from "@tauri-apps/api/app";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SettingsPage } from "@/components/pages/settings-page";
-import { agyDataClean, agyDataStats, appConfigSet, baseGet } from "@/lib/api";
+import { agyDataClean, agyDataStats, appConfigSet, baseGet, storySnapshot } from "@/lib/api";
 import { appConfigSchema, storySnapshotSchema } from "@/lib/schema";
 import { useStoryStore } from "@/store/story";
 
@@ -119,6 +119,49 @@ describe("SettingsPage · Động cơ dịch", () => {
     await user.click(screen.getByRole("button", { name: "Hoàn tác" }));
     expect(parallel).toHaveValue(20);
     expect(screen.getByRole("button", { name: "Lưu App + Truyện này" })).toBeDisabled();
+  });
+
+  it("rời trang khi còn thay đổi chưa lưu thì hỏi: Ở lại / Bỏ thay đổi / Lưu rồi đi tiếp", async () => {
+    const user = userEvent.setup();
+    vi.mocked(appConfigSet).mockClear();
+    vi.mocked(storySnapshot).mockResolvedValue(snapshot);
+    useStoryStore.setState({ screen: "workbench", page: "settings", pendingLeave: null, settingsDirty: false });
+    render(<SettingsPage />);
+    const go = (page: "translate" | "raw") => act(() => useStoryStore.getState().setPage(page));
+
+    // Chưa sửa gì: đi luôn.
+    go("translate");
+    expect(useStoryStore.getState().page).toBe("translate");
+    act(() => useStoryStore.setState({ page: "settings" }));
+
+    const parallel = screen.getByLabelText("Số truyện dịch song song");
+    await user.clear(parallel);
+    await user.type(parallel, "4");
+    go("translate");
+    expect(await screen.findByRole("dialog", { name: "Cài đặt chưa lưu" })).toBeInTheDocument();
+    expect(useStoryStore.getState().page).toBe("settings");
+    await user.click(screen.getByRole("button", { name: "Ở lại" }));
+    expect(useStoryStore.getState().page).toBe("settings");
+    expect(parallel).toHaveValue(4);
+
+    go("raw");
+    await user.click(await screen.findByRole("button", { name: "Lưu rồi đi tiếp" }));
+    await waitFor(() => expect(useStoryStore.getState().page).toBe("raw"));
+    expect(appConfigSet).toHaveBeenCalledWith(expect.objectContaining({ maxParallel: 4 }));
+  });
+
+  it("Bỏ thay đổi thì về giá trị đã lưu rồi rời trang; về danh sách truyện cũng hỏi", async () => {
+    const user = userEvent.setup();
+    useStoryStore.setState({ screen: "workbench", page: "settings", pendingLeave: null, settingsDirty: false });
+    render(<SettingsPage />);
+    const parallel = screen.getByLabelText("Số truyện dịch song song");
+    await user.clear(parallel);
+    await user.type(parallel, "4");
+    act(() => useStoryStore.getState().closeStory());
+    expect(useStoryStore.getState().screen).toBe("workbench");
+    await user.click(await screen.findByRole("button", { name: "Bỏ thay đổi" }));
+    expect(useStoryStore.getState().screen).toBe("picker");
+    expect(useStoryStore.getState().settingsDirty).toBe(false);
   });
 
   it("ô 'Tự dịch tiếp khi quota agy reset' mặc định tắt; tick rồi Lưu thì ghi resumeOnQuota vào AppConfig", async () => {

@@ -13,6 +13,7 @@ import { EffortTable } from "@/components/effort-table";
 import { EXTENSIONS_CARD_ID, ExtensionManager } from "@/components/ext-manager";
 import { PalettePicker } from "@/components/palette-picker";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { IdiomSettingsEditor } from "@/components/idiom-settings-editor";
@@ -373,8 +374,9 @@ export function SettingsPage() {
     }
   }, [config, settings, form]);
 
-  const submit = form.handleSubmit(async (values) => {
-    if (!config || !root) return;
+  /** Lưu App + Truyện này; `true` khi lưu xong. */
+  async function save(values: SettingsForm): Promise<boolean> {
+    if (!config || !root) return false;
     try {
       const next = await appConfigSet({
         ...config,
@@ -396,10 +398,39 @@ export function SettingsPage() {
       });
       setSnapshot(await storySnapshot(root));
       toast.success("Đã lưu cài đặt");
+      return true;
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Không lưu được cài đặt");
+      return false;
     }
+  }
+
+  const submit = form.handleSubmit(async (values) => {
+    await save(values);
   });
+
+  // Còn thay đổi chưa lưu thì rời trang phải hỏi (store giữ lệnh rời trang, hộp dưới trả lời).
+  const dirty = form.formState.isDirty;
+  const setSettingsDirty = useStoryStore((s) => s.setSettingsDirty);
+  const pendingLeave = useStoryStore((s) => s.pendingLeave);
+  const resolveLeave = useStoryStore((s) => s.resolveLeave);
+  useEffect(() => {
+    setSettingsDirty(dirty);
+  }, [dirty, setSettingsDirty]);
+  useEffect(() => () => setSettingsDirty(false), [setSettingsDirty]);
+
+  async function saveAndLeave() {
+    let ok = false;
+    await form.handleSubmit(async (values) => {
+      ok = await save(values);
+    })();
+    resolveLeave(ok);
+  }
+
+  function discardAndLeave() {
+    form.reset();
+    resolveLeave(true);
+  }
 
   async function pickAgy() {
     const path = await pickAgyFile();
@@ -623,6 +654,28 @@ export function SettingsPage() {
         </div>
       </div>
       <SaveBar dirty={form.formState.isDirty} running={running} saving={form.formState.isSubmitting} onReset={() => form.reset()} />
+      <Dialog open={!!pendingLeave} onOpenChange={(open) => !open && resolveLeave(false)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Cài đặt chưa lưu</DialogTitle>
+            <DialogDescription>
+              Bạn đã sửa cài đặt mà chưa bấm Lưu. Rời trang thì các thay đổi này mất.
+              {running && " Đang dịch nên chưa lưu được — dừng dịch rồi lưu, hoặc bỏ thay đổi."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={() => resolveLeave(false)}>
+              Ở lại
+            </Button>
+            <Button type="button" variant="outline" onClick={discardAndLeave}>
+              Bỏ thay đổi
+            </Button>
+            <Button type="button" disabled={running || form.formState.isSubmitting} onClick={() => void saveAndLeave()}>
+              Lưu rồi đi tiếp
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <BasePromptDialog open={baseDialog === "prompt"} onOpenChange={(o) => setBaseDialog(o ? "prompt" : undefined)} />
       <BaseRulesDialog open={baseDialog === "rules"} onOpenChange={(o) => setBaseDialog(o ? "rules" : undefined)} />
       <BaseGlossaryDialog open={baseDialog === "glossary"} onOpenChange={(o) => setBaseDialog(o ? "glossary" : undefined)} />
