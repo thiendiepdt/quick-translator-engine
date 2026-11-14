@@ -29,6 +29,7 @@ import {
   type ExtInspection,
   type ExtListItem,
 } from "@/lib/api";
+import { invalidateRawChecks } from "@/store/raw-check";
 
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
@@ -75,6 +76,16 @@ export function ExtensionManager() {
       setBusy(false);
     }
   }, []);
+
+  /** Cài / gỡ / bật tắt extension: xong thì thanh bên kiểm lại tình trạng tải raw của truyện đang mở. */
+  const mutate = useCallback(
+    async <T,>(task: () => Promise<T>): Promise<T | undefined> => {
+      const result = await run(task);
+      if (result !== undefined) invalidateRawChecks();
+      return result;
+    },
+    [run],
+  );
 
   const inspectFile = useCallback(
     async (path: string) => {
@@ -129,7 +140,7 @@ export function ExtensionManager() {
   async function confirmInstall() {
     if (!pending) return;
     const target = pending;
-    const next = await run(() => extInstall(target.sha256));
+    const next = await mutate(() => extInstall(target.sha256));
     if (!next) return;
     setItems(next);
     setPending(undefined);
@@ -142,7 +153,7 @@ export function ExtensionManager() {
     const found = await run(() => repoInspect(repoId, entry.id));
     if (!found) return;
     if (found.currentVersion && !found.needsConsent) {
-      const next = await run(() => extInstall(found.sha256));
+      const next = await mutate(() => extInstall(found.sha256));
       if (next) {
         setItems(next);
         toast.success(`Đã cập nhật ${found.name} lên ${found.version}`);
@@ -163,7 +174,7 @@ export function ExtensionManager() {
         needConsent.push(found.name);
         continue;
       }
-      const next = await run(() => extInstall(found.sha256));
+      const next = await mutate(() => extInstall(found.sha256));
       if (next) {
         setItems(next);
         updated += 1;
@@ -176,7 +187,7 @@ export function ExtensionManager() {
   async function addDev() {
     const dir = await pickFolder("Chọn thư mục extension đang viết");
     if (!dir) return;
-    const next = await run(() => extAddDev(dir));
+    const next = await mutate(() => extAddDev(dir));
     if (next) {
       setItems(next);
       toast.success("Đã nạp thư mục dev — sửa file là lượt tải sau dùng bản mới");
@@ -191,7 +202,7 @@ export function ExtensionManager() {
     } else if (found.needsConsent) {
       setPending(found);
     } else {
-      const next = await run(() => extInstall(found.sha256));
+      const next = await mutate(() => extInstall(found.sha256));
       if (next) {
         setItems(next);
         toast.success(`Đã cập nhật ${item.name} lên ${found.version}`);
@@ -201,7 +212,7 @@ export function ExtensionManager() {
 
   async function uninstall(item: ExtListItem) {
     if (!window.confirm(`Gỡ ${item.name}? Xoá cả auth, cài đặt, cache, phiên đăng nhập của extension này. Raw đã tải giữ nguyên.`)) return;
-    const next = await run(() => extUninstall(item.id));
+    const next = await mutate(() => extUninstall(item.id));
     if (next) {
       setItems(next);
       toast.success(`Đã gỡ ${item.name}`);
@@ -209,7 +220,7 @@ export function ExtensionManager() {
   }
 
   async function toggle(item: ExtListItem, enabled: boolean) {
-    const next = await run(() => extSetEnabled(item.id, enabled));
+    const next = await mutate(() => extSetEnabled(item.id, enabled));
     if (next) setItems(next);
   }
 

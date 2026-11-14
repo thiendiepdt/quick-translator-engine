@@ -12,11 +12,33 @@ interface Entry {
 
 const entries = new Map<string, Entry>();
 
-/** Đã đủ cài đặt để tải mục lục: có extension cho link, extension cần auth thì đã nhập. */
-export function rawConfigured(info: RawInfo): boolean {
-  if (!info.extension || !info.rawUrl.trim()) return false;
+function hostOf(url: string): string {
+  try {
+    return new URL(url).host.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}
+
+/**
+ * Vì sao truyện chưa tải raw được (hiện ở icon Tải raw trên thanh bên); `null` = đủ cài đặt: có link, có extension
+ * cho link, extension cần auth thì đã nhập.
+ */
+export function rawProblem(info: RawInfo): string | null {
+  const url = info.rawUrl.trim();
+  if (!url) return "chưa có link tải raw";
+  if (info.candidates.length === 0) {
+    return info.installed === 0 ? "chưa cài extension tải raw nào" : `chưa có extension tải raw cho ${hostOf(url)}`;
+  }
+  if (!info.extension) return `có ${info.candidates.length} extension khớp link, chưa chọn cái nào`;
   const auth = info.extConfig?.auth;
-  return !(auth?.required && !auth.scheme);
+  if (auth?.required && !auth.scheme) return `${info.extension.name} chưa nhập API key / đăng nhập`;
+  return null;
+}
+
+/** Đã đủ cài đặt để tải mục lục. */
+export function rawConfigured(info: RawInfo): boolean {
+  return rawProblem(info) === null;
 }
 
 /** Chương mới chưa tải: sau chương cuối đã có, không khoá, chưa có file. */
@@ -27,13 +49,26 @@ export function newChapters(toc: RawToc) {
 interface RawNewState {
   /** Số chương mới theo truyện; `null` = chưa đủ cài đặt hoặc tải mục lục lỗi. */
   counts: Record<string, number | null>;
+  /** Lý do chưa tải raw được theo truyện (`rawProblem`); `null` / thiếu = đủ cài đặt hoặc chưa kiểm. */
+  problems: Record<string, string | null>;
+  /** Tăng khi extension / kho / auth đổi: thanh bên kiểm lại truyện đang mở. */
+  epoch: number;
   setCount: (root: string, count: number | null) => void;
+  setProblem: (root: string, problem: string | null) => void;
 }
 
 export const useRawNew = create<RawNewState>()((set) => ({
   counts: {},
+  problems: {},
+  epoch: 0,
   setCount: (root, count) => set((state) => ({ counts: { ...state.counts, [root]: count } })),
+  setProblem: (root, problem) => set((state) => ({ problems: { ...state.problems, [root]: problem } })),
 }));
+
+/** Ghi lại tình trạng cài đặt tải raw của truyện (trang Tải raw gọi mỗi khi đọc / lưu cài đặt). */
+export function noteRawInfo(root: string, info: RawInfo): void {
+  useRawNew.getState().setProblem(root, rawProblem(info));
+}
 
 function track(root: string, promise: Promise<RawToc | null>): Promise<RawToc | null> {
   const entry = { at: Date.now(), promise };
@@ -58,6 +93,7 @@ export function loadRawToc(root: string, options: { force?: boolean; anchor?: nu
   const promise = (async () => {
     if (options.force || options.anchor !== undefined) return rawToc(root, options.anchor);
     const info = await rawInfo(root);
+    noteRawInfo(root, info);
     return rawConfigured(info) ? rawToc(root) : null;
   })();
   return track(root, promise);
@@ -75,8 +111,14 @@ export function forgetRawToc(root: string): void {
   useRawNew.getState().setCount(root, null);
 }
 
+/** Cài / gỡ / bật tắt extension, thêm / bỏ kho, đổi auth: bỏ mọi kết quả đã nhớ, thanh bên kiểm lại. */
+export function invalidateRawChecks(): void {
+  entries.clear();
+  useRawNew.setState((state) => ({ epoch: state.epoch + 1 }));
+}
+
 /** Cho test. */
 export function resetRawChecks(): void {
   entries.clear();
-  useRawNew.setState({ counts: {} });
+  useRawNew.setState({ counts: {}, problems: {}, epoch: 0 });
 }

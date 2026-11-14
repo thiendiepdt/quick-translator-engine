@@ -30,7 +30,7 @@ import {
 import { authStatus, changedValues, initialDisplay, storyValues, type FieldDisplay } from "@/lib/ext";
 import { cn } from "@/lib/utils";
 import { insertAt, RAW_STATUS_LABELS, renderName, TEMPLATE_TOKENS, toggleSelection, validateTemplate } from "@/lib/raw";
-import { forgetRawToc, loadRawToc, rawConfigured, rememberRawToc } from "@/store/raw-check";
+import { forgetRawToc, loadRawToc, noteRawInfo, rawConfigured, rememberRawToc } from "@/store/raw-check";
 import { useStoryStore } from "@/store/story";
 
 const MAX_LOG = 200;
@@ -107,6 +107,11 @@ export function RawPage() {
       alive = false;
     };
   }, [root]);
+
+  // Đọc / lưu cài đặt, nhập auth: chấm cảnh báo trên icon Tải raw đổi theo.
+  useEffect(() => {
+    if (root && info) noteRawInfo(root, info);
+  }, [root, info]);
 
   // Mục lục đổi (tải mục lục, chương vừa tải xong): nhớ bản mới nhất, số chương mới trên thanh bên đổi theo.
   useEffect(() => {

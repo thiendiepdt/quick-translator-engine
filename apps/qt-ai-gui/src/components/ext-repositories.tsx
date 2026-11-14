@@ -22,6 +22,7 @@ import {
   type RepoView,
 } from "@/lib/api";
 import { compareVersions } from "@/lib/ext";
+import { invalidateRawChecks } from "@/store/raw-check";
 
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
@@ -71,8 +72,15 @@ export function ExtRepositories({ installed, busy, onInstall, onUpdateAll }: Pro
     }
   }
 
+  /** Thêm / làm mới / bỏ kho, đổi API key của kho: xong thì thanh bên kiểm lại tình trạng tải raw. */
+  async function mutate<T>(task: () => Promise<T>): Promise<T | undefined> {
+    const result = await run(task);
+    if (result !== undefined) invalidateRawChecks();
+    return result;
+  }
+
   async function add() {
-    const next = await run(() => repoAdd(url.trim()));
+    const next = await mutate(() => repoAdd(url.trim()));
     if (!next) return;
     setRepos(next);
     setUrl("");
@@ -80,7 +88,7 @@ export function ExtRepositories({ installed, busy, onInstall, onUpdateAll }: Pro
   }
 
   async function refresh(id?: string) {
-    const result = await run(() => repoRefresh(id));
+    const result = await mutate(() => repoRefresh(id));
     if (!result) return;
     setRepos(result.repositories);
     if (result.errors.length) result.errors.forEach((e) => toast.error(`Không làm mới được ${e}`));
@@ -89,7 +97,7 @@ export function ExtRepositories({ installed, busy, onInstall, onUpdateAll }: Pro
 
   async function remove(repo: RepoView) {
     if (!window.confirm(`Gỡ kho ${repo.name}? Xoá cả API key chung của kho. Extension đã cài từ kho giữ nguyên nhưng không còn cập nhật theo kho.`)) return;
-    const next = await run(() => repoRemove(repo.id));
+    const next = await mutate(() => repoRemove(repo.id));
     if (next) setRepos(next);
   }
 
@@ -100,7 +108,7 @@ export function ExtRepositories({ installed, busy, onInstall, onUpdateAll }: Pro
 
   /** Lưu xong thì đóng hộp (dòng kho hiện "Đã nhập API key"); xoá thì giữ hộp mở để nhập key mới. */
   async function saveAuth(task: () => Promise<RepoAuth>, done: string, close: boolean) {
-    const next = await run(task);
+    const next = await mutate(task);
     if (!next) return;
     if (close) {
       setAuth(undefined);

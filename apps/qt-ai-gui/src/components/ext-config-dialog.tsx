@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { extClearAuth, extClearCache, extLogout, extSaveAuth, extSaveSettings, type ExtAuth, type ExtConfig, type ExtSetting, type ExtValues } from "@/lib/api";
+import { invalidateRawChecks } from "@/store/raw-check";
 import { authFieldAsSetting, authStatus, changedValues, formatBytes, initialDisplay, toValue, type FieldDisplay } from "@/lib/ext";
 
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
@@ -30,6 +31,7 @@ export function ExtConfigDialog({ config, open, onOpenChange, onChange }: Props)
     setBusy(true);
     try {
       onChange(await task());
+      invalidateRawChecks();
       setVersion((v) => v + 1);
       toast.success(done);
     } catch (error) {

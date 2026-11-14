@@ -23,6 +23,7 @@ function RailButton({
   active,
   disabled,
   badge,
+  warning,
   onClick,
   children,
 }: {
@@ -31,16 +32,19 @@ function RailButton({
   disabled?: boolean;
   /** Số nhỏ ở góc nút (vd. số chương raw mới chưa tải). */
   badge?: number;
+  /** Chấm cảnh báo ở góc nút + lý do trong tooltip (vd. truyện chưa tải raw được). */
+  warning?: string;
   onClick: () => void;
   children: ReactNode;
 }) {
+  const description = badge ? `${label} — ${badge} chương mới chưa tải` : warning ? `${label} — ${warning}` : label;
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
           variant="ghost"
           size="icon"
-          aria-label={badge ? `${label} — ${badge} chương mới` : label}
+          aria-label={badge ? `${label} — ${badge} chương mới` : warning ? `${label} — ${warning}` : label}
           aria-current={active ? "page" : undefined}
           disabled={disabled}
           onClick={onClick}
@@ -54,10 +58,12 @@ function RailButton({
             <span className="absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-primary px-1 text-center text-[10px] font-semibold leading-4 text-primary-foreground">
               {badge > 99 ? "99+" : badge}
             </span>
+          ) : warning ? (
+            <span aria-hidden className="absolute right-0.5 top-0.5 size-2.5 rounded-full bg-status-warning ring-2 ring-card" />
           ) : null}
         </Button>
       </TooltipTrigger>
-      <TooltipContent side="right">{badge ? `${label} — ${badge} chương mới chưa tải` : label}</TooltipContent>
+      <TooltipContent side="right">{description}</TooltipContent>
     </Tooltip>
   );
 }
@@ -71,11 +77,14 @@ export function AppRail() {
   const { mode, toggleMode } = useThemeActions();
   const root = useStoryStore((s) => s.root);
   const rawNew = useRawNew((s) => (root ? s.counts[root] : null));
+  const rawProblem = useRawNew((s) => (root ? (s.problems[root] ?? null) : null));
+  const rawEpoch = useRawNew((s) => s.epoch);
 
-  // Mở truyện: tải mục lục nền (chỉ khi đã đủ cài đặt tải raw) để biết số chương mới; trang Tải raw dùng lại kết quả.
+  // Mở truyện: tải mục lục nền (chỉ khi đã đủ cài đặt tải raw) để biết số chương mới; chưa đủ thì icon có chấm
+  // cảnh báo kèm lý do. Trang Tải raw dùng lại kết quả. Đổi extension / kho / auth thì kiểm lại.
   useEffect(() => {
     if (root) loadRawToc(root).catch(() => undefined);
-  }, [root]);
+  }, [root, rawEpoch]);
 
   // Ctrl+Shift+F mở trang Tìm & thay như ô tìm trong cả dự án của các trình soạn thảo.
   useEffect(() => {
@@ -118,7 +127,9 @@ export function AppRail() {
       </Tooltip>
       <div className="mb-2 h-px w-8 bg-border" aria-hidden />
       {ITEMS.map(({ page: item, label, icon: Icon }) => (
-        <RailButton key={item} label={label} active={page === item} badge={item === "raw" ? (rawNew ?? undefined) : undefined} onClick={() => setPage(item)}>
+        <RailButton key={item} label={label} active={page === item} badge={item === "raw" ? (rawNew ?? undefined) : undefined}
+          warning={item === "raw" ? (rawProblem ?? undefined) : undefined}
+          onClick={() => setPage(item)}>
           <Icon className="size-5" />
         </RailButton>
       ))}

@@ -1,13 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { rawInfo, rawToc, type RawInfo, type RawToc } from "@/lib/api";
-import { loadRawToc, rawConfigured, rememberRawToc, resetRawChecks, useRawNew } from "@/store/raw-check";
+import { invalidateRawChecks, loadRawToc, rawConfigured, rawProblem, rememberRawToc, resetRawChecks, useRawNew } from "@/store/raw-check";
 
 vi.mock("@/lib/api", () => ({ rawInfo: vi.fn(), rawToc: vi.fn() }));
 
 const info = {
   rawUrl: "https://a.test/book/1",
-  extension: { id: "x" },
+  extension: { id: "x", name: "Demo" },
+  candidates: [{ id: "x", name: "Demo" }],
+  installed: 1,
   extConfig: { auth: { required: true, scheme: "apiKey" } },
 } as unknown as RawInfo;
 
@@ -44,5 +46,23 @@ describe("raw-check", () => {
     expect(rawToc).not.toHaveBeenCalled();
     expect(useRawNew.getState().counts["D:\\t"]).toBeNull();
     expect(rawConfigured({ ...info, extension: null })).toBe(false);
+    expect(useRawNew.getState().problems["D:\\t"]).toBe("Demo chưa nhập API key / đăng nhập");
+  });
+
+  it("lý do chưa tải raw được: link, extension, chọn extension, auth", () => {
+    const with_ = (patch: Partial<RawInfo>) => rawProblem({ ...info, ...patch });
+    expect(with_({ rawUrl: "  " })).toBe("chưa có link tải raw");
+    expect(with_({ rawUrl: "https://www.book.qq.com/x", candidates: [], extension: null, installed: 0 })).toBe("chưa cài extension tải raw nào");
+    expect(with_({ rawUrl: "https://www.book.qq.com/x", candidates: [], extension: null, installed: 3 })).toBe("chưa có extension tải raw cho book.qq.com");
+    expect(with_({ candidates: [info.extension!, info.extension!], extension: null })).toBe("có 2 extension khớp link, chưa chọn cái nào");
+    expect(with_({ extConfig: null })).toBeNull();
+  });
+
+  it("đổi extension / kho / auth thì bỏ kết quả đã nhớ, tải lại", async () => {
+    await loadRawToc("D:\\u");
+    invalidateRawChecks();
+    expect(useRawNew.getState().epoch).toBe(1);
+    await loadRawToc("D:\\u");
+    expect(rawToc).toHaveBeenCalledTimes(2);
   });
 });
