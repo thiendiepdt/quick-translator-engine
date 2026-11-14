@@ -37,6 +37,9 @@ getrandom = "0.3"
 rusqlite = { version = "0.40.2", features = ["bundled"] }
 # Hũ cookie lưu trong session data; reqwest đã kéo bản này.
 cookie_store = "0.22"
+# Gói extension dạng zip; cùng bản và backend với qt-ai-core.
+zip = { version = "4.6.1", default-features = false, features = ["deflate-flate2"] }
+flate2 = { version = "1.1.9", default-features = false, features = ["rust_backend"] }
 
 [target.'cfg(windows)'.dependencies]
 # Khoá của extension ở Windows Credential Manager.

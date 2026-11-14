@@ -365,6 +365,20 @@ impl ExtStore {
         }
     }
 
+    /// Gỡ extension: xoá khoá (auth và cài đặt secret), `settings.json`, toàn bộ thư mục dữ liệu (auth.json,
+    /// session, cache, hồ sơ webview).
+    pub fn remove_all(&self, manifest: &Manifest) -> Result<(), ExtError> {
+        self.clear_auth(manifest)?;
+        for field in manifest.settings.iter().filter(|f| f.kind == SettingKind::Secret) {
+            self.secrets.delete(&self.setting_name(&field.key))?;
+        }
+        remove_if_exists(&self.settings_file)?;
+        match std::fs::remove_dir_all(&self.data_dir) {
+            Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(ExtError::Store(format!("không xoá được {}: {e}", self.data_dir.display()))),
+            _ => Ok(()),
+        }
+    }
+
     pub fn clear_cache(&self) -> Result<(), ExtError> {
         let path = self.cache_path();
         for suffix in ["", "-wal", "-shm"] {
@@ -476,6 +490,19 @@ mod tests {
         let err = store.save_settings(&m, &map(json!({ "server": "eu", "pageSize": 3 }))).unwrap_err();
         assert!(err.to_string().contains("Máy chủ"));
         assert_eq!(store.settings(&m).unwrap(), map(json!({ "server": "global" })), "sai kiểu thì không lưu gì");
+    }
+
+    #[test]
+    fn go_xoa_het_du_lieu() {
+        let (dir, store, m) = setup();
+        store.save_auth(&m, "apiKey", &map(json!({ "apiKey": "k-1" }))).unwrap();
+        store.save_settings(&m, &map(json!({ "server": "global", "token": "tk" }))).unwrap();
+        write_atomic(&store.cache_path(), b"x").unwrap();
+        store.remove_all(&m).unwrap();
+        assert!(!dir.path().join("extension-data/io.github.dev.auth").exists());
+        assert!(!dir.path().join("extensions/io.github.dev.auth/settings.json").exists());
+        let SecretBackend::Memory(map) = &store.secrets else { unreachable!() };
+        assert!(map.lock().unwrap().is_empty(), "khoá auth và cài đặt secret đều xoá");
     }
 
     #[test]

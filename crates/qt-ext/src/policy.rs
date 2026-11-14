@@ -39,22 +39,31 @@ pub(crate) fn is_private_ip(ip: IpAddr) -> bool {
 pub struct HostPolicy {
     patterns: Vec<String>,
     allow_local: bool,
+    /// Mọi domain công khai (tải gói cài từ link: link phát hành hay redirect sang CDN).
+    any_public: bool,
+    https_only: bool,
 }
 
 impl HostPolicy {
     pub fn new(hosts: &[String], allow_local: bool) -> Self {
-        HostPolicy { patterns: hosts.iter().map(|h| h.trim().to_ascii_lowercase()).collect(), allow_local }
+        HostPolicy { patterns: hosts.iter().map(|h| h.trim().to_ascii_lowercase()).collect(), allow_local, any_public: false, https_only: false }
+    }
+
+    /// Mọi domain công khai, chỉ `https://`; mạng nội bộ vẫn bị chặn.
+    pub fn public_https() -> Self {
+        HostPolicy { patterns: Vec::new(), allow_local: false, any_public: true, https_only: true }
     }
 
     fn listed(&self, host: &str) -> bool {
-        self.patterns.iter().any(|pattern| match pattern.strip_prefix("*.") {
+        self.any_public
+            || self.patterns.iter().any(|pattern| match pattern.strip_prefix("*.") {
             Some(root) => host.len() > root.len() + 1 && host.ends_with(root) && host[..host.len() - root.len()].ends_with('.'),
             None => host == pattern,
         })
     }
 
     pub fn check(&self, url: &Url) -> Result<(), ExtError> {
-        if !matches!(url.scheme(), "http" | "https") {
+        if !matches!(url.scheme(), "http" | "https") || (self.https_only && url.scheme() != "https") {
             return Err(ExtError::HostDenied(format!("{}://", url.scheme())));
         }
         let (name, local) = match url.host() {
@@ -121,6 +130,16 @@ mod tests {
         assert!(!ok("https://demo.test.evil.com/a"));
         assert!(!ok("ftp://demo.test/a"));
         assert!(ok("https://user:pw@demo.test/a"), "userinfo không đổi host");
+    }
+
+    #[test]
+    fn public_https_chan_http_va_noi_bo() {
+        let p = HostPolicy::public_https();
+        assert!(p.check(&Url::parse("https://github.com/a.zip").unwrap()).is_ok());
+        assert!(p.check(&Url::parse("https://objects.githubusercontent.com/x").unwrap()).is_ok());
+        assert!(p.check(&Url::parse("http://github.com/a.zip").unwrap()).is_err());
+        assert!(p.check(&Url::parse("https://127.0.0.1/a.zip").unwrap()).is_err());
+        assert!(p.check(&Url::parse("https://box.lan/a.zip").unwrap()).is_err());
     }
 
     #[test]
