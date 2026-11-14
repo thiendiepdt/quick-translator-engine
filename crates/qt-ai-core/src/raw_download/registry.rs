@@ -26,6 +26,8 @@ pub enum Source {
     File { path: String },
     Link { url: String },
     Dev { dir: String },
+    /// Cài từ kho extension (`repository` = id kho, `url` = link zip).
+    Repository { repository: String, url: String },
     /// Thư mục đặt tay vào `<id>/pkg/`.
     Manual,
 }

@@ -3608,6 +3608,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "thiserror 2.0.19",
+ "url",
  "windows-sys 0.61.2",
  "zhconv",
  "zip",
