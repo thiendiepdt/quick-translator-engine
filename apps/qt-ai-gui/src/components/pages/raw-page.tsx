@@ -1,4 +1,4 @@
-import { CloudDownload, KeyRound, ListTree, LoaderCircle, LogIn, Puzzle, Square, TriangleAlert } from "lucide-react";
+import { ArrowDownUp, CloudDownload, KeyRound, ListTree, LoaderCircle, LogIn, Puzzle, Square, TriangleAlert } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -52,6 +52,8 @@ export function RawPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   /** Chương bấm gần nhất — mốc của dải khi giữ Shift. */
   const [lastPicked, setLastPicked] = useState<string>();
+  /** Mục lục hiện chương mới nhất trước (mặc định) hay chương đầu trước. */
+  const [newestFirst, setNewestFirst] = useState(true);
   const [busy, setBusy] = useState<"toc" | "download" | "save" | "login" | undefined>();
   const [progress, setProgress] = useState<Progress>();
   const [log, setLog] = useState<string[]>([]);
@@ -382,6 +384,14 @@ export function RawPage() {
                 </span>
                 <span className="ml-auto flex items-center gap-1">
                   <span className="text-xs">Giữ Shift khi bấm để chọn cả dải</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label={newestFirst ? "Đang xếp mới đến cũ — bấm để xếp cũ đến mới" : "Đang xếp cũ đến mới — bấm để xếp mới đến cũ"}
+                    onClick={() => setNewestFirst((v) => !v)}
+                  >
+                    <ArrowDownUp /> {newestFirst ? "Mới → cũ" : "Cũ → mới"}
+                  </Button>
                   <Button variant="ghost" size="sm" onClick={() => selectAll(true)}>
                     Chọn hết
                   </Button>
@@ -391,7 +401,7 @@ export function RawPage() {
                 </span>
               </div>
               <ul className="divide-y text-sm">
-                {toc.rows.map((row) => (
+                {(newestFirst ? [...toc.rows].reverse() : toc.rows).map((row) => (
                   <li
                     key={row.id}
                     aria-label={`Mục ${row.index}`}

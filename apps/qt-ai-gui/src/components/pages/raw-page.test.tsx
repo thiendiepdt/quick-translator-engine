@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -101,6 +101,17 @@ describe("RawPage", () => {
     await user.click(screen.getByLabelText("Chọn 第4章 合"));
     await user.click(screen.getByRole("button", { name: "Tải đã chọn (2)" }));
     expect(rawDownload).toHaveBeenLastCalledWith("D:\\lib\\demo", "selected", ["3", "4"], 1);
+  });
+
+  it("mục lục mặc định xếp mới đến cũ, bấm để đổi chiều", async () => {
+    const user = userEvent.setup();
+    render(<RawPage />);
+    await user.click(await screen.findByRole("button", { name: /Tải mục lục/ }));
+    const order = () => screen.getAllByRole("listitem", { name: /^Mục \d+$/ }).map((li) => li.getAttribute("aria-label"));
+    await waitFor(() => expect(order()).toEqual(["Mục 4", "Mục 3", "Mục 2", "Mục 1"]));
+    await user.click(screen.getByRole("button", { name: /bấm để xếp cũ đến mới/ }));
+    expect(order()).toEqual(["Mục 1", "Mục 2", "Mục 3", "Mục 4"]);
+    expect(screen.getByRole("button", { name: /bấm để xếp mới đến cũ/ })).toHaveTextContent("Cũ → mới");
   });
 
   it("chọn nhiều bằng Shift, bấm tên chương, Chọn hết / Bỏ chọn", async () => {
