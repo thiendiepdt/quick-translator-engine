@@ -13,9 +13,9 @@ pub mod run;
 
 pub mod template;
 
-use crate::error::Result;
+use crate::error::{CoreError, Result};
 use crate::story::StoryConfig;
-use crate::story_fs::{write_atomic, StoryPaths};
+use crate::story_fs::{list_raw_chapter_ids, write_atomic, StoryPaths};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
@@ -88,6 +88,42 @@ pub fn effective_raw_url(config: &DownloadConfig, story: &StoryConfig) -> String
     }
 }
 
+/// Kết quả dọn raw cũ.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClearOutcome {
+    /// Số file đã chuyển đi.
+    pub moved: usize,
+    /// Thư mục giữ bản cũ (rỗng khi `raw/` không có file nào).
+    pub backup: String,
+}
+
+/// Dọn raw cũ để tải lại từ đầu: chuyển mọi file `.txt` trong `raw/` sang `work/raw-backup/xoa-<thời điểm>/` (không
+/// xoá — nhầm thì chép ngược lại), xoá sổ chương trong `download.json`. Bản dịch trong `out/` giữ nguyên.
+pub fn clear_raw(paths: &StoryPaths) -> Result<ClearOutcome> {
+    let ids = list_raw_chapter_ids(paths)?;
+    let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+    let backup = paths.work_dir.join("raw-backup").join(format!("xoa-{stamp}"));
+    if !ids.is_empty() {
+        std::fs::create_dir_all(&backup).map_err(CoreError::io(&backup))?;
+    }
+    for id in &ids {
+        let name = format!("{id}.txt");
+        let from = paths.raw_dir.join(&name);
+        let to = backup.join(&name);
+        if std::fs::rename(&from, &to).is_err() {
+            std::fs::copy(&from, &to).map_err(CoreError::io(&to))?;
+            std::fs::remove_file(&from).map_err(CoreError::io(&from))?;
+        }
+    }
+    let mut config = load_download(paths);
+    if !config.chapters.is_empty() {
+        config.chapters.clear();
+        save_download(paths, &config)?;
+    }
+    Ok(ClearOutcome { moved: ids.len(), backup: if ids.is_empty() { String::new() } else { backup.display().to_string() } })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -106,6 +142,33 @@ mod tests {
         std::fs::write(download_path(&paths), "{ hỏng").unwrap();
         assert_eq!(load_download(&paths), DownloadConfig::default());
         assert!(dir.path().join("download.json.bad").exists());
+    }
+
+    #[test]
+    fn don_raw_cu_chuyen_sang_backup_va_xoa_so() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = story_paths(dir.path());
+        assert_eq!(clear_raw(&paths).unwrap(), ClearOutcome { moved: 0, backup: String::new() }, "chưa có raw/");
+        std::fs::create_dir_all(&paths.raw_dir).unwrap();
+        for id in ["0001_a", "0002_b"] {
+            std::fs::write(paths.raw_dir.join(format!("{id}.txt")), format!("{id}
+
+nội dung")).unwrap();
+        }
+        std::fs::write(paths.raw_dir.join("ghi-chu.md"), "không phải chương").unwrap();
+        let mut config = DownloadConfig { raw_url: "https://a/b".into(), ..Default::default() };
+        config.chapters.insert("a".into(), "0001_a".into());
+        save_download(&paths, &config).unwrap();
+
+        let outcome = clear_raw(&paths).unwrap();
+        assert_eq!(outcome.moved, 2);
+        let backup = std::path::Path::new(&outcome.backup);
+        assert!(backup.join("0001_a.txt").exists() && backup.join("0002_b.txt").exists());
+        assert!(!paths.raw_dir.join("0001_a.txt").exists());
+        assert!(paths.raw_dir.join("ghi-chu.md").exists(), "chỉ đụng file chương .txt");
+        let after = load_download(&paths);
+        assert!(after.chapters.is_empty());
+        assert_eq!(after.raw_url, "https://a/b", "giữ link và cài đặt khác");
     }
 
     #[test]

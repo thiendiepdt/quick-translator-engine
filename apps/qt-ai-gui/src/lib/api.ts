@@ -506,6 +506,9 @@ export const rawToc = (root: string, anchor?: number) =>
 export const rawDownload = (root: string, mode: RawMode, ids: string[], anchor?: number) =>
   call("raw_download", { root, mode, ids, anchor: anchor ?? null }, (v) => rawSummarySchema.parse(v));
 export const rawDownloadCancel = (root: string) => call("raw_download_cancel", { root }, noop);
+/** Dọn raw cũ: chuyển mọi file chương trong raw/ sang work/raw-backup/xoa-<thời điểm>/, xoá sổ chương, quét lại raw/. */
+export const rawClear = (root: string) =>
+  call("raw_clear", { root }, (v) => z.object({ moved: z.number(), backup: z.string() }).parse(v));
 /** Nghe tiến độ tải raw (mục lục, từng chương, log); trả hàm huỷ nghe. */
 export const onRawProgress = (handler: (progress: RawProgress) => void) =>
   listen("raw-download-progress", (event) => {

@@ -12,7 +12,7 @@ use qt_ai_core::commands::init::run_init;
 use qt_ai_core::raw_download::registry::{candidates, list_installed, pick, Installed};
 use qt_ai_core::raw_download::run::{download, effective_template, load_toc, ChapterResult, Event, Mode, RunOptions, Summary, TocView};
 use qt_ai_core::raw_download::template::{guess_template, validate_template, DEFAULT_TEMPLATE};
-use qt_ai_core::raw_download::{effective_raw_url, load_download, save_download, set_story_settings};
+use qt_ai_core::raw_download::{clear_raw, effective_raw_url, load_download, save_download, set_story_settings, ClearOutcome};
 use qt_ai_core::story_fs::{list_raw_chapter_ids, load_story_config, story_paths};
 use qt_ext::{LogLevel, TocItem};
 use serde::{Deserialize, Serialize};
@@ -354,6 +354,26 @@ pub async fn raw_download<R: Runtime>(app: AppHandle<R>, root: String, mode: Str
         run_init(path, &qt_ai_command())?;
         refresh_quietly(path, &lexicon());
         Ok(result?)
+    })
+    .await
+}
+
+/// Dọn raw cũ: chuyển mọi file chương trong `raw/` sang `work/raw-backup/xoa-<thời điểm>/`, xoá sổ chương, quét lại
+/// `raw/`. Không chạy khi truyện đang dịch hoặc đang tải raw.
+#[tauri::command]
+pub async fn raw_clear<R: Runtime>(app: AppHandle<R>, root: String) -> CmdResult<ClearOutcome> {
+    blocking(move || {
+        let state = app.state::<AppState>();
+        if state.sessions.lock().unwrap_or_else(|e| e.into_inner()).is_running(&root) {
+            return Err(CommandError::new("invalid_state", "Truyện đang dịch — dừng phiên dịch trước khi dọn raw."));
+        }
+        let _running = Running::start(&root)?;
+        let path = Path::new(&root);
+        let outcome = clear_raw(&story_paths(path))?;
+        TOC_CACHE.lock().unwrap_or_else(|e| e.into_inner()).remove(&root);
+        run_init(path, &qt_ai_command())?;
+        refresh_quietly(path, &lexicon());
+        Ok(outcome)
     })
     .await
 }

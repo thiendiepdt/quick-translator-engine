@@ -1,4 +1,4 @@
-import { ArrowDownUp, CloudDownload, KeyRound, ListTree, LoaderCircle, LogIn, Puzzle, Square, TriangleAlert } from "lucide-react";
+import { ArrowDownUp, CloudDownload, KeyRound, ListTree, LoaderCircle, LogIn, Puzzle, Square, Trash2, TriangleAlert } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -14,10 +14,10 @@ import {
   extLogin,
   onRawProgress,
   rawDownload,
+  rawClear,
   rawDownloadCancel,
   rawInfo,
   rawSave,
-  rawToc,
   rescanStory,
   type RawInfo,
   type RawMode,
@@ -27,6 +27,7 @@ import {
 } from "@/lib/api";
 import { authStatus, changedValues, initialDisplay, storyValues, type FieldDisplay } from "@/lib/ext";
 import { RAW_STATUS_LABELS, renderName, toggleSelection, validateTemplate } from "@/lib/raw";
+import { forgetRawToc, loadRawToc, rawConfigured, rememberRawToc } from "@/store/raw-check";
 import { useStoryStore } from "@/store/story";
 
 const MAX_LOG = 200;
@@ -54,6 +55,9 @@ export function RawPage() {
   const [lastPicked, setLastPicked] = useState<string>();
   /** Mục lục hiện chương mới nhất trước (mặc định) hay chương đầu trước. */
   const [newestFirst, setNewestFirst] = useState(true);
+  /** Ô "chọn theo khoảng": từ mục số … đến mục số … */
+  const [rangeFrom, setRangeFrom] = useState("");
+  const [rangeTo, setRangeTo] = useState("");
   const [busy, setBusy] = useState<"toc" | "download" | "save" | "login" | undefined>();
   const [progress, setProgress] = useState<Progress>();
   const [log, setLog] = useState<string[]>([]);
@@ -71,8 +75,33 @@ export function RawPage() {
 
   useEffect(() => {
     if (!root) return;
-    rawInfo(root).then(applyInfo, (error: unknown) => toast.error(message(error)));
+    let alive = true;
+    rawInfo(root).then(
+      (next) => {
+        if (!alive) return;
+        applyInfo(next);
+        if (!rawConfigured(next)) return;
+        setBusy("toc");
+        loadRawToc(root)
+          .then((view) => {
+            if (!alive || !view) return;
+            setToc(view);
+            if (view.lastIndex) setAnchor(String(view.lastIndex));
+          })
+          .catch((error: unknown) => alive && toast.error(message(error)))
+          .finally(() => alive && setBusy(undefined));
+      },
+      (error: unknown) => toast.error(message(error)),
+    );
+    return () => {
+      alive = false;
+    };
   }, [root]);
+
+  // Mục lục đổi (tải mục lục, chương vừa tải xong): nhớ bản mới nhất, số chương mới trên thanh bên đổi theo.
+  useEffect(() => {
+    if (root && toc) rememberRawToc(root, toc);
+  }, [root, toc]);
 
   useEffect(() => {
     const stop = onRawProgress((event) => {
@@ -120,6 +149,7 @@ export function RawPage() {
       const storySettings = storyChanged && info?.extConfig ? { extension: info.extConfig.id, values: storyValues(info.storySettings, storyDisplays) } : undefined;
       applyInfo(await rawSave(root, { rawUrl: url, extension, fileTemplate: template, storySettings }));
       setToc(undefined);
+      forgetRawToc(root);
       toast.success("Đã lưu cài đặt tải raw");
     } catch (error) {
       toast.error(message(error));
@@ -148,7 +178,8 @@ export function RawPage() {
     setBusy("toc");
     setSummary(undefined);
     try {
-      const view = await rawToc(root, anchorNumber);
+      const view = await loadRawToc(root, { force: true, anchor: anchorNumber });
+      if (!view) return;
       setToc(view);
       setSelected(new Set());
       setLastPicked(undefined);
@@ -194,6 +225,44 @@ export function RawPage() {
   function selectAll(on: boolean) {
     setSelected(on && toc ? new Set(toc.rows.map((r) => r.id)) : new Set());
     setLastPicked(undefined);
+  }
+
+  /** Thêm vào lựa chọn các mục từ số … đến số … (theo vị trí trong mục lục, đảo ngược cũng được). */
+  function selectRange() {
+    if (!toc) return;
+    const a = Number(rangeFrom);
+    const b = Number(rangeTo || rangeFrom);
+    if (!(a > 0) || !(b > 0)) return;
+    const [low, high] = a <= b ? [a, b] : [b, a];
+    setSelected((current) => {
+      const next = new Set(current);
+      for (const row of toc.rows) if (row.index >= low && row.index <= high) next.add(row.id);
+      return next;
+    });
+  }
+
+  async function clearRaw() {
+    if (!root) return;
+    const message_ =
+      "Chuyển toàn bộ file chương trong raw/ sang work/raw-backup/xoa-<thời điểm>/ và xoá sổ chương tải raw?\n\n" +
+      "Dùng khi muốn tải lại raw từ đầu. File không bị xoá hẳn — nhầm thì chép ngược lại vào raw/. Bản dịch trong out/ giữ nguyên.";
+    if (!window.confirm(message_)) return;
+    setBusy("save");
+    try {
+      const outcome = await rawClear(root);
+      forgetRawToc(root);
+      setSnapshot(await rescanStory(root));
+      setSelected(new Set());
+      setLastPicked(undefined);
+      setAnchor("");
+      toast.success(outcome.moved ? `Đã chuyển ${outcome.moved} file raw sang ${outcome.backup}` : "raw/ không có file chương nào");
+      const view = await loadRawToc(root, { force: true });
+      setToc(view ?? undefined);
+    } catch (error) {
+      toast.error(message(error));
+    } finally {
+      setBusy(undefined);
+    }
   }
 
   if (!info) {
@@ -330,6 +399,9 @@ export function RawPage() {
               </Button>
             )}
             {dirty && <span className="text-xs text-muted-foreground">Lưu cài đặt trước khi tải.</span>}
+            <Button variant="ghost" className="ml-auto text-destructive" onClick={() => void clearRaw()} disabled={!!busy}>
+              <Trash2 /> Dọn raw cũ…
+            </Button>
           </div>
 
           {progress && busy === "download" && (
@@ -378,6 +450,17 @@ export function RawPage() {
           {toc && (
             <div className="rounded-lg border">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b px-4 py-2 text-sm text-muted-foreground">
+                <input
+                  type="checkbox"
+                  className="size-5 shrink-0 cursor-pointer accent-primary"
+                  aria-label="Chọn / bỏ chọn hết"
+                  title="Chọn / bỏ chọn hết"
+                  checked={toc.rows.length > 0 && selected.size === toc.rows.length}
+                  ref={(el) => {
+                    if (el) el.indeterminate = selected.size > 0 && selected.size < toc.rows.length;
+                  }}
+                  onChange={() => selectAll(!(toc.rows.length > 0 && selected.size === toc.rows.length))}
+                />
                 <span>
                   {toc.rows.length} chương · đã có {toc.rows.filter((r) => r.status === "have").length} · khoá {toc.rows.filter((r) => r.locked).length}
                   {toc.by === "order" ? " · khớp chương cũ theo thứ tự" : ""}
@@ -392,14 +475,25 @@ export function RawPage() {
                   >
                     <ArrowDownUp /> {newestFirst ? "Mới → cũ" : "Cũ → mới"}
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => selectAll(true)}>
-                    Chọn hết
-                  </Button>
-                  <Button variant="ghost" size="sm" disabled={selected.size === 0} onClick={() => selectAll(false)}>
-                    Bỏ chọn
-                  </Button>
                 </span>
               </div>
+              <form
+                aria-label="Chọn theo khoảng"
+                className="flex flex-wrap items-center gap-2 border-b px-4 py-2 text-sm text-muted-foreground"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  selectRange();
+                }}
+              >
+                <span>Chọn từ mục</span>
+                <Input aria-label="Từ mục số" inputMode="numeric" className="h-8 w-20 font-mono" value={rangeFrom} onChange={(e) => setRangeFrom(e.target.value)} />
+                <span>đến</span>
+                <Input aria-label="Đến mục số" inputMode="numeric" className="h-8 w-20 font-mono" value={rangeTo} onChange={(e) => setRangeTo(e.target.value)} />
+                <Button type="submit" variant="outline" size="sm" disabled={!(Number(rangeFrom) > 0)}>
+                  Chọn khoảng
+                </Button>
+                {selected.size > 0 && <span className="text-xs">Đang chọn {selected.size} chương</span>}
+              </form>
               <ul className="divide-y text-sm">
                 {(newestFirst ? [...toc.rows].reverse() : toc.rows).map((row) => (
                   <li

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useThemeActions } from "@/hooks/use-theme";
 import { cn } from "@/lib/utils";
+import { loadRawToc, useRawNew } from "@/store/raw-check";
 import { useStoryStore, type Page } from "@/store/story";
 
 const ITEMS: Array<{ page: Page; label: string; icon: typeof Languages }> = [
@@ -21,12 +22,15 @@ function RailButton({
   label,
   active,
   disabled,
+  badge,
   onClick,
   children,
 }: {
   label: string;
   active?: boolean;
   disabled?: boolean;
+  /** Số nhỏ ở góc nút (vd. số chương raw mới chưa tải). */
+  badge?: number;
   onClick: () => void;
   children: ReactNode;
 }) {
@@ -36,19 +40,24 @@ function RailButton({
         <Button
           variant="ghost"
           size="icon"
-          aria-label={label}
+          aria-label={badge ? `${label} — ${badge} chương mới` : label}
           aria-current={active ? "page" : undefined}
           disabled={disabled}
           onClick={onClick}
           className={cn(
-            "size-10 rounded-lg text-muted-foreground hover:text-foreground",
+            "relative size-10 rounded-lg text-muted-foreground hover:text-foreground",
             active && "bg-accent text-accent-foreground hover:bg-accent",
           )}
         >
           {children}
+          {badge ? (
+            <span className="absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-primary px-1 text-center text-[10px] font-semibold leading-4 text-primary-foreground">
+              {badge > 99 ? "99+" : badge}
+            </span>
+          ) : null}
         </Button>
       </TooltipTrigger>
-      <TooltipContent side="right">{label}</TooltipContent>
+      <TooltipContent side="right">{badge ? `${label} — ${badge} chương mới chưa tải` : label}</TooltipContent>
     </Tooltip>
   );
 }
@@ -60,6 +69,13 @@ export function AppRail() {
   const openConverter = useStoryStore((s) => s.openConverter);
   const openProcesses = useStoryStore((s) => s.openProcesses);
   const { mode, toggleMode } = useThemeActions();
+  const root = useStoryStore((s) => s.root);
+  const rawNew = useRawNew((s) => (root ? s.counts[root] : null));
+
+  // Mở truyện: tải mục lục nền (chỉ khi đã đủ cài đặt tải raw) để biết số chương mới; trang Tải raw dùng lại kết quả.
+  useEffect(() => {
+    if (root) loadRawToc(root).catch(() => undefined);
+  }, [root]);
 
   // Ctrl+Shift+F mở trang Tìm & thay như ô tìm trong cả dự án của các trình soạn thảo.
   useEffect(() => {
@@ -102,7 +118,7 @@ export function AppRail() {
       </Tooltip>
       <div className="mb-2 h-px w-8 bg-border" aria-hidden />
       {ITEMS.map(({ page: item, label, icon: Icon }) => (
-        <RailButton key={item} label={label} active={page === item} onClick={() => setPage(item)}>
+        <RailButton key={item} label={label} active={page === item} badge={item === "raw" ? (rawNew ?? undefined) : undefined} onClick={() => setPage(item)}>
           <Icon className="size-5" />
         </RailButton>
       ))}

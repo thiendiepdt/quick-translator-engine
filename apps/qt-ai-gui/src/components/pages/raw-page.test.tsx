@@ -3,7 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { RawPage } from "@/components/pages/raw-page";
-import { extLogin, rawDownload, rawInfo, rawSave, rawToc, rescanStory, type ExtConfig, type RawInfo, type RawToc } from "@/lib/api";
+import { extLogin, rawClear, rawDownload, rawInfo, rawSave, rawToc, rescanStory, type ExtConfig, type RawInfo, type RawToc } from "@/lib/api";
+import { resetRawChecks, useRawNew } from "@/store/raw-check";
 import { useStoryStore } from "@/store/story";
 
 vi.mock("@/lib/api", () => ({
@@ -18,6 +19,7 @@ vi.mock("@/lib/api", () => ({
   rawToc: vi.fn(),
   rawDownload: vi.fn(),
   rawDownloadCancel: vi.fn(),
+  rawClear: vi.fn(),
   onRawProgress: vi.fn(() => Promise.resolve(() => undefined)),
   rescanStory: vi.fn(),
 }));
@@ -75,7 +77,9 @@ describe("RawPage", () => {
     vi.mocked(rawToc).mockReset().mockResolvedValue(toc);
     vi.mocked(rawDownload).mockReset().mockResolvedValue({ saved: [2, 4], short: [4], locked: [], failed: [], cancelled: false });
     vi.mocked(rescanStory).mockReset().mockResolvedValue({} as never);
+    vi.mocked(rawClear).mockReset().mockResolvedValue({ moved: 1, backup: "D:\\lib\\demo\\work\\raw-backup\\xoa-1" });
     useStoryStore.setState({ root: "D:\\lib\\demo", setSnapshot: vi.fn(), setPage: vi.fn() } as never);
+    resetRawChecks();
   });
 
   it("mục lục có trạng thái; Tải chương mới bỏ chương khoá; tải lẻ và tải đã chọn gửi đúng id", async () => {
@@ -83,9 +87,10 @@ describe("RawPage", () => {
     render(<RawPage />);
     expect(await screen.findByText(/Đang theo link nguồn/)).toBeInTheDocument();
     expect(screen.getByText("Demo")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /Tải mục lục/ }));
-    expect(rawToc).toHaveBeenCalledWith("D:\\lib\\demo", undefined);
+    // Đủ cài đặt → vào trang là tự tải mục lục; số chương mới cho thanh bên.
     const third = await screen.findByRole("listitem", { name: "Mục 3" });
+    expect(rawToc).toHaveBeenCalledTimes(1);
+    expect(useRawNew.getState().counts["D:\\lib\\demo"]).toBe(2);
     expect(within(third).getByText("Khoá")).toBeInTheDocument();
     expect(within(screen.getByRole("listitem", { name: "Mục 1" })).getByText("Đã có")).toBeInTheDocument();
 
@@ -106,7 +111,6 @@ describe("RawPage", () => {
   it("mục lục mặc định xếp mới đến cũ, bấm để đổi chiều", async () => {
     const user = userEvent.setup();
     render(<RawPage />);
-    await user.click(await screen.findByRole("button", { name: /Tải mục lục/ }));
     const order = () => screen.getAllByRole("listitem", { name: /^Mục \d+$/ }).map((li) => li.getAttribute("aria-label"));
     await waitFor(() => expect(order()).toEqual(["Mục 4", "Mục 3", "Mục 2", "Mục 1"]));
     await user.click(screen.getByRole("button", { name: /bấm để xếp cũ đến mới/ }));
@@ -114,10 +118,9 @@ describe("RawPage", () => {
     expect(screen.getByRole("button", { name: /bấm để xếp mới đến cũ/ })).toHaveTextContent("Cũ → mới");
   });
 
-  it("chọn nhiều bằng Shift, bấm tên chương, Chọn hết / Bỏ chọn", async () => {
+  it("chọn nhiều bằng Shift, bấm tên chương, ô chọn / bỏ chọn hết", async () => {
     const user = userEvent.setup();
     render(<RawPage />);
-    await user.click(await screen.findByRole("button", { name: /Tải mục lục/ }));
     await user.click(await screen.findByLabelText("Chọn 第1章 起"));
     await user.keyboard("{Shift>}");
     await user.click(screen.getByLabelText("Chọn 第4章 合"));
@@ -130,10 +133,39 @@ describe("RawPage", () => {
     expect(screen.getByRole("button", { name: "Tải đã chọn (1)" })).toBeEnabled();
     expect(screen.getByLabelText("Chọn 第1章 起")).toBeChecked();
 
-    await user.click(screen.getByRole("button", { name: "Chọn hết" }));
+    const all = screen.getByLabelText<HTMLInputElement>("Chọn / bỏ chọn hết");
+    expect(all.indeterminate).toBe(true);
+    await user.click(all);
     expect(screen.getByRole("button", { name: "Tải đã chọn (4)" })).toBeEnabled();
-    await user.click(screen.getByRole("button", { name: "Bỏ chọn" }));
+    expect(all).toBeChecked();
+    await user.click(all);
     expect(screen.getByRole("button", { name: "Tải đã chọn (0)" })).toBeDisabled();
+  });
+
+  it("chọn theo khoảng mục số, đảo ngược cũng được", async () => {
+    const user = userEvent.setup();
+    render(<RawPage />);
+    await screen.findByRole("listitem", { name: "Mục 1" });
+    await user.type(screen.getByLabelText("Từ mục số"), "4");
+    await user.type(screen.getByLabelText("Đến mục số"), "2");
+    await user.click(screen.getByRole("button", { name: "Chọn khoảng" }));
+    expect(screen.getByRole("button", { name: "Tải đã chọn (3)" })).toBeEnabled();
+    expect(screen.getByLabelText("Chọn 第1章 起")).not.toBeChecked();
+    expect(screen.getByLabelText("Chọn 第3章 VIP")).toBeChecked();
+  });
+
+  it("dọn raw cũ hỏi lại, chuyển raw đi rồi tải lại mục lục", async () => {
+    const user = userEvent.setup();
+    const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
+    render(<RawPage />);
+    await screen.findByRole("listitem", { name: "Mục 1" });
+    await user.click(screen.getByRole("button", { name: /Dọn raw cũ/ }));
+    expect(rawClear).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: /Dọn raw cũ/ }));
+    expect(confirm).toHaveBeenLastCalledWith(expect.stringContaining("work/raw-backup/xoa-"));
+    await waitFor(() => expect(rawClear).toHaveBeenCalledWith("D:\\lib\\demo"));
+    await waitFor(() => expect(rawToc).toHaveBeenCalledTimes(2));
+    expect(rescanStory).toHaveBeenCalledWith("D:\\lib\\demo");
   });
 
   it("mẫu sai chặn Lưu; sửa link thì phải Lưu trước khi tải", async () => {
@@ -166,12 +198,12 @@ describe("RawPage", () => {
     expect(useStoryStore.getState().setPage).toHaveBeenCalledWith("settings");
     expect(screen.getByText(/Không nạp được hong/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Tải mục lục/ })).toBeDisabled();
+    expect(rawToc).not.toHaveBeenCalled();
     unmount();
 
     vi.mocked(rawInfo).mockResolvedValue(info);
     vi.mocked(rawToc).mockResolvedValue({ ...toc, mismatches: [{ index: 1, tocTitle: "序章", fileId: "chuong-0001", fileTitle: "第1章 起" }] });
     render(<RawPage />);
-    await user.click(await screen.findByRole("button", { name: /Tải mục lục/ }));
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("Mục 1: 序章 ↔ file chuong-0001: 第1章 起");
     const anchor = within(alert).getByLabelText("Chương cuối đã có là mục số");
