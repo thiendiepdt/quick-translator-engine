@@ -26,6 +26,7 @@ import {
   type RawTocRow,
 } from "@/lib/api";
 import { authStatus, changedValues, initialDisplay, storyValues, type FieldDisplay } from "@/lib/ext";
+import { cn } from "@/lib/utils";
 import { RAW_STATUS_LABELS, renderName, toggleSelection, validateTemplate } from "@/lib/raw";
 import { forgetRawToc, loadRawToc, rawConfigured, rememberRawToc } from "@/store/raw-check";
 import { useStoryStore } from "@/store/story";
@@ -265,11 +266,8 @@ export function RawPage() {
     }
   }
 
-  if (!info) {
-    return <div className="p-8 text-sm text-muted-foreground">Đang đọc cài đặt tải raw…</div>;
-  }
-
-  const noExtension = info.candidates.length === 0;
+  /** Chưa đọc xong cài đặt cũng coi như chưa có extension: nút tải tắt. */
+  const noExtension = !info || info.candidates.length === 0;
   const running = busy === "download" || busy === "toc";
 
   return (
@@ -283,6 +281,9 @@ export function RawPage() {
           </p>
         </header>
 
+        {!info ? (
+          <SettingsSkeleton />
+        ) : (
         <section className="flex flex-col gap-4 rounded-lg border bg-card p-5">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="raw-url">Link tải raw</Label>
@@ -381,6 +382,7 @@ export function RawPage() {
             </Button>
           </div>
         </section>
+        )}
 
         <section className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-2">
@@ -446,6 +448,8 @@ export function RawPage() {
               File mới <code>{toc.nextName}.txt</code> sẽ bị xếp trước file raw cuối đang có — đổi mẫu tên file cho khớp kiểu tên cũ.
             </p>
           )}
+
+          {!toc && (busy === "toc" || !info) && <TocSkeleton label={info ? "Đang tải mục lục…" : "Đang đọc cài đặt tải raw…"} />}
 
           {toc && (
             <div className="rounded-lg border">
@@ -539,7 +543,7 @@ export function RawPage() {
           )}
         </section>
       </div>
-      {info.extConfig && (
+      {info?.extConfig && (
         <ExtConfigDialog
           config={info.extConfig}
           open={configOpen}
@@ -547,6 +551,40 @@ export function RawPage() {
           onChange={(config) => setInfo((current) => current && { ...current, extConfig: config })}
         />
       )}
+    </div>
+  );
+}
+
+/** Khung cài đặt trong lúc đọc cài đặt tải raw (thường vài chục ms; chậm khi ổ đĩa bận). */
+function SettingsSkeleton() {
+  return (
+    <section aria-busy="true" aria-label="Đang đọc cài đặt tải raw" className="flex flex-col gap-4 rounded-lg border bg-card p-5">
+      {["w-24", "w-20", "w-28"].map((width) => (
+        <div key={width} className="flex flex-col gap-2">
+          <div className={cn("h-4 animate-pulse rounded bg-muted", width)} />
+          <div className="h-9 animate-pulse rounded-md bg-muted" />
+        </div>
+      ))}
+    </section>
+  );
+}
+
+/** Chỗ mục lục trong lúc extension tải mục lục: vòng quay + vài dòng giả. */
+function TocSkeleton({ label }: { label: string }) {
+  return (
+    <div role="status" aria-label={label} className="rounded-lg border">
+      <div className="flex items-center gap-2 border-b px-4 py-2 text-sm text-muted-foreground">
+        <LoaderCircle className="size-4 animate-spin" /> {label}
+      </div>
+      <ul className="divide-y">
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <li key={i} className="flex items-center gap-3 px-4 py-2">
+            <div className="size-5 shrink-0 animate-pulse rounded bg-muted" />
+            <div className="h-3 w-10 shrink-0 animate-pulse rounded bg-muted" />
+            <div className="h-3 flex-1 animate-pulse rounded bg-muted" style={{ maxWidth: `${70 - i * 7}%` }} />
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

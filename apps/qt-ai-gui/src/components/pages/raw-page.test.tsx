@@ -108,6 +108,24 @@ describe("RawPage", () => {
     expect(rawDownload).toHaveBeenLastCalledWith("D:\\lib\\demo", "selected", ["3", "4"], 1);
   });
 
+  it("vào trang là hiện khung ngay: chưa đọc xong cài đặt / chưa tải xong mục lục thì chỉ chỗ đó quay", async () => {
+    let giveInfo: (value: RawInfo) => void = () => undefined;
+    vi.mocked(rawInfo).mockReturnValue(new Promise<RawInfo>((resolve) => (giveInfo = resolve)));
+    let giveToc: (value: RawToc) => void = () => undefined;
+    vi.mocked(rawToc).mockReturnValue(new Promise<RawToc>((resolve) => (giveToc = resolve)));
+    render(<RawPage />);
+    expect(screen.getByRole("heading", { name: "Tải raw" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Tải mục lục/ })).toBeDisabled();
+    expect(screen.getByRole("status", { name: "Đang đọc cài đặt tải raw…" })).toBeInTheDocument();
+
+    giveInfo(info);
+    expect(await screen.findByRole("status", { name: "Đang tải mục lục…" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Link tải raw")).toBeInTheDocument();
+    giveToc(toc);
+    expect(await screen.findByRole("listitem", { name: "Mục 1" })).toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
   it("mục lục mặc định xếp mới đến cũ, bấm để đổi chiều", async () => {
     const user = userEvent.setup();
     render(<RawPage />);
