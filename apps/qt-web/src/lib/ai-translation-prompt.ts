@@ -20,8 +20,10 @@ import type { GenreNames, GenreSetting, GenreTone, StoryGenre } from "@/lib/ai-s
 // lời kể cổ đại dùng mẹ / cha mẹ, từ ghép mẹ ruột / mẹ kế / cha dượng, thoại vẫn nương; 2026-10-25 bảng trẻ con
 // cổ đại: 一个男孩 → một đứa bé trai, 男孩 → thằng bé, 女孩 → con bé, 小姑娘 → tiểu cô nương, 女孩子 → con gái,
 // không cậu bé / cô bé / nam hài / nữ hài; 2026-11-02 từ convert theo bài biên tập: 不过 không bất quá, 委屈 theo
-// cảnh, 气场 / 为什么 / 我叫 / 好了 / 没关系 / 帅 / 宝宝 / 脚步 / 红酒 / 打断, tượng thanh 咕噜 / 吱呀 / 嘟嘟 / 汪汪).
-export const LEGACY_BASE_PROMPT_FNV1A64 = "6929df9d7d0c6cff";
+// cảnh, 气场 / 为什么 / 我叫 / 好了 / 没关系 / 帅 / 宝宝 / 脚步 / 红酒 / 打断, tượng thanh 咕噜 / 吱呀 / 嘟嘟 / 汪汪;
+// 2026-11-15 bảng Họ hàng cổ đại: 舅爷 cữu gia, 舅奶 cữu nãi, 舅舅 cữu cữu, 舅妈 cữu mẫu, 婶婶 thẩm thẩm, 姑父 / 姨父
+// cô phụ / di phụ, 姨母 di mẫu, 外公 ngoại công, 外婆 / 姥姥 bà ngoại, cấm ghép lai mợ công / cậu ông / mợ bà).
+export const LEGACY_BASE_PROMPT_FNV1A64 = "8edba03f262ada44";
 
 const CORE_HEAD: string[] = [
   "Bạn là dịch giả tiểu thuyết Trung Quốc sang tiếng Việt. Nhiệm vụ của bạn là chuyển ngữ trung thành, không phải sáng tác lại hay biên tập nâng giọng.",
@@ -633,6 +635,32 @@ const ancient: SettingModule = {
     "| 包衣  | bao y |",
     "| 阿玛  | A ma (tiếng Mãn: cha) |",
     "| 额娘  | Ngạch nương (tiếng Mãn: mẹ) |",
+    "",
+    "#### Họ hàng",
+    "",
+    "Danh xưng họ hàng dịch đúng dạng ở cột Dùng, chốt một dạng cho mỗi từ và giữ y hệt cả truyện; glossary của truyện đã chốt dạng khác thì theo glossary. Mỗi danh xưng nằm trọn trong một hệ: KHÔNG ghép nửa thuần Việt nửa Hán-Việt như `mợ công`, `cậu ông`, `mợ bà`.",
+    "",
+    "| Raw | Dùng | KHÔNG dùng |",
+    "| --- | --- | --- |",
+    "| 舅爷 / 舅公 (cậu của cha hoặc mẹ) | cữu gia / cữu công — theo đúng chữ raw | ông cậu, cậu ông |",
+    "| 舅奶 / 舅奶奶 (vợ của 舅爷) | cữu nãi / cữu nãi nãi | bà mợ, mợ công, mợ bà |",
+    "| 舅舅 / 舅父 | cữu cữu / cữu phụ | cậu |",
+    "| 舅妈 / 舅母 | cữu mẫu | mợ, cữu ma, cữu mụ |",
+    "| 姑姑 / 姑母 | cô cô / cô mẫu | |",
+    "| 表姑 (chị em họ của cha) | biểu cô | cô họ |",
+    "| 姑奶奶 | cô nãi nãi (`小姑奶奶` → tiểu cô nãi nãi) | bà cô, cô bà |",
+    "| 姑父 / 姑丈 | cô phụ / cô trượng | dượng |",
+    "| 姨母 / 姨妈 | di mẫu | dì, di mụ |",
+    "| 姨父 / 姨丈 | di phụ / di trượng | dượng |",
+    "| 婶婶 / 婶子 / 婶娘 | thẩm thẩm / thẩm tử / thẩm nương | thím |",
+    "| 叔公 / 伯公 | thúc công / bá công | ông chú, ông bác |",
+    "| 太公 / 太奶 / 太爷爷 / 太奶奶 | thái công / thái nãi / thái gia gia / thái nãi nãi | cụ, cụ ông, cụ bà |",
+    "| 外公 | ngoại công | ông ngoại |",
+    "| 外婆 | bà ngoại | ngoại bà |",
+    "| 姥爷 / 姥姥 | ông ngoại / bà ngoại; `X姥姥` là danh xưng bà lão (`刘姥姥`) → X lão lão | lão gia (trùng `老爷`); lão lão khi là bà ngoại |",
+    "| 外祖父 / 外祖母 | ngoại tổ phụ / ngoại tổ mẫu | |",
+    "",
+    "`舅爷` còn dùng chỉ em trai của mẹ (`娘亲舅大`, `娘家舅爷`) hoặc em trai của bà chủ mà người hầu gọi (`舅老爷`): em trai của mẹ → cữu cữu, người hầu gọi → cữu lão gia.",
     "",
     "---",
     "",

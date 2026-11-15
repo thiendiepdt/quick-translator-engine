@@ -281,6 +281,30 @@ describe("composeBasePrompt", () => {
     }
   });
 
+  it("ancient + mixed: bảng Họ hàng Hán-Việt theo chữ raw nằm ở mục cổ đại, cấm ghép lai; modern không có", () => {
+    const rows = [
+      "| 舅爷 / 舅公 (cậu của cha hoặc mẹ) | cữu gia / cữu công — theo đúng chữ raw | ông cậu, cậu ông |",
+      "| 舅奶 / 舅奶奶 (vợ của 舅爷) | cữu nãi / cữu nãi nãi | bà mợ, mợ công, mợ bà |",
+      "| 舅舅 / 舅父 | cữu cữu / cữu phụ | cậu |",
+      "| 婶婶 / 婶子 / 婶娘 | thẩm thẩm / thẩm tử / thẩm nương | thím |",
+      "| 外公 | ngoại công | ông ngoại |",
+      "| 外婆 | bà ngoại | ngoại bà |",
+    ];
+    for (const setting of ["ancient", "mixed"] as const) {
+      const prompt = composeBasePrompt({ setting, names: "han", tone: "neutral" });
+      const table = prompt.indexOf("#### Họ hàng");
+      expect(table, setting).toBeGreaterThan(prompt.indexOf("### Cổ đại / Cung đình / Lịch sử"));
+      for (const row of rows) expect(prompt, setting).toContain(row);
+      expect(prompt, setting).toContain("KHÔNG ghép nửa thuần Việt nửa Hán-Việt như `mợ công`, `cậu ông`, `mợ bà`");
+      if (setting === "mixed") {
+        // Cảnh hiện đại của truyện hỗn hợp vẫn theo bảng hiện đại (dượng / mợ, ông bà ngoại).
+        expect(table).toBeLessThan(prompt.indexOf("### Đô thị / Hiện đại"));
+        expect(prompt).toContain("| 姑父 / 姨父 / 舅妈 | dượng / mợ | cô phụ, di phụ |");
+      }
+    }
+    expect(composeBasePrompt({ setting: "modern", names: "han", tone: "neutral" })).not.toContain("#### Họ hàng");
+  });
+
   it("ancient + mixed: viết hoa tước vị và hậu tố địa danh đi sau tên riêng; modern không có", () => {
     for (const setting of ["ancient", "mixed"] as const) {
       const prompt = composeBasePrompt({ setting, names: "han", tone: "neutral" });
