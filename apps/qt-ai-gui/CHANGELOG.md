@@ -1,5 +1,8 @@
 # Có gì mới
 
+## Chưa phát hành
+- Sửa lỗi động cơ agy kẹt ở chương đang dịch dở, báo "Không có chương … trong state.json" rồi thử lại mãi với truyện có tên chương dài: agent giờ luôn được chỉ đúng mã chương để làm tiếp.
+
 ## 1.0.32 — 2026-11-14
 - Thêm trang **Tải raw** (thanh bên, dưới Hồ sơ truyện): tải mục lục và chương raw từ trang nguồn qua extension, rồi đưa chương mới vào hàng đợi dịch. Có **Tải chương mới**, **Tải đã chọn** và tải lại từng chương; bản cũ được chép vào `work/raw-backup/` trước khi ghi đè. File đặt tên theo mẫu, mặc định `{chuong:4}_{chapter-id}`; truyện cũ thì app tự theo kiểu tên đang có, ví dụ `chuong-0001`. Chương xin nghỉ một câu vẫn được ghi, chỉ chương trống mới báo lỗi. Truyện cũ được khớp với mục lục theo thứ tự, kèm kiểm tiêu đề; lệch thì app hỏi chương cuối đã có là mục số mấy.
 - Thêm Cài đặt → **Extension tải raw**: cài extension từ file .zip (chọn file hoặc kéo thả) hoặc dán link https. Trước khi cài, app hiện domain extension được tải dữ liệu, quyền mở cửa sổ trình duyệt và việc cần nhập API key hay không; bạn đồng ý mới cài. Mỗi extension có nút bật/tắt, **Kiểm tra cập nhật** (với extension cài từ link; bản mới xin thêm domain hoặc quyền thì app hỏi lại, không thì cập nhật luôn), **Auth và cài đặt…** và **Gỡ** (xoá cả auth, cài đặt, cache, phiên đăng nhập; raw đã tải giữ nguyên). Trang Tải raw chưa có extension khớp link thì có nút dẫn thẳng tới đây. Log trên trang Tải raw giờ hiện cả dòng extension tự ghi và tiến độ đọc mục lục.

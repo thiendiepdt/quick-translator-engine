@@ -174,6 +174,72 @@ fn next_qua_mcp_ghi_ro_tham_so_id_nguyen_van_khi_id_la_ten_file_dai() {
     }
 }
 
+/// Truyện id dài, số thứ tự file lệch số trong tên chương; chương đầu đang dịch dở.
+fn story_dich_do() -> tempfile::TempDir {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    fs::create_dir_all(root.join("raw")).unwrap();
+    fs::write(root.join("raw").join("0108 第107章 悲凉.txt"), "第107章\n\n他笑了。").unwrap();
+    fs::write(root.join("raw").join("0109 第108章 怒火.txt"), "第108章\n\n她哭了。").unwrap();
+    run_init(root, "qt-ai").unwrap();
+    assert!(!is_error(&one(root, call("qt_next", json!({})))));
+    dir
+}
+
+const ID_DICH_DO: &str = r#"{"id":"0108 第107章 悲凉"}"#;
+
+#[test]
+fn next_khi_con_chuong_dich_do_dua_san_tham_so_id_nguyen_van() {
+    // Phiên mới vào lại chương dở chỉ thấy câu báo lỗi, model tự rút id thành "0108" rồi kẹt cả phiên.
+    let dir = story_dich_do();
+    let next = one(dir.path(), call("qt_next", json!({})));
+    assert!(is_error(&next), "{next}");
+    assert!(text(&next).contains("đang translating chưa chốt"), "{next}");
+    assert!(text(&next).contains(&format!("Tham số cho qt_check / qt_accept: {ID_DICH_DO}")), "{next}");
+}
+
+#[test]
+fn goi_sai_id_bao_lai_id_chuong_dich_do_va_khong_doan_chuong_nao() {
+    let dir = story_dich_do();
+    let root = dir.path();
+    let before = fs::read_to_string(root.join("state.json")).unwrap();
+    // "0108" là số file của chương dở, "108" lại là số trong tên chương KHÁC: cả hai đều không được đoán.
+    for wrong in ["0108", "108", "第107章"] {
+        for (tool, args) in [
+            ("qt_check", json!({"id": wrong})),
+            ("qt_accept", json!({"id": wrong})),
+            ("qt_skip", json!({"id": wrong, "reason": "x"})),
+            ("qt_retry", json!({"id": wrong})),
+        ] {
+            let reply = one(root, call(tool, args));
+            assert!(is_error(&reply), "{tool} {reply}");
+            assert!(text(&reply).contains(&format!("Không có chương \"{wrong}\"")), "{tool} {reply}");
+            assert!(text(&reply).contains(ID_DICH_DO), "{tool} {reply}");
+        }
+    }
+    assert_eq!(fs::read_to_string(root.join("state.json")).unwrap(), before, "gọi sai id không được đổi tiến độ");
+}
+
+#[test]
+fn nhieu_chuong_dich_do_thi_liet_ke_du_id() {
+    let dir = story_dich_do();
+    let root = dir.path();
+    let mut state: Value = serde_json::from_str(&fs::read_to_string(root.join("state.json")).unwrap()).unwrap();
+    state["chapters"]["0109 第108章 怒火"]["status"] = json!("translating");
+    fs::write(root.join("state.json"), state.to_string()).unwrap();
+
+    let reply = one(root, call("qt_check", json!({"id": "0108"})));
+    assert!(text(&reply).contains(ID_DICH_DO) && text(&reply).contains(r#"{"id":"0109 第108章 怒火"}"#), "{reply}");
+}
+
+#[test]
+fn khong_co_chuong_dich_do_thi_giu_thong_bao_cu() {
+    let dir = story();
+    let reply = one(dir.path(), call("qt_check", json!({"id": "0108"})));
+    assert!(is_error(&reply), "{reply}");
+    assert_eq!(text(&reply), "Không có chương 0108 trong state.json.");
+}
+
 #[test]
 fn next_qua_terminal_van_dan_lenh_check_nhu_cu() {
     let dir = story();
