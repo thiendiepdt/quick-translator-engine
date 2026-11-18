@@ -1,6 +1,6 @@
 # Có gì mới
 
-## Chưa phát hành
+## 1.0.33 — 2026-11-18
 - Sửa lỗi động cơ agy kẹt ở chương đang dịch dở, báo "Không có chương … trong state.json" rồi thử lại mãi với truyện có tên chương dài: agent giờ luôn được chỉ đúng mã chương để làm tiếp.
 
 ## 1.0.32 — 2026-11-14
