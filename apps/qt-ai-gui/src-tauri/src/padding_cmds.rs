@@ -11,7 +11,7 @@ use std::path::Path;
 
 #[tauri::command]
 pub async fn padding_get() -> CmdResult<PaddingSettings> {
-    blocking(|| Ok(BaseStore::from_env().padding())).await
+    blocking(move || Ok(BaseStore::from_env().padding())).await
 }
 
 #[tauri::command]
@@ -29,7 +29,7 @@ pub async fn padding_save(settings: PaddingSettings) -> CmdResult<PaddingSetting
 /// Về mặc định: xoá base/padding.json (tắt, 500 chữ, văn mẫu gốc).
 #[tauri::command]
 pub async fn padding_reset() -> CmdResult<PaddingSettings> {
-    blocking(|| {
+    blocking(move || {
         let store = BaseStore::from_env();
         store.reset_padding()?;
         Ok(store.padding())

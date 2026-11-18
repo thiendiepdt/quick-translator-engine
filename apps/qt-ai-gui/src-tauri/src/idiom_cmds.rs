@@ -53,13 +53,13 @@ pub fn refresh_in_background() {
 
 #[tauri::command]
 pub async fn idioms_get() -> CmdResult<IdiomsInfo> {
-    blocking(|| Ok(info(&BaseStore::from_env()))).await
+    blocking(move || Ok(info(&BaseStore::from_env()))).await
 }
 
 /// Nút "Tải lại": tải ngay; lỗi vẫn trả trạng thái (kèm `error`) để giao diện hiện.
 #[tauri::command]
 pub async fn idioms_refresh() -> CmdResult<IdiomsInfo> {
-    blocking(|| {
+    blocking(move || {
         let store = BaseStore::from_env();
         let _ = refresh(&store);
         Ok(info(&store))
