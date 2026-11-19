@@ -149,7 +149,7 @@ const ADVISORY_CHECK_RULES: Array<[RegExp, string, GenreSetting?]> = [
   [/(?<!\p{L})bản thân (?:hắn|nàng|cô|y|lão|gã|nó)(?!\p{L})/iu, "自己 → hắn/nàng/cô hoặc lược, không ghép bản thân + đại từ"],
   // Dòng kể (không ngoặc kép) mà có `tôi`: người kể ngôi một phải tự xưng `ta`. Chỉ cảnh báo vì truyện kể ngôi ba
   // cũng có "tôi" ngoài ngoặc kép hợp lệ; bỏ qua tiêu đề, 【】, ý nghĩ trong 『』 và dòng "Tên: …" (đạn mạc, chat).
-  [/^(?!Chương \d)(?![【『])(?!\[)(?![^:："“”]{1,40}[:：])[^"“”『』]*(?<!\p{L})tôi(?!\p{L})[^"“”『』]*$/iu, "Người kể ngôi một xưng tôi → ta (truyện kể ngôi ba thì bỏ qua)", "modern"],
+  [/^(?!Chương \d)(?![【『])(?!\[)(?!.*(?:thầm nghĩ|nghĩ thầm|thầm nhủ|nghĩ bụng))(?![^:："“”]{1,40}[:：])[^"“”『』]*(?<!\p{L})tôi(?!\p{L})[^"“”『』]*$/iu, "Người kể ngôi một xưng tôi → ta (truyện kể ngôi ba thì bỏ qua)", "modern"],
   [/[“"](?:Thiếu gia|Chủ nhân|Lão gia|Đại nhân|Sư phụ|Sư tôn|Điện hạ|Bệ hạ|Tiền bối|Phụ thân|Mẫu thân|Phụ hoàng|Mẫu hậu)[,!.…][^”"]{0,160}(?<!\p{L})(?:các )?ngươi(?!\p{L})/iu, "Gọi bề trên bằng danh xưng mà xưng ngươi → ngài/người hoặc danh xưng (mục Vai vế trong thoại)", "ancient"],
   [/[“"](?:Thiếu gia|Chủ nhân|Lão gia|Đại nhân|Sư phụ|Sư tôn|Điện hạ|Bệ hạ|Tiền bối|Phụ thân|Mẫu thân|Phụ hoàng|Mẫu hậu)[,!.…][^”"]{0,160}(?<!chúng )(?<!bọn )(?<!người )(?<!\p{L})ta(?!\p{L})/iu, "Gọi bề trên bằng danh xưng mà tự xưng ta → tiểu nhân/nô tỳ/thuộc hạ/đệ tử/vãn bối/con (mục Vai vế trong thoại)", "ancient"],
   [/(?<!\p{L})(?:\d[\d.,]*|một|hai|ba|bốn|năm|sáu|bảy|tám|chín|mười|mươi|trăm|nghìn|ngàn|vạn|mấy|vài)\s*ức(?!\p{L})(?!\s+(?:vạn|hiếp))/iu, "亿 → trăm triệu / tỷ (百亿 = 10 tỷ, 千亿 = 100 tỷ), không viết ức"],
@@ -213,6 +213,11 @@ export const RAW_PAIR_RULES: RawPairRule[] = [
   { raw: /委屈/u, out: /(?<!\p{L})(?:ủy|uỷ) khuất(?!\p{L})/iu, message: "委屈 → ấm ức / tủi thân / oan ức / thiệt thòi theo cảnh, không ủy khuất" },
   { raw: /为什么/u, unless: /为了什么/u, out: /(?<!\p{L})vì cái gì(?!\p{L})/iu, message: "为什么 → tại sao / vì sao, không vì cái gì" },
   { raw: /[我他她]叫|名叫/u, out: /(?<!\p{L})(?:ta|tôi|hắn|nàng|cô|y) gọi là(?!\p{L})/iu, message: "我叫 X (tự giới thiệu) → tên là X, không gọi là X", advisory: true },
+  // Thẩm định 2026-11: họ nhà chồng ở cổ đại, cụm 倒吸凉气, tên sách 《》 (chỉ cảnh báo; tiêu đề chương được bỏ 《》).
+  { raw: /公爹/u, out: /(?<!\p{L})công (?:điệp|đa)(?!\p{L})/iu, message: "公爹 → công công, không công điệp / công đa" },
+  { raw: /公婆/u, out: /(?<!\p{L})công bà(?!\p{L})(?! bà(?!\p{L}))/iu, message: "公婆 → công công bà bà, không công bà" },
+  { raw: /倒[吸抽]了?一?口[凉冷]气/u, out: /(?<!\p{L})hít sâu (?:vào )?(?:một )?(?:hơi|ngụm) khí lạnh(?!\p{L})/iu, message: "倒吸一口凉气 → hít một hơi khí lạnh, không hít sâu" },
+  { raw: /《/u, unless: /^第.{1,12}[章回节卷]/u, out: /^[^《]*$/iu, message: "Raw có 《》 → giữ 《》 trong bản dịch, không đổi “” hay bỏ ngoặc", advisory: true },
 ];
 
 export type RawPairIssue = { paragraph: number; message: string; advisory: boolean };
@@ -373,7 +378,7 @@ export function buildAiTranslationSystemPrompt(
 
 // Mỗi phiên model trình bày dấu câu một kiểu (cả lô chương ngoặc thẳng, "— !"), nên chuẩn hoá bằng code.
 const QUOTE_SPACE = " \t 　";
-const OPEN_BEFORE_QUOTE = "([{“‘『「【—:";
+const OPEN_BEFORE_QUOTE = "([{“‘『「【:";
 const CLOSE_AFTER_QUOTE = "!?,.;:…”’』)]】}";
 const DASH_BEFORE_CLOSER = /— +([!?,.;:…”’』)\]】])/gu;
 const OPENER_BEFORE_DASH = /([“‘『(]) +—/gu;
@@ -388,9 +393,12 @@ export function normalizeAiPunctuation(line: string): string {
     .map((ch, index) => {
       if (ch !== '"') return ch;
       const next = chars[index + 1];
-      if (next === undefined || QUOTE_SPACE.includes(next) || CLOSE_AFTER_QUOTE.includes(next)) return "”";
+      if (next === undefined || QUOTE_SPACE.includes(next)) return "”";
       const prev = chars[index - 1];
-      return prev === undefined || QUOTE_SPACE.includes(prev) || OPEN_BEFORE_QUOTE.includes(prev) ? "“" : "”";
+      // Xét chữ đứng trước trước dấu câu đứng sau: thoại mở bằng `"...` / `"?` vẫn là ngoặc mở.
+      if (prev === undefined || QUOTE_SPACE.includes(prev) || OPEN_BEFORE_QUOTE.includes(prev)) return "“";
+      if (CLOSE_AFTER_QUOTE.includes(next)) return "”";
+      return prev === "—" ? "“" : "”";
     })
     .join("");
   return quoted.replace(DASH_BEFORE_CLOSER, "—$1").replace(OPENER_BEFORE_DASH, "$1—");

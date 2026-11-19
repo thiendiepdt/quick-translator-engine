@@ -92,6 +92,10 @@
       "output": ""
     },
     {
+      "input": "\"...Một chút\"\nHắn nói: \"...Thôi.\"\n\"?\"\n\"!!!\"\n\"Áo —\", hắn nói.\n— \"Giết!\"\n—\"Giết!\"",
+      "output": "“...Một chút”\nHắn nói: “...Thôi.”\n“?”\n“!!!”\n“Áo —”, hắn nói.\n— “Giết!”\n—“Giết!”\n"
+    },
+    {
       "input": "\"Ngươi đi đâu?\" Hắn hỏi.\n\"Cha, mẹ — \"\n“Ngươi — !” “Boong — ”\n\n“ — Giết!”",
       "output": "“Ngươi đi đâu?” Hắn hỏi.\n“Cha, mẹ —”\n“Ngươi —!” “Boong —”\n\n“— Giết!”\n"
     },

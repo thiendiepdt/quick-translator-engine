@@ -90,7 +90,7 @@ pub fn strip_markers(text: &str) -> String {
 
 // Port normalizeAiPunctuation: mỗi phiên model trình bày dấu câu một kiểu, nên chuẩn hoá bằng code.
 const QUOTE_SPACE: &str = " \t\u{a0}\u{3000}";
-const OPEN_BEFORE_QUOTE: &str = "([{“‘『「【—:";
+const OPEN_BEFORE_QUOTE: &str = "([{“‘『「【:";
 const CLOSE_AFTER_QUOTE: &str = "!?,.;:…”’』)]】}";
 static DASH_BEFORE_CLOSER: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"— +([!?,.;:…”’』)\]】])").unwrap());
 static OPENER_BEFORE_DASH: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"([“‘『(]) +—").unwrap());
@@ -106,16 +106,18 @@ pub fn normalize_punctuation(line: &str) -> String {
             if ch != '"' {
                 return ch;
             }
-            let next = chars.get(index + 1);
-            if next.is_none_or(|c| QUOTE_SPACE.contains(*c) || CLOSE_AFTER_QUOTE.contains(*c)) {
+            let Some(&next) = chars.get(index + 1).filter(|c| !QUOTE_SPACE.contains(**c)) else {
+                return '”';
+            };
+            let prev = index.checked_sub(1).map(|i| chars[i]);
+            // Xét chữ đứng trước trước dấu câu đứng sau: thoại mở bằng `"...` / `"?` vẫn là ngoặc mở.
+            if prev.is_none_or(|c| QUOTE_SPACE.contains(c) || OPEN_BEFORE_QUOTE.contains(c)) {
+                return '“';
+            }
+            if CLOSE_AFTER_QUOTE.contains(next) {
                 return '”';
             }
-            let prev = index.checked_sub(1).map(|i| chars[i]);
-            if prev.is_none_or(|c| QUOTE_SPACE.contains(c) || OPEN_BEFORE_QUOTE.contains(c)) {
-                '“'
-            } else {
-                '”'
-            }
+            if prev == Some('—') { '“' } else { '”' }
         })
         .collect();
     let quoted = DASH_BEFORE_CLOSER.replace_all(&quoted, "—$1");

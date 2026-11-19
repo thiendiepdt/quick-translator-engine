@@ -110,6 +110,9 @@ pub fn accept(root: &Path, id: &str, force: bool) -> Result<Reply> {
     if result.self_ref_fixes > 0 {
         lines.push(format!("Tự xưng bản → bổn: {} chỗ", result.self_ref_fixes));
     }
+    if result.convert_fixes > 0 {
+        lines.push(format!("Bỏ \"mà nói\" sau \"đối với X\": {} chỗ", result.convert_fixes));
+    }
     // Dòng kiểm tra VN không lưu vào state nên đáp thẳng; cảnh báo còn lại xem ở status.
     let (vn, stored): (Vec<&String>, Vec<&String>) =
         result.warnings.iter().partition(|w| w.starts_with(crate::vn_check::VN_WARNING_PREFIX));

@@ -517,6 +517,9 @@ fn log_cast_notes(chapter: &Chapter, accepted: &crate::commands::accept::AcceptR
     if accepted.self_ref_fixes > 0 {
         (chapter.log)(format!("{}: tự xưng bản → bổn: {} chỗ", chapter.id, accepted.self_ref_fixes));
     }
+    if accepted.convert_fixes > 0 {
+        (chapter.log)(format!("{}: bỏ \"mà nói\" sau \"đối với X\": {} chỗ", chapter.id, accepted.convert_fixes));
+    }
 }
 
 /// Dịch một chương đang ở trạng thái translating tới khi accept/error. Lỗi API tạm thời được gọi lại ngay tại

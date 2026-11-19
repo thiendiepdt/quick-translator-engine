@@ -922,7 +922,7 @@
         "message": "自己 → hắn/nàng/cô hoặc lược, không ghép bản thân + đại từ"
       },
       {
-        "pattern": "^(?!Chương \\d)(?![【『])(?!\\[)(?![^:：\"“”]{1,40}[:：])[^\"“”『』]*(?<!\\p{L})tôi(?!\\p{L})[^\"“”『』]*$",
+        "pattern": "^(?!Chương \\d)(?![【『])(?!\\[)(?!.*(?:thầm nghĩ|nghĩ thầm|thầm nhủ|nghĩ bụng))(?![^:：\"“”]{1,40}[:：])[^\"“”『』]*(?<!\\p{L})tôi(?!\\p{L})[^\"“”『』]*$",
         "flags": "iu",
         "message": "Người kể ngôi một xưng tôi → ta (truyện kể ngôi ba thì bỏ qua)"
       },
@@ -1190,6 +1190,46 @@
       "outFlags": "iu",
       "message": "我叫 X (tự giới thiệu) → tên là X, không gọi là X",
       "advisory": true
+    },
+    {
+      "raw": "公爹",
+      "rawFlags": "u",
+      "unless": null,
+      "unlessFlags": null,
+      "out": "(?<!\\p{L})công (?:điệp|đa)(?!\\p{L})",
+      "outFlags": "iu",
+      "message": "公爹 → công công, không công điệp / công đa",
+      "advisory": false
+    },
+    {
+      "raw": "公婆",
+      "rawFlags": "u",
+      "unless": null,
+      "unlessFlags": null,
+      "out": "(?<!\\p{L})công bà(?!\\p{L})(?! bà(?!\\p{L}))",
+      "outFlags": "iu",
+      "message": "公婆 → công công bà bà, không công bà",
+      "advisory": false
+    },
+    {
+      "raw": "倒[吸抽]了?一?口[凉冷]气",
+      "rawFlags": "u",
+      "unless": null,
+      "unlessFlags": null,
+      "out": "(?<!\\p{L})hít sâu (?:vào )?(?:một )?(?:hơi|ngụm) khí lạnh(?!\\p{L})",
+      "outFlags": "iu",
+      "message": "倒吸一口凉气 → hít một hơi khí lạnh, không hít sâu",
+      "advisory": false
+    },
+    {
+      "raw": "《",
+      "rawFlags": "u",
+      "unless": "^第.{1,12}[章回节卷]",
+      "unlessFlags": "u",
+      "out": "^[^《]*$",
+      "outFlags": "iu",
+      "message": "Raw có 《》 → giữ 《》 trong bản dịch, không đổi “” hay bỏ ngoặc",
+      "advisory": true
     }
   ],
   "rawPairCases": [
@@ -1345,6 +1385,50 @@
         {
           "paragraph": 4,
           "message": "我叫 X (tự giới thiệu) → tên là X, không gọi là X",
+          "advisory": true
+        }
+      ]
+    },
+    {
+      "raw": [
+        "公爹年纪大了。",
+        "公婆都在。",
+        "公婆都在。",
+        "他倒吸一口凉气。",
+        "他倒吸了一口凉气。",
+        "这本《洗髓经》很难。",
+        "第249章 《观星》",
+        "《洗髓经》"
+      ],
+      "translated": [
+        "Công điệp đã lớn tuổi.",
+        "Công bà đều ở đó.",
+        "Công công bà bà đều ở đó.",
+        "Hắn hít sâu một hơi khí lạnh.",
+        "Hắn hít một hơi khí lạnh.",
+        "Cuốn “Tẩy Tủy Kinh” này rất khó.",
+        "Chương 249: Ngắm sao",
+        "《Tẩy Tủy Kinh》"
+      ],
+      "issues": [
+        {
+          "paragraph": 0,
+          "message": "公爹 → công công, không công điệp / công đa",
+          "advisory": false
+        },
+        {
+          "paragraph": 1,
+          "message": "公婆 → công công bà bà, không công bà",
+          "advisory": false
+        },
+        {
+          "paragraph": 3,
+          "message": "倒吸一口凉气 → hít một hơi khí lạnh, không hít sâu",
+          "advisory": false
+        },
+        {
+          "paragraph": 5,
+          "message": "Raw có 《》 → giữ 《》 trong bản dịch, không đổi “” hay bỏ ngoặc",
           "advisory": true
         }
       ]

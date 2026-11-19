@@ -764,3 +764,31 @@ fn doi_cap_theo_tinh_huong_mot_canh_thi_bo_ghi_chu_ly_do() {
         }
     }
 }
+
+#[test]
+fn tidy_pair_text_chuan_hoa_cap_model_gieo() {
+    use qt_ai_core::cast::tidy_pair_text;
+    assert_eq!(tidy_pair_text("tôi - cô").as_deref(), Some("tôi–cô"));
+    assert_eq!(tidy_pair_text("sư huynh/sư đệ").as_deref(), Some("sư huynh–sư đệ"));
+    assert_eq!(tidy_pair_text("sư đệ→tứ sư tỷ").as_deref(), Some("sư đệ–tứ sư tỷ"));
+    assert_eq!(tidy_pair_text("ta–ngươi").as_deref(), Some("ta–ngươi"));
+    assert_eq!(tidy_pair_text("tôi-anh").as_deref(), Some("tôi–anh"));
+    assert_eq!(tidy_pair_text("mày-tao").as_deref(), Some("tao–mày"));
+    assert_eq!(tidy_pair_text("tôi / cậu (gọi Khải Minh)").as_deref(), Some("tôi–cậu"));
+    assert_eq!(tidy_pair_text("tôi - cậu / tôi - anh"), None);
+    // Cặp viết ngược vẫn đảo như normalize_pair.
+    assert_eq!(tidy_pair_text("ngươi - ta").as_deref(), Some("ta–ngươi"));
+    // Một vế hoặc văn tự do: không đọc được, bỏ để học lại.
+    assert_eq!(tidy_pair_text("ngươi"), None);
+    assert_eq!(tidy_pair_text("Thần huynh"), None);
+    assert_eq!(tidy_pair_text("gọi 'A Oanh', xưng 'ta' – 'ngươi'"), None);
+}
+
+#[test]
+fn tidy_filled_pairs_chi_dung_cap_moi() {
+    let old = map(&[("a→b", "tôi - cô")]);
+    let mut pairs = map(&[("a→b", "tôi - cô"), ("b→a", "anh / em"), ("c→a", "gọi 'A Oanh', xưng 'ta' – 'ngươi'")]);
+    tidy_filled_pairs(&old, &mut pairs);
+    // Cặp đã có từ trước giữ nguyên; cặp mới chuẩn hoá; văn tự do bỏ.
+    assert_eq!(pairs, map(&[("a→b", "tôi - cô"), ("b→a", "anh–em")]));
+}

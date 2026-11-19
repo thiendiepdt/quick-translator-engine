@@ -269,6 +269,12 @@ pub fn save_chapter_output_inner(root: &Path, id: &str, text: &str) -> CmdResult
 }
 
 pub fn save_story_inner(root: &Path, story: Value) -> CmdResult<StoryConfig> {
+    save_story_with(root, story, false)
+}
+
+/// `from_fill`: kết quả "AI điền" — cặp xưng hô do model gieo không phải người dùng chốt nên không ghim (ghim thì
+/// harness không bao giờ cập nhật khi quan hệ đổi); cặp mới được chuẩn hoá về `X–Y`, không đọc được thì bỏ.
+fn save_story_with(root: &Path, story: Value, from_fill: bool) -> CmdResult<StoryConfig> {
     let paths = story_paths(root);
     let mut config = StoryConfig::normalize(&story);
     let old = load_story_config(&paths).ok();
@@ -278,7 +284,12 @@ pub fn save_story_inner(root: &Path, story: Value) -> CmdResult<StoryConfig> {
     }
     // Cặp xưng hô người dùng sửa/thêm tay được ghim trong cast.json — harness không tự đổi theo mốc chương nữa.
     let no_pairs = qt_ai_core::story::StringMap::new();
-    if let Some(old_pairs) = old.as_ref().and_then(|old| old.glossary.get("addressing")) {
+    if from_fill {
+        let old_pairs = old.as_ref().and_then(|old| old.glossary.get("addressing")).unwrap_or(&no_pairs).clone();
+        if let Some(pairs) = config.glossary.get_mut("addressing") {
+            qt_ai_core::cast::tidy_filled_pairs(&old_pairs, pairs);
+        }
+    } else if let Some(old_pairs) = old.as_ref().and_then(|old| old.glossary.get("addressing")) {
         let mut cast = qt_ai_core::cast::load_cast(&paths);
         let new_pairs = config.glossary.get("addressing").unwrap_or(&no_pairs);
         if qt_ai_core::cast::pin_edited_pairs(old_pairs, new_pairs, &mut cast) {
@@ -387,8 +398,12 @@ pub fn read_chapter(root: String, id: String) -> CmdResult<ChapterView> {
 }
 
 #[tauri::command]
-pub fn save_story(root: String, story: Value) -> CmdResult<StoryConfig> {
-    save_story_inner(Path::new(&root), story)
+pub fn save_story(root: String, story: Value, from_fill: Option<bool>) -> CmdResult<StoryConfig> {
+    if from_fill.unwrap_or(false) {
+        save_story_with(Path::new(&root), story, true)
+    } else {
+        save_story_inner(Path::new(&root), story)
+    }
 }
 
 #[tauri::command]

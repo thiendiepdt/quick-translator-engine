@@ -227,6 +227,19 @@ describe("StoryPage", () => {
     expect(await screen.findByText("Đang dùng: em–anh (từ ch.150, mốc trong bảng nhân vật)")).toBeInTheDocument();
   });
 
+  it("AI điền: Áp dụng lưu với fromFill để cặp xưng hô model gieo không bị ghim", async () => {
+    const user = userEvent.setup();
+    const { aiFillStory, saveStory } = await import("@/lib/api");
+    const after = { ...snapshot.story, protagonist: "Chu Thạch" };
+    vi.mocked(aiFillStory).mockResolvedValue({ before: snapshot.story, after, exitCode: 0, log: [] });
+    vi.mocked(saveStory).mockClear();
+    render(<StoryPage />);
+    await user.click(screen.getByRole("button", { name: /AI điền từ tên \+ link/ }));
+    await user.click(screen.getByRole("button", { name: /Chạy AI điền/ }));
+    await user.click(await screen.findByRole("button", { name: "Áp dụng" }));
+    await waitFor(() => expect(saveStory).toHaveBeenCalledWith(snapshot.root, after, { fromFill: true }));
+  });
+
   it("AI điền: chuyển sang truyện khác thì không còn kết quả của truyện trước để Áp dụng nhầm", async () => {
     const user = userEvent.setup();
     const { aiFillStory, saveStory } = await import("@/lib/api");

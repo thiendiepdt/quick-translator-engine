@@ -120,8 +120,9 @@ export const storySnapshot = (root: string) =>
   call("story_snapshot", { root }, (v) => storySnapshotSchema.parse(v));
 export const readChapter = (root: string, id: string) =>
   call("read_chapter", { root, id }, (v) => chapterViewSchema.parse(v));
-export const saveStory = (root: string, story: StoryConfig) =>
-  call("save_story", { root, story }, (v) => storyConfigSchema.parse(v));
+/** `fromFill`: kết quả "AI điền" — cặp xưng hô do model gieo không bị ghim. */
+export const saveStory = (root: string, story: StoryConfig, options?: { fromFill?: boolean }) =>
+  call("save_story", { root, story, fromFill: options?.fromFill ?? false }, (v) => storyConfigSchema.parse(v));
 /** Tên tiêu đề lặp của truyện + các kiểu dịch đang có trong out/. */
 export const titlesSurvey = (root: string) => call("titles_survey", { root }, (v) => titleSurveySchema.parse(v));
 /** Chốt bản dịch cho các tên trong `targets` rồi ghi lại dòng tiêu đề của mọi chương đã dịch cho khớp. */

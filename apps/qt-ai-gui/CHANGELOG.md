@@ -2,6 +2,16 @@
 
 ## Chưa phát hành
 - Truyện cổ đại (và cảnh cổ đại của truyện hỗn hợp) dịch danh xưng họ hàng thống nhất theo Hán-Việt: 舅爷 cữu gia, 舅奶 cữu nãi, 舅舅 cữu cữu, 舅妈 / 舅母 cữu mẫu, 婶婶 thẩm thẩm, 姑父 / 姨父 cô phụ / di phụ, 姨母 di mẫu, 叔公 thúc công, 外公 ngoại công; 外婆 và 姥姥 là bà ngoại. Trước đây cùng một từ có chương ra “cữu cữu”, có chương ra “cậu”, thậm chí có cả dạng ghép lai như “mợ công”. Glossary của truyện đã chốt cách gọi khác thì vẫn theo glossary.
+- Thoại mở bằng dấu lửng hay dấu hỏi (`"...Một chút"`, `"?"`) không còn bị đổi ngoặc mở thành ngoặc đóng (`”...`).
+- Chốt chương tự bỏ "mà nói" trong "đối với X mà nói" (“Thế nên đối với ta, đồ vật…”). "Với giọng lạnh lùng mà nói:" vẫn giữ nguyên.
+- Truyện hiện đại kể ngôi ba: ý nghĩ không đặt trong ngoặc (心想：我…) tự xưng "mình"; đáp thầm người đang có mặt thì dùng cặp xưng hô của hai người. Không đổi thành "hắn / cô", không dùng "ta". Người kể ngôi một và truyện cổ đại vẫn "ta".
+- `自己的` + danh từ: đã rõ của ai thì lược, cần nhấn mạnh thì "của mình", không lặp "của hắn" hai lần trong một câu.
+- Truyện cổ đại gọi họ nhà chồng theo Hán-Việt, không dùng chữ "chồng": 公公 công công, 婆婆 bà bà, 婆母 bà mẫu, 公婆 công công bà bà, 夫家 phu gia, 婆家 nhà phu quân. Câu dễ hiểu nhầm là thái giám thì viết "cha của phu quân".
+- Tên sách, công pháp trong `《》` luôn giữ `《》`; tiêu đề chương vẫn bỏ. Check cảnh báo khi raw có `《》` mà bản dịch mất.
+- 恐怖 chỉ dịch "khủng bố" khi tả sức mạnh, uy áp, chiêu thức (và 恐怖如斯); cảnh tượng, vết thương, ma quỷ dịch "đáng sợ / ghê rợn". 倒吸一口凉气 dịch "hít một hơi khí lạnh", không "hít sâu"; hít vì đau thì "hít hà".
+- Check bắt thêm "công điệp / công đa" (公爹), "công bà" (公婆) và "hít sâu một hơi khí lạnh".
+- **AI điền** hồ sơ truyện không ghim cặp xưng hô nữa, nên khi quan hệ hai người đổi (yêu nhau, thành thân…) harness vẫn cập nhật được. Cặp viết kiểu "tôi - cô", "tôi-anh", "sư huynh/sư đệ" được chuẩn hoá về "tôi–cô"; cặp viết thành câu thì bỏ để học lại khi dịch.
+- Bảng thành ngữ thêm 公说公有理，婆说婆有理 → "ông nói ông có lý, bà nói bà có lý".
 
 ## 1.0.33 — 2026-11-18
 - Sửa lỗi động cơ agy kẹt ở chương đang dịch dở, báo "Không có chương … trong state.json" rồi thử lại mãi với truyện có tên chương dài: agent giờ luôn được chỉ đúng mã chương để làm tiếp.

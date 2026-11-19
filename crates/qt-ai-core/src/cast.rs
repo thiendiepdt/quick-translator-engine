@@ -232,6 +232,47 @@ pub fn normalize_pair(target: &str) -> Option<(String, String)> {
     }
 }
 
+/// Cặp model gieo lúc điền hồ sơ (`tôi - cô`, `tôi-anh`, `tôi / cậu (gọi Khải Minh)`, `sư đệ→sư tỷ`) → `X–Y`.
+/// Một vế hoặc văn tự do → `None`.
+pub fn tidy_pair_text(target: &str) -> Option<String> {
+    // Ghi chú trong ngoặc đơn ở cuối (`(gọi Khải Minh)`) không phải một vế.
+    let head = target.split(['(', '（']).next().unwrap_or(target).trim();
+    let mut unified = [" - ", " — ", "—", " / ", "/", "→", "->"].iter().fold(head.to_string(), |text, sep| text.replace(sep, "–"));
+    if !unified.contains('–') && unified.matches('-').count() == 1 {
+        unified = unified.replace('-', "–");
+    }
+    let parts: Vec<&str> = unified.split('–').map(str::trim).collect();
+    let short = |part: &str| {
+        !part.is_empty()
+            && part.split_whitespace().count() <= 4
+            && part.chars().count() <= 20
+            && !part.chars().any(|c| "'\"‘’“”:：,，.()（）;；".contains(c))
+    };
+    let [own, other] = parts.as_slice() else { return None };
+    if !short(own) || !short(other) {
+        return None;
+    }
+    let (own, other) = normalize_pair(&format!("{own}–{other}"))?;
+    Some(format!("{own}–{other}"))
+}
+
+/// Kết quả "AI điền": cặp mới hoặc đổi so với `old` được chuẩn hoá về `X–Y`, không đọc được thì bỏ để học lại.
+/// Cặp giữ nguyên như `old` không đụng tới.
+pub fn tidy_filled_pairs(old: &StringMap, pairs: &mut StringMap) {
+    let seeded: Vec<(String, String)> =
+        pairs.iter().filter(|(key, value)| old.get(*key) != Some(*value)).map(|(key, value)| (key.clone(), value.clone())).collect();
+    for (key, value) in seeded {
+        match tidy_pair_text(&value) {
+            Some(tidy) => {
+                pairs.insert(key, tidy);
+            }
+            None => {
+                pairs.shift_remove(&key);
+            }
+        }
+    }
+}
+
 /// Cặp `甲→乙: X–Y` trái với giới đã chốt: X mang giới khác 甲, hoặc Y mang giới khác 乙.
 pub fn pair_gender_conflict(key: &str, target: &str, cast: &Cast) -> bool {
     let sides = addressing_sides(key);

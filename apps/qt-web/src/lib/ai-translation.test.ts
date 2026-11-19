@@ -103,6 +103,24 @@ describe("AI translation post-processing", () => {
     expect(formatAiTranslation("『Tên này — 』 O'Neil")).toBe("『Tên này —』 O'Neil\n");
   });
 
+  it("narrator-tôi advisory skips unquoted thoughts, which may use the pair with the person present", () => {
+    const messages = (text: string) => checkAdvisoryViolations(text, "modern").map((v) => v.message);
+    expect(messages("Tôi lắc đầu.")).toContain("Người kể ngôi một xưng tôi → ta (truyện kể ngôi ba thì bỏ qua)");
+    expect(messages("Hắn thầm nghĩ: tôi đâu có ngốc như anh.")).not.toContain(
+      "Người kể ngôi một xưng tôi → ta (truyện kể ngôi ba thì bỏ qua)",
+    );
+  });
+
+  it("keeps an opening quote when dialogue starts with punctuation", () => {
+    expect(formatAiTranslation("\"...Một chút\"")).toBe("“...Một chút”\n");
+    expect(formatAiTranslation("Hắn nói: \"...Thôi.\"")).toBe("Hắn nói: “...Thôi.”\n");
+    expect(formatAiTranslation("\"?\"")).toBe("“?”\n");
+    expect(formatAiTranslation("\"!!!\"")).toBe("“!!!”\n");
+    // Dấu đóng sau gạch dài vẫn là dấu đóng.
+    expect(formatAiTranslation("\"Áo —\", hắn nói.")).toBe("“Áo —”, hắn nói.\n");
+    expect(formatAiTranslation("— \"Giết!\"")).toBe("— “Giết!”\n");
+  });
+
   it("finds the ported automatic violations and builds a narrow review prompt", () => {
     const text = "But hắn còn nói…\n萧炎 bước vào】";
     const violations = checkAiTranslationViolations(text);

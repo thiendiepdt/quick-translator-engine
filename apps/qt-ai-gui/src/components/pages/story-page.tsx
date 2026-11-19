@@ -141,8 +141,8 @@ export function StoryPage() {
   const currentRoot = root;
   const currentStory = story;
 
-  async function persist(config: StoryConfig) {
-    await saveStory(currentRoot, config);
+  async function persist(config: StoryConfig, options?: { fromFill?: boolean }) {
+    await saveStory(currentRoot, config, options);
     setSnapshot(await storySnapshot(currentRoot));
     toast.success("Đã lưu hồ sơ truyện");
   }
@@ -473,7 +473,7 @@ export function StoryPage() {
             }}
             onApply={(after) => {
               setFillRoot(undefined);
-              void persist(after)
+              void persist(after, { fromFill: true })
                 .then(() => form.reset(toFormValues(after)))
                 .catch((e: unknown) => toast.error(e instanceof Error ? e.message : "Không lưu được"));
             }}

@@ -22,8 +22,11 @@ import type { GenreNames, GenreSetting, GenreTone, StoryGenre } from "@/lib/ai-s
 // không cậu bé / cô bé / nam hài / nữ hài; 2026-11-02 từ convert theo bài biên tập: 不过 không bất quá, 委屈 theo
 // cảnh, 气场 / 为什么 / 我叫 / 好了 / 没关系 / 帅 / 宝宝 / 脚步 / 红酒 / 打断, tượng thanh 咕噜 / 吱呀 / 嘟嘟 / 汪汪;
 // 2026-11-15 bảng Họ hàng cổ đại: 舅爷 cữu gia, 舅奶 cữu nãi, 舅舅 cữu cữu, 舅妈 cữu mẫu, 婶婶 thẩm thẩm, 姑父 / 姨父
-// cô phụ / di phụ, 姨母 di mẫu, 外公 ngoại công, 外婆 / 姥姥 bà ngoại, cấm ghép lai mợ công / cậu ông / mợ bà).
-export const LEGACY_BASE_PROMPT_FNV1A64 = "8edba03f262ada44";
+// cô phụ / di phụ, 姨母 di mẫu, 外公 ngoại công, 外婆 / 姥姥 bà ngoại, cấm ghép lai mợ công / cậu ông / mợ bà;
+// 2026-11-19 thẩm định 30 truyện: họ nhà chồng 公公 công công / 婆婆 bà bà / 婆母 bà mẫu / 公婆 công công bà bà /
+// 夫家 phu gia / 婆家 nhà phu quân, 自己的 lược hoặc của mình, 《》 giữ nguyên, 恐怖 khủng bố chỉ khi tả sức mạnh,
+// 倒吸凉气 không hít sâu, đau thì hít hà).
+export const LEGACY_BASE_PROMPT_FNV1A64 = "afe663dc41e7ccdb";
 
 const CORE_HEAD: string[] = [
   "Bạn là dịch giả tiểu thuyết Trung Quốc sang tiếng Việt. Nhiệm vụ của bạn là chuyển ngữ trung thành, không phải sáng tác lại hay biên tập nâng giọng.",
@@ -150,6 +153,10 @@ const CORE_TERMS: string[] = [
   "| 脚步 | bước chân | cước bộ |",
   "| 红酒 | rượu vang đỏ / vang đỏ | rượu đỏ |",
   "| 打断…的话 | ngắt lời / cắt ngang | đánh gãy lời |",
+  "| 恐怖 tả sức mạnh, uy áp, tu vi, chiêu thức (truyện có tu luyện / dị năng); `恐怖如斯` | khủng bố; `恐怖如斯` → khủng bố đến thế | |",
+  "| 恐怖 tả thứ gây sợ (cảnh tượng, vết thương, ma quỷ, khuôn mặt, không khí) hoặc chuyện đời thường hiện đại | đáng sợ / ghê rợn / rùng rợn / kinh khủng; `恐怖片` → phim kinh dị; `恐怖分子` → phần tử khủng bố | khủng bố |",
+  "| 倒吸一口凉气 (sững sờ, kinh ngạc) | hít một hơi khí lạnh / hít ngược một hơi khí lạnh | hít sâu một hơi khí lạnh |",
+  "| 倒吸一口凉气 (vì đau, bỏng, rát) | hít hà / xuýt xoa | hít một hơi khí lạnh |",
   "",
   "Động từ Hán-Việt không được dán trợ từ Việt lên (`đắc được`, `đắc thủ`, `có biệt`): hoặc giữ trọn cụm Hán-Việt đã ổn định (`hữu biệt`), hoặc dịch nghĩa bằng động từ Việt.",
   "",
@@ -257,6 +264,7 @@ const CORE_PUNCT: string[] = [
   "- Dấu ba chấm: chuẩn hóa về dấu chấm ASCII, giữ đúng số lượng theo raw — `…` thành `...` (3 chấm), `……` thành `......` (6 chấm)",
   "- KHÔNG để sót ký tự `…` trong bản dịch, và KHÔNG tự đổi số chấm (không kéo `...` thành `......` hay rút ngược lại).",
   "- Ngoặc thoại `「」` thành `“”` (ngoặc cong, không dùng ngoặc thẳng); `“”` và thoại lồng `‘’` giữ nguyên. `『』` giữ nguyên như raw (ý nghĩ, truyền âm, tên sách/chiêu thức, thoại lồng…), KHÔNG đổi thành ngoặc kép.",
+  "- Tên sách, tác phẩm, công pháp trong `《》` giữ nguyên `《》` ở cả lời kể lẫn thoại; KHÔNG đổi thành `“”`, KHÔNG bỏ ngoặc. Riêng tiêu đề chương thì bỏ `《》`.",
   "- Gạch dài `——` thành một dấu ` — ` có khoảng trắng hai bên, trừ phía giáp dấu câu hoặc ngoặc (`“Ngươi —!”`, `“— Giết!”`); không dùng `--`. Sóng `～` thành `~`. Chữ số và chữ Latin fullwidth (`１２３`, `ＡＢＣ`) về ASCII.",
   "- Dấu `、` liệt kê thành dấu phẩy. Không có khoảng trắng trước dấu câu; dấu đóng ngoặc/ngoặc kép đi ngay sau chữ cuối.",
   "- KHÔNG chèn \"nhà / của\" vào cụm 眼中, 脸上, 心中",
@@ -484,6 +492,8 @@ const ancient: SettingModule = {
     "",
     "> **Lời kể gián tiếp:** Ngoài ngoặc kép, `自己` chỉ nhân vật đang được kể dịch bằng đại từ ngôi ba của nhân vật đó (`hắn`/`nàng`) hoặc lược đi khi chủ thể đã rõ, kể cả khi cả câu là ý nghĩ của nhân vật đó. `自己` là đại từ hồi chỉ, không phải danh từ \"bản thân\": KHÔNG dùng `bản thân` làm chủ ngữ, sau giới từ (`của bản thân`, `với bản thân hắn`) hay ghép với đại từ (`bản thân hắn`, `bản thân nàng`). Chỉ dùng `chính hắn` / `tự mình` khi raw nhấn đối lập (`他自己也…`, `自己动手`). Ví dụ: `奈何自己这情况特殊` → `Khổ nỗi tình cảnh của hắn đặc thù`, không phải `tình hình của bản thân hắn`. Chỉ dùng `ta` bên trong ngoặc kép hoặc khi truyện kể ở ngôi thứ nhất suốt. Tuyệt đối không đổi ngôi giữa chừng một mạch kể liền nhau — `自己` dịch thành `ta` ở câu này rồi `hắn` ở câu sau là lỗi.",
     "",
+    "> **`自己的` + danh từ (ngoài ngoặc kép):** Sở hữu đã rõ thì lược (`他握紧自己的剑` → `Hắn siết chặt thanh kiếm`). Cần nhấn mạnh, hoặc trong câu có hai người cùng giới, dùng `của mình` (`她只信自己的判断` → `Nàng chỉ tin phán đoán của mình`). `自己` chỉ người khác với chủ ngữ gần nhất thì dùng `hắn` / `nàng` hoặc tên, không dùng `mình`. KHÔNG lặp `của hắn` / `của nàng` hai lần trong một câu.",
+    "",
     "---",
     "",
   ],
@@ -659,6 +669,13 @@ const ancient: SettingModule = {
     "| 外婆 | bà ngoại | ngoại bà |",
     "| 姥爷 / 姥姥 | ông ngoại / bà ngoại; `X姥姥` là danh xưng bà lão (`刘姥姥`) → X lão lão | lão gia (trùng `老爷`); lão lão khi là bà ngoại |",
     "| 外祖父 / 外祖母 | ngoại tổ phụ / ngoại tổ mẫu | |",
+    "| 公公 / 公爹 (cha của phu quân) | công công; câu đứng riêng dễ hiểu nhầm là thái giám → cha của phu quân | cha chồng, bố chồng, công điệp, công đa |",
+    "| 婆婆 (mẹ của phu quân) | bà bà | mẹ chồng |",
+    "| 婆母 | bà mẫu | mẹ chồng |",
+    "| 公婆 | công công bà bà | công bà, cha mẹ chồng |",
+    "| 夫家 | phu gia | nhà chồng |",
+    "| 婆家 | nhà phu quân | nhà chồng |",
+    "| 岳父 / 岳母 | nhạc phụ / nhạc mẫu | cha vợ, mẹ vợ |",
     "",
     "`舅爷` còn dùng chỉ em trai của mẹ (`娘亲舅大`, `娘家舅爷`) hoặc em trai của bà chủ mà người hầu gọi (`舅老爷`): em trai của mẹ → cữu cữu, người hầu gọi → cữu lão gia.",
     "",
@@ -713,6 +730,10 @@ const ancient: SettingModule = {
   ],
 };
 
+/** Hỗn hợp tự xưng `ta` mọi cảnh nên thay dòng này (xem MIXED_MODERN_ROWS). */
+const MODERN_UNQUOTED_THOUGHT =
+  "> **Ý nghĩ không ngoặc (kể ngôi ba):** Câu `心想：我…` / `暗道：我…` nằm ngoài ngoặc kép: nhân vật tự nói với mình thì tự xưng `mình` (`他心想：我完了` → `Hắn thầm nghĩ: mình tiêu rồi`). Đáp thầm người đang có mặt (raw có `你` chỉ người đó) mà bảng xưng hô có cặp của hai người thì dùng đúng cặp đó như trong thoại; không có cặp thì `mình`. Mỗi đoạn chỉ một cách tự xưng. KHÔNG đổi `我` / `你` thành `hắn` / `cô`, KHÔNG dùng `ta` trong ý nghĩ. Truyện kể ngôi một thì người kể vẫn `ta`.";
+
 const modern: SettingModule = {
   constraints: [
     "Trong style mặc định của truyện hiện đại, lời kể ngôi ba dùng `hắn` cho nhân vật nam và `cô` cho nhân vật nữ — kể cả nhân vật chính, nhân vật hiền lành hay trẻ tuổi; KHÔNG dùng `anh`, `anh ấy`, `anh ta`, `cô ấy` làm đại từ kể. Chỉ đổi sang `anh`/`cô ấy` khi style của truyện quy định rõ hoặc glossary yêu cầu. `我` trong lời kể ngôi thứ nhất dùng `ta` (người kể tự xưng `ta`, không `tôi`/`mình`, như văn convert quen đọc); trong lời thoại chọn cặp xưng hô theo quan hệ và tuổi (tôi–anh, anh–em, tớ–cậu, tao–mày, cháu–bác, con–bố/mẹ), chốt cho từng cặp nhân vật trong phần suy nghĩ rồi giữ nhất quán cả chương. Không dùng `ngươi`, `nàng`, `bọn ta`; không dùng `ta` bên trong ngoặc kép trừ khi nhân vật cố tình nói giọng cổ hoặc style của truyện quy định.",
@@ -742,6 +763,10 @@ const modern: SettingModule = {
     "> **Gọi cha mẹ:** `爸` / `爸爸` / `爹` / `老爸` → `cha`; `妈` / `妈妈` / `老妈` → `mẹ`; `爸妈` → `cha mẹ` — gọi thẳng `Cha!`, `Mẹ!`; cha mẹ tự xưng với con `cha` / `mẹ`; nói về cha mẹ người khác cũng vậy (`你爸妈` → `cha mẹ cậu`). Riêng trẻ nhỏ hoặc con gái nũng nịu gọi `爸爸` thì được dùng `ba` (`Ba ơi!`, `ba mẹ`) cho tự nhiên. Mỗi cặp cha–con chốt MỘT cách (`cha` hoặc `ba`) và giữ cả truyện, không đổi qua lại giữa các chương. KHÔNG `bố`. Glossary của truyện đã chốt cặp với `bố` thì giữ `bố` cho cả truyện để thống nhất.",
     "",
     "> **Lời kể gián tiếp:** Ngoài ngoặc kép, `自己` chỉ nhân vật đang được kể dịch bằng đại từ ngôi ba của nhân vật đó (`hắn`/`cô`) hoặc lược đi khi chủ thể đã rõ, kể cả khi cả câu là ý nghĩ của nhân vật đó. `自己` là đại từ hồi chỉ, không phải danh từ \"bản thân\": KHÔNG dùng `bản thân` làm chủ ngữ, sau giới từ (`của bản thân`, `với bản thân hắn`) hay ghép với đại từ (`bản thân hắn`, `bản thân cô`). Chỉ dùng `chính hắn` / `tự mình` khi raw nhấn đối lập (`他自己也…`, `自己动手`). Ví dụ: `奈何自己这情况特殊` → `Khổ nỗi tình cảnh của hắn đặc thù`, không phải `tình hình của bản thân hắn`. Truyện kể ngôi thứ nhất suốt thì người kể tự xưng `ta` ngoài ngoặc kép; `tôi` chỉ sống bên trong ngoặc kép theo quan hệ. Cặp xưng hô tôi–anh, anh–em, tớ–cậu… chỉ sống trong ngoặc kép; ra ngoài ngoặc kép, nhân vật trở lại `hắn`/`cô` (hoặc `ta` nếu là người kể).",
+    "",
+    "> **`自己的` + danh từ (ngoài ngoặc kép):** Sở hữu đã rõ thì lược (`他握紧自己的剑` → `Hắn siết chặt thanh kiếm`). Cần nhấn mạnh, hoặc trong câu có hai người cùng giới, dùng `của mình` (`她只信自己的判断` → `Cô chỉ tin phán đoán của mình`). `自己` chỉ người khác với chủ ngữ gần nhất thì dùng `hắn` / `cô` hoặc tên, không dùng `mình`. KHÔNG lặp `của hắn` / `của cô` hai lần trong một câu.",
+    "",
+    MODERN_UNQUOTED_THOUGHT,
     "",
     "---",
     "",
@@ -846,6 +871,8 @@ const stripSection = (lines: string[]) => lines.slice(2, lines.lastIndexOf("---"
  * nên thay đúng các dòng nói `tôi`; mọi dòng khác giữ như truyện hiện đại.
  */
 const MIXED_MODERN_ROWS: Record<string, string> = {
+  [MODERN_UNQUOTED_THOUGHT]:
+    "> **Ý nghĩ không ngoặc (kể ngôi ba):** Câu `心想：我…` / `暗道：我…` nằm ngoài ngoặc kép tự xưng `ta` ở mọi cảnh. KHÔNG đổi `我` / `你` thành `hắn` / `cô`.",
   "| 我          | **ta** (lời kể ngôi một); trong thoại theo quan hệ (tôi, anh, em, tớ, tao) | tôi, mình trong lời kể; ta trong thoại |":
     "| 我          | **ta** (lời kể ngôi một và trong thoại, cảnh hiện đại cũng vậy); theo quan hệ khi có (anh, em, cha, mẹ, con, cháu) | tôi, mình |",
   "> **Tớ–cậu chỉ cho tuổi học trò:** `tớ`–`cậu` dùng cho học sinh, sinh viên, bạn bè nhỏ tuổi, hoặc bạn thơ ấu nói chuyện như hồi nhỏ. Người lớn ngang hàng (đồng nghiệp, bạn bè đã đi làm, người mới quen) xưng `tôi`, gọi `anh` / `chị` / `cô` / `cậu` theo tuổi và độ thân; bạn thân người lớn `tao`–`mày` hoặc `tôi`–`ông` / `bà`. KHÔNG để người lớn xưng `tớ`.":

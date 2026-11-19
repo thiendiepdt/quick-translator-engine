@@ -34,6 +34,7 @@ pub mod vn_ai;
 pub mod mojibake;
 pub mod vn_syllable;
 pub mod self_ref;
+pub mod convert_fix;
 pub mod zh_convert;
 pub mod zh_story;
 pub mod padding;

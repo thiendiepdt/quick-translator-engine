@@ -28,6 +28,8 @@ pub struct AcceptResult {
     pub glossary_fixes: Vec<String>,
     /// Số chỗ tự xưng `bản X` đã đổi thành `bổn X` (bổn cung, bổn tọa…).
     pub self_ref_fixes: usize,
+    /// Số chỗ `đối với X mà nói` đã bỏ `mà nói`.
+    pub convert_fixes: usize,
 }
 
 /// Người dùng sửa tay out/<id>.txt: cảnh báo chữ Hán của chương đã chốt tính lại theo `text`. Trả true nếu
@@ -89,6 +91,14 @@ pub fn run_accept_with(root: &Path, id: &str, force: bool, lexicon: &crate::vn_l
         if fixed > 0 {
             *paragraph = text;
             self_ref_fixes += fixed;
+        }
+    }
+    let mut convert_fixes = 0;
+    for paragraph in parsed.iter_mut().flatten() {
+        let (text, fixed) = crate::convert_fix::drop_ma_noi(paragraph);
+        if fixed > 0 {
+            *paragraph = text;
+            convert_fixes += fixed;
         }
     }
     let final_text = parsed.iter().flatten().cloned().collect::<Vec<_>>().join("\n\n");
@@ -192,5 +202,5 @@ pub fn run_accept_with(root: &Path, id: &str, force: bool, lexicon: &crate::vn_l
     for kind in WORK_KINDS {
         let _ = fs::remove_file(work_file(&paths, id, kind)); // force: true
     }
-    Ok(AcceptResult { out_path, added_glossary, warnings, cast_notes, glossary_fixes, self_ref_fixes })
+    Ok(AcceptResult { out_path, added_glossary, warnings, cast_notes, glossary_fixes, self_ref_fixes, convert_fixes })
 }

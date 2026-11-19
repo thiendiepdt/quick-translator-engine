@@ -147,7 +147,7 @@ pub const ADVISORY_RULES: &[(&str, &str, &str, Option<&str>)] = &[
     (r#"(?:^|[“"'(—]|[.!?…]\s+)Ân(?=\s*[,.!?~…])"#, "u", "嗯 → Ừ/Ừm/Ưm/Hả theo bảng Thán từ, không phiên âm Ân", None),
     (r#"(?<!\p{L})["“]?[Ââ]n["”]? một tiếng"#, "u", "ân một tiếng → ừm một tiếng", None),
     (r"(?<!\p{L})bản thân (?:hắn|nàng|cô|y|lão|gã|nó)(?!\p{L})", "iu", "自己 → hắn/nàng/cô hoặc lược, không ghép bản thân + đại từ", None),
-    (r#"^(?!Chương \d)(?![【『])(?!\[)(?![^:："“”]{1,40}[:：])[^"“”『』]*(?<!\p{L})tôi(?!\p{L})[^"“”『』]*$"#, "iu", "Người kể ngôi một xưng tôi → ta (truyện kể ngôi ba thì bỏ qua)", Some("modern")),
+    (r#"^(?!Chương \d)(?![【『])(?!\[)(?!.*(?:thầm nghĩ|nghĩ thầm|thầm nhủ|nghĩ bụng))(?![^:："“”]{1,40}[:：])[^"“”『』]*(?<!\p{L})tôi(?!\p{L})[^"“”『』]*$"#, "iu", "Người kể ngôi một xưng tôi → ta (truyện kể ngôi ba thì bỏ qua)", Some("modern")),
     (r#"[“"](?:Thiếu gia|Chủ nhân|Lão gia|Đại nhân|Sư phụ|Sư tôn|Điện hạ|Bệ hạ|Tiền bối|Phụ thân|Mẫu thân|Phụ hoàng|Mẫu hậu)[,!.…][^”"]{0,160}(?<!\p{L})(?:các )?ngươi(?!\p{L})"#, "iu", "Gọi bề trên bằng danh xưng mà xưng ngươi → ngài/người hoặc danh xưng (mục Vai vế trong thoại)", Some("ancient")),
     (r#"[“"](?:Thiếu gia|Chủ nhân|Lão gia|Đại nhân|Sư phụ|Sư tôn|Điện hạ|Bệ hạ|Tiền bối|Phụ thân|Mẫu thân|Phụ hoàng|Mẫu hậu)[,!.…][^”"]{0,160}(?<!chúng )(?<!bọn )(?<!người )(?<!\p{L})ta(?!\p{L})"#, "iu", "Gọi bề trên bằng danh xưng mà tự xưng ta → tiểu nhân/nô tỳ/thuộc hạ/đệ tử/vãn bối/con (mục Vai vế trong thoại)", Some("ancient")),
     (r"(?<!\p{L})(?:\d[\d.,]*|một|hai|ba|bốn|năm|sáu|bảy|tám|chín|mười|mươi|trăm|nghìn|ngàn|vạn|mấy|vài)\s*ức(?!\p{L})(?!\s+(?:vạn|hiếp))", "iu", "亿 → trăm triệu / tỷ (百亿 = 10 tỷ, 千亿 = 100 tỷ), không viết ức", None),
@@ -452,6 +452,11 @@ pub const RAW_PAIR_RULES: &[RawPairRule] = &[
     pair("委屈", None, r"(?<!\p{L})(?:ủy|uỷ) khuất(?!\p{L})", "委屈 → ấm ức / tủi thân / oan ức / thiệt thòi theo cảnh, không ủy khuất"),
     pair("为什么", Some("为了什么"), r"(?<!\p{L})vì cái gì(?!\p{L})", "为什么 → tại sao / vì sao, không vì cái gì"),
     RawPairRule { advisory: true, ..pair("[我他她]叫|名叫", None, r"(?<!\p{L})(?:ta|tôi|hắn|nàng|cô|y) gọi là(?!\p{L})", "我叫 X (tự giới thiệu) → tên là X, không gọi là X") },
+    // Thẩm định 2026-11: họ nhà chồng ở cổ đại, cụm 倒吸凉气, tên sách 《》 (chỉ cảnh báo; tiêu đề chương được bỏ 《》).
+    pair("公爹", None, r"(?<!\p{L})công (?:điệp|đa)(?!\p{L})", "公爹 → công công, không công điệp / công đa"),
+    pair("公婆", None, r"(?<!\p{L})công bà(?!\p{L})(?! bà(?!\p{L}))", "公婆 → công công bà bà, không công bà"),
+    pair("倒[吸抽]了?一?口[凉冷]气", None, r"(?<!\p{L})hít sâu (?:vào )?(?:một )?(?:hơi|ngụm) khí lạnh(?!\p{L})", "倒吸一口凉气 → hít một hơi khí lạnh, không hít sâu"),
+    RawPairRule { advisory: true, ..pair("《", Some("^第.{1,12}[章回节卷]"), r"^[^《]*$", "Raw có 《》 → giữ 《》 trong bản dịch, không đổi “” hay bỏ ngoặc") },
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]

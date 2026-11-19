@@ -135,6 +135,7 @@ const paragraphs = {
     { input: "a  \r\n\r\n\r\nb\nc\n\n", output: formatAiTranslation("a  \r\n\r\n\r\nb\nc\n\n") },
     { input: "\n \n", output: formatAiTranslation("\n \n") },
     ...[
+      "\"...Một chút\"\nHắn nói: \"...Thôi.\"\n\"?\"\n\"!!!\"\n\"Áo —\", hắn nói.\n— \"Giết!\"\n—\"Giết!\"",
       "\"Ngươi đi đâu?\" Hắn hỏi.\n\"Cha, mẹ — \"\n“Ngươi — !” “Boong — ”\n\n“ — Giết!”",
       "Hắn nói:\"Đi!\" (\"thử\") \"Hừ,\" nàng đáp, \"được.\"\n“Đi đâu?\" 『Tên này — 』 O'Neil \"\"",
       "\"Thoại kéo dài nhiều đoạn,\n\"đoạn sau mở lại ngoặc.\"\u3000\"x\"",
@@ -212,6 +213,10 @@ const RAW_PAIR_INPUTS: Array<[string[], Array<string | null>]> = [
   [
     ["不过，她很快就定了定神。", "这种无敌的气场。", "你受委屈了。", "你为什么要走？", "我叫林凡。", "不过三天，他就回来了。", "他们为了什么拼命？", "我叫你一声师兄。"],
     ["Bất quá, nàng rất nhanh đã định thần.", "Khí tràng vô địch bực này.", "Ngươi chịu uỷ khuất rồi.", "Ngươi vì cái gì phải đi?", "Ta gọi là Lâm Phàm.", "Không quá ba ngày, hắn đã trở về.", "Bọn họ liều mạng vì cái gì?", "Ta gọi ngươi một tiếng sư huynh."],
+  ],
+  [
+    ["公爹年纪大了。", "公婆都在。", "公婆都在。", "他倒吸一口凉气。", "他倒吸了一口凉气。", "这本《洗髓经》很难。", "第249章 《观星》", "《洗髓经》"],
+    ["Công điệp đã lớn tuổi.", "Công bà đều ở đó.", "Công công bà bà đều ở đó.", "Hắn hít sâu một hơi khí lạnh.", "Hắn hít một hơi khí lạnh.", "Cuốn “Tẩy Tủy Kinh” này rất khó.", "Chương 249: Ngắm sao", "《Tẩy Tủy Kinh》"],
   ],
 ];
 const check = {
