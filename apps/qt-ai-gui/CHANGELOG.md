@@ -16,6 +16,9 @@
 - Glossary tự học không còn chốt từ đã có trong bảng của prompt hay bảng thành ngữ (đại oan chủng, Đột Như Kỳ Lai…), và không chốt danh xưng như 沈父 / 许母 thành tên riêng ("Thẩm phụ"). Thuật ngữ chuyên ngành có thật (规培, 玉简, 经济 trong game) được khai để dịch thống nhất.
 - Truyện hiện đại và hỗn hợp: check bắt lời kể còn "cậu ta / anh ấy / cô ấy / ông ta" (trong thoại thì vẫn được) và đưa chương vào vòng soát. Truyện cổ đại bắt thêm "cậu ta / cậu ấy".
 - Cặp xưng hô chỉ áp cho 我 / 你 thường: danh xưng riêng như lão nương, bần đạo, thiếp, nô gia chỉ dùng ở câu raw có đúng chữ đó, tên riêng chỉ dùng khi gọi, không thay mọi 你 bằng tên.
+- Bảng chống văn convert thêm gần 30 dòng: 把 / 将 không dịch "đem X + động từ"; 对方 chỉ là "đối phương" khi đối địch, còn lại "nhau / người kia"; 说起来 → "nhắc mới nhớ" (không "nói đi cũng phải nói lại"); 话音未落 → "lời còn chưa dứt" (không "dứt lời"); 半点 → "chút nào" (không "nửa điểm"); 好处 → "lợi lộc" (không "chỗ tốt"); 三五 → "dăm ba"; 接风 → tiệc tẩy trần; 关门弟子 → đệ tử quan môn… Cụm gần như luôn sai thì check đưa vào vòng soát, cụm có lúc đúng chỉ cảnh báo.
+- Bảng meme thêm 22 mục: 咸鱼 cá mặn, 大聪明 “thiên tài”, 节目效果 độ giải trí, 社畜 kiếp trâu ngựa công sở, 牢X lão X, 阿三 / 大毛 / 漂亮国 Ấn Độ / Nga / Mỹ, 为爱发电 làm không công vì đam mê… (lão lục, tra nam, đụng phải đại vận, khảo vấn linh hồn giữ như cũ).
+- Truyện hiện đại: 气息 của sức mạnh, linh lực dịch "khí tức"; 脑海里 → "trong đầu" (không "trong đầu óc").
 - Sửa vài dòng prompt dạy sai: 坊市 là phường thị (check bắt "phương thị"), 阿爹 là cha, 本命 / 本源 / 本体 / 本家 giữ "bản" (bản mệnh pháp khí, không "bổn mạng"), 科长 là trưởng phòng còn 科主任 mới là trưởng khoa, "động phủ / linh điền" viết thường.
 
 ## 1.0.33 — 2026-11-18

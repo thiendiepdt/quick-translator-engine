@@ -218,6 +218,10 @@ const RAW_PAIR_INPUTS: Array<[string[], Array<string | null>]> = [
     ["公爹年纪大了。", "公婆都在。", "公婆都在。", "他倒吸一口凉气。", "他倒吸了一口凉气。", "这本《洗髓经》很难。", "第249章 《观星》", "《洗髓经》"],
     ["Công điệp đã lớn tuổi.", "Công bà đều ở đó.", "Công công bà bà đều ở đó.", "Hắn hít sâu một hơi khí lạnh.", "Hắn hít một hơi khí lạnh.", "Cuốn “Tẩy Tủy Kinh” này rất khó.", "Chương 249: Ngắm sao", "《Tẩy Tủy Kinh》"],
   ],
+  [
+    ["说起来，他也姓林。", "你那副德行！", "话音未落，他已出手。", "三五个人。", "半点不怕。", "这有什么好处？", "女玩家很多。", "他硬生生接下一拳。", "三五年后。", "他将剑交给她。", "坊市很热闹。"],
+    ["Nói đi cũng phải nói lại, hắn cũng họ Lâm.", "Cái đức hạnh đó của ngươi!", "Dứt lời, hắn đã ra tay.", "Ba năm người.", "Không sợ nửa điểm.", "Cái này có chỗ tốt gì?", "Nữ người chơi rất nhiều.", "Hắn ngạnh sinh đỡ một quyền.", "Dăm ba năm sau.", "Hắn đem kiếm giao cho nàng.", "Phường thị rất náo nhiệt."],
+  ],
 ];
 const check = {
   defaultRules: {

@@ -1202,6 +1202,226 @@
       "advisory": true
     },
     {
+      "raw": "[把将]",
+      "rawFlags": "u",
+      "unless": "把握|把手|把守|把柄|一把|将军|将领|即将|将要|将近|将来|大将|将士",
+      "unlessFlags": "u",
+      "out": "(?<!\\p{L})đem(?!\\s+(?:lòng|lại|đến|tới|theo|về|đi|ra|cho|so)(?!\\p{L}))",
+      "outFlags": "iu",
+      "message": "把 / 将 + tân ngữ + động từ → đưa động từ lên trước (将A交给B → giao A cho B), không đem X + động từ",
+      "advisory": true
+    },
+    {
+      "raw": "说起来|话说(?!回来)",
+      "rawFlags": "u",
+      "unless": "说回来",
+      "unlessFlags": "u",
+      "out": "nói đi cũng phải nói lại",
+      "outFlags": "iu",
+      "message": "说起来 / 话说 → nhắc mới nhớ / mà này, không nói đi cũng phải nói lại",
+      "advisory": false
+    },
+    {
+      "raw": "还别说|别说，",
+      "rawFlags": "u",
+      "unless": null,
+      "unlessFlags": null,
+      "out": "(?<!\\p{L})đừng nói(?!\\p{L})",
+      "outFlags": "iu",
+      "message": "还别说 → phải công nhận / nói thật chứ, không đừng nói",
+      "advisory": true
+    },
+    {
+      "raw": "[副个那这]德行",
+      "rawFlags": "u",
+      "unless": null,
+      "unlessFlags": null,
+      "out": "đức hạnh",
+      "outFlags": "iu",
+      "message": "那德行 (chê) → cái nết / cái bộ dạng ấy, không đức hạnh",
+      "advisory": false
+    },
+    {
+      "raw": "看不上",
+      "rawFlags": "u",
+      "unless": null,
+      "unlessFlags": null,
+      "out": "chướng mắt",
+      "outFlags": "iu",
+      "message": "看不上 → không coi ra gì / chẳng thèm để mắt, không chướng mắt",
+      "advisory": false
+    },
+    {
+      "raw": "话音未落",
+      "rawFlags": "u",
+      "unless": null,
+      "unlessFlags": null,
+      "out": "(?<!\\p{L})dứt lời(?!\\p{L})",
+      "outFlags": "iu",
+      "message": "话音未落 → lời còn chưa dứt, … đã …, không dứt lời",
+      "advisory": false
+    },
+    {
+      "raw": "分别",
+      "rawFlags": "u",
+      "unless": "区分|分辨",
+      "unlessFlags": "u",
+      "out": "phân biệt",
+      "outFlags": "iu",
+      "message": "分别 (lần lượt) → lần lượt / mỗi … một, không phân biệt",
+      "advisory": true
+    },
+    {
+      "raw": "三五",
+      "rawFlags": "u",
+      "unless": "三年",
+      "unlessFlags": "u",
+      "out": "(?<!dăm )(?<!\\p{L})ba năm(?!\\p{L})",
+      "outFlags": "iu",
+      "message": "三五 / 三五十 → dăm ba / dăm ba chục, không ba năm / ba năm mươi",
+      "advisory": false
+    },
+    {
+      "raw": "生生",
+      "rawFlags": "u",
+      "unless": null,
+      "unlessFlags": null,
+      "out": "ngạnh sinh",
+      "outFlags": "iu",
+      "message": "硬生生 → đứng yên hứng / tay không / ngay tại chỗ, không ngạnh sinh",
+      "advisory": false
+    },
+    {
+      "raw": "半点",
+      "rawFlags": "u",
+      "unless": null,
+      "unlessFlags": null,
+      "out": "nửa điểm",
+      "outFlags": "iu",
+      "message": "半点 → chút nào / mảy may, không nửa điểm",
+      "advisory": false
+    },
+    {
+      "raw": "另一边|另一头",
+      "rawFlags": "u",
+      "unless": null,
+      "unlessFlags": null,
+      "out": "một bên khác|một diễn biến khác",
+      "outFlags": "iu",
+      "message": "另一边 (chuyển cảnh) → Bên kia / Còn ở …, không Ở một bên khác",
+      "advisory": false
+    },
+    {
+      "raw": "好处",
+      "rawFlags": "u",
+      "unless": null,
+      "unlessFlags": null,
+      "out": "(?<!\\p{L})chỗ tốt(?!\\p{L})",
+      "outFlags": "iu",
+      "message": "好处 → lợi lộc / quà / cái lợi, không chỗ tốt",
+      "advisory": false
+    },
+    {
+      "raw": "什么叫",
+      "rawFlags": "u",
+      "unless": null,
+      "unlessFlags": null,
+      "out": "thế nào (?:là )?gọi là",
+      "outFlags": "iu",
+      "message": "什么叫 X (khoe) → đây mới gọi là X, không thế nào gọi là",
+      "advisory": true
+    },
+    {
+      "raw": "女玩家",
+      "rawFlags": "u",
+      "unless": null,
+      "unlessFlags": null,
+      "out": "nữ người chơi",
+      "outFlags": "iu",
+      "message": "女玩家 → người chơi nữ, không nữ người chơi",
+      "advisory": false
+    },
+    {
+      "raw": "穿越者|穿越到|穿越了|穿越过来",
+      "rawFlags": "u",
+      "unless": null,
+      "unlessFlags": null,
+      "out": "xuyên qua",
+      "outFlags": "iu",
+      "message": "穿越 → xuyên không, không xuyên qua",
+      "advisory": true
+    },
+    {
+      "raw": "接风",
+      "rawFlags": "u",
+      "unless": null,
+      "unlessFlags": null,
+      "out": "đón gió",
+      "outFlags": "iu",
+      "message": "接风 → tiệc tẩy trần / mở tiệc đón, không đón gió",
+      "advisory": false
+    },
+    {
+      "raw": "横肉",
+      "rawFlags": "u",
+      "unless": null,
+      "unlessFlags": null,
+      "out": "thịt ngang",
+      "outFlags": "iu",
+      "message": "横肉 → mặt bặm trợn, không thịt ngang",
+      "advisory": false
+    },
+    {
+      "raw": "成了?气候",
+      "rawFlags": "u",
+      "unless": null,
+      "unlessFlags": null,
+      "out": "khí hậu",
+      "outFlags": "iu",
+      "message": "成气候 → thành thế lớn / làm nên chuyện, không thành khí hậu",
+      "advisory": false
+    },
+    {
+      "raw": "关门弟子",
+      "rawFlags": "u",
+      "unless": null,
+      "unlessFlags": null,
+      "out": "đệ tử đóng cửa",
+      "outFlags": "iu",
+      "message": "关门弟子 → đệ tử quan môn / đệ tử cuối cùng, không đệ tử đóng cửa",
+      "advisory": false
+    },
+    {
+      "raw": "一倍有余",
+      "rawFlags": "u",
+      "unless": null,
+      "unlessFlags": null,
+      "out": "một lần dư",
+      "outFlags": "iu",
+      "message": "一倍有余 → hơn gấp đôi, không một lần dư",
+      "advisory": false
+    },
+    {
+      "raw": "何曾",
+      "rawFlags": "u",
+      "unless": null,
+      "unlessFlags": null,
+      "out": "từng bao giờ",
+      "outFlags": "iu",
+      "message": "何曾 → đã bao giờ … đâu, không từng bao giờ",
+      "advisory": false
+    },
+    {
+      "raw": "青色",
+      "rawFlags": "u",
+      "unless": null,
+      "unlessFlags": null,
+      "out": "thanh sắc",
+      "outFlags": "iu",
+      "message": "青色 → xanh, không thanh sắc",
+      "advisory": false
+    },
+    {
       "raw": "坊市",
       "rawFlags": "u",
       "unless": null,
@@ -1449,6 +1669,81 @@
         {
           "paragraph": 5,
           "message": "Raw có 《》 → giữ 《》 trong bản dịch, không đổi “” hay bỏ ngoặc",
+          "advisory": true
+        }
+      ]
+    },
+    {
+      "raw": [
+        "说起来，他也姓林。",
+        "你那副德行！",
+        "话音未落，他已出手。",
+        "三五个人。",
+        "半点不怕。",
+        "这有什么好处？",
+        "女玩家很多。",
+        "他硬生生接下一拳。",
+        "三五年后。",
+        "他将剑交给她。",
+        "坊市很热闹。"
+      ],
+      "translated": [
+        "Nói đi cũng phải nói lại, hắn cũng họ Lâm.",
+        "Cái đức hạnh đó của ngươi!",
+        "Dứt lời, hắn đã ra tay.",
+        "Ba năm người.",
+        "Không sợ nửa điểm.",
+        "Cái này có chỗ tốt gì?",
+        "Nữ người chơi rất nhiều.",
+        "Hắn ngạnh sinh đỡ một quyền.",
+        "Dăm ba năm sau.",
+        "Hắn đem kiếm giao cho nàng.",
+        "Phường thị rất náo nhiệt."
+      ],
+      "issues": [
+        {
+          "paragraph": 0,
+          "message": "说起来 / 话说 → nhắc mới nhớ / mà này, không nói đi cũng phải nói lại",
+          "advisory": false
+        },
+        {
+          "paragraph": 1,
+          "message": "那德行 (chê) → cái nết / cái bộ dạng ấy, không đức hạnh",
+          "advisory": false
+        },
+        {
+          "paragraph": 2,
+          "message": "话音未落 → lời còn chưa dứt, … đã …, không dứt lời",
+          "advisory": false
+        },
+        {
+          "paragraph": 3,
+          "message": "三五 / 三五十 → dăm ba / dăm ba chục, không ba năm / ba năm mươi",
+          "advisory": false
+        },
+        {
+          "paragraph": 4,
+          "message": "半点 → chút nào / mảy may, không nửa điểm",
+          "advisory": false
+        },
+        {
+          "paragraph": 5,
+          "message": "好处 → lợi lộc / quà / cái lợi, không chỗ tốt",
+          "advisory": false
+        },
+        {
+          "paragraph": 6,
+          "message": "女玩家 → người chơi nữ, không nữ người chơi",
+          "advisory": false
+        },
+        {
+          "paragraph": 7,
+          "message": "硬生生 → đứng yên hứng / tay không / ngay tại chỗ, không ngạnh sinh",
+          "advisory": false
+        },
+        {
+          "paragraph": 9,
+          "message": "把 / 将 + tân ngữ + động từ → đưa động từ lên trước (将A交给B → giao A cho B), không đem X + động từ",
           "advisory": true
         }
       ]
