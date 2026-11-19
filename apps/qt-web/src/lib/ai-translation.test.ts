@@ -111,6 +111,19 @@ describe("AI translation post-processing", () => {
     );
   });
 
+  it("modern / mixed narration flags cậu ta / anh ấy / ông ta outside dialogue only", () => {
+    const rule = "Lời kể ngôi ba hiện đại dùng hắn / cô, không cậu ta / anh ấy / cô ấy / ông ta (trong thoại thì được)";
+    const flagged = (text: string, setting: "modern" | "mixed" | "ancient" = "modern") =>
+      checkAiTranslationViolations(text, undefined, setting).some((v) => v.message === rule);
+    expect(flagged("Cậu ta cảm thấy vai mình nặng trĩu.")).toBe(true);
+    expect(flagged("“Đi thôi.” Anh ta quay lưng bỏ đi.")).toBe(true);
+    expect(flagged("Ông ta nhìn ra con khôi lỗi tám tay.", "mixed")).toBe(true);
+    expect(flagged("“Anh ta là ai vậy?” Cô hỏi.")).toBe(false);
+    expect(flagged("Lâm Phong: anh ta tới rồi")).toBe(false);
+    expect(flagged("Hắn thầm nghĩ: anh ta đúng là phiền.")).toBe(false);
+    expect(flagged("Cậu ta cảm thấy vai mình nặng trĩu.", "ancient")).toBe(false);
+  });
+
   it("keeps an opening quote when dialogue starts with punctuation", () => {
     expect(formatAiTranslation("\"...Một chút\"")).toBe("“...Một chút”\n");
     expect(formatAiTranslation("Hắn nói: \"...Thôi.\"")).toBe("Hắn nói: “...Thôi.”\n");
@@ -207,7 +220,10 @@ describe("AI translation post-processing", () => {
       .filter((item) => item.message.startsWith("ông ta/bà ta"))
       .map((item) => item.line);
     expect(hits).toEqual([1, 2]);
-    expect(checkAiTranslationViolations("Ông ta cười.", undefined, "modern")).toEqual([]);
+    // Luật ông ta/bà ta của cổ đại không chạy ở hiện đại (hiện đại có luật lời kể riêng).
+    expect(
+      checkAiTranslationViolations("Ông ta cười.", undefined, "modern").filter((item) => item.message.startsWith("ông ta/bà ta")),
+    ).toEqual([]);
   });
 
   it("leaves clean prose alone", () => {

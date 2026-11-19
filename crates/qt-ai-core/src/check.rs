@@ -69,7 +69,7 @@ pub const DEFAULT_RULES: &[(&str, &str, &str, Option<&str>)] = &[
     (r"(?<!\p{L})(?:đàn ông|đàn bà|phụ nữ)(?!\p{L})", "iu", "Từ chỉ người đời thường trong bối cảnh cổ → nam nhân/nữ nhân (nam tử/nữ tử)", Some("ancient")),
     (r"(?<!\p{L})(?:cậu|cô) (?:bé|nhóc)(?!\p{L})", "iu", "男孩 / 女孩 / 小姑娘 trong bối cảnh cổ → thằng bé / con bé / tiểu cô nương (raw có 一个: một đứa bé trai / gái), không cậu bé / cô bé", Some("ancient")),
     (r"(?<!\p{L})(?:nam|nữ) hài(?!\p{L})", "iu", "男孩子 / 女孩子 chỉ giới → con trai / con gái; 男孩 / 女孩 → thằng bé / con bé; không nam hài / nữ hài", Some("ancient")),
-    (r"\banh ấy\b|\banh ta\b|\bcô ấy\b|\bchị ấy\b", "i", "Đại từ sai → dùng hắn/nàng", Some("ancient")),
+    (r"\banh ấy\b|\banh ta\b|\bcô ấy\b|\bchị ấy\b|\bcậu ta\b|\bcậu ấy\b", "i", "Đại từ sai → dùng hắn/nàng", Some("ancient")),
     (r"(?<!\p{L})(?:ông ta|ông ấy|bà ta|bà ấy)(?!\p{L})", "iu", "ông ta/bà ta cho nhân vật lớn tuổi trong bối cảnh cổ → hắn/lão, nàng/bà", Some("ancient")),
     (r#"(^|[“"']|,\s+)mình(?:\s|[,.!?…])"#, "i", "Dùng mình làm đại từ → ta, hoặc tự xưng theo thân phận (tiểu nhân/nô tỳ/thuộc hạ/đệ tử/con)", Some("ancient")),
     // `tôi` ở mọi chỗ trong ngoặc kép (chúng tôi, nhà tôi giữa câu), đầu đoạn, sau dấu phẩy; bỏ qua danh từ bề tôi/bầy tôi/vua tôi,
@@ -137,6 +137,9 @@ pub const DEFAULT_RULES: &[(&str, &str, &str, Option<&str>)] = &[
     (r"(?<!\p{L})(?:thê tử|phu quân|lang quân|phụ thân|mẫu thân)(?!\p{L})", "iu", "Từ gia đình cổ trang → vợ/chồng/cha/mẹ", Some("modern")),
     // Hỗn hợp: tự xưng `ta` mọi cảnh. Bắt `tôi` nằm trong ngoặc kép; bỏ qua động từ 淬 (tôi luyện/tôi rèn/tôi thể).
     (r#"[“"][^”"]*(?<!\p{L})tôi(?!\p{L})(?!\s+(?:luyện|rèn|thể)(?!\p{L}))"#, "iu", "Truyện hỗn hợp tự xưng `ta` trong thoại (hoặc theo quan hệ, thân phận: anh/em, con, vãn bối…), không `tôi`", Some("mixed")),
+    // Lời kể (đầu dòng hoặc sau ngoặc đóng), bỏ dòng 【】 / [ ], dòng "Tên: …" và dòng ý nghĩ thầm nghĩ.
+    (r#"(?:^(?![【\[])(?!.*(?:thầm nghĩ|nghĩ thầm|thầm nhủ|nghĩ bụng))(?![^:："“”]{1,40}[:：])|”)[^“”"]*?(?<!\p{L})(?:cậu ta|cậu ấy|anh ta|anh ấy|cô ấy|chị ấy|ông ta|ông ấy|bà ta|bà ấy)(?!\p{L})"#, "iu", "Lời kể ngôi ba hiện đại dùng hắn / cô, không cậu ta / anh ấy / cô ấy / ông ta (trong thoại thì được)", Some("modern")),
+    (r#"(?:^(?![【\[])(?!.*(?:thầm nghĩ|nghĩ thầm|thầm nhủ|nghĩ bụng))(?![^:："“”]{1,40}[:：])|”)[^“”"]*?(?<!\p{L})(?:cậu ta|cậu ấy|anh ta|anh ấy|cô ấy|chị ấy|ông ta|ông ấy|bà ta|bà ấy)(?!\p{L})"#, "iu", "Lời kể ngôi ba hiện đại dùng hắn / cô, không cậu ta / anh ấy / cô ấy / ông ta (trong thoại thì được)", Some("mixed")),
     (r"(?<!\p{L})tổng tài(?!\p{L})", "iu", "tổng tài → tổng giám đốc", Some("modern")),
     (r"nói đạo", "i", "说道 → nói / đáp, không \"nói đạo\"", Some("modern")),
 ];
@@ -188,7 +191,7 @@ pub(crate) fn han() -> &'static regex::Regex {
 
 /// Bỏ dấu tiếng Việt, giữ hoa/thường và đúng một ký tự ra cho một ký tự vào (đ → d) — vị trí trên chuỗi
 /// đã bỏ dấu trùng vị trí trên chuỗi gốc.
-fn fold_vietnamese(c: char) -> char {
+pub(crate) fn fold_vietnamese(c: char) -> char {
     const GROUPS: &[(&str, char)] = &[
         ("àáảãạăằắẳẵặâầấẩẫậ", 'a'),
         ("ÀÁẢÃẠĂẰẮẲẴẶÂẦẤẨẪẬ", 'A'),
@@ -453,6 +456,7 @@ pub const RAW_PAIR_RULES: &[RawPairRule] = &[
     pair("为什么", Some("为了什么"), r"(?<!\p{L})vì cái gì(?!\p{L})", "为什么 → tại sao / vì sao, không vì cái gì"),
     RawPairRule { advisory: true, ..pair("[我他她]叫|名叫", None, r"(?<!\p{L})(?:ta|tôi|hắn|nàng|cô|y) gọi là(?!\p{L})", "我叫 X (tự giới thiệu) → tên là X, không gọi là X") },
     // Thẩm định 2026-11: họ nhà chồng ở cổ đại, cụm 倒吸凉气, tên sách 《》 (chỉ cảnh báo; tiêu đề chương được bỏ 《》).
+    pair("坊市", None, r"(?<!\p{L})phương thị(?!\p{L})", "坊市 → phường thị, không phương thị"),
     pair("公爹", None, r"(?<!\p{L})công (?:điệp|đa)(?!\p{L})", "公爹 → công công, không công điệp / công đa"),
     pair("公婆", None, r"(?<!\p{L})công bà(?!\p{L})(?! bà(?!\p{L}))", "公婆 → công công bà bà, không công bà"),
     pair("倒[吸抽]了?一?口[凉冷]气", None, r"(?<!\p{L})hít sâu (?:vào )?(?:một )?(?:hơi|ngụm) khí lạnh(?!\p{L})", "倒吸一口凉气 → hít một hơi khí lạnh, không hít sâu"),
@@ -592,6 +596,7 @@ mod tests {
             .map(|v| v.line)
             .collect();
         assert_eq!(lines, vec![1, 2]);
-        assert!(check_violations("Ông ta cười.", &[], GenreSetting::Modern).is_empty());
+        // Luật ông ta/bà ta của cổ đại không chạy ở hiện đại (hiện đại có luật lời kể riêng).
+        assert!(check_violations("Ông ta cười.", &[], GenreSetting::Modern).iter().all(|v| !v.message.starts_with("ông ta/bà ta")));
     }
 }

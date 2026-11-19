@@ -46,7 +46,7 @@ const CHECK_RULES: Array<[RegExp, string, GenreSetting?]> = [
   [/(?<!\p{L})(?:đàn ông|đàn bà|phụ nữ)(?!\p{L})/iu, "Từ chỉ người đời thường trong bối cảnh cổ → nam nhân/nữ nhân (nam tử/nữ tử)", "ancient"],
   [/(?<!\p{L})(?:cậu|cô) (?:bé|nhóc)(?!\p{L})/iu, "男孩 / 女孩 / 小姑娘 trong bối cảnh cổ → thằng bé / con bé / tiểu cô nương (raw có 一个: một đứa bé trai / gái), không cậu bé / cô bé", "ancient"],
   [/(?<!\p{L})(?:nam|nữ) hài(?!\p{L})/iu, "男孩子 / 女孩子 chỉ giới → con trai / con gái; 男孩 / 女孩 → thằng bé / con bé; không nam hài / nữ hài", "ancient"],
-  [/\banh ấy\b|\banh ta\b|\bcô ấy\b|\bchị ấy\b/i, "Đại từ sai → dùng hắn/nàng", "ancient"],
+  [/\banh ấy\b|\banh ta\b|\bcô ấy\b|\bchị ấy\b|\bcậu ta\b|\bcậu ấy\b/i, "Đại từ sai → dùng hắn/nàng", "ancient"],
   [/(?<!\p{L})(?:ông ta|ông ấy|bà ta|bà ấy)(?!\p{L})/iu, "ông ta/bà ta cho nhân vật lớn tuổi trong bối cảnh cổ → hắn/lão, nàng/bà", "ancient"],
   [/(^|[“"']|,\s+)mình(?:\s|[,.!?…])/i, "Dùng mình làm đại từ → ta, hoặc tự xưng theo thân phận (tiểu nhân/nô tỳ/thuộc hạ/đệ tử/con)", "ancient"],
   // `tôi` ở mọi chỗ trong ngoặc kép (chúng tôi, nhà tôi giữa câu), đầu đoạn, sau dấu phẩy; bỏ qua danh từ bề tôi/bầy tôi/vua tôi,
@@ -119,6 +119,9 @@ const CHECK_RULES: Array<[RegExp, string, GenreSetting?]> = [
   [/(?<!\p{L})(?:thê tử|phu quân|lang quân|phụ thân|mẫu thân)(?!\p{L})/iu, "Từ gia đình cổ trang → vợ/chồng/cha/mẹ", "modern"],
   // Hỗn hợp: tự xưng `ta` mọi cảnh. Bắt `tôi` nằm trong ngoặc kép; bỏ qua động từ 淬 (tôi luyện/tôi rèn/tôi thể).
   [/[“"][^”"]*(?<!\p{L})tôi(?!\p{L})(?!\s+(?:luyện|rèn|thể)(?!\p{L}))/iu, "Truyện hỗn hợp tự xưng `ta` trong thoại (hoặc theo quan hệ, thân phận: anh/em, con, vãn bối…), không `tôi`", "mixed"],
+  // Lời kể (đầu dòng hoặc sau ngoặc đóng), bỏ dòng 【】 / [ ], dòng "Tên: …" và dòng ý nghĩ thầm nghĩ.
+  [/(?:^(?![【\[])(?!.*(?:thầm nghĩ|nghĩ thầm|thầm nhủ|nghĩ bụng))(?![^:："“”]{1,40}[:：])|”)[^“”"]*?(?<!\p{L})(?:cậu ta|cậu ấy|anh ta|anh ấy|cô ấy|chị ấy|ông ta|ông ấy|bà ta|bà ấy)(?!\p{L})/iu, "Lời kể ngôi ba hiện đại dùng hắn / cô, không cậu ta / anh ấy / cô ấy / ông ta (trong thoại thì được)", "modern"],
+  [/(?:^(?![【\[])(?!.*(?:thầm nghĩ|nghĩ thầm|thầm nhủ|nghĩ bụng))(?![^:："“”]{1,40}[:：])|”)[^“”"]*?(?<!\p{L})(?:cậu ta|cậu ấy|anh ta|anh ấy|cô ấy|chị ấy|ông ta|ông ấy|bà ta|bà ấy)(?!\p{L})/iu, "Lời kể ngôi ba hiện đại dùng hắn / cô, không cậu ta / anh ấy / cô ấy / ông ta (trong thoại thì được)", "mixed"],
   [/(?<!\p{L})tổng tài(?!\p{L})/iu, "tổng tài → tổng giám đốc", "modern"],
   [/nói đạo/i, "说道 → nói / đáp, không \"nói đạo\"", "modern"],
 ];
@@ -214,6 +217,7 @@ export const RAW_PAIR_RULES: RawPairRule[] = [
   { raw: /为什么/u, unless: /为了什么/u, out: /(?<!\p{L})vì cái gì(?!\p{L})/iu, message: "为什么 → tại sao / vì sao, không vì cái gì" },
   { raw: /[我他她]叫|名叫/u, out: /(?<!\p{L})(?:ta|tôi|hắn|nàng|cô|y) gọi là(?!\p{L})/iu, message: "我叫 X (tự giới thiệu) → tên là X, không gọi là X", advisory: true },
   // Thẩm định 2026-11: họ nhà chồng ở cổ đại, cụm 倒吸凉气, tên sách 《》 (chỉ cảnh báo; tiêu đề chương được bỏ 《》).
+  { raw: /坊市/u, out: /(?<!\p{L})phương thị(?!\p{L})/iu, message: "坊市 → phường thị, không phương thị" },
   { raw: /公爹/u, out: /(?<!\p{L})công (?:điệp|đa)(?!\p{L})/iu, message: "公爹 → công công, không công điệp / công đa" },
   { raw: /公婆/u, out: /(?<!\p{L})công bà(?!\p{L})(?! bà(?!\p{L}))/iu, message: "公婆 → công công bà bà, không công bà" },
   { raw: /倒[吸抽]了?一?口[凉冷]气/u, out: /(?<!\p{L})hít sâu (?:vào )?(?:một )?(?:hơi|ngụm) khí lạnh(?!\p{L})/iu, message: "倒吸一口凉气 → hít một hơi khí lạnh, không hít sâu" },

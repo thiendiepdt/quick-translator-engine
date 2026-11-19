@@ -98,6 +98,20 @@ export const glossaryUsageSchema = z.object({
   skipped: z.number(),
   hits: z.array(z.object({ chapter: z.string(), paragraph: z.number(), text: z.string() })),
 });
+/** Câu hỏi "nghi trùng" của glossary tự học (glossary-pending.json). */
+export const glossaryPendingSchema = z.object({
+  source: z.string(),
+  target: z.string(),
+  category: z.string(),
+  chapter: z.string(),
+  similarSource: z.string(),
+  similarTarget: z.string(),
+  similarCategory: z.string(),
+  kind: z.enum(["homophone", "anagram", "dotSegment", "prefix"]),
+  sourceCount: z.number(),
+  similarCount: z.number(),
+});
+export const backfillHintSchema = z.object({ key: z.string(), from: z.string(), to: z.string() });
 export const glossaryBackfillSchema = z.object({
   chapters: z.number(),
   paragraphs: z.number(),

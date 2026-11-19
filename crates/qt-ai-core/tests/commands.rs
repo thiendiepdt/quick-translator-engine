@@ -355,7 +355,7 @@ fn next_phat_chuong_dau_prompt_du_3_phan_state_translating() {
     assert!(prompt.contains("[[1]] 赵静文抬头。"));
     assert!(prompt.contains("0001.draft.md") && prompt.contains("0001.glossary.json"));
     // Thuật ngữ riêng của truyện (面板, 末世…) được khai vào nhóm common, không chỉ tên riêng.
-    assert!(prompt.contains("skills|common") && prompt.contains("THUẬT NGỮ RIÊNG CỦA TRUYỆN"));
+    assert!(prompt.contains("skills|common") && prompt.contains("THUẬT NGỮ LẶP LẠI NHIỀU CHƯƠNG"));
     assert!(prompt.contains("phải phiên cùng âm"), "chỉ dẫn glossary: tên mới theo âm entry sẵn có");
     assert_eq!(load_state(&paths).unwrap().chapters["0001"].status, ChapterStatus::Translating);
 
@@ -1643,4 +1643,21 @@ fn requeue_untracked_cat_ban_dich_sang_bak_dua_ve_hang_doi_het_lech() {
     assert_eq!(state.chapters["10"].updated_at, 5, "chương vốn khớp không bị đụng");
     assert!(progress_drift(dir.path()).unwrap().untracked.is_empty());
     assert!(requeue_untracked(dir.path()).unwrap().is_empty());
+}
+
+#[test]
+fn accept_hoi_khi_ten_moi_nghi_go_nham_ten_cu() {
+    // Tác giả gõ 萧姹 (hiếm) thay 萧诧: mục mới vẫn vào glossary như trước, kèm một câu hỏi trong hàng chờ.
+    let raw = "萧姹笑了。\n\n萧诧萧诧萧诧萧诧萧诧。";
+    let glossary = r#"{"entries":[{"source":"萧姹","target":"Tiêu Xá","category":"names"}]}"#;
+    let dir = story_with_glossary(raw, &[("萧诧", "Tiêu Sá")], "[[1]] Tiêu Xá cười.\n\n[[2]] Tiêu Sá Tiêu Sá Tiêu Sá Tiêu Sá Tiêu Sá.");
+    let paths = story_paths(dir.path());
+    fs::write(work_file(&paths, "0001", WorkKind::Glossary), glossary).unwrap();
+    let result = run_accept(dir.path(), "0001", false).unwrap();
+    assert_eq!(result.added_glossary, 1);
+    assert_eq!(result.pending_notes.len(), 1, "{:?}", result.pending_notes);
+    let pending = qt_ai_core::glossary_pending::load_pending(&paths);
+    assert_eq!(pending.len(), 1);
+    assert_eq!((pending[0].source.as_str(), pending[0].similar_source.as_str()), ("萧姹", "萧诧"));
+    assert_eq!((pending[0].source_count, pending[0].similar_count), (1, 5));
 }

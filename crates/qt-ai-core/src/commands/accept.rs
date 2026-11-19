@@ -4,13 +4,13 @@ use crate::commands::check::{assemble_draft, run_check_readonly};
 use crate::error::{CoreError, Result};
 use crate::glossary::{
     append_auto_glossary, collect_glossary_keys, drop_conflicting_readings, resolve_auto_glossary_enabled,
-    sanitize_extracted,
+    sanitize_extracted, ExtractedPair,
 };
 use crate::paragraphs::{format_translation, strip_markers};
 use crate::prompt::TranslationGlossary;
 use crate::story_fs::{
     load_state, load_story_config, now_ms, read_raw_chapter, read_text, resolve_root, save_state,
-    save_story_config, story_paths, work_file, write_atomic, ChapterState, ChapterStatus, WorkKind, WORK_KINDS,
+    save_story_config, story_paths, work_file, write_atomic, ChapterState, ChapterStatus, StoryPaths, WorkKind, WORK_KINDS,
 };
 use crate::titles::{first_line, load_titles, replace_first_line, save_titles, settle_title, tidy_chapter_title};
 use serde_json::Value;
@@ -30,6 +30,8 @@ pub struct AcceptResult {
     pub self_ref_fixes: usize,
     /// Số chỗ `đối với X mà nói` đã bỏ `mà nói`.
     pub convert_fixes: usize,
+    /// Mục glossary mới nghi trùng mục cũ (gõ nhầm đồng âm, đảo chữ…) — đã vào hàng chờ hỏi người dùng.
+    pub pending_notes: Vec<String>,
 }
 
 /// Người dùng sửa tay out/<id>.txt: cảnh báo chữ Hán của chương đã chốt tính lại theo `text`. Trả true nếu
@@ -49,6 +51,57 @@ pub fn sync_han_warnings(root: &Path, id: &str, text: &str) -> Result<bool> {
     chapter.updated_at = now_ms();
     save_state(&paths, &state)?;
     Ok(true)
+}
+
+/// Mục mới nghi trùng mục cũ → thêm câu hỏi vào `glossary-pending.json` (mục vẫn vào glossary như trước).
+fn queue_similar(paths: &StoryPaths, glossary: &crate::story::Glossary, pairs: &[ExtractedPair], id: &str) -> Result<Vec<String>> {
+    use crate::glossary_pending::{load_pending, save_pending, similar_existing, PendingEntry};
+    let suspects: Vec<PendingEntry> = pairs
+        .iter()
+        .filter_map(|pair| {
+            let (similar_source, similar_target, similar_category, kind) =
+                similar_existing(&pair.source, &pair.target, &pair.category, glossary)?;
+            Some(PendingEntry {
+                source: pair.source.clone(),
+                target: pair.target.clone(),
+                category: pair.category.clone(),
+                chapter: id.to_string(),
+                similar_source,
+                similar_target,
+                similar_category,
+                kind,
+                source_count: 0,
+                similar_count: 0,
+            })
+        })
+        .collect();
+    if suspects.is_empty() {
+        return Ok(vec![]);
+    }
+    // Đếm trên mọi chương raw — chỉ chạy khi có nghi trùng (hiếm), để người dùng biết bên nào là gõ nhầm.
+    let raw: String = std::fs::read_dir(&paths.raw_dir)
+        .map(|dir| dir.flatten().filter_map(|file| std::fs::read_to_string(file.path()).ok()).collect::<Vec<_>>().join("
+"))
+        .unwrap_or_default();
+    let mut pending = load_pending(paths);
+    let mut notes = Vec::new();
+    for mut entry in suspects {
+        if pending.iter().any(|old| old.source == entry.source) {
+            continue;
+        }
+        entry.source_count = raw.matches(entry.source.as_str()).count();
+        entry.similar_count = raw.matches(entry.similar_source.as_str()).count();
+        if !crate::glossary_pending::worth_asking(&entry) {
+            continue;
+        }
+        notes.push(format!(
+            "{} “{}” nghi trùng {} “{}” (raw {} / {} lần) — xem tab Glossary",
+            entry.source, entry.target, entry.similar_source, entry.similar_target, entry.source_count, entry.similar_count
+        ));
+        pending.push(entry);
+    }
+    save_pending(paths, &pending)?;
+    Ok(notes)
 }
 
 pub fn run_accept(root: &Path, id: &str, force: bool) -> Result<AcceptResult> {
@@ -133,6 +186,7 @@ pub fn run_accept_with(root: &Path, id: &str, force: bool, lexicon: &crate::vn_l
 
     let mut added_glossary = 0;
     let mut cast_notes = Vec::new();
+    let mut pending_notes = Vec::new();
     let glossary_path = work_file(&paths, id, WorkKind::Glossary);
     if glossary_path.exists() && resolve_auto_glossary_enabled(story.auto_glossary, true) {
         // Đề xuất hỏng → bỏ qua, không chặn accept.
@@ -145,7 +199,10 @@ pub fn run_accept_with(root: &Path, id: &str, force: bool, lexicon: &crate::vn_l
         // Cặp xưng hô khai theo bản nháp (trước khi đổi tự xưng) — học vào phải khớp `bổn` như out.
         crate::self_ref::bon_in_addressing(&mut entries);
         let raw = read_raw_chapter(&paths, id)?;
-        let existing = collect_glossary_keys(&TranslationGlossary::new(), &story.glossary);
+        let mut existing = collect_glossary_keys(&TranslationGlossary::new(), &story.glossary);
+        // Khoá bảng prompt / bảng thành ngữ đã có cách dịch: không để glossary tự học đè (大冤种 → "đại oan chủng").
+        existing.extend(crate::glossary::prompt_table_keys(crate::prompt::base_prompt(&story.genre)));
+        existing.extend(crate::base::BaseStore::from_env().idioms().into_keys());
         let pairs = drop_conflicting_readings(sanitize_extracted(&entries, &raw, &output, &existing), &story.glossary);
         // Bảng nhân vật: học giới trước rồi mới xét cặp xưng hô (cặp trái giới vừa học cũng bị bỏ).
         let mut names: std::collections::HashSet<String> =
@@ -162,6 +219,7 @@ pub fn run_accept_with(root: &Path, id: &str, force: bool, lexicon: &crate::vn_l
             save_cast(&paths, &cast)?;
         }
         if !pairs.is_empty() {
+            pending_notes = queue_similar(&paths, &story.glossary, &pairs, id)?;
             story = append_auto_glossary(&story, &pairs, id);
             added_glossary = pairs.len();
         }
@@ -202,5 +260,5 @@ pub fn run_accept_with(root: &Path, id: &str, force: bool, lexicon: &crate::vn_l
     for kind in WORK_KINDS {
         let _ = fs::remove_file(work_file(&paths, id, kind)); // force: true
     }
-    Ok(AcceptResult { out_path, added_glossary, warnings, cast_notes, glossary_fixes, self_ref_fixes, convert_fixes })
+    Ok(AcceptResult { out_path, added_glossary, warnings, cast_notes, glossary_fixes, self_ref_fixes, convert_fixes, pending_notes })
 }

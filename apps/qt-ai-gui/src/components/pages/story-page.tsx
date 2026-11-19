@@ -9,6 +9,7 @@ import { CastPanel } from "@/components/cast-panel";
 import { CheckRulesEditor } from "@/components/check-rules-editor";
 import { GlossaryEditor } from "@/components/glossary-editor";
 import { GlossaryExportDialog } from "@/components/glossary-export-dialog";
+import { GlossaryPendingPanel } from "@/components/glossary-pending-panel";
 import { PromptEditor } from "@/components/prompt-editor";
 import { ResetStoryDialog } from "@/components/reset-story-dialog";
 import { SyncProgressDialog } from "@/components/sync-progress-dialog";
@@ -360,6 +361,12 @@ export function StoryPage() {
                     <Download /> Export Names.txt…
                   </Button>
                 </div>
+                <GlossaryPendingPanel
+                  root={currentRoot}
+                  running={running}
+                  dirty={form.formState.isDirty}
+                  onStoryChanged={() => void storySnapshot(currentRoot).then(setSnapshot)}
+                />
                 {GLOSSARY_KEYS.map((key) => (
                   <GlossaryEditor
                     key={key}

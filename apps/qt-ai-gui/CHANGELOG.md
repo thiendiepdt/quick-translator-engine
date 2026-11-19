@@ -12,6 +12,11 @@
 - Check bắt thêm "công điệp / công đa" (公爹), "công bà" (公婆) và "hít sâu một hơi khí lạnh".
 - **AI điền** hồ sơ truyện không ghim cặp xưng hô nữa, nên khi quan hệ hai người đổi (yêu nhau, thành thân…) harness vẫn cập nhật được. Cặp viết kiểu "tôi - cô", "tôi-anh", "sư huynh/sư đệ" được chuẩn hoá về "tôi–cô"; cặp viết thành câu thì bỏ để học lại khi dịch.
 - Bảng thành ngữ thêm 公说公有理，婆说婆有理 → "ông nói ông có lý, bà nói bà có lý".
+- Tab **Glossary** có khối **Chờ xác nhận**: khi tên mới tự học nghi trùng tên cũ, ví dụ tác giả gõ nhầm một chữ đồng âm (萧姹 / 萧诧), đảo chữ (尹戈凡 / 尹凡戈), tên ngắn lệch tên đầy đủ có `·` (Gavin / Garvin), hoặc hai mục đọc cùng chữ khác âm (Thái Thản / Thái Thán), app hỏi lại. Bấm "cùng một" thì chọn giữ tên cũ hay đổi sang tên mới, glossary đổi theo và mở sẵn **Rà chương cũ**; bấm "khác nhau" thì giữ cả hai. Có kèm số lần mỗi tên xuất hiện trong raw để biết bên nào là gõ nhầm. Tên hai chữ đồng âm chỉ hỏi khi một bên hiếm hẳn.
+- Glossary tự học không còn chốt từ đã có trong bảng của prompt hay bảng thành ngữ (đại oan chủng, Đột Như Kỳ Lai…), và không chốt danh xưng như 沈父 / 许母 thành tên riêng ("Thẩm phụ"). Thuật ngữ chuyên ngành có thật (规培, 玉简, 经济 trong game) được khai để dịch thống nhất.
+- Truyện hiện đại và hỗn hợp: check bắt lời kể còn "cậu ta / anh ấy / cô ấy / ông ta" (trong thoại thì vẫn được) và đưa chương vào vòng soát. Truyện cổ đại bắt thêm "cậu ta / cậu ấy".
+- Cặp xưng hô chỉ áp cho 我 / 你 thường: danh xưng riêng như lão nương, bần đạo, thiếp, nô gia chỉ dùng ở câu raw có đúng chữ đó, tên riêng chỉ dùng khi gọi, không thay mọi 你 bằng tên.
+- Sửa vài dòng prompt dạy sai: 坊市 là phường thị (check bắt "phương thị"), 阿爹 là cha, 本命 / 本源 / 本体 / 本家 giữ "bản" (bản mệnh pháp khí, không "bổn mạng"), 科长 là trưởng phòng còn 科主任 mới là trưởng khoa, "động phủ / linh điền" viết thường.
 
 ## 1.0.33 — 2026-11-18
 - Sửa lỗi động cơ agy kẹt ở chương đang dịch dở, báo "Không có chương … trong state.json" rồi thử lại mãi với truyện có tên chương dài: agent giờ luôn được chỉ đúng mã chương để làm tiếp.

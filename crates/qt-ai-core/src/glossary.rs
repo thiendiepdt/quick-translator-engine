@@ -13,7 +13,7 @@ static ARROW: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"→|->|=>").unwrap
 static DASH: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\s*[–—\-/]\s*").unwrap());
 /// Port `TITLE_NAME`: danh xưng gắn họ (`老张`, `李老师`, `苏夫人`…) không phải tên riêng.
 static TITLE_NAME: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"^(?:老|小|阿)?(?:欧阳|上官|司马|诸葛|慕容|东方|南宫|西门|公孙|令狐|皇甫|尉迟|长孙|宇文|独孤|端木|夏侯|轩辕|拓跋|百里|呼延|澹台|司徒|司空|万俟|闻人|太史|申屠|东郭|\p{Han})[一二三四五六七八九十大]?(?:姑娘|夫人|管家|管事|阿姨|姨|老师|大夫|捕头|长老|女士|先生|小姐|奶奶|爷爷|老头|师姐|师兄|师妹|师弟|哥|姐|少|导|总|董|经理)$|^老\p{Han}$").unwrap()
+    Regex::new(r"^(?:老|小|阿)?(?:欧阳|上官|司马|诸葛|慕容|东方|南宫|西门|公孙|令狐|皇甫|尉迟|长孙|宇文|独孤|端木|夏侯|轩辕|拓跋|百里|呼延|澹台|司徒|司空|万俟|闻人|太史|申屠|东郭|\p{Han})[一二三四五六七八九十大]?(?:姑娘|夫人|管家|管事|阿姨|姨|老师|大夫|捕头|长老|女士|先生|小姐|奶奶|爷爷|老头|师姐|师兄|师妹|师弟|哥|姐|少|导|总|董|经理|父|母)$|^老\p{Han}$").unwrap()
 });
 /// Port `BOOK_TITLE`: `《X》` lưu thành `X`.
 static BOOK_TITLE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^《(.+)》$").unwrap());
@@ -60,6 +60,22 @@ pub fn collect_glossary_keys(workspace: &TranslationGlossary, story: &Glossary) 
         .values()
         .chain(story.values())
         .flat_map(|group| group.keys().cloned())
+        .collect()
+}
+
+/// Khoá đã có cách dịch trong bảng của base prompt (`| 坊市 | phường thị |`, `| 大冤种 | đứa số nhọ |`): ô đầu của mỗi
+/// dòng bảng, tách theo `/`, bỏ ghi chú trong ngoặc, chỉ giữ cụm toàn chữ Hán ≥2 chữ. Glossary tự học không được
+/// đè các khoá này (glossary là “từ điển BẮT BUỘC” nên thắng bảng); người dùng vẫn thêm tay được.
+pub fn prompt_table_keys(prompt: &str) -> HashSet<String> {
+    static PAREN: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\([^)]*\)|（[^）]*）|`").unwrap());
+    static PURE_HAN: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\p{Han}{2,}$").unwrap());
+    prompt
+        .lines()
+        .filter_map(|line| line.trim().strip_prefix('|')?.split('|').next().map(str::to_string))
+        .flat_map(|cell| {
+            PAREN.replace_all(&cell, "").split(['/', '、', ',', '，']).map(|part| part.trim().to_string()).collect::<Vec<_>>()
+        })
+        .filter(|key| PURE_HAN.is_match(key))
         .collect()
 }
 

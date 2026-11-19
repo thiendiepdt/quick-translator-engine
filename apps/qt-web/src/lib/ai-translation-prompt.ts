@@ -25,8 +25,9 @@ import type { GenreNames, GenreSetting, GenreTone, StoryGenre } from "@/lib/ai-s
 // cô phụ / di phụ, 姨母 di mẫu, 外公 ngoại công, 外婆 / 姥姥 bà ngoại, cấm ghép lai mợ công / cậu ông / mợ bà;
 // 2026-11-19 thẩm định 30 truyện: họ nhà chồng 公公 công công / 婆婆 bà bà / 婆母 bà mẫu / 公婆 công công bà bà /
 // 夫家 phu gia / 婆家 nhà phu quân, 自己的 lược hoặc của mình, 《》 giữ nguyên, 恐怖 khủng bố chỉ khi tả sức mạnh,
-// 倒吸凉气 không hít sâu, đau thì hít hà).
-export const LEGACY_BASE_PROMPT_FNV1A64 = "afe663dc41e7ccdb";
+// 倒吸凉气 không hít sâu, đau thì hít hà; 坊市 phường thị, 阿爹 cha, 本命 / 本源 / 本体 / 本家 giữ bản, động phủ /
+// linh điền viết thường, 他 không ông trong lời kể, 阿娘 nương).
+export const LEGACY_BASE_PROMPT_FNV1A64 = "c2be0993f76c6102";
 
 const CORE_HEAD: string[] = [
   "Bạn là dịch giả tiểu thuyết Trung Quốc sang tiếng Việt. Nhiệm vụ của bạn là chuyển ngữ trung thành, không phải sáng tác lại hay biên tập nâng giọng.",
@@ -119,7 +120,7 @@ const CORE_TERMS: string[] = [
   "",
   "- Glossary của truyện luôn được ưu tiên. Mục đã có trong glossary phải dùng đúng bản dịch đã định.",
   "- Chỉ dùng Hán-Việt cho tên riêng, thuật ngữ chuyên ngành, cảnh giới, pháp bảo, tước vị và chức quan đã có cách gọi ổn định.",
-  "- Tự xưng theo thân phận giữ Hán-Việt theo raw: `朕` trẫm, `哀家` ai gia, `臣妾` thần thiếp, `妾身` thiếp thân, `寡人` quả nhân, `贫道` bần đạo, `贫僧` bần tăng, `老夫` lão phu, `在下` tại hạ, `晚辈` vãn bối, `奴婢` nô tỳ. `本` + danh xưng khi tự xưng đọc **bổn**, KHÔNG `bản`: `本宫` bổn cung, `本王` bổn vương, `本座` bổn tọa, `本官` bổn quan, `本帝` bổn đế, `本小姐` bổn tiểu thư, `本姑娘` bổn cô nương, `本公子` bổn công tử, `本少爷` bổn thiếu gia; `本尊` tự xưng là bổn tôn, chỉ chân thân (đối lập phân thân) thì là bản tôn.",
+  "- Tự xưng theo thân phận giữ Hán-Việt theo raw: `朕` trẫm, `哀家` ai gia, `臣妾` thần thiếp, `妾身` thiếp thân, `寡人` quả nhân, `贫道` bần đạo, `贫僧` bần tăng, `老夫` lão phu, `在下` tại hạ, `晚辈` vãn bối, `奴婢` nô tỳ. `本` + danh xưng khi tự xưng đọc **bổn**, KHÔNG `bản`: `本宫` bổn cung, `本王` bổn vương, `本座` bổn tọa, `本官` bổn quan, `本帝` bổn đế, `本小姐` bổn tiểu thư, `本姑娘` bổn cô nương, `本公子` bổn công tử, `本少爷` bổn thiếu gia; `本尊` tự xưng là bổn tôn, chỉ chân thân (đối lập phân thân) thì là bản tôn. Không phải tự xưng thì giữ `bản`: `本命` bản mệnh, `本源` bản nguyên, `本体` bản thể, `本家` bản gia (`本命法器` → bản mệnh pháp khí, KHÔNG bổn mạng).",
   "- Từ lóng ngôn tình dùng chung mọi bối cảnh: `白月光` (người trong lòng không với tới) → bạch nguyệt quang, chỉ tả ánh trăng thật mới là ánh trăng; `白莲花` (kiểu người giả ngây thơ) → bạch liên hoa, không hoa sen trắng.",
   "- Đường để đi, phố để ở và buôn bán: `街上` / `大街` / `街头` / `街角` / `马路` (chỗ đi lại, nơi công cộng) → trên đường, ngoài đường, góc đường, đầu đường, giữa đường, ra đường, con đường, đường lớn; KHÔNG trên phố, góc phố, đầu phố, ra phố. Giữ `phố` cho nơi ở, buôn bán: khu phố, dãy phố, căn phố, phố xá, phố thương mại, phố ẩm thực, phố đi bộ, dạo phố (`逛街`), thành phố. Tên đường (`X街`, `X路`) gọi đường X; glossary đã chốt thì theo glossary. Bối cảnh cổ đại chỉ giữ `phố xá`, `phố phường`; đường đi, chợ, dạo chơi theo bảng cổ đại.",
   "- Với động từ, tính từ, trạng thái, hình ảnh, thành ngữ và lời kể thông thường, dùng tiếng Việt tự nhiên, đúng nghĩa. KHÔNG phiên âm Hán-Việt chỉ để câu nghe giống “văn tu tiên” hoặc “văn convert”.",
@@ -465,7 +466,7 @@ const ancient: SettingModule = {
     "",
     "| Tiếng Trung | Dùng                             | KHÔNG dùng     |",
     "| ----------- | -------------------------------- | -------------- |",
-    "| 他          | **hắn**                          | anh ấy, anh ta, ông ta, ông ấy, cậu, cậu ta, chàng |",
+    "| 他          | **hắn**                          | anh ấy, anh ta, ông ta, ông ấy, ông (lời kể), cậu, cậu ta, chàng |",
     "| 她          | **nàng** / **cô** (tùy ngữ cảnh) | cô ấy, chị ấy, bà ta, bà ấy |",
     "| 我          | **ta**                           | tôi, mình      |",
     "| 你          | **ngươi**                        | bạn, mày, cậu, ông, bà |",
@@ -486,7 +487,7 @@ const ancient: SettingModule = {
     "",
     "> **Giọng kể khinh, thù địch:** nhân vật nữ là kẻ địch, phản diện hay kẻ đáng khinh mà raw lộ giọng khinh (`贱人`, `毒妇`, `那女人`, `这婆娘`…) → lời kể dùng `ả` (trẻ, trung niên) / `mụ` (già); nữ chính và nhân vật nữ thường vẫn `nàng`. `chàng` chỉ dùng trong thoại (`thiếp`–`chàng`) hoặc làm danh từ (`chàng trai`, `anh chàng`), KHÔNG làm đại từ ngôi ba trong lời kể. Bảng nhân vật ghi riêng đại từ lời kể thì theo bảng.",
     "",
-    "> **Gọi cha mẹ:** `爹` / `爹爹` → `cha`; `娘` / `娘亲` (con gọi mẹ, trong thoại) → `nương` — gọi thẳng `Cha!`, `Nương!`, cha mẹ tự xưng với con `cha` / `nương`; `爹娘` trong thoại → `cha nương`. Lời kể (ngoài ngoặc kép): `娘` → `mẹ`, `爹娘` → `cha mẹ`; `父亲` / `母亲` (trang trọng) → `phụ thân` / `mẫu thân`. Từ ghép chỉ quan hệ dùng tiếng Việt ở cả lời kể lẫn thoại: `亲娘` / `生母` → `mẹ ruột` / `mẹ đẻ`, `后娘` / `继母` → `mẹ kế`, `亲爹` → `cha ruột`, `继父` → `cha dượng` — KHÔNG `nương ruột`, `nương kế`. KHÔNG `bố`, `ba`, `má` trong cổ đại; `mẹ` đứng riêng trong thoại vẫn là `nương`. Từ ghép giữ Hán-Việt: `姑娘` → `cô nương`, `娘娘` → `nương nương`, `娘子` → `nương tử`, `新娘` → `tân nương`. Glossary của truyện đã chốt cặp với `mẹ` thì giữ `mẹ` cho cả truyện để thống nhất.",
+    "> **Gọi cha mẹ:** `爹` / `爹爹` / `阿爹` → `cha` (KHÔNG `a đa`); `娘` / `娘亲` / `阿娘` (con gọi mẹ, trong thoại) → `nương` — gọi thẳng `Cha!`, `Nương!`, cha mẹ tự xưng với con `cha` / `nương`; `爹娘` trong thoại → `cha nương`. Lời kể (ngoài ngoặc kép): `娘` → `mẹ`, `爹娘` → `cha mẹ`; `父亲` / `母亲` (trang trọng) → `phụ thân` / `mẫu thân`. Từ ghép chỉ quan hệ dùng tiếng Việt ở cả lời kể lẫn thoại: `亲娘` / `生母` → `mẹ ruột` / `mẹ đẻ`, `后娘` / `继母` → `mẹ kế`, `亲爹` → `cha ruột`, `继父` → `cha dượng` — KHÔNG `nương ruột`, `nương kế`. KHÔNG `bố`, `ba`, `má` trong cổ đại; `mẹ` đứng riêng trong thoại vẫn là `nương`. Từ ghép giữ Hán-Việt: `姑娘` → `cô nương`, `娘娘` → `nương nương`, `娘子` → `nương tử`, `新娘` → `tân nương`. Glossary của truyện đã chốt cặp với `mẹ` thì giữ `mẹ` cho cả truyện để thống nhất.",
     "",
     "> **Gọi anh chị em ruột:** `哥` / `哥哥` → `ca` / `ca ca`, `大哥` / `二哥` → `đại ca` / `nhị ca`; `姐` / `姐姐` → `tỷ` / `tỷ tỷ`; `妹妹` → `muội muội` / `tiểu muội`, `弟弟` → `đệ đệ`. Em nói với anh chị: gọi `ca` / `tỷ`, `你` → `huynh` / `tỷ`, tự xưng `muội` (em gái) / `đệ` (em trai); anh chị nói với em: tự xưng `ta` hoặc `ca` / `tỷ`, gọi `muội` / `đệ` hoặc tên. KHÔNG `anh`, `em`, `chị` dù là nhà dân thường. Ví dụ: `哥，你回来了！` → `Ca, huynh về rồi!`, không phải `Anh, anh về rồi!`.",
     "",
@@ -538,9 +539,9 @@ const ancient: SettingModule = {
     "",
     "| Trung  | Việt         |",
     "| ------ | ------------ |",
-    "| 洞府   | Động phủ     |",
-    "| 坊市   | phương thị   |",
-    "| 灵田   | Linh điền    |",
+    "| 洞府   | động phủ     |",
+    "| 坊市   | phường thị   |",
+    "| 灵田   | linh điền    |",
     "| 结界   | kết giới     |",
     "| 灵鱼   | Linh Ngư     |",
     "| 半灵鱼 | Bán Linh Ngư |",
@@ -565,7 +566,7 @@ const ancient: SettingModule = {
     "",
     "### Quy tắc viết hoa",
     "",
-    "- **Viết hoa:** cảnh giới (Luyện Khí, Trúc Cơ...), tên sinh vật linh (Linh Ngư, Bán Linh Ngư), tên kiến trúc đặc biệt (Động phủ, Linh điền)",
+    "- **Viết hoa:** cảnh giới (Luyện Khí, Trúc Cơ...), tên sinh vật linh (Linh Ngư, Bán Linh Ngư), tên riêng của động phủ / linh điền viết hoa cả cụm (Thanh Vân Động Phủ); danh từ chung `động phủ`, `linh điền`, `phường thị` viết thường",
     "- **Viết thường:** vật phẩm thông thường (linh thạch, đan dược, linh khí...)",
     "- Luôn viết hoa đầu câu, tên người, địa danh, triều đại, tổ chức và danh xưng riêng theo chính tả tiếng Việt. Không hạ toàn bộ câu về chữ thường chỉ vì câu nằm trong `【】` hoặc là nội dung hệ thống.",
     "- **Tước vị, chức danh và hậu tố địa danh đi sau tên riêng (王/府/殿/营/国/寺/岛/湖/山) viết hoa cả cụm** khi cụm đó là một danh xưng cố định: `Nhữ Dương Vương`, `Ngụy Vương`, `Nhữ Dương Vương Phủ`, `Kim Xà Doanh`, `Thái Hòa Điện`, `Kim Quốc`, `Thiếu Lâm Tự`, `Đào Hoa Đảo`. Danh từ chung đứng trước tên riêng theo cú pháp Việt thì viết thường: `chùa Thiếu Lâm`, `hồ Động Đình`, `nước Kim`. Mỗi địa danh chốt một trong hai dạng ngay lần đầu và dùng y hệt cả truyện; glossary đã có thì theo đúng glossary kể cả hoa/thường.",
@@ -801,7 +802,8 @@ const modern: SettingModule = {
     "| 打车 / 外卖 | bắt taxi / đồ ăn giao tận nơi | đả xa / ngoại mại |",
     "| 警察 / 局长 | cảnh sát / cục trưởng | công an (trừ khi raw là 公安) |",
     "| 县长 / 乡长 / 省长 / 镇长 | chủ tịch huyện / chủ tịch xã / chủ tịch tỉnh / chủ tịch thị trấn | huyện trưởng / hương trưởng / tỉnh trưởng / trấn trưởng |",
-    "| 处长 / 科长 | trưởng phòng; 科长 ở bệnh viện, trường học → trưởng khoa | xử trưởng / khoa trưởng |",
+    "| 处长 / 科长 | trưởng phòng (cả ở bệnh viện, trường học: 财务科 / 人事科 là phòng hành chính) | xử trưởng / khoa trưởng / trưởng khoa |",
+    "| 科主任 / X科主任 (khoa lâm sàng ở bệnh viện) | trưởng khoa / trưởng khoa X | |",
     "| 厅长 | giám đốc sở | sảnh trưởng |",
     "| 副 + chức danh (副队长, 副局长, 副院长…) | phó + chức danh hoặc dạng quen: đội phó, cục phó, lớp phó, phó viện trưởng | |",
     "",

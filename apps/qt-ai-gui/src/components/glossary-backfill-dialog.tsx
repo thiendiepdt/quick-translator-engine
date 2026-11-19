@@ -25,6 +25,8 @@ interface Props {
   target: string;
   /** Phiên dịch đang chạy thì không cho ghi chương cũ. */
   running: boolean;
+  /** Cụm sai điền sẵn (gộp mục nghi trùng: tên cũ cần thay). */
+  initialFrom?: string;
 }
 
 type Usage = z.infer<typeof glossaryUsageSchema>;
@@ -34,9 +36,9 @@ type Usage = z.infer<typeof glossaryUsageSchema>;
  * muộn, tên tác giả gõ lệch, vừa đổi bản dịch). Người dùng gõ cụm sai, xem trước số chỗ, rồi thay — chỉ trong các
  * đoạn có khoá ở raw.
  */
-export function GlossaryBackfillDialog({ open, onOpenChange, root, source, target, running }: Props) {
+export function GlossaryBackfillDialog({ open, onOpenChange, root, source, target, running, initialFrom = "" }: Props) {
   const [usage, setUsage] = useState<Usage>();
-  const [from, setFrom] = useState("");
+  const [from, setFrom] = useState(initialFrom);
   const [to, setTo] = useState(target);
   const [preview, setPreview] = useState<string>();
   const [status, setStatus] = useState("");

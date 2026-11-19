@@ -5,6 +5,7 @@ pub mod prompt;
 pub mod check;
 pub mod base;
 pub mod glossary;
+pub mod glossary_pending;
 pub mod cast;
 pub mod cast_scan;
 pub mod story_fs;

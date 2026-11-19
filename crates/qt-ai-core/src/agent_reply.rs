@@ -110,6 +110,7 @@ pub fn accept(root: &Path, id: &str, force: bool) -> Result<Reply> {
     if result.self_ref_fixes > 0 {
         lines.push(format!("Tự xưng bản → bổn: {} chỗ", result.self_ref_fixes));
     }
+    lines.extend(result.pending_notes.iter().map(|note| format!("Glossary nghi trùng: {note}")));
     if result.convert_fixes > 0 {
         lines.push(format!("Bỏ \"mà nói\" sau \"đối với X\": {} chỗ", result.convert_fixes));
     }

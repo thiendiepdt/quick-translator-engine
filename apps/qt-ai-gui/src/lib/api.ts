@@ -9,6 +9,7 @@ import {
   appConfigSchema,
   baseViewSchema,
   bookInfoViewSchema,
+  backfillHintSchema,
   castSchema,
   chapterViewSchema,
   exportOutcomeSchema,
@@ -51,6 +52,7 @@ import {
   zhStoryStatusSchema,
   zhUndoOutcomeSchema,
   glossaryBackfillSchema,
+  glossaryPendingSchema,
   deleteOutcomeSchema,
   progressDriftSchema,
   requeueUntrackedResultSchema,
@@ -141,6 +143,12 @@ export const glossaryScan = (root: string, key: string, target: string) =>
 /** Thay `from` → `to` trong các đoạn có `key` ở raw; `apply = false` chỉ đếm để xem trước. */
 export const glossaryBackfill = (root: string, key: string, from: string, to: string, apply: boolean) =>
   call("glossary_backfill", { root, key, from, to, apply }, (v) => glossaryBackfillSchema.parse(v));
+/** Câu hỏi nghi trùng của glossary tự học (gõ nhầm đồng âm, đảo chữ, tên có ·, tiền tố khác âm). */
+export const glossaryPendingList = (root: string) =>
+  call("glossary_pending_list", { root }, (v) => z.array(glossaryPendingSchema).parse(v));
+/** Trả lời câu hỏi; gộp thì trả gợi ý Rà chương cũ (thay `from` → `to` trong đoạn có `key`). */
+export const glossaryPendingResolve = (root: string, source: string, choice: "keepOld" | "useNew" | "dismiss") =>
+  call("glossary_pending_resolve", { root, source, choice }, (v) => backfillHintSchema.nullable().parse(v));
 /** Truy vấn Tìm & thay (không regex). `from`/`to`: phạm vi id chương, null = không giới hạn. */
 export interface ReplaceQuery {
   find: string;

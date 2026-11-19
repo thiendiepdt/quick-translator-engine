@@ -199,6 +199,8 @@ pub fn run() {
             title_cmds::titles_apply,
             glossary_cmds::glossary_scan,
             glossary_cmds::glossary_backfill,
+            glossary_cmds::glossary_pending_list,
+            glossary_cmds::glossary_pending_resolve,
             replace_cmds::replace_find,
             replace_cmds::replace_apply,
             replace_cmds::replace_undo_info,

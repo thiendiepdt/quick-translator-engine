@@ -792,3 +792,13 @@ fn tidy_filled_pairs_chi_dung_cap_moi() {
     // Cặp đã có từ trước giữ nguyên; cặp mới chuẩn hoá; văn tự do bỏ.
     assert_eq!(pairs, map(&[("a→b", "tôi - cô"), ("b→a", "anh–em")]));
 }
+
+#[test]
+fn cap_xung_ho_chi_ap_cho_dai_tu_thuong() {
+    let pairs = map(&[("云舒→秦明帆", "bần đạo–Tần thí chủ")]);
+    let section =
+        chapter_addressing_section(&[], &pairs, &StringMap::new(), &[], qt_ai_core::story::GenreSetting::Ancient, "0064");
+    assert!(section.contains("chỉ dùng ở câu raw có đúng chữ đó"));
+    assert!(section.contains("tự xưng `ta` (hoặc theo vai vế)"));
+    assert!(section.contains("không thay mọi 你 bằng tên"));
+}

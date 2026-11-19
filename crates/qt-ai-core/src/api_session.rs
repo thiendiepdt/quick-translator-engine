@@ -34,8 +34,8 @@ Liệt kê các TÊN RIÊNG (nhân vật, địa danh, đồ vật/vũ khí, sin
 xuất hiện trong raw nhưng CHƯA có trong danh sách loại trừ, kèm đúng cách bản dịch đã phiên âm chúng. \
 target phải chép nguyên văn từ bản dịch, không tự nghĩ phương án khác. \
 category chỉ được là một trong: \"names\", \"places\", \"items\", \"creatures\", \"skills\", \"common\". \
-Ngoài tên riêng, khai category \"common\" cho THUẬT NGỮ RIÊNG CỦA TRUYỆN lặp lại nhiều chương: tên chỉ số, bảng, âm báo của hệ thống (面板, 好感度, 积分, 检测到), khái niệm của thế giới truyện (末世, 丧尸, 大比, 成长体), tên tổ chức, chương trình (督察局, 春晚); target chép nguyên văn cách bạn vừa dịch. KHÔNG khai (kể cả vào names) từ thường, thành ngữ, lóng/meme, biệt danh trêu chọc (小辣椒), danh xưng (老X, X阿姨, X女士). \
-Bỏ qua từ thông thường không riêng của truyện, chức danh, đại từ.\
+Ngoài tên riêng, khai category \"common\" cho THUẬT NGỮ LẶP LẠI NHIỀU CHƯƠNG mà một từ có thể dịch nhiều kiểu: tên chỉ số, bảng, âm báo của hệ thống (面板, 好感度, 积分, 检测到), khái niệm của thế giới truyện (末世, 丧尸, 大比, 成长体), cả thuật ngữ chuyên ngành, thể loại có thật ngoài đời (y khoa 规培 → đào tạo chuẩn hóa; game 经济 → vàng; tu tiên 玉简 → ngọc giản), tên tổ chức, chương trình (督察局, 春晚 → Gala Xuân); target chép nguyên văn cách bạn vừa dịch, viết thường nếu không phải tên riêng. KHÔNG khai (kể cả vào names) từ thường, thành ngữ, lóng/meme, biệt danh trêu chọc (小辣椒), danh xưng (老X, X阿姨, X女士, X父, X母). \
+Bỏ qua từ thông thường (truyện nào cũng dịch như nhau), chức danh, đại từ.\
  Chữ Hán nào đã có âm Hán-Việt trong từ điển sẵn có thì tên mới chứa chữ đó phải phiên cùng âm (họ 段 đã là Đoàn thì không đề xuất Đoạn). \
 Tên NGƯỜI (category \"names\") thêm \"gender\": \"nam\" hoặc \"nữ\" khi raw có căn cứ (她/他, 女/男, 姐/哥…), hoặc \"biến thân\" khi nhân vật đổi giới (xuyên vào / biến thành thân xác khác giới, raw gọi lúc 他 lúc 她); không chắc thì bỏ trường này. \
 Thêm các CẶP XƯNG HÔ mới trong thoại với category \"addressing\": source là \"甲→乙\" (hai TÊN NHÂN VẬT như trong raw), \
@@ -53,8 +53,8 @@ const GLOSSARY_INLINE_INSTRUCTION: &str = "Sau đoạn dịch cuối cùng, xu�
 {\"entries\": [{\"source\": \"...\", \"target\": \"...\", \"category\": \"...\"}]} liệt kê các TÊN RIÊNG \
 (nhân vật, địa danh, đồ vật/vũ khí, sinh vật, công pháp/kỹ năng) xuất hiện trong raw mà CHƯA có trong \"Từ điển riêng của truyện\"; \
 target chép nguyên văn cách bạn vừa dịch; category chỉ được là \"names\", \"places\", \"items\", \"creatures\", \"skills\", \"common\". \
-Ngoài tên riêng, khai category \"common\" cho THUẬT NGỮ RIÊNG CỦA TRUYỆN lặp lại nhiều chương: tên chỉ số, bảng, âm báo của hệ thống (面板, 好感度, 积分, 检测到), khái niệm của thế giới truyện (末世, 丧尸, 大比, 成长体), tên tổ chức, chương trình (督察局, 春晚); target chép nguyên văn cách bạn vừa dịch. KHÔNG khai (kể cả vào names) từ thường, thành ngữ, lóng/meme, biệt danh trêu chọc (小辣椒), danh xưng (老X, X阿姨, X女士). \
-Bỏ qua từ thông thường không riêng của truyện, chức danh, đại từ.\
+Ngoài tên riêng, khai category \"common\" cho THUẬT NGỮ LẶP LẠI NHIỀU CHƯƠNG mà một từ có thể dịch nhiều kiểu: tên chỉ số, bảng, âm báo của hệ thống (面板, 好感度, 积分, 检测到), khái niệm của thế giới truyện (末世, 丧尸, 大比, 成长体), cả thuật ngữ chuyên ngành, thể loại có thật ngoài đời (y khoa 规培 → đào tạo chuẩn hóa; game 经济 → vàng; tu tiên 玉简 → ngọc giản), tên tổ chức, chương trình (督察局, 春晚 → Gala Xuân); target chép nguyên văn cách bạn vừa dịch, viết thường nếu không phải tên riêng. KHÔNG khai (kể cả vào names) từ thường, thành ngữ, lóng/meme, biệt danh trêu chọc (小辣椒), danh xưng (老X, X阿姨, X女士, X父, X母). \
+Bỏ qua từ thông thường (truyện nào cũng dịch như nhau), chức danh, đại từ.\
  Chữ Hán nào đã có âm Hán-Việt trong từ điển sẵn có thì tên mới chứa chữ đó phải phiên cùng âm (họ 段 đã là Đoàn thì không đề xuất Đoạn). Tên NGƯỜI (category \"names\") thêm \"gender\": \"nam\" hoặc \"nữ\" khi raw có căn cứ (她/他, 女/男, 姐/哥…), hoặc \"biến thân\" khi nhân vật đổi giới (xuyên vào / biến thành thân xác khác giới, raw gọi lúc 他 lúc 她); không chắc thì bỏ trường này. \
 Nhân vật đã có trong từ điển nhưng chưa nằm ở mục \"Nhân vật có mặt trong chương\" mà chương này lộ giới: khai {\"source\": \"tên Hán\", \"category\": \"names\", \"gender\": \"...\"}. \
 Cặp xưng hô mới trong thoại ghi category \"addressing\": source \"甲→乙\" (hai TÊN NHÂN VẬT như trong raw, không dùng chức danh chung như 保安/助理), \
@@ -516,6 +516,9 @@ fn log_cast_notes(chapter: &Chapter, accepted: &crate::commands::accept::AcceptR
     }
     if accepted.self_ref_fixes > 0 {
         (chapter.log)(format!("{}: tự xưng bản → bổn: {} chỗ", chapter.id, accepted.self_ref_fixes));
+    }
+    for note in &accepted.pending_notes {
+        (chapter.log)(format!("{}: glossary nghi trùng: {note}", chapter.id));
     }
     if accepted.convert_fixes > 0 {
         (chapter.log)(format!("{}: bỏ \"mà nói\" sau \"đối với X\": {} chỗ", chapter.id, accepted.convert_fixes));

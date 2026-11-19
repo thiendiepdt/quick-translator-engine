@@ -145,7 +145,7 @@ describe("composeBasePrompt", () => {
   });
 
   it("cổ đại: 爹 → cha, 娘 → nương trong thoại, mẹ / cha mẹ trong lời kể, mẹ ruột / mẹ kế; hỗn hợp có ở cảnh cổ đại", () => {
-    const note = "> **Gọi cha mẹ:** `爹` / `爹爹` → `cha`; `娘` / `娘亲` (con gọi mẹ, trong thoại) → `nương`";
+    const note = "> **Gọi cha mẹ:** `爹` / `爹爹` / `阿爹` → `cha` (KHÔNG `a đa`); `娘` / `娘亲` / `阿娘` (con gọi mẹ, trong thoại) → `nương`";
     for (const setting of ["ancient", "mixed"] as const) {
       const prompt = composeBasePrompt({ setting, names: "han", tone: "neutral" });
       expect(prompt).toContain(note);
@@ -198,7 +198,7 @@ describe("composeBasePrompt", () => {
     const ancient = composeBasePrompt({ setting: "ancient", names: "han", tone: "neutral" });
     const mixed = composeBasePrompt({ setting: "mixed", names: "han", tone: "neutral" });
     const modernRow = "| anh, anh ấy, anh ta, cậu, cậu ta, cậu ấy, chàng (trong lời kể); y, gã (trừ khi giọng kể mỉa) |";
-    const ancientRow = "| 他          | **hắn**                          | anh ấy, anh ta, ông ta, ông ấy, cậu, cậu ta, chàng |";
+    const ancientRow = "| 他          | **hắn**                          | anh ấy, anh ta, ông ta, ông ấy, ông (lời kể), cậu, cậu ta, chàng |";
     expect(modern).toContain(modernRow);
     expect(ancient).toContain(ancientRow);
     expect(mixed).toContain(modernRow);

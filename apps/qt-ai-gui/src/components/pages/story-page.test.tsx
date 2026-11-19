@@ -23,6 +23,8 @@ vi.mock("@/lib/api", () => ({
   castCleanAddressing: vi.fn(),
   glossaryScan: vi.fn(),
   glossaryBackfill: vi.fn(),
+  glossaryPendingList: vi.fn(() => Promise.resolve([])),
+  glossaryPendingResolve: vi.fn(),
   pickSaveFile: vi.fn(),
   writeTextFile: vi.fn(),
   vnRefresh: vi.fn(() => Promise.resolve({ hits: 0, open: 0, scanned: 0 })),

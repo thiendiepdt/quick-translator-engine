@@ -411,7 +411,7 @@ fn addressing_rules(setting: GenreSetting) -> String {
         "- **Theo giới người được nói tới.** Từ gọi hoặc chỉ người không mang giới trong tiếng Trung (老师, 老板, 老大, 前辈, 同学, 医生, 你, 您…) phải chọn từ Việt theo giới của đúng người đó. Tra danh sách nhân vật bên dưới trước; chưa có thì theo 她/他 và ngữ cảnh trong chương. Không mặc định là nam.".to_string(),
     ];
     let mut pronoun = String::from(
-        "- **Danh xưng làm đại từ.** Khi nhân vật tự xưng hoặc gọi người đối diện bằng danh xưng, dùng chính danh xưng Việt tương ứng thay đại từ trong cả lượt thoại.",
+        "- **Danh xưng làm đại từ.** Khi raw ở lượt thoại đó dùng danh xưng để tự xưng hoặc gọi người đối diện, dùng chính danh xưng Việt tương ứng thay đại từ trong cả lượt thoại đó.",
     );
     if modern {
         pronoun.push_str(" Hiện đại (学姐/学弟, 姐/哥, 老师, 妈, 叔…): `学弟，你不要吓学姐好不好` → `Em đừng dọa chị được không`, KHÔNG `Đàn em, cậu đừng dọa đàn chị`; không dùng `đàn em`, `đàn chị`, `đàn anh`, `học tỷ`, `học đệ` trong thoại.");
@@ -643,6 +643,18 @@ pub fn addressing_rules_section(setting: GenreSetting) -> String {
     )
 }
 
+/// X–Y áp cho 我/你 thường; danh xưng riêng và tên chỉ dùng đúng chỗ raw dùng (cặp `lão nương–ngươi` không được
+/// biến mọi 我 thành lão nương, cặp `ta–Bất Vi` không được thay mọi 你 bằng tên).
+fn pair_scope_note(setting: GenreSetting) -> String {
+    let own = match setting {
+        GenreSetting::Modern => "đại từ thường của quan hệ",
+        GenreSetting::Ancient | GenreSetting::Mixed => "`ta` (hoặc theo vai vế)",
+    };
+    format!(
+        "X–Y là cách xưng gọi khi raw dùng đại từ thường (我/你). Danh xưng riêng (`lão nương` 老娘, `bần đạo` 贫道, `bổn tọa` 本座, `thiếp` 妾/妾身, `nô gia` 奴家, `nô tỳ` 奴婢, `lão phu` 老夫) chỉ dùng ở câu raw có đúng chữ đó; raw là 我 thì tự xưng {own}. Raw đang dùng danh xưng mà chuyển sang 我/你 (thân mật, xúc động) là tác giả cố ý — dịch theo raw. Y là tên riêng thì tên chỉ dùng ở lời gọi; 你 trong thân câu dịch bằng đại từ hợp quan hệ, không thay mọi 你 bằng tên."
+    )
+}
+
 /// Phần ĐỘNG theo chương: nhân vật có mặt đã rõ giới, cặp xưng hô đang hiệu lực, các đôi cần xét lại.
 /// Rỗng khi chương không có gì để liệt kê.
 pub fn chapter_addressing_section(
@@ -676,9 +688,10 @@ pub fn chapter_addressing_section(
             })
             .collect();
         section.push_str(&format!(
-            "\nCặp xưng hô đang dùng (chương đang dịch: ch.{}) — `甲→乙: X–Y` nghĩa là trong thoại 甲 tự xưng X và gọi 乙 là Y (cặp ngược `乙→甲` có mục riêng):\n\n{}\n\nĐây là cặp gần nhất đã ghi, kèm chương chốt; mặc định giữ. Nếu chương này cho thấy quan hệ hai người đã khác lúc chốt — thoại gọi nhau bằng danh xưng khác hẳn (师父/师尊, 主人, 夫君/相公/老公/老婆, 姐/哥, 宝贝…), hoặc đã thành người yêu, vợ chồng, thầy trò, chủ tớ, kết nghĩa, trở mặt thành thù — thì dịch theo quan hệ hiện tại cho cả hai chiều trong cả chương và khai lại cặp trong danh sách glossary đề xuất kèm `note`. Xưng hô chỉ của một cảnh (cải trang, giả làm, đóng kịch, trước mặt người ngoài, hồi tưởng, kiếp trước, mỉa mai) thì dịch theo cảnh nhưng không khai lại cặp.\n",
+            "\nCặp xưng hô đang dùng (chương đang dịch: ch.{}) — `甲→乙: X–Y` nghĩa là trong thoại 甲 tự xưng X và gọi 乙 là Y (cặp ngược `乙→甲` có mục riêng):\n\n{}\n\n{}\n\nĐây là cặp gần nhất đã ghi, kèm chương chốt; mặc định giữ. Nếu chương này cho thấy quan hệ hai người đã khác lúc chốt — thoại gọi nhau bằng danh xưng khác hẳn (师父/师尊, 主人, 夫君/相公/老公/老婆, 姐/哥, 宝贝…), hoặc đã thành người yêu, vợ chồng, thầy trò, chủ tớ, kết nghĩa, trở mặt thành thù — thì dịch theo quan hệ hiện tại cho cả hai chiều trong cả chương và khai lại cặp trong danh sách glossary đề xuất kèm `note`. Xưng hô chỉ của một cảnh (cải trang, giả làm, đóng kịch, trước mặt người ngoài, hồi tưởng, kiếp trước, mỉa mai) thì dịch theo cảnh nhưng không khai lại cặp.\n",
             chapter_label(chapter_id),
-            list.join("\n")
+            list.join("\n"),
+            pair_scope_note(setting)
         ));
     }
     let legacy: Vec<&PairReview> = reviews.iter().filter(|review| review.kind == ReviewKind::LegacySelf).collect();

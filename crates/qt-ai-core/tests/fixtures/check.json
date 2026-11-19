@@ -31,7 +31,7 @@
         "message": "男孩子 / 女孩子 chỉ giới → con trai / con gái; 男孩 / 女孩 → thằng bé / con bé; không nam hài / nữ hài"
       },
       {
-        "pattern": "\\banh ấy\\b|\\banh ta\\b|\\bcô ấy\\b|\\bchị ấy\\b",
+        "pattern": "\\banh ấy\\b|\\banh ta\\b|\\bcô ấy\\b|\\bchị ấy\\b|\\bcậu ta\\b|\\bcậu ấy\\b",
         "flags": "i",
         "message": "Đại từ sai → dùng hắn/nàng"
       },
@@ -568,6 +568,11 @@
         "message": "Từ gia đình cổ trang → vợ/chồng/cha/mẹ"
       },
       {
+        "pattern": "(?:^(?![【\\[])(?!.*(?:thầm nghĩ|nghĩ thầm|thầm nhủ|nghĩ bụng))(?![^:：\"“”]{1,40}[:：])|”)[^“”\"]*?(?<!\\p{L})(?:cậu ta|cậu ấy|anh ta|anh ấy|cô ấy|chị ấy|ông ta|ông ấy|bà ta|bà ấy)(?!\\p{L})",
+        "flags": "iu",
+        "message": "Lời kể ngôi ba hiện đại dùng hắn / cô, không cậu ta / anh ấy / cô ấy / ông ta (trong thoại thì được)"
+      },
+      {
         "pattern": "(?<!\\p{L})tổng tài(?!\\p{L})",
         "flags": "iu",
         "message": "tổng tài → tổng giám đốc"
@@ -829,6 +834,11 @@
         "pattern": "[“\"][^”\"]*(?<!\\p{L})tôi(?!\\p{L})(?!\\s+(?:luyện|rèn|thể)(?!\\p{L}))",
         "flags": "iu",
         "message": "Truyện hỗn hợp tự xưng `ta` trong thoại (hoặc theo quan hệ, thân phận: anh/em, con, vãn bối…), không `tôi`"
+      },
+      {
+        "pattern": "(?:^(?![【\\[])(?!.*(?:thầm nghĩ|nghĩ thầm|thầm nhủ|nghĩ bụng))(?![^:：\"“”]{1,40}[:：])|”)[^“”\"]*?(?<!\\p{L})(?:cậu ta|cậu ấy|anh ta|anh ấy|cô ấy|chị ấy|ông ta|ông ấy|bà ta|bà ấy)(?!\\p{L})",
+        "flags": "iu",
+        "message": "Lời kể ngôi ba hiện đại dùng hắn / cô, không cậu ta / anh ấy / cô ấy / ông ta (trong thoại thì được)"
       }
     ]
   },
@@ -1190,6 +1200,16 @@
       "outFlags": "iu",
       "message": "我叫 X (tự giới thiệu) → tên là X, không gọi là X",
       "advisory": true
+    },
+    {
+      "raw": "坊市",
+      "rawFlags": "u",
+      "unless": null,
+      "unlessFlags": null,
+      "out": "(?<!\\p{L})phương thị(?!\\p{L})",
+      "outFlags": "iu",
+      "message": "坊市 → phường thị, không phương thị",
+      "advisory": false
     },
     {
       "raw": "公爹",

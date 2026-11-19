@@ -4,6 +4,7 @@
 use crate::error::{blocking, CmdResult, CommandError};
 use crate::AppState;
 use qt_ai_core::backfill::{backfill_glossary, scan_glossary_usage};
+use qt_ai_core::glossary_pending::{load_pending, resolve_pending, BackfillHint, PendingChoice, PendingEntry};
 use qt_ai_core::story_fs::story_paths;
 use serde::Serialize;
 use std::path::Path;
@@ -87,6 +88,27 @@ pub async fn glossary_backfill<R: Runtime>(
         backfill_inner(Path::new(&root), &key, &from, &to, apply)
     })
     .await
+}
+
+/// Hàng chờ "nghi trùng" của glossary tự học (glossary-pending.json) cho khối Chờ xác nhận ở tab Glossary.
+#[tauri::command]
+pub fn glossary_pending_list(root: String) -> CmdResult<Vec<PendingEntry>> {
+    Ok(load_pending(&story_paths(Path::new(&root))))
+}
+
+/// Trả lời một câu hỏi nghi trùng: dùng tên cũ / tên mới (sửa story.json, trả gợi ý Rà chương cũ) hay bỏ qua.
+/// Phiên dịch đang chạy thì từ chối: phiên đang ghi story.json của chính truyện này.
+#[tauri::command]
+pub fn glossary_pending_resolve<R: Runtime>(
+    app: AppHandle<R>,
+    root: String,
+    source: String,
+    choice: PendingChoice,
+) -> CmdResult<Option<BackfillHint>> {
+    if app.state::<AppState>().sessions.lock().unwrap().is_running(&root) {
+        return Err(CommandError::new("session_locked", "Truyện này đang có phiên dịch chạy — bấm Dừng trước khi sửa glossary."));
+    }
+    Ok(resolve_pending(&story_paths(Path::new(&root)), &source, choice)?)
 }
 
 #[cfg(test)]
