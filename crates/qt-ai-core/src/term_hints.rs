@@ -16,6 +16,11 @@ use std::sync::LazyLock;
 
 static COMMON: LazyLock<HashSet<&'static str>> = LazyLock::new(|| include_str!("../data/common-words.txt").lines().collect());
 
+/// Cụm truyện mạng nào cũng lặp nhiều chương (看向, 回头看, 没来得及) — sinh từ thư viện mẫu bằng
+/// `apps/qt-ai-cli/scripts/gen-novel-common.mjs`; thuật ngữ riêng của truyện (规培, 主刀) chỉ lặp ở ít truyện.
+static NOVEL_COMMON: LazyLock<HashSet<&'static str>> =
+    LazyLock::new(|| include_str!("../data/novel-common.txt").lines().collect());
+
 /// Từ phổ thông của tiếng Trung (关系, 后来…): dịch thế nào là tuỳ câu, không coi là thuật ngữ cố định.
 pub(crate) fn is_common_word(word: &str) -> bool {
     COMMON.contains(word)
@@ -25,7 +30,7 @@ pub(crate) fn is_common_word(word: &str) -> bool {
 const FUNCTION_CHARS: &str = "的了着过是在我你他她它们这那就也都还又和与说道一不有个人么吗呢吧啊么之而";
 
 /// Hư từ / chữ đệm hay dính vào từ thường thành cụm giả (准备好, 直接把, 能让, 但却).
-const SPLIT_CHARS: &str = "的了着过是在我你他她它们这那就也都还又和与说道一不有个人么吗呢吧啊之而到好把却让能但被将给从向对会要想得地所为再才更最很太已";
+const SPLIT_CHARS: &str = "的了着过是在我你他她它们这那就也都还又和与说道一不有个人么吗呢吧啊之而到好把却让能但被将给从向对会要想得地所为再才更最很太已连没竟便只刚";
 
 const MAX_HINTS: usize = 10;
 
@@ -133,7 +138,16 @@ fn build(paths: &StoryPaths, files: &[std::path::PathBuf]) -> TermStats {
     let glued = |gram: &str| seen.get(gram).is_some_and(|(total, glued)| glued * 2 > *total);
     // Mảnh của một từ thường dài hơn (看起 ⊂ 看起来, 来越 ⊂ 越来越, 到时 ⊂ 到时候).
     let inside_common = |gram: &str| COMMON.iter().any(|word| word.len() > gram.len() && word.contains(gram));
-    let numeric = |gram: &str| gram.chars().all(|c| "一二三四五六七八九十百千万亿两几半".contains(c));
+    // Số, kể cả số + đơn vị đo (百丈, 数十丈, 三千里).
+    let numeric = |gram: &str| {
+        let digits = "一二三四五六七八九十百千万亿两几半数";
+        let chars: Vec<char> = gram.chars().collect();
+        let body = match chars.split_last() {
+            Some((last, rest)) if !rest.is_empty() && "丈里米尺寸斤年月天日次个人名位条件块步".contains(*last) => rest,
+            _ => &chars[..],
+        };
+        body.iter().all(|c| digits.contains(*c))
+    };
     // Ghép từ hai mảnh thường (能+让, 准备+好, 直接+把, 感知+到): cả hai nửa đều là từ thường hoặc một hư từ.
     let piece = |part: &[char]| {
         let text: String = part.iter().collect();
@@ -192,6 +206,7 @@ pub fn hint_line(paths: &StoryPaths, story: &StoryConfig, source: &str) -> Strin
         .iter()
         .filter(|(gram, _)| source.contains(gram.as_str()))
         .filter(|(gram, _)| !COMMON.contains(gram.as_str()) && !gram.chars().any(|c| FUNCTION_CHARS.contains(c)))
+        .filter(|(gram, _)| !NOVEL_COMMON.contains(gram.as_str()))
         .filter(|(gram, _)| !known.iter().any(|key| key.contains(gram.as_str()) || gram.contains(key) || overlaps(gram, key)))
         .filter(|(gram, _)| !table.contains(gram.as_str()) && !idioms.keys().any(|idiom| idiom.contains(gram.as_str())))
         .map(|(gram, count)| (gram.as_str(), *count))
@@ -206,7 +221,7 @@ pub fn hint_line(paths: &StoryPaths, story: &StoryConfig, source: &str) -> Strin
     }
     let list: Vec<String> = hits.iter().map(|(gram, count)| format!("{gram} ({count} chương)")).collect();
     format!(
-        "Cụm lặp nhiều chương chưa có trong từ điển: {} — là thuật ngữ hay danh xưng cố định của truyện thì khai vào glossary (common hoặc đúng nhóm, target chép đúng cách bạn vừa dịch); là từ thường thì bỏ qua.",
+        "Cụm lặp nhiều chương chưa có trong từ điển: {} — chỉ khai khi là thuật ngữ, chỉ số, chức danh hay tên gọi cố định của truyện (common hoặc đúng nhóm, target chép đúng cách bạn vừa dịch); từ tả động tác, màu sắc, cảm giác, đồ vật thường (染成, 淡金色, 蜷缩, 指关节) là từ thường — bỏ qua, không khai.",
         list.join(", ")
     )
 }
@@ -224,14 +239,24 @@ mod tests {
         let lefts = ["研", "和", "新", "老", "名", "位"];
         let rights = ["生", "期", "医", "制", "班", "楼"];
         for i in 0..12 {
-            let text = format!("{}规培{}很忙。林凡看着窗外。时候到了。", lefts[i % 6], rights[i % 6]);
+            let text = format!(
+                "{}规培{}很忙。林凡看着窗外。时候到了。{}看向{}。{}连自己{}。",
+                lefts[i % 6],
+                rights[i % 6],
+                rights[i % 6],
+                lefts[i % 6],
+                lefts[(i + 1) % 6],
+                rights[(i + 2) % 6]
+            );
             std::fs::write(paths.raw_dir.join(format!("{i:04}.txt")), text).unwrap();
         }
         let story = StoryConfig::normalize(&serde_json::json!({ "name": "t" }));
-        let line = hint_line(&paths, &story, "今天规培的人很多。林凡看着。");
+        let line = hint_line(&paths, &story, "今天规培的人很多。林凡看着。他看向窗外。连自己都不信。");
+        assert!(!line.contains("连自己"), "hư từ + từ thường: {line}");
         assert!(line.contains("规培 (12 chương)"), "{line}");
         assert!(!line.contains("凡看"), "{line}");
         assert!(!line.contains("时候"), "từ thường: {line}");
+        assert!(!line.contains("看向"), "cụm truyện mạng nào cũng lặp: {line}");
         // Đã có trong glossary thì không gợi ý.
         let mut known = story.clone();
         known.glossary.entry("common".into()).or_default().insert("规培".into(), "đào tạo chuẩn hóa".into());
