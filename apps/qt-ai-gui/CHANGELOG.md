@@ -1,6 +1,6 @@
 # Có gì mới
 
-## Chưa phát hành
+## 1.0.34 — 2026-11-20
 - Truyện cổ đại (và cảnh cổ đại của truyện hỗn hợp) dịch danh xưng họ hàng thống nhất theo Hán-Việt: 舅爷 cữu gia, 舅奶 cữu nãi, 舅舅 cữu cữu, 舅妈 / 舅母 cữu mẫu, 婶婶 thẩm thẩm, 姑父 / 姨父 cô phụ / di phụ, 姨母 di mẫu, 叔公 thúc công, 外公 ngoại công; 外婆 và 姥姥 là bà ngoại. Trước đây cùng một từ có chương ra “cữu cữu”, có chương ra “cậu”, thậm chí có cả dạng ghép lai như “mợ công”. Glossary của truyện đã chốt cách gọi khác thì vẫn theo glossary.
 - Thoại mở bằng dấu lửng hay dấu hỏi (`"...Một chút"`, `"?"`) không còn bị đổi ngoặc mở thành ngoặc đóng (`”...`).
 - Chốt chương tự bỏ "mà nói" trong "đối với X mà nói" (“Thế nên đối với ta, đồ vật…”). "Với giọng lạnh lùng mà nói:" vẫn giữ nguyên.

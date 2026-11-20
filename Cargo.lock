@@ -3616,7 +3616,7 @@ dependencies = [
 
 [[package]]
 name = "qt-ai-gui"
-version = "1.0.33"
+version = "1.0.34"
 dependencies = [
  "base64 0.22.1",
  "encoding_rs",
