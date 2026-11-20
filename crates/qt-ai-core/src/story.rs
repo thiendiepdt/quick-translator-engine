@@ -178,6 +178,41 @@ pub struct StoryConfig {
     pub check_rules: Vec<CheckRule>,
     pub auto_glossary_log: Vec<AutoGlossaryEntry>,
     pub auto_glossary: AutoGlossarySetting,
+    /// Bối cảnh đổi theo chương (truyện xuyên qua lại): từ chương `from` trở đi dùng `setting` thay cho
+    /// `genre.setting`, tới mốc kế tiếp. Rỗng = một bối cảnh cho cả truyện.
+    /// Rỗng thì không ghi ra story.json (file cũ giữ nguyên dạng).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub setting_arcs: Vec<SettingArc>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SettingArc {
+    pub from: String,
+    pub setting: GenreSetting,
+}
+
+/// Số chương đầu tiên trong id (`0843_7xxx` → 843, `chuong-0843` → 843).
+fn chapter_number(id: &str) -> Option<u64> {
+    let digits: String = id.chars().skip_while(|c| !c.is_ascii_digit()).take_while(char::is_ascii_digit).collect();
+    digits.parse().ok()
+}
+
+impl StoryConfig {
+    /// Hồ sơ dùng cho chương `id`: `genre.setting` theo mốc `setting_arcs` gần nhất không sau chương này (so theo số
+    /// chương). Dùng khi dựng prompt / chạy check / học cặp xưng hô; KHÔNG lưu bản này vào story.json.
+    pub fn for_chapter(&self, id: &str) -> StoryConfig {
+        let mut story = self.clone();
+        let Some(now) = chapter_number(id) else { return story };
+        if let Some(arc) = self
+            .setting_arcs
+            .iter()
+            .filter(|arc| chapter_number(&arc.from).is_some_and(|from| from <= now))
+            .max_by_key(|arc| chapter_number(&arc.from))
+        {
+            story.genre.setting = arc.setting;
+        }
+        story
+    }
 }
 
 pub fn empty_glossary() -> Glossary {
@@ -234,6 +269,7 @@ impl StoryConfig {
             check_rules: vec![],
             auto_glossary_log: vec![],
             auto_glossary: AutoGlossarySetting::Inherit,
+            setting_arcs: vec![],
         }
     }
 
@@ -292,6 +328,25 @@ impl StoryConfig {
                     .collect()
             })
             .unwrap_or_default();
+        let mut setting_arcs: Vec<SettingArc> = get("settingArcs")
+            .and_then(Value::as_array)
+            .map(|arcs| {
+                arcs.iter()
+                    .filter_map(|arc| {
+                        let record = arc.as_object()?;
+                        let from = string_value(record.get("from")).trim().to_string();
+                        let setting = match record.get("setting").and_then(Value::as_str)? {
+                            "ancient" => GenreSetting::Ancient,
+                            "modern" => GenreSetting::Modern,
+                            "mixed" => GenreSetting::Mixed,
+                            _ => return None,
+                        };
+                        (!from.is_empty()).then_some(SettingArc { from, setting })
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        setting_arcs.sort_by(|a, b| natural_chapter_compare(&a.from, &b.from));
         let auto_glossary = match get("autoGlossary").and_then(Value::as_str) {
             Some("on") => AutoGlossarySetting::On,
             Some("off") => AutoGlossarySetting::Off,
@@ -317,6 +372,7 @@ impl StoryConfig {
             check_rules,
             auto_glossary_log,
             auto_glossary,
+            setting_arcs,
         }
     }
 

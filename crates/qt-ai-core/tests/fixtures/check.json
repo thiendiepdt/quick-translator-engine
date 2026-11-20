@@ -36,6 +36,26 @@
         "message": "Đại từ sai → dùng hắn/nàng"
       },
       {
+        "pattern": "[“\"](?:Sư phụ|Sư tôn|Phụ thân|Mẫu thân|Chủ nhân|Lão sư)[,!.…][^”\"]{0,160}(?<!\\p{L})(?:các )?ngươi(?!\\p{L})",
+        "flags": "iu",
+        "message": "Gọi sư phụ / phụ thân / chủ nhân mà xưng ngươi → ngài / người hoặc danh xưng (mục Vai vế trong thoại)"
+      },
+      {
+        "pattern": "[“\"](?:Sư phụ|Sư tôn|Phụ thân|Mẫu thân|Chủ nhân|Lão sư)[,!.…][^”\"]{0,160}(?<!chúng )(?<!bọn )(?<!người )(?<!\\p{L})ta(?!\\p{L})",
+        "flags": "iu",
+        "message": "Gọi sư phụ / phụ thân / chủ nhân mà tự xưng ta → đệ tử / con / nô tỳ / thuộc hạ (mục Vai vế trong thoại)"
+      },
+      {
+        "pattern": "[“\"][^”\"]*(?<!\\p{L})(?<!lông )(?<!mặt )(?<!chân )(?:mày|tao|chúng mày)(?!\\p{L})(?! (?:mò|râu|nhã|nhân|khách|đàn|ngộ|loạn|động)(?!\\p{L}))",
+        "flags": "iu",
+        "message": "Cổ đại không xưng mày / tao trong thoại → ngươi / ta (chửi thì ngươi / lão tử)"
+      },
+      {
+        "pattern": "^(?![【\\[])[^“”\"]*(?<!\\p{L})(?:khi|lúc|nếu|dù|chỉ cần|hễ)\\s+ngươi(?!\\p{L})",
+        "flags": "iu",
+        "message": "你 phiếm chỉ trong lời kể (khi / nếu ngươi …) → lược chủ ngữ hoặc người ta"
+      },
+      {
         "pattern": "(?<!\\p{L})(?:ông ta|ông ấy|bà ta|bà ấy)(?!\\p{L})",
         "flags": "iu",
         "message": "ông ta/bà ta cho nhân vật lớn tuổi trong bối cảnh cổ → hắn/lão, nàng/bà"
@@ -594,6 +614,11 @@
         "message": "Từ nối tiếng Anh lọt vào bản dịch → dịch sang tiếng Việt hoặc chỉ giữ khi có căn cứ"
       },
       {
+        "pattern": "^(?![【\\[])[^“”\"]*(?<!\\p{L})(?:khi|lúc|nếu|dù|chỉ cần|hễ)\\s+ngươi(?!\\p{L})",
+        "flags": "iu",
+        "message": "你 phiếm chỉ trong lời kể (khi / nếu ngươi …) → lược chủ ngữ hoặc người ta"
+      },
+      {
         "pattern": "tinh thần đại chấn",
         "message": "精神大振 → dùng tinh thần phấn chấn hẳn lên"
       },
@@ -845,7 +870,7 @@
   "advisoryRules": {
     "ancient": [
       {
-        "pattern": "(?:^|[“\"'(—]|[.!?…]\\s+)Ân(?=\\s*[,.!?~…])",
+        "pattern": "(?:^|[“\"'(—]|[.!?…]\\s+)Ân(?![,.…\\s]*ân (?:công|nhân|tình|huệ))(?=\\s*[,.!?~…])",
         "flags": "u",
         "message": "嗯 → Ừ/Ừm/Ưm/Hả theo bảng Thán từ, không phiên âm Ân"
       },
@@ -860,12 +885,12 @@
         "message": "自己 → hắn/nàng/cô hoặc lược, không ghép bản thân + đại từ"
       },
       {
-        "pattern": "[“\"](?:Thiếu gia|Chủ nhân|Lão gia|Đại nhân|Sư phụ|Sư tôn|Điện hạ|Bệ hạ|Tiền bối|Phụ thân|Mẫu thân|Phụ hoàng|Mẫu hậu)[,!.…][^”\"]{0,160}(?<!\\p{L})(?:các )?ngươi(?!\\p{L})",
+        "pattern": "[“\"](?:Thiếu gia|Lão gia|Đại nhân|Điện hạ|Bệ hạ|Tiền bối|Phụ hoàng|Mẫu hậu|Giáo sư|Chưởng giáo|Sư thúc|Sư bá)[,!.…][^”\"]{0,160}(?<!\\p{L})(?:các )?ngươi(?!\\p{L})",
         "flags": "iu",
         "message": "Gọi bề trên bằng danh xưng mà xưng ngươi → ngài/người hoặc danh xưng (mục Vai vế trong thoại)"
       },
       {
-        "pattern": "[“\"](?:Thiếu gia|Chủ nhân|Lão gia|Đại nhân|Sư phụ|Sư tôn|Điện hạ|Bệ hạ|Tiền bối|Phụ thân|Mẫu thân|Phụ hoàng|Mẫu hậu)[,!.…][^”\"]{0,160}(?<!chúng )(?<!bọn )(?<!người )(?<!\\p{L})ta(?!\\p{L})",
+        "pattern": "[“\"](?:Thiếu gia|Lão gia|Đại nhân|Điện hạ|Bệ hạ|Tiền bối|Phụ hoàng|Mẫu hậu|Giáo sư|Chưởng giáo|Sư thúc|Sư bá)[,!.…][^”\"]{0,160}(?<!chúng )(?<!bọn )(?<!người )(?<!\\p{L})ta(?!\\p{L})",
         "flags": "iu",
         "message": "Gọi bề trên bằng danh xưng mà tự xưng ta → tiểu nhân/nô tỳ/thuộc hạ/đệ tử/vãn bối/con (mục Vai vế trong thoại)"
       },
@@ -910,6 +935,11 @@
         "message": "露出…神色/表情 → lộ vẻ…, không lộ ra thần sắc"
       },
       {
+        "pattern": "[“\"‘]\\s*Mẹ(?:\\s+ơi)?[,!.…?]",
+        "flags": "u",
+        "message": "娘 gọi thẳng trong thoại cổ đại → Nương (glossary truyện đã chốt mẹ thì giữ)"
+      },
+      {
         "pattern": "(?<!\\p{L})bố (?:vợ|chồng|dượng)(?!\\p{L})",
         "flags": "iu",
         "message": "岳父 / 公公 / 继父 → cha vợ / cha chồng / cha dượng (quy ước cha / mẹ), không bố vợ / bố chồng / bố dượng"
@@ -917,7 +947,7 @@
     ],
     "modern": [
       {
-        "pattern": "(?:^|[“\"'(—]|[.!?…]\\s+)Ân(?=\\s*[,.!?~…])",
+        "pattern": "(?:^|[“\"'(—]|[.!?…]\\s+)Ân(?![,.…\\s]*ân (?:công|nhân|tình|huệ))(?=\\s*[,.!?~…])",
         "flags": "u",
         "message": "嗯 → Ừ/Ừm/Ưm/Hả theo bảng Thán từ, không phiên âm Ân"
       },
@@ -989,7 +1019,7 @@
     ],
     "mixed": [
       {
-        "pattern": "(?:^|[“\"'(—]|[.!?…]\\s+)Ân(?=\\s*[,.!?~…])",
+        "pattern": "(?:^|[“\"'(—]|[.!?…]\\s+)Ân(?![,.…\\s]*ân (?:công|nhân|tình|huệ))(?=\\s*[,.!?~…])",
         "flags": "u",
         "message": "嗯 → Ừ/Ừm/Ưm/Hả theo bảng Thán từ, không phiên âm Ân"
       },
@@ -1422,6 +1452,16 @@
       "advisory": false
     },
     {
+      "raw": "啧",
+      "rawFlags": "u",
+      "unless": null,
+      "unlessFlags": null,
+      "out": "(?:^|[“\"'(—]|[.!?…]\\s+)Tặc(?=[\\s,.!?…])",
+      "outFlags": "u",
+      "message": "啧 / 啧啧 → Chậc / Chậc chậc, không Tặc tặc",
+      "advisory": false
+    },
+    {
       "raw": "坊市",
       "rawFlags": "u",
       "unless": null,
@@ -1786,11 +1826,6 @@
           "text": "“Thiếu gia, ta nhớ là đã từng nói với ngài.”"
         },
         {
-          "line": 15,
-          "message": "Gọi bề trên bằng danh xưng mà xưng ngươi → ngài/người hoặc danh xưng (mục Vai vế trong thoại)",
-          "text": "“Sư phụ, ngươi đừng lo.”"
-        },
-        {
           "line": 19,
           "message": "亿 → trăm triệu / tỷ (百亿 = 10 tỷ, 千亿 = 100 tỷ), không viết ức",
           "text": "Gom góp một trăm ức mua biệt thự."
@@ -1943,6 +1978,18 @@
           "text": "Bố chồng tôi vẫn còn sống."
         }
       ]
+    },
+    {
+      "name": "vai-ve-advisory",
+      "text": "“Sư phụ, ta đi đây.”\n“Phụ thân, ngươi nghe con nói.”\n“Mày đi đâu?” Hắn nhíu lông mày.\n“Lông mày nàng đẹp thật, mặt mày sáng sủa.”\nKhi ngươi yếu thế, ai cũng khinh.\n“Mẹ, con về rồi.”\n“Ân, ân công đừng khách sáo.”",
+      "setting": "ancient",
+      "violations": [
+        {
+          "line": 6,
+          "message": "娘 gọi thẳng trong thoại cổ đại → Nương (glossary truyện đã chốt mẹ thì giữ)",
+          "text": "“Mẹ, con về rồi.”"
+        }
+      ]
     }
   ],
   "cases": [
@@ -2041,6 +2088,47 @@
           "line": 10,
           "message": "男孩子 / 女孩子 chỉ giới → con trai / con gái; 男孩 / 女孩 → thằng bé / con bé; không nam hài / nữ hài",
           "text": "Cậu bé kéo cô bé ra sau, một tiểu nữ hài đứng nhìn; nữ hài tử nhà ai vậy."
+        }
+      ]
+    },
+    {
+      "name": "vai-ve",
+      "text": "“Sư phụ, ta đi đây.”\n“Phụ thân, ngươi nghe con nói.”\n“Mày đi đâu?” Hắn nhíu lông mày.\n“Lông mày nàng đẹp thật, mặt mày sáng sủa.”\nKhi ngươi yếu thế, ai cũng khinh.\n“Mẹ, con về rồi.”\n“Ân, ân công đừng khách sáo.”",
+      "rules": null,
+      "setting": "ancient",
+      "violations": [
+        {
+          "line": 1,
+          "message": "Gọi sư phụ / phụ thân / chủ nhân mà tự xưng ta → đệ tử / con / nô tỳ / thuộc hạ (mục Vai vế trong thoại)",
+          "text": "“Sư phụ, ta đi đây.”"
+        },
+        {
+          "line": 2,
+          "message": "Gọi sư phụ / phụ thân / chủ nhân mà xưng ngươi → ngài / người hoặc danh xưng (mục Vai vế trong thoại)",
+          "text": "“Phụ thân, ngươi nghe con nói.”"
+        },
+        {
+          "line": 3,
+          "message": "Cổ đại không xưng mày / tao trong thoại → ngươi / ta (chửi thì ngươi / lão tử)",
+          "text": "“Mày đi đâu?” Hắn nhíu lông mày."
+        },
+        {
+          "line": 5,
+          "message": "你 phiếm chỉ trong lời kể (khi / nếu ngươi …) → lược chủ ngữ hoặc người ta",
+          "text": "Khi ngươi yếu thế, ai cũng khinh."
+        }
+      ]
+    },
+    {
+      "name": "phiem-chi-mixed",
+      "text": "“Sư phụ, ta đi đây.”\n“Phụ thân, ngươi nghe con nói.”\n“Mày đi đâu?” Hắn nhíu lông mày.\n“Lông mày nàng đẹp thật, mặt mày sáng sủa.”\nKhi ngươi yếu thế, ai cũng khinh.\n“Mẹ, con về rồi.”\n“Ân, ân công đừng khách sáo.”",
+      "rules": null,
+      "setting": "mixed",
+      "violations": [
+        {
+          "line": 5,
+          "message": "你 phiếm chỉ trong lời kể (khi / nếu ngươi …) → lược chủ ngữ hoặc người ta",
+          "text": "Khi ngươi yếu thế, ai cũng khinh."
         }
       ]
     },

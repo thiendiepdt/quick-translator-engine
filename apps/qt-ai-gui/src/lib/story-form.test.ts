@@ -39,3 +39,13 @@ describe("story-form genre", () => {
     expect(() => storyConfigSchema.parse({ ...base, genre: { setting: "x", names: "han" } })).toThrow();
   });
 });
+
+describe("parseSettingArcs", () => {
+  it("nhận số chương + bối cảnh tiếng Anh hoặc tiếng Việt, bỏ dòng sai", async () => {
+    const { parseSettingArcs } = await import("@/lib/story-form");
+    expect(parseSettingArcs("0843 cổ đại\n0868 modern\nrác\n0900 không rõ")).toEqual([
+      { from: "0843", setting: "ancient" },
+      { from: "0868", setting: "modern" },
+    ]);
+  });
+});

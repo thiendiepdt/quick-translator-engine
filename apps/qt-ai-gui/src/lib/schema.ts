@@ -51,6 +51,8 @@ export const storyConfigSchema = z.object({
     z.object({ source: z.string(), target: z.string(), category: z.string(), chapter: z.string() }),
   ),
   autoGlossary: autoGlossarySchema,
+  /** Bối cảnh đổi theo chương (truyện xuyên qua lại): từ chương `from` dùng `setting`. */
+  settingArcs: z.array(z.object({ from: z.string(), setting: z.enum(GENRE_SETTINGS) })).default([]),
 });
 
 /** `cast.json` — bảng nhân vật (giới tính) + mốc đổi xưng hô; file riêng cạnh story.json. */
@@ -69,6 +71,8 @@ export const castSchema = z.object({
         disputed: z.array(z.string()).optional(),
         /** Đại từ lời kể chốt riêng (lão, bà, Ngài…); trống thì theo giới. */
         narration: z.string().optional(),
+        /** Tên khác của cùng nhân vật trong raw (gõ nhầm, biệt hiệu). */
+        aliases: z.array(z.string()).optional(),
       }),
     )
     .default({}),
@@ -107,7 +111,7 @@ export const glossaryPendingSchema = z.object({
   similarSource: z.string(),
   similarTarget: z.string(),
   similarCategory: z.string(),
-  kind: z.enum(["homophone", "anagram", "dotSegment", "prefix"]),
+  kind: z.enum(["homophone", "anagram", "dotSegment", "prefix", "oldUsage"]),
   sourceCount: z.number(),
   similarCount: z.number(),
 });
@@ -490,6 +494,7 @@ export const libraryRescanSchema = z.object({
   changed: z.array(z.object({ root: z.string(), name: z.string().nullable(), added: z.number(), removed: z.number() })),
   skippedRunning: z.array(z.string()),
   failed: z.array(z.string()),
+  duplicates: z.array(z.string()).default([]),
   stories: z.array(recentSummarySchema),
 });
 

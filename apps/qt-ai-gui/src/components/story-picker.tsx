@@ -287,6 +287,12 @@ export function StoryPicker() {
         result.skippedRunning.length > 0 ? `bỏ qua ${result.skippedRunning.length} truyện đang dịch` : "",
       ].filter(Boolean);
       toast.message(`Quét thư viện: ${parts.join("; ")}`);
+      const duplicates = result.duplicates ?? [];
+      if (duplicates.length > 0) {
+        toast.warning(
+          `Raw trùng nội dung (tải lại chương đó): ${duplicates.slice(0, 3).join("; ")}${duplicates.length > 3 ? "…" : ""}`,
+        );
+      }
       if (result.failed.length > 0) {
         toast.error(
           `Không quét được ${result.failed.length} truyện: ${result.failed.slice(0, 3).join("; ")}${result.failed.length > 3 ? "…" : ""}`,

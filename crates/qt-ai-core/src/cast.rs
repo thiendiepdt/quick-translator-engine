@@ -71,6 +71,10 @@ pub struct Character {
     /// Đại từ lời kể người dùng chốt riêng (`lão`, `bà`, `Ngài`…); rỗng thì theo giới.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub narration: String,
+    /// Tên khác của cùng nhân vật trong raw (tác giả gõ nhầm 朱微娖, biệt hiệu…): raw có bí danh thì nhân vật tính
+    /// là có mặt — cặp xưng hô và mốc của tên chính áp luôn.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub aliases: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -308,13 +312,41 @@ pub fn effective_addressing(base: &StringMap, cast: &Cast, chapter_id: &str) -> 
     .collect()
 }
 
-/// Chỉ giữ cặp mà CẢ HAI bên có mặt trong chương (tên đầy đủ hoặc dạng bỏ họ).
+/// Raw cho việc xét có mặt: bí danh có trong raw thì nối thêm tên chính (chỉ dùng để xét có mặt, không đưa vào
+/// prompt). Trả kèm các cặp (bí danh, tên chính) có bí danh trong chương.
+pub fn with_aliases(source: &str, cast: &Cast) -> (String, Vec<(String, String)>) {
+    let mut text = source.to_string();
+    let mut notes = Vec::new();
+    for (name, character) in &cast.characters {
+        for alias in character.aliases.iter().map(|alias| alias.trim()).filter(|alias| !alias.is_empty()) {
+            if source.contains(alias) {
+                notes.push((alias.to_string(), name.clone()));
+                if !source.contains(name.as_str()) && !text.ends_with(name.as_str()) {
+                    text.push('\n');
+                    text.push_str(name);
+                }
+            }
+        }
+    }
+    (text, notes)
+}
+
+/// Chỉ giữ cặp mà CẢ HAI bên có mặt trong chương (tên đầy đủ hoặc dạng bỏ họ). Một bên chỉ xuất hiện bên trong tên
+/// dài hơn của cặp khác (安然 trong 安然郡主) thì không tính — chương có 安然郡主 không nạp thêm cặp của 安然.
 pub fn chapter_addressing(pairs: &StringMap, source: &str) -> StringMap {
+    let all_sides: Vec<&str> = pairs.keys().flat_map(|key| addressing_sides(key)).collect();
+    let present = |side: &str| {
+        let mut masked = source.to_string();
+        for longer in all_sides.iter().filter(|other| other.len() > side.len() && other.contains(side)) {
+            masked = masked.replace(*longer, "\u{3000}");
+        }
+        glossary_entry_matches_source(side, &masked)
+    };
     pairs
         .iter()
         .filter(|(key, _)| {
             let sides = addressing_sides(key);
-            sides.len() == 2 && sides.iter().all(|side| glossary_entry_matches_source(side, source))
+            sides.len() == 2 && sides.iter().all(|side| present(side))
         })
         .map(|(key, target)| (key.clone(), target.clone()))
         .collect()
@@ -449,7 +481,7 @@ fn addressing_rules(setting: GenreSetting) -> String {
 /// Dấu hiệu quan hệ thân mật trong raw — đủ đặc hiệu để không bật vì từ thường (không lấy 孩子, 吻 trần).
 const INTIMACY_MARKERS: &[&str] = &[
     "结婚", "订婚", "求婚", "领证", "嫁给", "老公", "老婆", "男朋友", "女朋友", "男友", "女友", "未婚夫", "未婚妻", "接吻",
-    "亲吻", "恋人", "情侣", "夫妻", "我爱你", "我喜欢你", "表白", "约会", "成亲", "洞房", "夫君", "娘子", "相公", "道侣",
+    "亲吻", "恋人", "情侣", "夫妻", "我爱你", "我喜欢你", "表白", "约会", "成亲", "洞房", "夫君", "娘子", "相公", "道侣", "娶",
 ];
 
 /// Dấu hiệu quan hệ mới theo SỰ KIỆN (bái sư, nhận chủ, kết nghĩa, nhận thân). Không lấy danh xưng chung
@@ -590,13 +622,79 @@ fn is_modern_pair(target: &str) -> bool {
         || (other_lower == "cậu" && own_lower != "cháu")
 }
 
-/// Cặp không được học theo bối cảnh: hỗn hợp tự xưng `ta` mọi cảnh (bỏ `tôi–…`), cổ đại bỏ mọi cặp kiểu hiện đại.
+/// Bề trên mà bề dưới không được xưng `ta`: cặp `ta–sư phụ`, `ta–phụ thân`, `ta–chủ nhân`… là học sai vai vế
+/// (thư viện: 23 cặp / 8 truyện cổ đại; prompt dạy đệ tử / con / nô tỳ / thuộc hạ).
+const SUPERIOR_TITLES: &[&str] =
+    &["sư phụ", "sư tôn", "sư thúc", "sư bá", "lão sư", "giáo sư", "chủ nhân", "phụ thân", "mẫu thân", "cha", "nương"];
+
+fn rank_mismatch(target: &str) -> bool {
+    normalize_pair(target)
+        .is_some_and(|(own, other)| own.to_lowercase() == "ta" && SUPERIOR_TITLES.contains(&other.to_lowercase().as_str()))
+}
+
+/// Cặp không được học theo bối cảnh: hỗn hợp tự xưng `ta` mọi cảnh (bỏ `tôi–…`), cổ đại bỏ mọi cặp kiểu hiện đại;
+/// cả hai bỏ cặp tự xưng `ta` với bề trên.
 fn pair_blocked(setting: GenreSetting, target: &str) -> bool {
     match setting {
-        GenreSetting::Mixed => self_is_toi(target),
-        GenreSetting::Ancient => is_modern_pair(target),
+        GenreSetting::Mixed => self_is_toi(target) || rank_mismatch(target),
+        GenreSetting::Ancient => is_modern_pair(target) || rank_mismatch(target),
         GenreSetting::Modern => false,
     }
+}
+
+/// Danh xưng tự xưng riêng ↔ chữ Hán trong raw. Cặp `lão nương–ngươi` chỉ đúng ở câu raw có 老娘; học vào rồi in
+/// cho mọi chương thì model biến mọi 我 thành lão nương (cam-nang: 14 đoạn / 6 chương thêm lão nương khi raw là 我).
+pub const SELF_TITLES: &[(&str, &str)] = &[
+    ("lão nương", "老娘"),
+    ("bần đạo", "贫道"),
+    ("bần tăng", "贫僧"),
+    ("bần ni", "贫尼"),
+    ("bổn tọa", "本座"),
+    ("bổn cung", "本宫"),
+    ("bổn vương", "本王"),
+    ("bổn quan", "本官"),
+    ("thiếp thân", "妾身"),
+    ("thiếp", "妾"),
+    ("nô gia", "奴家"),
+    ("lão phu", "老夫"),
+    ("lão thân", "老身"),
+    ("lão tử", "老子"),
+    ("trẫm", "朕"),
+    ("ai gia", "哀家"),
+];
+
+/// Chữ Hán của danh xưng tự xưng riêng ở vế đầu cặp (`lão nương–ngươi` → 老娘).
+pub fn self_title_han(target: &str) -> Option<&'static str> {
+    let (own, _) = normalize_pair(target)?;
+    let own = own.to_lowercase();
+    SELF_TITLES.iter().find(|(viet, _)| *viet == own).map(|(_, han)| *han)
+}
+
+/// Cặp tự xưng bằng danh xưng riêng mà raw chương không có chữ đó: chỉ là cách nói của một câu, không học.
+pub fn title_unbacked(target: &str, raw: &str) -> bool {
+    self_title_han(target).is_some_and(|han| !raw.contains(han))
+}
+
+/// Bỏ cặp xưng hô mới có danh xưng riêng mà raw chương không có chữ đó (xem `title_unbacked`).
+pub fn drop_unbacked_titles(pairs: Vec<crate::glossary::ExtractedPair>, raw: &str) -> Vec<crate::glossary::ExtractedPair> {
+    pairs.into_iter().filter(|pair| pair.category != "addressing" || !title_unbacked(&pair.target, raw)).collect()
+}
+
+/// Cặp ghim (người dùng chốt) không được xét lại tự động. Chương có dấu hiệu quan hệ đổi (cưới, tỏ tình, bái sư…)
+/// thì nhắc ở log để người dùng tự thêm mốc nếu cần.
+pub fn pinned_relation_notes(pairs: &StringMap, cast: &Cast, source: &str) -> Vec<String> {
+    let markers: Vec<&str> =
+        INTIMACY_MARKERS.iter().chain(RELATION_MARKERS).filter(|marker| source.contains(**marker)).take(3).copied().collect();
+    if markers.is_empty() {
+        return vec![];
+    }
+    pairs
+        .iter()
+        .filter(|(key, _)| cast.addressing.get(*key).is_some_and(|timeline| timeline.pinned))
+        .map(|(key, target)| {
+            format!("cặp ghim {key} “{target}”, chương có {} — quan hệ đổi thì thêm mốc ở tab Nhân vật", markers.join(", "))
+        })
+        .collect()
 }
 
 /// Truyện hỗn hợp tự xưng `ta` mọi cảnh: cặp có mặt trong chương mà còn tự xưng `tôi` (học trước khi đổi luật)
@@ -682,9 +780,12 @@ pub fn chapter_addressing_section(
     if !keep.is_empty() {
         let list: Vec<String> = keep
             .iter()
-            .map(|(key, target)| match since.get(key) {
-                Some(from) => format!("- {key}: {target} (chốt từ ch.{})", chapter_label(from)),
-                None => format!("- {key}: {target}"),
+            .map(|(key, target)| {
+                let scope = self_title_han(target).map(|han| format!(" (danh xưng riêng: chỉ ở câu raw có {han})")).unwrap_or_default();
+                match since.get(key) {
+                    Some(from) => format!("- {key}: {target}{scope} (chốt từ ch.{})", chapter_label(from)),
+                    None => format!("- {key}: {target}{scope}"),
+                }
             })
             .collect();
         section.push_str(&format!(
@@ -1028,7 +1129,7 @@ pub fn apply_address_changes(
             continue;
         };
         let target = pair_text(&target);
-        if pair_blocked(setting, &target) {
+        if pair_blocked(setting, &target) || title_unbacked(&target, raw) {
             continue;
         }
         if !base.contains_key(&key) && !cast.addressing.contains_key(&key) {
@@ -1053,7 +1154,22 @@ pub fn apply_address_changes(
         }
         let current = history.last().cloned().unwrap_or_default();
         let previous = history.len().checked_sub(2).map(|index| history[index].clone());
-        if target == current || previous.as_deref() == Some(target.as_str()) {
+        // Chặn lật qua lại giữa hai giá trị trong vài chương; mốc hiện tại đã đứng ≥3 chương thì cho quay về giá trị
+        // cũ (than-dieu: mốc 0246 "lão phu–ngươi" không quay lại "thiếu hiệp" được nữa).
+        let last_from = cast.addressing.get(&key).and_then(|timeline| {
+            timeline
+                .changes
+                .iter()
+                .filter(|change| natural_chapter_compare(&change.from, chapter_id) == Ordering::Less)
+                .map(|change| change.from.clone())
+                .max_by(|a, b| natural_chapter_compare(a, b))
+        });
+        let settled = last_from
+            .as_deref()
+            .and_then(chapter_number)
+            .zip(chapter_number(chapter_id))
+            .is_some_and(|(since, now)| now >= since + 3);
+        if target == current || (previous.as_deref() == Some(target.as_str()) && !settled) {
             continue;
         }
         let timeline = cast.addressing.entry(key.clone()).or_default();
@@ -1068,6 +1184,12 @@ pub fn apply_address_changes(
         notes.push(format!("đổi xưng hô {key}: {current} → {target} ({})", text("note")));
     }
     notes
+}
+
+/// Số chương đầu tiên trong id (`0246-第246章` → 246, `chuong-0012` → 12).
+fn chapter_number(id: &str) -> Option<u64> {
+    let digits: String = id.chars().skip_while(|c| !c.is_ascii_digit()).take_while(char::is_ascii_digit).collect();
+    digits.parse().ok()
 }
 
 // ---- Bề mặt cho GUI ----

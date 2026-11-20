@@ -58,6 +58,30 @@ fn aligned(paths: &StoryPaths, id: &str, out: &Path) -> Result<Option<Aligned>> 
     Ok((content.len() == raw.len()).then_some((raw, lines, content)))
 }
 
+/// Nhiều mục một lượt đọc chương: với mỗi (khoá, cách dịch) trả (số đoạn raw có khoá, số đoạn đó thiếu cách dịch).
+/// Dùng lúc chốt chương để nhắc mục mới trái cách dịch ở chương cũ (梅家 thêm ở ch42 thành "Mai gia" trong khi 40
+/// chương trước dịch "nhà họ Mai").
+pub fn scan_keys_usage(paths: &StoryPaths, keys: &[(&str, &str)]) -> Result<Vec<(usize, usize)>> {
+    let mut counts = vec![(0, 0); keys.len()];
+    if keys.is_empty() {
+        return Ok(counts);
+    }
+    for (id, out) in translated_chapters(paths) {
+        let Some((raw, lines, content)) = aligned(paths, &id, &out)? else { continue };
+        for (source, &line) in raw.iter().zip(&content) {
+            for (index, (key, target)) in keys.iter().enumerate() {
+                if source.contains(key) {
+                    counts[index].0 += 1;
+                    if !lines[line].contains(target) {
+                        counts[index].1 += 1;
+                    }
+                }
+            }
+        }
+    }
+    Ok(counts)
+}
+
 /// Đoạn raw có `key` mà bản dịch cùng đoạn không chứa `target`.
 pub fn scan_glossary_usage(paths: &StoryPaths, key: &str, target: &str) -> Result<UsageScan> {
     let mut scan = UsageScan::default();

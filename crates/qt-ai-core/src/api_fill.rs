@@ -70,6 +70,9 @@ tên, nhân vật hay tóm tắt. Trả về đúng một JSON theo mẫu:\n\
   }}\n\
 }}\n\
 Glossary chỉ seed tên riêng thật sự xuất hiện trong các chương (source chữ Hán, target Hán-Việt hoặc dạng gốc). \
+Tên người, địa danh Trung Quốc dùng Hán-Việt; ID tuyển thủ, tên người Hàn / Nhật / phương Tây giữ dạng gốc (GimGoon, Lee Ji-hoon, Inuyama Ga), \
+không phiên Hán-Việt. Biệt danh, meme, tên nước lóng (大毛 → Nga, 阿三 → Ấn Độ) và danh xưng (沈父 → cha họ Thẩm, 兰姑 → cô Lan) \
+dịch nghĩa, viết thường nếu không phải tên riêng — KHÔNG phiên Hán-Việt viết hoa. \
 Nhóm common chỉ cho thuật ngữ riêng của thế giới truyện lặp lại nhiều chương (cảnh giới, hệ thống, tổ chức, chức vị môn phái); \
 KHÔNG seed từ đời thường, phong tục, giấy tờ, nghề nghiệp, thân phận đã có cách nói tiếng Việt quen (入赘 là ở rể, 束脩, 寡妇, 里正) — \
 để lượt dịch dịch tự nhiên theo ngữ cảnh. Nhóm addressing chỉ ghi cặp \"甲→乙\" giữa hai tên nhân vật (target \"X–Y\"), không chắc thì để rỗng. \

@@ -31,6 +31,8 @@ export const storyFormSchema = z.object({
   }),
   checkRules: z.array(ruleSchema),
   autoGlossary: z.enum(["inherit", "on", "off"]),
+  /** Mỗi dòng `0843 ancient` (hoặc `0843 cổ đại`): từ chương 0843 dùng bối cảnh đó. */
+  settingArcs: z.string(),
 });
 
 export type StoryFormValues = z.infer<typeof storyFormSchema>;
@@ -109,7 +111,26 @@ export function toFormValues(config: StoryConfig): StoryFormValues {
       message: rule.message,
     })),
     autoGlossary: config.autoGlossary,
+    settingArcs: lines((config.settingArcs ?? []).map((arc) => `${arc.from} ${arc.setting}`)),
   };
+}
+
+const SETTING_WORDS: Record<string, StoryConfig["genre"]["setting"]> = {
+  ancient: "ancient",
+  "cổ đại": "ancient",
+  modern: "modern",
+  "hiện đại": "modern",
+  mixed: "mixed",
+  "hỗn hợp": "mixed",
+};
+
+/** `0843 ancient` / `0843 cổ đại` mỗi dòng → mốc bối cảnh; dòng sai bỏ qua. */
+export function parseSettingArcs(text: string): StoryConfig["settingArcs"] {
+  return fromLines(text).flatMap((line) => {
+    const match = /^(\S+)\s+(.+)$/u.exec(line.trim());
+    const setting = match ? SETTING_WORDS[match[2].trim().toLowerCase()] : undefined;
+    return match && setting ? [{ from: match[1], setting }] : [];
+  });
 }
 
 /** Form → config. `autoGlossaryLog` không sửa trên form; snapshot không mang nhật ký (rỗng), Rust giữ bản trên đĩa khi lưu. */
@@ -137,6 +158,7 @@ export function fromFormValues(values: StoryFormValues, base: StoryConfig): Stor
       })),
     autoGlossaryLog: base.autoGlossaryLog,
     autoGlossary: values.autoGlossary,
+    settingArcs: parseSettingArcs(values.settingArcs),
   };
 }
 
@@ -173,6 +195,7 @@ export function diffStoryConfig(before: StoryConfig, after: StoryConfig): DiffLi
     ["protagonist", before.protagonist, after.protagonist],
     ["summary", before.summary, after.summary],
     ["genre", before.genre, after.genre],
+    ["settingArcs", before.settingArcs, after.settingArcs],
     ["customPrompt", before.customPrompt, after.customPrompt],
     ["style.voice", before.style.voice, after.style.voice],
     ["style.toneRules", before.style.toneRules, after.style.toneRules],

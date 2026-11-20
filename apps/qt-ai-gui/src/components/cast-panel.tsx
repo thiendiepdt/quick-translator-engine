@@ -77,7 +77,7 @@ export function CastPanel({ root, names, addressing, chapterIds, running, onStor
       const characters = { ...current.characters };
       if (value === "male" || value === "female" || value === "swap") {
         characters[han] = { ...characters[han], gender: value satisfies Gender, source: "user" };
-      } else if (characters[han]?.narration) {
+      } else if (characters[han]?.narration || characters[han]?.aliases?.length) {
         const { gender: _gender, ...rest } = characters[han];
         characters[han] = { ...rest, source: "user" };
       } else {
@@ -94,7 +94,25 @@ export function CastPanel({ root, names, addressing, chapterIds, running, onStor
       const { narration: _narration, ...rest } = characters[han] ?? { source: "user" as const };
       if (value.trim()) {
         characters[han] = { ...rest, narration: value, source: "user" };
-      } else if (rest.gender) {
+      } else if (rest.gender || rest.aliases?.length) {
+        characters[han] = rest;
+      } else {
+        delete characters[han];
+      }
+      return { ...current, characters };
+    });
+  }
+
+  /** Bí danh nhập cách nhau bởi dấu phẩy / 、; rỗng thì bỏ trường. */
+  function setAliases(han: string, value: string) {
+    setDraft((current) => {
+      if (!current) return current;
+      const characters = { ...current.characters };
+      const { aliases: _aliases, ...rest } = characters[han] ?? { source: "user" as const };
+      const aliases = value.split(/[,，、]/u).map((alias) => alias.trim()).filter(Boolean);
+      if (aliases.length > 0) {
+        characters[han] = { ...rest, aliases, source: "user" };
+      } else if (rest.gender || rest.narration) {
         characters[han] = rest;
       } else {
         delete characters[han];
@@ -215,7 +233,7 @@ export function CastPanel({ root, names, addressing, chapterIds, running, onStor
           {rows.slice(0, limit).map(([han, viet]) => {
             const character = draft.characters[han];
             return (
-              <li key={han} className="grid grid-cols-[1fr_1fr_auto_7rem_1.5rem] items-center gap-2">
+              <li key={han} className="grid grid-cols-[1fr_1fr_auto_7rem_7rem_1.5rem] items-center gap-2">
                 <span className="font-mono text-sm">{han}</span>
                 <span className="truncate text-sm">{viet}</span>
                 <select
@@ -234,6 +252,14 @@ export function CastPanel({ root, names, addressing, chapterIds, running, onStor
                   value={character?.narration ?? ""}
                   onChange={(e) => setNarration(han, e.target.value)}
                   placeholder="theo giới"
+                  className="h-8 text-sm"
+                />
+                <Input
+                  aria-label={`Bí danh ${han}`}
+                  defaultValue={(character?.aliases ?? []).join(", ")}
+                  onBlur={(e) => setAliases(han, e.target.value)}
+                  placeholder="bí danh"
+                  title="Tên khác của cùng người trong raw (gõ nhầm, biệt hiệu), cách nhau bởi dấu phẩy"
                   className="h-8 text-sm"
                 />
                 {character?.disputed?.length ? (

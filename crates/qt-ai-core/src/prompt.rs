@@ -102,6 +102,10 @@ pub fn glossary_entry_matches_source(source: &str, text: &str) -> bool {
     if sides.len() > 1 {
         return sides.iter().any(|side| glossary_entry_matches_source(side, text));
     }
+    // Tên có `·` (曼斯·龙德施泰特): raw hay chỉ viết một đoạn tên — đoạn ≥2 chữ có trong raw là chạm tới.
+    if source.contains('·') {
+        return source.split('·').any(|part| part.chars().count() >= 2 && text.contains(part));
+    }
     if !HAN_PERSON_NAME.is_match(source) {
         return false;
     }
@@ -213,11 +217,29 @@ pub fn build_chapter_prompt(
 ) -> String {
     let mut merged = merge_story_glossary(workspace, Some(story));
     let empty = StringMap::new();
+    // Bí danh trong bảng nhân vật: raw có 朱微娖 thì 朱媺娖 tính là có mặt (cặp, mốc, giới áp luôn).
+    let (presence, alias_notes) = crate::cast::with_aliases(source_text, cast);
     let pairs = crate::cast::chapter_addressing(
         &crate::cast::effective_addressing(merged.get("addressing").unwrap_or(&empty), cast, chapter_id),
-        source_text,
+        &presence,
     );
-    let present = crate::cast::present_characters(merged.get("names").unwrap_or(&empty), cast, source_text);
+    let present = crate::cast::present_characters(merged.get("names").unwrap_or(&empty), cast, &presence);
+    let alias_section = if alias_notes.is_empty() {
+        String::new()
+    } else {
+        let names = merged.get("names").unwrap_or(&empty);
+        let notes: Vec<String> = alias_notes
+            .iter()
+            .map(|(alias, name)| match names.get(name).map(|viet| viet.trim()).filter(|viet| !viet.is_empty()) {
+                Some(viet) => format!("{alias} = {name} ({viet})"),
+                None => format!("{alias} = {name}"),
+            })
+            .collect();
+        format!(
+            "\nBí danh trong chương (cùng một người — dịch theo tên chính, dùng đúng cặp xưng hô của người đó): {}\n",
+            notes.join("; ")
+        )
+    };
     let setting = story.genre.setting;
     // Hỗn hợp: cặp còn tự xưng `tôi` xét trước — khối thân mật/quan hệ mới có nhánh "giữ cặp cũ" sẽ giữ luôn `tôi`.
     let legacy = crate::cast::legacy_self_pairs(&pairs, cast, setting, &[]);
@@ -248,7 +270,7 @@ pub fn build_chapter_prompt(
     let fixed = build_system_prompt(&TranslationGlossary::new(), Some(&bare), Some(source_text));
     let fixed = fixed.strip_suffix(prompt_suffix()).unwrap_or(&fixed);
     format!(
-        "{fixed}{}{glossary_section}{idiom_section}{}{}",
+        "{fixed}{}{glossary_section}{idiom_section}{}{alias_section}{}",
         crate::cast::addressing_rules_section(setting),
         crate::cast::chapter_addressing_section(&present, &pairs, &since, &reviews, setting, chapter_id),
         prompt_suffix()

@@ -29,6 +29,16 @@
       "source": "不出现",
       "text": "赵静文抬头看向远方的高塔。\n\n她沉默了很久没有说话。",
       "result": false
+    },
+    {
+      "source": "曼斯·龙德施泰特",
+      "text": "曼斯笑了",
+      "result": true
+    },
+    {
+      "source": "曼斯·龙德施泰特",
+      "text": "斯笑了",
+      "result": false
     }
   ],
   "filter": [
@@ -307,6 +317,25 @@
         {
           "source": "东溟夫人",
           "target": "Đông Minh phu nhân",
+          "category": "names"
+        }
+      ]
+    },
+    {
+      "entries": [
+        {
+          "source": "雅拉",
+          "target": "Nhã Lạp",
+          "category": "names"
+        }
+      ],
+      "raw": "雅拉（Yalla·יאללה）来了。",
+      "translation": "Nhã Lạp tới rồi.",
+      "existingKeys": [],
+      "result": [
+        {
+          "source": "雅拉",
+          "target": "Yalla",
           "category": "names"
         }
       ]

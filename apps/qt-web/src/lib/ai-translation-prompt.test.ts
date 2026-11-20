@@ -168,7 +168,7 @@ describe("composeBasePrompt", () => {
   });
 
   it("cổ đại: 我们 → chúng ta/bọn ta kể cả khi không gộp người nghe, cấm chúng tôi; hỗn hợp có ở cảnh cổ đại", () => {
-    const row = "| 我们        | **chúng ta** / **bọn ta** — kể cả khi người nói không gộp người nghe (tiểu nhị nói với khách `我们这` → `chỗ chúng ta`) | chúng tôi, bọn tôi |";
+    const row = "| 我们        | **chúng ta** / **bọn ta** — kể cả khi người nói không gộp người nghe (tiểu nhị nói với khách `我们这` → `chỗ chúng ta`); bề dưới nói với bề trên → `bọn tại hạ` / `chúng tiểu nhân` / `bọn thuộc hạ` | chúng tôi, bọn tôi |";
     for (const setting of ["ancient", "mixed"] as const) {
       expect(composeBasePrompt({ setting, names: "han", tone: "neutral" })).toContain(row);
     }

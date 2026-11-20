@@ -136,7 +136,8 @@ fn check_chapter(root: &Path, id: &str, record: bool) -> Result<CheckResult> {
         .get(id)
         .cloned()
         .ok_or_else(|| CoreError::StoryNotFound(format!("Không có chương {id} trong state.json.")))?;
-    let story = load_story_config(&paths)?;
+    // Bối cảnh của chính chương này (settingArcs): check chạy luật của cảnh đó.
+    let story = load_story_config(&paths)?.for_chapter(id);
     let Draft { paragraphs, parsed, final_text } = assemble_draft(root, id)?;
 
     let missing: Vec<usize> =
@@ -191,6 +192,18 @@ fn check_chapter(root: &Path, id: &str, record: bool) -> Result<CheckResult> {
     }
     let base_glossary = base.glossary(story.genre.setting);
     let glossary = crate::prompt::merge_story_glossary(&base_glossary, Some(&story));
+    // Thuật ngữ common đã chốt mà đoạn dịch không dùng: cảnh báo một lần cho mỗi khoá, kèm số đoạn.
+    let mut term_misses: indexmap::IndexMap<String, (usize, String, usize)> = indexmap::IndexMap::new();
+    for (paragraph, key, target) in crate::check::common_term_misses(&paragraphs, &parsed, &glossary) {
+        term_misses.entry(key).or_insert((paragraph, target, 0)).2 += 1;
+    }
+    for (key, (paragraph, target, count)) in term_misses {
+        let more = if count > 1 { format!(" ({count} đoạn)") } else { String::new() };
+        advisories.push(format!(
+            "[[{}]] thuật ngữ {key} đã chốt là \"{target}\" nhưng bản dịch không dùng{more} — dịch khác thì sửa theo bảng, hoặc sửa mục trong từ điển nếu cách mới đúng hơn",
+            paragraph + 1
+        ));
+    }
     // Tên lệch dấu so với glossary (Đoạn Phong ↔ Đoàn Phong) không tính là vi phạm: accept tự sửa theo glossary.
     // Tên viết gần đúng nhưng sai hơn dấu (Mao Thiên Dực ↔ Mao Thiên Dịch) thì soát, bắt buộc sửa.
     violations.extend(glossary_near_misses(&paragraphs, &parsed, &glossary).into_iter().map(|miss| {

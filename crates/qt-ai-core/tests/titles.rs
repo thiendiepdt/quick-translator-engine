@@ -160,3 +160,10 @@ fn khao_sat_va_chuan_hoa_truyen_da_dich_theo_da_so_hoac_ban_nguoi_dung_chot() {
     translate(root, "0006", "Chương 6: Tiểu cung nữ pháo hôi Thanh cung 2");
     assert_eq!(title_of(&paths, "0006"), "Chương 6: Cung nữ pháo hôi Thanh cung 2");
 }
+
+#[test]
+fn tieu_de_so_kem_nga_va_loi_xin_phieu() {
+    assert_eq!(tidy_chapter_title("42~ Mở lòng"), "Chương 42: Mở lòng");
+    assert_eq!(tidy_chapter_title("Chương 27: Trận đầu (Thứ Hai cầu phiếu)"), "Chương 27: Trận đầu");
+    assert_eq!(tidy_chapter_title("Chương 5: Gặp lại (5200 chữ)"), "Chương 5: Gặp lại");
+}

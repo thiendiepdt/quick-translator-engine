@@ -70,6 +70,12 @@ pub const DEFAULT_RULES: &[(&str, &str, &str, Option<&str>)] = &[
     (r"(?<!\p{L})(?:cậu|cô) (?:bé|nhóc)(?!\p{L})", "iu", "男孩 / 女孩 / 小姑娘 trong bối cảnh cổ → thằng bé / con bé / tiểu cô nương (raw có 一个: một đứa bé trai / gái), không cậu bé / cô bé", Some("ancient")),
     (r"(?<!\p{L})(?:nam|nữ) hài(?!\p{L})", "iu", "男孩子 / 女孩子 chỉ giới → con trai / con gái; 男孩 / 女孩 → thằng bé / con bé; không nam hài / nữ hài", Some("ancient")),
     (r"\banh ấy\b|\banh ta\b|\bcô ấy\b|\bchị ấy\b|\bcậu ta\b|\bcậu ấy\b", "i", "Đại từ sai → dùng hắn/nàng", Some("ancient")),
+    // Vai vế chặt (sư phụ / phụ thân / chủ nhân / lão sư) là lỗi cứng; mày / tao trong thoại cổ đại; 你 phiếm chỉ trong lời kể.
+    (r#"[“"](?:Sư phụ|Sư tôn|Phụ thân|Mẫu thân|Chủ nhân|Lão sư)[,!.…][^”"]{0,160}(?<!\p{L})(?:các )?ngươi(?!\p{L})"#, "iu", "Gọi sư phụ / phụ thân / chủ nhân mà xưng ngươi → ngài / người hoặc danh xưng (mục Vai vế trong thoại)", Some("ancient")),
+    (r#"[“"](?:Sư phụ|Sư tôn|Phụ thân|Mẫu thân|Chủ nhân|Lão sư)[,!.…][^”"]{0,160}(?<!chúng )(?<!bọn )(?<!người )(?<!\p{L})ta(?!\p{L})"#, "iu", "Gọi sư phụ / phụ thân / chủ nhân mà tự xưng ta → đệ tử / con / nô tỳ / thuộc hạ (mục Vai vế trong thoại)", Some("ancient")),
+    (r#"[“"][^”"]*(?<!\p{L})(?<!lông )(?<!mặt )(?<!chân )(?:mày|tao|chúng mày)(?!\p{L})(?! (?:mò|râu|nhã|nhân|khách|đàn|ngộ|loạn|động)(?!\p{L}))"#, "iu", "Cổ đại không xưng mày / tao trong thoại → ngươi / ta (chửi thì ngươi / lão tử)", Some("ancient")),
+    (r#"^(?![【\[])[^“”"]*(?<!\p{L})(?:khi|lúc|nếu|dù|chỉ cần|hễ)\s+ngươi(?!\p{L})"#, "iu", "你 phiếm chỉ trong lời kể (khi / nếu ngươi …) → lược chủ ngữ hoặc người ta", Some("ancient")),
+    (r#"^(?![【\[])[^“”"]*(?<!\p{L})(?:khi|lúc|nếu|dù|chỉ cần|hễ)\s+ngươi(?!\p{L})"#, "iu", "你 phiếm chỉ trong lời kể (khi / nếu ngươi …) → lược chủ ngữ hoặc người ta", Some("mixed")),
     (r"(?<!\p{L})(?:ông ta|ông ấy|bà ta|bà ấy)(?!\p{L})", "iu", "ông ta/bà ta cho nhân vật lớn tuổi trong bối cảnh cổ → hắn/lão, nàng/bà", Some("ancient")),
     (r#"(^|[“"']|,\s+)mình(?:\s|[,.!?…])"#, "i", "Dùng mình làm đại từ → ta, hoặc tự xưng theo thân phận (tiểu nhân/nô tỳ/thuộc hạ/đệ tử/con)", Some("ancient")),
     // `tôi` ở mọi chỗ trong ngoặc kép (chúng tôi, nhà tôi giữa câu), đầu đoạn, sau dấu phẩy; bỏ qua danh từ bề tôi/bầy tôi/vua tôi,
@@ -147,12 +153,12 @@ pub const DEFAULT_RULES: &[(&str, &str, &str, Option<&str>)] = &[
 /// Copy `ADVISORY_CHECK_RULES` của qt-web: rule chỉ cảnh báo — không đẩy chương vào vòng soát,
 /// accept ghi vào warnings. Dành cho mẫu hay sai nhưng cũng có lúc đúng (tên riêng trùng chữ…).
 pub const ADVISORY_RULES: &[(&str, &str, &str, Option<&str>)] = &[
-    (r#"(?:^|[“"'(—]|[.!?…]\s+)Ân(?=\s*[,.!?~…])"#, "u", "嗯 → Ừ/Ừm/Ưm/Hả theo bảng Thán từ, không phiên âm Ân", None),
+    (r#"(?:^|[“"'(—]|[.!?…]\s+)Ân(?![,.…\s]*ân (?:công|nhân|tình|huệ))(?=\s*[,.!?~…])"#, "u", "嗯 → Ừ/Ừm/Ưm/Hả theo bảng Thán từ, không phiên âm Ân", None),
     (r#"(?<!\p{L})["“]?[Ââ]n["”]? một tiếng"#, "u", "ân một tiếng → ừm một tiếng", None),
     (r"(?<!\p{L})bản thân (?:hắn|nàng|cô|y|lão|gã|nó)(?!\p{L})", "iu", "自己 → hắn/nàng/cô hoặc lược, không ghép bản thân + đại từ", None),
     (r#"^(?!Chương \d)(?![【『])(?!\[)(?!.*(?:thầm nghĩ|nghĩ thầm|thầm nhủ|nghĩ bụng))(?![^:："“”]{1,40}[:：])[^"“”『』]*(?<!\p{L})tôi(?!\p{L})[^"“”『』]*$"#, "iu", "Người kể ngôi một xưng tôi → ta (truyện kể ngôi ba thì bỏ qua)", Some("modern")),
-    (r#"[“"](?:Thiếu gia|Chủ nhân|Lão gia|Đại nhân|Sư phụ|Sư tôn|Điện hạ|Bệ hạ|Tiền bối|Phụ thân|Mẫu thân|Phụ hoàng|Mẫu hậu)[,!.…][^”"]{0,160}(?<!\p{L})(?:các )?ngươi(?!\p{L})"#, "iu", "Gọi bề trên bằng danh xưng mà xưng ngươi → ngài/người hoặc danh xưng (mục Vai vế trong thoại)", Some("ancient")),
-    (r#"[“"](?:Thiếu gia|Chủ nhân|Lão gia|Đại nhân|Sư phụ|Sư tôn|Điện hạ|Bệ hạ|Tiền bối|Phụ thân|Mẫu thân|Phụ hoàng|Mẫu hậu)[,!.…][^”"]{0,160}(?<!chúng )(?<!bọn )(?<!người )(?<!\p{L})ta(?!\p{L})"#, "iu", "Gọi bề trên bằng danh xưng mà tự xưng ta → tiểu nhân/nô tỳ/thuộc hạ/đệ tử/vãn bối/con (mục Vai vế trong thoại)", Some("ancient")),
+    (r#"[“"](?:Thiếu gia|Lão gia|Đại nhân|Điện hạ|Bệ hạ|Tiền bối|Phụ hoàng|Mẫu hậu|Giáo sư|Chưởng giáo|Sư thúc|Sư bá)[,!.…][^”"]{0,160}(?<!\p{L})(?:các )?ngươi(?!\p{L})"#, "iu", "Gọi bề trên bằng danh xưng mà xưng ngươi → ngài/người hoặc danh xưng (mục Vai vế trong thoại)", Some("ancient")),
+    (r#"[“"](?:Thiếu gia|Lão gia|Đại nhân|Điện hạ|Bệ hạ|Tiền bối|Phụ hoàng|Mẫu hậu|Giáo sư|Chưởng giáo|Sư thúc|Sư bá)[,!.…][^”"]{0,160}(?<!chúng )(?<!bọn )(?<!người )(?<!\p{L})ta(?!\p{L})"#, "iu", "Gọi bề trên bằng danh xưng mà tự xưng ta → tiểu nhân/nô tỳ/thuộc hạ/đệ tử/vãn bối/con (mục Vai vế trong thoại)", Some("ancient")),
     (r"(?<!\p{L})(?:\d[\d.,]*|một|hai|ba|bốn|năm|sáu|bảy|tám|chín|mười|mươi|trăm|nghìn|ngàn|vạn|mấy|vài)\s*ức(?!\p{L})(?!\s+(?:vạn|hiếp))", "iu", "亿 → trăm triệu / tỷ (百亿 = 10 tỷ, 千亿 = 100 tỷ), không viết ức", None),
     (r"(?<!\p{L})(?:\d[\d.,]*|một|hai|ba|bốn|năm|sáu|bảy|tám|chín|mười|mấy|vài)\s*vạn(?!\p{L})(?!\s+(?:tuế|vật|nhất|sự|năng|phần))", "iu", "万 trong truyện hiện đại → nghìn / triệu (20万 = 200 nghìn), không viết vạn", Some("modern")),
     (r#"(?:^|[.!?…]\s+|[“"])Bản thân(?!\s+(?:là|hắn|nàng|cô|y|lão|gã|nó)(?!\p{L}))(?!\p{L})"#, "u", "自己 làm chủ ngữ → hắn/nàng/cô hoặc lược, không mở câu bằng Bản thân", None),
@@ -164,6 +170,7 @@ pub const ADVISORY_RULES: &[(&str, &str, &str, Option<&str>)] = &[
     (r"(?<!\p{L})một loại cảm giác(?!\p{L})", "iu", "一种感觉 → một cảm giác / cảm thấy, không một loại cảm giác", None),
     (r"(?<!\p{L})lộ ra (?:thần sắc|biểu tình|thần tình)(?!\p{L})", "iu", "露出…神色/表情 → lộ vẻ…, không lộ ra thần sắc", None),
     // Quy ước cha / mẹ; không bắt "ba vợ" (trùng số: cưới ba vợ).
+    (r#"[“"‘]\s*Mẹ(?:\s+ơi)?[,!.…?]"#, "u", "娘 gọi thẳng trong thoại cổ đại → Nương (glossary truyện đã chốt mẹ thì giữ)", Some("ancient")),
     (r"(?<!\p{L})bố (?:vợ|chồng|dượng)(?!\p{L})", "iu", "岳父 / 公公 / 继父 → cha vợ / cha chồng / cha dượng (quy ước cha / mẹ), không bố vợ / bố chồng / bố dượng", None),
 ];
 
@@ -243,13 +250,24 @@ pub fn glossary_drifts(raw: &[String], translated: &[Option<String>], glossary: 
         }
         let chars: Vec<char> = text.chars().collect();
         let folded: Vec<char> = chars.iter().copied().map(fold_vietnamese).collect();
+        // Tên viết hoa mọi tiếng: gấp thêm y = i (do-thi: "Bát Tí" 120 lần cạnh "Bát Tý" 248 lần). Một ký tự ra một ký
+        // tự nên vị trí vẫn khớp chuỗi gốc.
+        let fold_y = |c: char| match c {
+            'y' => 'i',
+            'Y' => 'I',
+            other => other,
+        };
+        let folded_y: Vec<char> = folded.iter().copied().map(fold_y).collect();
         for (source, target) in entries.iter().filter(|(source, _)| raw_paragraph.contains(source)) {
             if text.contains(target) {
                 continue;
             }
-            let needle: Vec<char> = target.chars().map(fold_vietnamese).collect();
-            let found = (0..=folded.len().saturating_sub(needle.len()))
-                .filter(|&at| folded.len() >= needle.len() && folded[at..at + needle.len()] == needle[..])
+            let loose = target.split_whitespace().all(|word| word.chars().next().is_some_and(char::is_uppercase));
+            let hay = if loose { &folded_y } else { &folded };
+            let needle: Vec<char> =
+                target.chars().map(fold_vietnamese).map(|c| if loose { fold_y(c) } else { c }).collect();
+            let found = (0..=hay.len().saturating_sub(needle.len()))
+                .filter(|&at| hay.len() >= needle.len() && hay[at..at + needle.len()] == needle[..])
                 .filter(|&at| at == 0 || !chars[at - 1].is_alphanumeric())
                 .filter(|&at| chars.get(at + needle.len()).is_none_or(|c| !c.is_alphanumeric()))
                 .map(|at| chars[at..at + needle.len()].iter().collect::<String>())
@@ -260,6 +278,49 @@ pub fn glossary_drifts(raw: &[String], translated: &[Option<String>], glossary: 
         }
     }
     drifts
+}
+
+/// Mục `common` ≥2 tiếng (thuật ngữ đã chốt) mà đoạn raw có khoá, bản dịch cùng đoạn không có cách dịch (không
+/// phân biệt hoa thường). Chỉ cảnh báo: thuật ngữ có lúc được diễn đạt lại hợp lý. Trả (đoạn, khoá, cách dịch).
+/// Bỏ qua: khoá là từ phổ thông (关系, 后来 — dịch theo câu), bản dịch chỉ lệch dấu (accept tự sửa theo glossary) và
+/// khoá chỉ nằm trong khoá dài hơn của từ điển (主刀 trong 主刀医生 — mục dài có cách dịch riêng). Đo trên 76.023 chương
+/// thật của thư viện: 10,4% chương có ít nhất một cảnh báo, phần lớn là thuật ngữ dịch lệch nhau hoặc mục từ điển sai.
+pub fn common_term_misses(raw: &[String], translated: &[Option<String>], glossary: &crate::story::Glossary) -> Vec<(usize, String, String)> {
+    let Some(common) = glossary.get("common") else { return vec![] };
+    let fold = |text: &str| text.chars().flat_map(char::to_lowercase).map(fold_vietnamese).collect::<String>();
+    let all_keys: Vec<&str> = glossary
+        .iter()
+        .filter(|(group, _)| group.as_str() != "addressing" && group.as_str() != "signature_phrases")
+        .flat_map(|(_, entries)| entries.keys().map(|key| key.trim()))
+        .collect();
+    let entries: Vec<(&str, &str, String, Vec<&str>)> = common
+        .iter()
+        .map(|(key, target)| (key.trim(), target.trim()))
+        .filter(|(key, target)| {
+            han().find_iter(key).count() >= 2
+                && target.split_whitespace().count() >= 2
+                && !crate::term_hints::is_common_word(key)
+        })
+        .map(|(key, target)| {
+            let longer = all_keys.iter().copied().filter(|other| other.len() > key.len() && other.contains(key)).collect();
+            (key, target, fold(target), longer)
+        })
+        .collect();
+    let mut misses = Vec::new();
+    for (index, (source, text)) in raw.iter().zip(translated).enumerate() {
+        let Some(text) = text else { continue };
+        let folded = fold(text);
+        for (key, target, folded_target, longer) in &entries {
+            if !source.contains(key) || folded.contains(folded_target.as_str()) {
+                continue;
+            }
+            let masked = longer.iter().fold(source.clone(), |masked, other| masked.replace(other, "\u{fffc}"));
+            if masked.contains(key) {
+                misses.push((index, key.to_string(), target.to_string()));
+            }
+        }
+    }
+    misses
 }
 
 /// Tiền tố thông báo của lỗi tên theo glossary — soát tách thành mục bắt buộc sửa, không cho giữ nguyên.
@@ -479,6 +540,7 @@ pub const RAW_PAIR_RULES: &[RawPairRule] = &[
     pair("一倍有余", None, r"một lần dư", "一倍有余 → hơn gấp đôi, không một lần dư"),
     pair("何曾", None, r"từng bao giờ", "何曾 → đã bao giờ … đâu, không từng bao giờ"),
     pair("青色", None, r"thanh sắc", "青色 → xanh, không thanh sắc"),
+    RawPairRule { out_flags: "u", ..pair("啧", None, r#"(?:^|[“"'(—]|[.!?…]\s+)Tặc(?=[\s,.!?…])"#, "啧 / 啧啧 → Chậc / Chậc chậc, không Tặc tặc") },
     pair("坊市", None, r"(?<!\p{L})phương thị(?!\p{L})", "坊市 → phường thị, không phương thị"),
     pair("公爹", None, r"(?<!\p{L})công (?:điệp|đa)(?!\p{L})", "公爹 → công công, không công điệp / công đa"),
     pair("公婆", None, r"(?<!\p{L})công bà(?!\p{L})(?! bà(?!\p{L}))", "公婆 → công công bà bà, không công bà"),
@@ -607,6 +669,51 @@ mod tests {
                 "3:有收获 → thu được / tìm được gì, không \"thu hoạch được\"",
                 "4:有别 → hữu biệt / khác biệt, không \"có biệt\"",
             ]
+        );
+    }
+
+    #[test]
+    fn ten_viet_hoa_lech_y_i_van_la_lech_dau() {
+        let mut glossary = crate::story::Glossary::new();
+        glossary.entry("names".into()).or_default().insert("八臂".into(), "Bát Tý".into());
+        glossary.entry("common".into()).or_default().insert("灵石".into(), "linh thạch".into());
+        let raw = vec!["八臂出手了。".to_string(), "灵石不够。".to_string()];
+        let out = vec![Some("Bát Tí ra tay rồi.".to_string()), Some("Linh thach không đủ.".to_string())];
+        let drifts = glossary_drifts(&raw, &out, &glossary);
+        assert_eq!(drifts.len(), 1, "{drifts:?}");
+        assert_eq!((drifts[0].found.as_str(), drifts[0].target.as_str()), ("Bát Tí", "Bát Tý"));
+    }
+
+    #[test]
+    fn thuat_ngu_common_da_chot_ma_ban_dich_khong_dung_thi_canh_bao() {
+        let mut glossary = crate::story::Glossary::new();
+        let common = glossary.entry("common".into()).or_default();
+        common.insert("规培".into(), "đào tạo chuẩn hóa".into());
+        common.insert("主刀".into(), "bác sĩ mổ chính".into());
+        common.insert("面板".into(), "bảng".into());
+        common.insert("关系".into(), "quan hệ".into());
+        glossary.entry("names".into()).or_default().insert("主刀医生王".into(), "bác sĩ Vương".into());
+        let raw = vec![
+            "他还在规培。".to_string(),
+            "规培结束了。".to_string(),
+            "规培的第三年。".to_string(),
+            "主刀医生王来了。".to_string(),
+            "打开面板。".to_string(),
+            "没关系。".to_string(),
+        ];
+        let out = vec![
+            Some("Hắn vẫn đang đào tạo chuẩn hóa.".to_string()),
+            Some("Đợt quy bồi kết thúc rồi.".to_string()),
+            Some("Năm thứ ba đào tạo chuẩn hoá.".to_string()),
+            Some("Bác sĩ Vương tới.".to_string()),
+            Some("Mở giao diện.".to_string()),
+            Some("Không sao.".to_string()),
+        ];
+        // [[2]] viết khác hẳn → báo; [[3]] chỉ lệch dấu (hóa/hoá) → accept lo; [[4]] khoá nằm trong tên dài hơn;
+        // 面板 → "bảng" một tiếng, quá ngắn để so; 关系 là từ phổ thông, dịch theo câu.
+        assert_eq!(
+            common_term_misses(&raw, &out, &glossary),
+            vec![(1, "规培".to_string(), "đào tạo chuẩn hóa".to_string())]
         );
     }
 

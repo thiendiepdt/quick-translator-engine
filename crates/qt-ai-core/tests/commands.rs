@@ -1661,3 +1661,36 @@ fn accept_hoi_khi_ten_moi_nghi_go_nham_ten_cu() {
     assert_eq!((pending[0].source.as_str(), pending[0].similar_source.as_str()), ("萧姹", "萧诧"));
     assert_eq!((pending[0].source_count, pending[0].similar_count), (1, 5));
 }
+
+#[test]
+fn raw_trung_noi_dung_chi_bao_chuong_co_tieu_de() {
+    let dir = make_story_dir(&[
+        ("0001", "第1章 开始\n\n正文一。"),
+        ("0002", "第1章 开始\n\n正文一。"),
+        ("0003", "请假条\n\n今天请假。"),
+        ("0004", "请假条\n\n今天请假。"),
+        ("0005", "第5章 别的\n\n正文五。"),
+    ]);
+    run_init(dir.path(), "qt-ai").unwrap();
+    assert_eq!(qt_ai_core::commands::init::raw_duplicates(dir.path()), vec![("0002".to_string(), "0001".to_string())]);
+}
+
+#[test]
+fn boi_canh_theo_chuong_doi_setting_cho_dung_doan() {
+    use qt_ai_core::story::GenreSetting;
+    let story = StoryConfig::normalize(&serde_json::json!({
+        "name": "t",
+        "genre": { "setting": "modern", "names": "han" },
+        "settingArcs": [
+            { "from": "0868", "setting": "modern" },
+            { "from": "0843", "setting": "ancient" },
+            { "from": "x", "setting": "sai" }
+        ]
+    }));
+    assert_eq!(story.setting_arcs.len(), 2, "mốc sai bị bỏ, còn lại xếp theo chương");
+    assert_eq!(story.for_chapter("0842_123").genre.setting, GenreSetting::Modern);
+    assert_eq!(story.for_chapter("0843_456").genre.setting, GenreSetting::Ancient);
+    assert_eq!(story.for_chapter("chuong-0850").genre.setting, GenreSetting::Ancient);
+    assert_eq!(story.for_chapter("0868").genre.setting, GenreSetting::Modern);
+    assert_eq!(story.genre.setting, GenreSetting::Modern, "hồ sơ gốc không đổi");
+}

@@ -79,6 +79,16 @@ pub fn prompt_table_keys(prompt: &str) -> HashSet<String> {
         .collect()
 }
 
+/// Raw ghi kèm tên gốc Latin ngay sau khoá (`雅拉（Yalla·יאללה）`): target phải là chuỗi Latin đó (bản web: `rawLatinName`).
+fn raw_latin_name(source: &str, raw: &str, target: &str) -> String {
+    static RAW_LATIN: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[（(]\s*([A-Za-z][A-Za-z0-9'\- ]*[A-Za-z0-9])").unwrap());
+    let Some(at) = raw.find(source) else { return target.to_string() };
+    match RAW_LATIN.captures(&raw[at + source.len()..]).and_then(|caps| caps.get(1)) {
+        Some(latin) if !target.contains(latin.as_str()) => latin.as_str().to_string(),
+        _ => target.to_string(),
+    }
+}
+
 /// Model chỉ đề xuất; quyền quyết ở đây: ≥2 chữ Hán, có trong raw, target nguyên văn trong bản dịch,
 /// key chưa tồn tại, không trùng; category lạ rơi về "names".
 pub fn sanitize_extracted(
@@ -127,6 +137,7 @@ pub fn sanitize_extracted(
             continue;
         }
         seen.insert(source.clone());
+        let target = raw_latin_name(&source, raw, &target);
         pairs.push(ExtractedPair { source, target, category });
     }
     pairs

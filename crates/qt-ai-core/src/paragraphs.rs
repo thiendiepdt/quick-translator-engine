@@ -124,6 +124,51 @@ pub fn normalize_punctuation(line: &str) -> String {
     OPENER_BEFORE_DASH.replace_all(&quoted, "$1—").into_owned()
 }
 
+/// Chuẩn hoá tất định theo raw cùng nhãn (thẩm định 11/2026, D-V3), trả số đoạn đã sửa:
+/// - raw có n cụm `……` và không có `…` lẻ hay `...` ASCII, bản dịch có đúng n cụm `...` và không có `......` → 6 chấm
+///   (21% đoạn có dấu lửng bị rút còn 3 chấm dù prompt dặn giữ số chấm);
+/// - đoạn trước kết bằng `.` / `!` / `?` (không phải dấu lửng) mà đoạn này mở bằng chữ thường → viết hoa chữ đầu.
+pub fn normalize_against_raw(raw: &[String], parsed: &mut [Option<String>]) -> usize {
+    static THREE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\.{3,}").unwrap());
+    let mut fixed = 0;
+    let mut previous_end: Option<char> = None;
+    let mut previous_ellipsis = false;
+    for (index, slot) in parsed.iter_mut().enumerate() {
+        let Some(text) = slot.as_mut() else {
+            previous_end = None;
+            continue;
+        };
+        let mut changed = false;
+        if let Some(source) = raw.get(index) {
+            let pairs = source.matches("……").count();
+            let singles = source.matches('…').count() - pairs * 2;
+            let runs: Vec<&str> = THREE.find_iter(text).map(|m| m.as_str()).collect();
+            if pairs > 0 && singles == 0 && !source.contains("...") && runs.len() == pairs && runs.iter().all(|run| run.len() == 3) {
+                *text = THREE.replace_all(text, "......").into_owned();
+                changed = true;
+            }
+        }
+        let sentence_closed = matches!(previous_end, Some('.' | '!' | '?')) && !previous_ellipsis;
+        if sentence_closed {
+            let skip = text.chars().take_while(|c| "“‘(\"'".contains(*c)).count();
+            // Tên kiểu `iPhone`, `eSports` (có chữ hoa giữa từ) giữ nguyên.
+            let first_word: String = text.chars().skip(skip).take_while(|c| c.is_alphanumeric()).collect();
+            let camel = first_word.chars().skip(1).any(char::is_uppercase);
+            if let Some(first) = text.chars().nth(skip).filter(|c| c.is_lowercase() && !camel) {
+                let at: usize = text.chars().take(skip).map(char::len_utf8).sum();
+                let upper: String = first.to_uppercase().collect();
+                text.replace_range(at..at + first.len_utf8(), &upper);
+                changed = true;
+            }
+        }
+        let trimmed = text.trim_end().trim_end_matches(['”', '’', ')', '\"', '\'']);
+        previous_end = trimmed.chars().last();
+        previous_ellipsis = trimmed.ends_with("..");
+        fixed += usize::from(changed);
+    }
+    fixed
+}
+
 /// Port `formatAiTranslation`: gom dòng thành khối, khối cách nhau đúng 1 dòng trống, kết bằng `\n`.
 pub fn format_translation(text: &str) -> String {
     let mut blocks: Vec<Vec<String>> = Vec::new();
@@ -146,5 +191,36 @@ pub fn format_translation(text: &str) -> String {
         String::new()
     } else {
         format!("{output}\n")
+    }
+}
+
+#[cfg(test)]
+mod normalize_tests {
+    use super::normalize_against_raw;
+
+    fn run(raw: &[&str], out: &[&str]) -> Vec<String> {
+        let raw: Vec<String> = raw.iter().map(|s| s.to_string()).collect();
+        let mut parsed: Vec<Option<String>> = out.iter().map(|s| Some(s.to_string())).collect();
+        normalize_against_raw(&raw, &mut parsed);
+        parsed.into_iter().map(Option::unwrap).collect()
+    }
+
+    #[test]
+    fn dau_lung_sau_cham_theo_raw() {
+        assert_eq!(run(&["但是……也能接受了"], &["nhưng mà... cũng chấp nhận được"]), vec!["nhưng mà...... cũng chấp nhận được"]);
+        // Raw có dấu lửng lẻ hoặc số cụm lệch thì để nguyên.
+        assert_eq!(run(&["但是…也能"], &["nhưng mà... cũng"]), vec!["nhưng mà... cũng"]);
+        assert_eq!(run(&["但是……也能……"], &["nhưng mà... cũng"]), vec!["nhưng mà... cũng"]);
+    }
+
+    #[test]
+    fn viet_hoa_dau_doan_sau_cau_da_ket() {
+        let got = run(
+            &["她察觉到了变化。", "连忙起身。", "他说，", "然后走了。", "iPhone响了。"],
+            &["Nàng nhận ra biến hóa.", "vội vàng đứng dậy.", "hắn nói,", "rồi bỏ đi.", "iPhone reo lên."],
+        );
+        assert_eq!(got, vec!["Nàng nhận ra biến hóa.", "Vội vàng đứng dậy.", "Hắn nói,", "rồi bỏ đi.", "iPhone reo lên."]);
+        // Đoạn trước kết bằng dấu lửng: câu chưa hết, giữ chữ thường.
+        assert_eq!(run(&["你也……", "从来没有忘记我。"], &["Chàng cũng......", "chưa từng quên muội."])[1], "chưa từng quên muội.");
     }
 }

@@ -121,6 +121,13 @@ export interface AiStoryConfig {
   autoGlossaryLog: AutoGlossaryEntry[];
   /** Bật/tắt tự thêm tên riêng cho truyện này; "inherit" = theo Cấu hình AI. */
   autoGlossary: StoryAutoGlossarySetting;
+  /** Bối cảnh đổi theo chương (truyện xuyên qua lại): từ chương `from` dùng `setting`. Rỗng = một bối cảnh. */
+  settingArcs?: SettingArc[];
+}
+
+export interface SettingArc {
+  from: string;
+  setting: GenreSetting;
 }
 
 export type StoryAutoGlossarySetting = "inherit" | "on" | "off";
@@ -252,7 +259,21 @@ export function normalizeAiStoryConfig(value: unknown): AiStoryConfig {
       source.autoGlossary === "on" || source.autoGlossary === "off"
         ? source.autoGlossary
         : "inherit",
+    ...settingArcsOf(source.settingArcs),
   };
+}
+
+/** Rỗng thì không có field (story.json cũ giữ nguyên dạng, khớp Rust `skip_serializing_if`). */
+function settingArcsOf(value: unknown): { settingArcs?: SettingArc[] } {
+  const settingArcs = (Array.isArray(value) ? value : [])
+      .flatMap((arc): SettingArc[] => {
+        if (!isRecord(arc)) return [];
+        const from = stringValue(arc.from).trim();
+        const setting = arc.setting;
+        return from && (setting === "ancient" || setting === "modern" || setting === "mixed") ? [{ from, setting }] : [];
+      })
+      .sort((a, b) => a.from.localeCompare(b.from, undefined, { numeric: true }));
+  return settingArcs.length > 0 ? { settingArcs } : {};
 }
 
 function validViolation(value: unknown): value is TranslationViolation {

@@ -164,6 +164,28 @@ fn nhan_ra_nhan_vat_goi_bang_ho_va_chuc_danh_co_trang() {
 }
 
 #[test]
+fn bi_danh_trong_raw_tinh_la_co_mat_nap_cap_va_ghi_cung_nguoi() {
+    let names = [("朱媺娖", "Chu Mỹ Xúc"), ("李定国", "Lý Định Quốc")];
+    let mut cast = cast_with(&[("朱媺娖", Gender::Female), ("李定国", Gender::Male)]);
+    cast.characters.get_mut("朱媺娖").unwrap().aliases = vec!["朱微娖".into(), " ".into()];
+    let story = story("ancient", &names, &[("李定国→朱媺娖", "thần–công chúa")]);
+    // Tác giả gõ nhầm 朱微娖: vẫn là 朱媺娖 — cặp, giới và tên Việt đi theo tên chính.
+    let got = build_chapter_prompt(&TranslationGlossary::new(), &story, &cast, "0001", "李定国看着朱微娖。");
+    assert!(got.contains("朱微娖 = 朱媺娖 (Chu Mỹ Xúc)"), "{got}");
+    assert!(got.contains("李定国→朱媺娖") && got.contains("thần–công chúa"), "{got}");
+    assert!(got.contains("- 朱媺娖 (Chu Mỹ Xúc): nữ"), "{got}");
+    let plain = build_chapter_prompt(&TranslationGlossary::new(), &story, &cast, "0001", "李定国走了。");
+    assert!(!plain.contains("Bí danh trong chương") && !plain.contains("李定国→朱媺娖"), "{plain}");
+
+    let (presence, notes) = with_aliases("朱媺娖和朱微娖", &cast);
+    assert_eq!(presence, "朱媺娖和朱微娖", "tên chính đã có thì không nối thêm");
+    assert_eq!(notes, vec![("朱微娖".to_string(), "朱媺娖".to_string())]);
+    // Round trip: bí danh rỗng thì không ghi trường.
+    let json = serde_json::to_string(&Character { gender: Some(Gender::Male), ..Character::default() }).unwrap();
+    assert!(!json.contains("aliases"), "{json}");
+}
+
+#[test]
 fn chapter_prompt_khong_cast_khong_tu_dien_thi_chi_them_luat_xung_ho_truoc_suffix() {
     let story = story("modern", &[], &[]);
     let source = "许浪醒了。";
@@ -801,4 +823,56 @@ fn cap_xung_ho_chi_ap_cho_dai_tu_thuong() {
     assert!(section.contains("chỉ dùng ở câu raw có đúng chữ đó"));
     assert!(section.contains("tự xưng `ta` (hoặc theo vai vế)"));
     assert!(section.contains("không thay mọi 你 bằng tên"));
+}
+
+#[test]
+fn co_dai_khong_hoc_cap_ta_voi_be_tren() {
+    use qt_ai_core::glossary::ExtractedPair;
+    use qt_ai_core::story::GenreSetting;
+    let names: std::collections::HashSet<String> = ["林远", "张生", "王虎"].iter().map(|s| s.to_string()).collect();
+    let pair = |source: &str, target: &str| ExtractedPair { source: source.into(), target: target.into(), category: "addressing".into() };
+    let pairs = vec![pair("林远→张生", "ta–sư phụ"), pair("王虎→林远", "ta–chủ nhân"), pair("林远→王虎", "đệ tử–sư huynh"), pair("张生→林远", "ta–ngươi")];
+    let kept: Vec<String> =
+        filter_new_pairs(pairs.clone(), &names, &Cast::default(), GenreSetting::Ancient).into_iter().map(|p| p.source).collect();
+    assert_eq!(kept, vec!["林远→王虎", "张生→林远"]);
+    assert_eq!(filter_new_pairs(pairs, &names, &Cast::default(), GenreSetting::Modern).len(), 4, "hiện đại không xét vai vế cổ trang");
+}
+
+#[test]
+fn danh_xung_rieng_chi_hoc_khi_raw_co_chu_do() {
+    use qt_ai_core::glossary::ExtractedPair;
+    let pair = |target: &str| ExtractedPair { source: "云舒→秦明帆".into(), target: target.into(), category: "addressing".into() };
+    assert!(drop_unbacked_titles(vec![pair("bần đạo–Tần thí chủ")], "我带你去治疗！").is_empty());
+    assert_eq!(drop_unbacked_titles(vec![pair("bần đạo–Tần thí chủ")], "贫道带秦施主去。").len(), 1);
+    assert_eq!(drop_unbacked_titles(vec![pair("ta–ngươi")], "我带你去。").len(), 1);
+    // In vào prompt kèm ghi chú phạm vi.
+    let section = chapter_addressing_section(
+        &[],
+        &map(&[("云舒→秦明帆", "bần đạo–Tần thí chủ")]),
+        &StringMap::new(),
+        &[],
+        qt_ai_core::story::GenreSetting::Ancient,
+        "0064",
+    );
+    assert!(section.contains("bần đạo–Tần thí chủ (danh xưng riêng: chỉ ở câu raw có 贫道)"), "{section}");
+}
+
+#[test]
+fn ten_ngan_nam_trong_ten_dai_khong_tinh_co_mat() {
+    let pairs = map(&[("安然→李承", "ta–ngươi"), ("安然郡主→李承", "bổn cung–ngươi")]);
+    let got = chapter_addressing(&pairs, "安然郡主看向李承。");
+    assert!(got.contains_key("安然郡主→李承"));
+    assert!(!got.contains_key("安然→李承"), "安然 chỉ nằm trong 安然郡主");
+    assert!(chapter_addressing(&pairs, "安然郡主走了，安然对李承说。").contains_key("安然→李承"));
+}
+
+#[test]
+fn cap_ghim_chuong_co_cuoi_hoi_thi_nhac() {
+    let mut cast = Cast::default();
+    cast.addressing.insert("裴砚→梅晚萤".into(), AddressTimeline { pinned: true, changes: vec![] });
+    let pairs = map(&[("裴砚→梅晚萤", "ta–ngươi")]);
+    let notes = pinned_relation_notes(&pairs, &cast, "裴砚终于要娶梅晚萤了。");
+    assert_eq!(notes.len(), 1);
+    assert!(notes[0].contains("娶"), "{notes:?}");
+    assert!(pinned_relation_notes(&pairs, &cast, "裴砚看向梅晚萤。").is_empty());
 }

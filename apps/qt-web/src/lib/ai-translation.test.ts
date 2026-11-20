@@ -353,10 +353,11 @@ describe("AI translation post-processing", () => {
       "“Công tử, ngươi là ai?”",
     ].join("\n");
     const got = checkAdvisoryViolations(text).map((v) => `${v.line}:${v.message.split(" →")[0]}`);
-    expect(got).toEqual([
-      "1:Gọi bề trên bằng danh xưng mà tự xưng ta",
-      "2:Gọi bề trên bằng danh xưng mà xưng ngươi",
-    ]);
+    // Sư phụ / phụ thân / chủ nhân / lão sư là nhóm chặt: lỗi cứng (vòng soát), không còn ở cảnh báo.
+    expect(got).toEqual(["1:Gọi bề trên bằng danh xưng mà tự xưng ta"]);
+    expect(checkAiTranslationViolations(text).map((v) => `${v.line}:${v.message.split(" →")[0]}`)).toContain(
+      "2:Gọi sư phụ / phụ thân / chủ nhân mà xưng ngươi",
+    );
     expect(checkAdvisoryViolations(text, "modern")).toEqual([]);
     expect(checkAiTranslationViolations("“Tôi đi ngay.”").map((v) => v.message)).toEqual([
       "Dùng tôi/chúng tôi tự xưng → ta/chúng ta, hoặc tự xưng theo thân phận (tiểu nhân/nô tỳ/thuộc hạ/đệ tử/con)",

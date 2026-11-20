@@ -324,6 +324,13 @@ export function StoryPage() {
                   </div>
                 </div>
                 <Field
+                  id="settingArcs"
+                  label="Đổi bối cảnh theo chương"
+                  hint="Truyện xuyên qua lại giữa các thời: mỗi dòng `số chương bối cảnh`, ví dụ `0843 cổ đại` rồi `0868 hiện đại`. Prompt, check và luật xưng hô theo bối cảnh của từng chương. Để trống nếu cả truyện một bối cảnh."
+                >
+                  <Textarea id="settingArcs" rows={2} placeholder="0843 cổ đại" {...form.register("settingArcs")} />
+                </Field>
+                <Field
                   id="summary"
                   label="Tóm tắt"
                   hint="Bối cảnh, tuyến nhân vật, mạch truyện chính — agent đọc để dịch nhất quán."

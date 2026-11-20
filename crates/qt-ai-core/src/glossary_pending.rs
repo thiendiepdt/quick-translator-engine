@@ -36,6 +36,9 @@ pub enum SimilarKind {
     DotSegment,
     /// Khoá ngắn là đầu / đuôi khoá dài, cả hai phiên âm từng chữ mà có tiếng lệch âm.
     Prefix,
+    /// Mục mới trái cách dịch ở chương cũ: `source_count` đoạn cũ có khoá, `similar_count` đoạn trong đó thiếu cách
+    /// dịch mới. Không có mục cũ để gộp; người dùng Rà chương cũ hoặc bỏ qua.
+    OldUsage,
 }
 
 impl SimilarKind {

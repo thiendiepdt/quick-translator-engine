@@ -29,7 +29,7 @@ static PREFIX: LazyLock<Regex> = LazyLock::new(|| {
 });
 /// Số trần đầu dòng: `12. Tên`, `12、Tên`, `12 Tên`. Yếu hơn `第N章` nên dòng kết thúc bằng dấu câu
 /// (`3 天后，他回来了。` là thân bài) không tính.
-static BARE_PREFIX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^([0-9０-９]+)\s*(?:[.、．:：]\s*|\s+)").unwrap());
+static BARE_PREFIX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^([0-9０-９]+)\s*(?:[.、．:：~～]\s*|\s+)").unwrap());
 static TAIL_BRACKET: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(&format!(r"[\s\-—_·:：]*[（(【\[]\s*([{NUM}]+|[上中下]|完结|大结局|完|终|番外)\s*[)）】\]]\s*$")).unwrap()
 });
@@ -363,15 +363,18 @@ pub fn settle_title(book: &mut TitleBook, raw_first: &str, translated_first: &st
 static CHAPTER_HEAD: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"^(Chương [0-9]+(?:-[0-9]+)?)(?:\s*[:：]\s*|\s*[.,\-–—]\s+|\s+)(.*)$").unwrap()
 });
+static BARE_TILDE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^([0-9]+)\s*[~～]\s*").unwrap());
 static AUTHOR_NOTE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)\s*[(（【\[][^()（）【】\[\]]*(?:thêm chương|tăng chương|chương thêm|bổ sung chương|nguyệt phiếu|phiếu tháng|phiếu đề cử|đặt mua|minh chủ)[^()（）【】\[\]]*[)）】\]]\s*$").unwrap()
+    Regex::new(r"(?i)\s*[(（【\[][^()（）【】\[\]]*(?:thêm chương|tăng chương|chương thêm|bổ sung chương|nguyệt phiếu|phiếu tháng|phiếu đề cử|đặt mua|minh chủ|cầu phiếu|xin phiếu|\d+\s*chữ)[^()（）【】\[\]]*[)）】\]]\s*$").unwrap()
 });
 
 /// Dòng tiêu đề đã dịch theo một định dạng: `Chương N Tên` / `Chương N. Tên` → `Chương N: Tên`; bỏ lời xin phiếu,
 /// thêm chương của tác giả ở cuối (`(Cầu nguyệt phiếu!)`, `【Thêm chương cho “…”】`). Dòng không mở đầu bằng
 /// `Chương N` giữ nguyên.
 pub fn tidy_chapter_title(line: &str) -> String {
-    let Some(caps) = CHAPTER_HEAD.captures(line.trim()) else { return line.to_string() };
+    // `42~ Mở lòng` (raw `42~敞开心扉`, thieu-gia 24 chương): số trần kèm `~` cũng là tiêu đề chương.
+    let line = BARE_TILDE.replace(line.trim(), "Chương $1: ").into_owned();
+    let Some(caps) = CHAPTER_HEAD.captures(line.trim()) else { return line };
     let mut name = caps[2].trim().to_string();
     while let Some(note) = AUTHOR_NOTE.find(&name) {
         name.truncate(note.start());

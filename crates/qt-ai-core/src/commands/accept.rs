@@ -75,6 +75,31 @@ fn queue_similar(paths: &StoryPaths, glossary: &crate::story::Glossary, pairs: &
             })
         })
         .collect();
+    // Mục mới (không nghi trùng) trái cách dịch ở chương cũ: ≥3 đoạn cũ có khoá và ≥60% số đó thiếu cách dịch mới —
+    // đo trên 6 truyện bắt 3,4% mục, có cả tên dịch đổi theo cảnh nên chỉ hỏi, không chặn.
+    let fresh: Vec<&ExtractedPair> = pairs
+        .iter()
+        .filter(|pair| pair.category != "addressing" && !suspects.iter().any(|entry| entry.source == pair.source))
+        .collect();
+    let keys: Vec<(&str, &str)> = fresh.iter().map(|pair| (pair.source.as_str(), pair.target.as_str())).collect();
+    let usage = crate::backfill::scan_keys_usage(paths, &keys)?;
+    let mut suspects = suspects;
+    for (pair, (with_key, lacking)) in fresh.into_iter().zip(usage) {
+        if with_key >= 3 && lacking * 10 >= with_key * 6 {
+            suspects.push(PendingEntry {
+                source: pair.source.clone(),
+                target: pair.target.clone(),
+                category: pair.category.clone(),
+                chapter: id.to_string(),
+                similar_source: pair.source.clone(),
+                similar_target: String::new(),
+                similar_category: pair.category.clone(),
+                kind: crate::glossary_pending::SimilarKind::OldUsage,
+                source_count: with_key,
+                similar_count: lacking,
+            });
+        }
+    }
     if suspects.is_empty() {
         return Ok(vec![]);
     }
@@ -87,6 +112,14 @@ fn queue_similar(paths: &StoryPaths, glossary: &crate::story::Glossary, pairs: &
     let mut notes = Vec::new();
     for mut entry in suspects {
         if pending.iter().any(|old| old.source == entry.source) {
+            continue;
+        }
+        if entry.kind == crate::glossary_pending::SimilarKind::OldUsage {
+            notes.push(format!(
+                "{} “{}” trái cách dịch ở {} / {} đoạn cũ có khoá — xem tab Glossary",
+                entry.source, entry.target, entry.similar_count, entry.source_count
+            ));
+            pending.push(entry);
             continue;
         }
         entry.source_count = raw.matches(entry.source.as_str()).count();
@@ -126,7 +159,10 @@ pub fn run_accept_with(root: &Path, id: &str, force: bool, lexicon: &crate::vn_l
     let draft = assemble_draft(root, id)?;
     let mut story = load_story_config(&paths)?;
     // Tên lệch dấu so với glossary (Đoạn Phong ↔ Đoàn Phong): glossary là chuẩn, sửa thẳng thay vì bắt model soát.
-    let base_glossary = crate::base::BaseStore::from_env().glossary(story.genre.setting);
+    // Bối cảnh của chính chương này (settingArcs) cho glossary nền, bảng prompt và luật học cặp; `story` thì vẫn là
+    // hồ sơ gốc vì được ghi lại story.json.
+    let chapter_genre = story.for_chapter(id).genre;
+    let base_glossary = crate::base::BaseStore::from_env().glossary(chapter_genre.setting);
     let merged_glossary = crate::prompt::merge_story_glossary(&base_glossary, Some(&story));
     let mut parsed = draft.parsed.clone();
     let glossary_fixes = fix_glossary_drifts(&draft.paragraphs, &mut parsed, &merged_glossary);
@@ -146,6 +182,8 @@ pub fn run_accept_with(root: &Path, id: &str, force: bool, lexicon: &crate::vn_l
             self_ref_fixes += fixed;
         }
     }
+    // Dấu lửng 6 chấm và chữ hoa đầu đoạn theo raw — tất định, không tốn lượt soát.
+    let _ = crate::paragraphs::normalize_against_raw(&draft.paragraphs, &mut parsed);
     let mut convert_fixes = 0;
     for paragraph in parsed.iter_mut().flatten() {
         let (text, fixed) = crate::convert_fix::drop_ma_noi(paragraph);
@@ -201,7 +239,7 @@ pub fn run_accept_with(root: &Path, id: &str, force: bool, lexicon: &crate::vn_l
         let raw = read_raw_chapter(&paths, id)?;
         let mut existing = collect_glossary_keys(&TranslationGlossary::new(), &story.glossary);
         // Khoá bảng prompt / bảng thành ngữ đã có cách dịch: không để glossary tự học đè (大冤种 → "đại oan chủng").
-        existing.extend(crate::glossary::prompt_table_keys(crate::prompt::base_prompt(&story.genre)));
+        existing.extend(crate::glossary::prompt_table_keys(crate::prompt::base_prompt(&chapter_genre)));
         existing.extend(crate::base::BaseStore::from_env().idioms().into_keys());
         let pairs = drop_conflicting_readings(sanitize_extracted(&entries, &raw, &output, &existing), &story.glossary);
         // Bảng nhân vật: học giới trước rồi mới xét cặp xưng hô (cặp trái giới vừa học cũng bị bỏ).
@@ -211,10 +249,11 @@ pub fn run_accept_with(root: &Path, id: &str, force: bool, lexicon: &crate::vn_l
         let mut cast = load_cast(&paths);
         let before = cast.clone();
         cast_notes.extend(learn_genders(&entries, &raw, &names, &mut cast, id));
-        let pairs = filter_new_pairs(pairs, &names, &cast, story.genre.setting);
+        let pairs = crate::cast::drop_unbacked_titles(filter_new_pairs(pairs, &names, &cast, chapter_genre.setting), &raw);
         let no_pairs = crate::story::StringMap::new();
         let addressing = story.glossary.get("addressing").unwrap_or(&no_pairs);
-        cast_notes.extend(apply_address_changes(&entries, &raw, addressing, &mut cast, id, story.genre.setting));
+        cast_notes.extend(apply_address_changes(&entries, &raw, addressing, &mut cast, id, chapter_genre.setting));
+        cast_notes.extend(crate::cast::pinned_relation_notes(&crate::cast::chapter_addressing(addressing, &raw), &cast, &raw));
         if cast != before {
             save_cast(&paths, &cast)?;
         }

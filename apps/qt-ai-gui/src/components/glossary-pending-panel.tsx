@@ -15,6 +15,7 @@ const KIND_LABELS: Record<Pending["kind"], string> = {
   anagram: "cùng các chữ, đảo thứ tự — có thể tác giả gõ nhầm",
   dotSegment: "một đoạn của tên có · mà cách dịch lệch",
   prefix: "cùng chữ Hán nhưng hai mục đọc khác âm",
+  oldUsage: "mục mới khác cách dịch ở các chương đã dịch trước",
 };
 
 interface Props {
@@ -44,6 +45,12 @@ export function GlossaryPendingPanel({ root, running, dirty, onStoryChanged }: P
 
   if (items.length === 0 && !hint) return null;
   const locked = running || dirty || busy;
+
+  /** Mục mới trái cách dịch cũ: bỏ câu hỏi rồi mở Rà chương cũ cho chính mục đó (người dùng gõ cụm cũ cần thay). */
+  async function backfillOld(item: Pending) {
+    await answer(item, "dismiss");
+    setHint({ key: item.source, from: "", to: item.target });
+  }
 
   async function answer(item: Pending, choice: "keepOld" | "useNew" | "dismiss") {
     setBusy(true);
@@ -75,6 +82,26 @@ export function GlossaryPendingPanel({ root, running, dirty, onStoryChanged }: P
           <ul className="space-y-2">
             {items.map((item) => {
               const mergeable = item.kind === "homophone" || item.kind === "anagram";
+              if (item.kind === "oldUsage") {
+                return (
+                  <li key={item.source} className="space-y-1 rounded border bg-background p-2 text-sm">
+                    <div>
+                      <span className="font-medium">{item.source}</span> “{item.target}” <span className="text-muted-foreground">(mới, ch.{item.chapter})</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {item.similarCount} / {item.sourceCount} đoạn đã dịch có {item.source} không dùng “{item.target}”
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button type="button" size="sm" variant="outline" disabled={locked} onClick={() => void backfillOld(item)}>
+                        Rà chương cũ
+                      </Button>
+                      <Button type="button" size="sm" variant="ghost" disabled={locked} onClick={() => void answer(item, "dismiss")}>
+                        Đã xem
+                      </Button>
+                    </div>
+                  </li>
+                );
+              }
               return (
                 <li key={item.source} className="space-y-1 rounded border bg-background p-2 text-sm">
                   <div>

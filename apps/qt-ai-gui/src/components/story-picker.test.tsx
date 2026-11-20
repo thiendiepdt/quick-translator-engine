@@ -320,6 +320,7 @@ describe("StoryPicker · Thư viện", () => {
       ],
       skippedRunning: ["D:\\lib\\b"],
       failed: ["e-hong: state.json sai schema"],
+      duplicates: [],
       stories: [{ ...a, total: 15, pending: 13 }],
     });
     const user = userEvent.setup();
@@ -333,7 +334,7 @@ describe("StoryPicker · Thư viện", () => {
     );
     expect(toast.error).toHaveBeenLastCalledWith("Không quét được 1 truyện: e-hong: state.json sai schema");
 
-    vi.mocked(libraryRescan).mockResolvedValue({ changed: [], skippedRunning: [], failed: [], stories: [a] });
+    vi.mocked(libraryRescan).mockResolvedValue({ changed: [], skippedRunning: [], failed: [], duplicates: [], stories: [a] });
     await user.click(screen.getByRole("button", { name: "Quét chương mới cho cả thư viện" }));
     await waitFor(() =>
       expect(toast.message).toHaveBeenLastCalledWith("Quét thư viện: không truyện nào có chương mới"),

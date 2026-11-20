@@ -20,6 +20,18 @@
 - Bảng meme thêm 22 mục: 咸鱼 cá mặn, 大聪明 “thiên tài”, 节目效果 độ giải trí, 社畜 kiếp trâu ngựa công sở, 牢X lão X, 阿三 / 大毛 / 漂亮国 Ấn Độ / Nga / Mỹ, 为爱发电 làm không công vì đam mê… (lão lục, tra nam, đụng phải đại vận, khảo vấn linh hồn giữ như cũ).
 - Truyện hiện đại: 气息 của sức mạnh, linh lực dịch "khí tức"; 脑海里 → "trong đầu" (không "trong đầu óc").
 - Sửa vài dòng prompt dạy sai: 坊市 là phường thị (check bắt "phương thị"), 阿爹 là cha, 本命 / 本源 / 本体 / 本家 giữ "bản" (bản mệnh pháp khí, không "bổn mạng"), 科长 là trưởng phòng còn 科主任 mới là trưởng khoa, "động phủ / linh điền" viết thường.
+- Truyện cổ đại: check đưa vào vòng soát các câu thoại gọi bề trên mà xưng "ta / ngươi" ("Sư phụ, ngươi…", "Phụ thân, ta…"), thoại còn "mày / tao", và lời kể dịch 你 phiếm chỉ thành "ngươi" ("khi ngươi bước vào…"). Thoại cổ đại gọi "Mẹ" (thường là 娘 → nương) và 啧 dịch thành "Tặc" thì cảnh báo.
+- Harness không học cặp xưng hô tự xưng "ta" với bề trên (ta–sư phụ, ta–phụ thân, ta–chủ nhân…) ở truyện cổ đại và hỗn hợp. Danh xưng tự xưng riêng như lão nương, bần đạo, ai gia chỉ được học khi raw có đúng chữ đó. 娶 được tính là dấu hiệu quan hệ đã đổi. Tên ngắn chỉ xuất hiện trong tên dài hơn (安然 trong 安然郡主) không còn bị tính là một nhân vật khác có mặt. Cặp xưng hô đổi theo mốc mà đã dùng ít nhất 3 chương thì harness nhận đổi lại cặp cũ (chia tay, trở mặt), trước đây cặp cũ bị coi là lặp lại và bỏ.
+- Bảng nhân vật có thêm ô **Bí danh**: tên khác của cùng một người trong raw (tác giả gõ nhầm 朱微娖 thay 朱媺娖, biệt hiệu), cách nhau bởi dấu phẩy. Chương chỉ có bí danh thì nhân vật vẫn được tính là có mặt, cặp xưng hô và giới đi theo tên chính, prompt ghi rõ hai tên là một người.
+- Hồ sơ truyện có thêm ô **Đổi bối cảnh theo chương** cho truyện xuyên qua lại giữa các thời: mỗi dòng `số chương bối cảnh`, ví dụ `0843 cổ đại` rồi `0868 hiện đại`. Prompt, check và luật xưng hô của từng chương theo bối cảnh của đoạn đó.
+- Tên mới vừa chốt mà các chương đã dịch trước đó viết khác (ít nhất 3 đoạn có tên, quá nửa không dùng cách mới) thì hiện ở khối **Chờ xác nhận** của tab Glossary, kèm nút **Rà chương cũ**.
+- Check cảnh báo khi thuật ngữ đã chốt trong từ điển (mục common từ hai tiếng trở lên) có trong raw mà bản dịch không dùng, mỗi thuật ngữ báo một lần kèm số đoạn. Bản dịch chỉ lệch dấu thì không báo, vì lúc chốt chương app tự sửa theo từ điển.
+- Agent được gợi ý các thuật ngữ lặp lại nhiều chương mà từ điển chưa có (truyện y khoa ra 手术室, 主刀, 规培, 病历…) để khai cho dịch thống nhất. ID tuyển thủ và tên người Hàn, Nhật, phương Tây giữ dạng gốc; raw ghi tên Latin trong ngoặc (雅拉（Yalla）) thì dùng tên Latin. **AI điền** dịch nghĩa biệt danh, tên lóng của nước, danh xưng họ hàng.
+- Tên có `·` (威廉·加文) được nạp từ điển cả khi raw chỉ gọi một phần tên (加文). Tên viết hoa lệch y / i so với từ điển (Bát Tí ↔ Bát Tý) được chốt chương tự sửa như lệch dấu.
+- Prompt thêm: dấu lửng giữ đúng độ dài của raw, số lớn có dấu phân cách hàng nghìn, thông báo hệ thống game xưng một ngôi suốt truyện, thuộc hạ nói với bề trên thì 我们 là "bọn tại hạ", và các danh xưng 表哥 / 表姐…, 大伯, 伯母, 舅婆, 姐夫 / 妹夫, 小舅子 / 小姨子, 爷爷 / 奶奶, 阿娘 (nương). Truyện hiện đại có dòng riêng cho 夫君 / 相公 / 娘子 và 你 phiếm chỉ. Thán từ 唉, 啧, 嘤, 嘎 có cách dịch.
+- Chốt chương tự đổi "..." thành "......" khi raw dùng "……", và viết hoa chữ đầu đoạn sau một câu đã kết thúc.
+- Tiêu đề chương kiểu `42~ Tên chương` thành "Chương 42: Tên chương"; dòng tác giả xin phiếu, cầu phiếu, báo số chữ bị bỏ khỏi tiêu đề.
+- **Quét lại** thư viện báo các file raw trùng nhau (cùng nội dung, tải trùng chương) để bạn xoá bớt.
 
 ## 1.0.33 — 2026-11-18
 - Sửa lỗi động cơ agy kẹt ở chương đang dịch dở, báo "Không có chương … trong state.json" rồi thử lại mãi với truyện có tên chương dài: agent giờ luôn được chỉ đúng mã chương để làm tiếp.

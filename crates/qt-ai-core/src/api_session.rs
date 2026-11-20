@@ -34,7 +34,7 @@ Liệt kê các TÊN RIÊNG (nhân vật, địa danh, đồ vật/vũ khí, sin
 xuất hiện trong raw nhưng CHƯA có trong danh sách loại trừ, kèm đúng cách bản dịch đã phiên âm chúng. \
 target phải chép nguyên văn từ bản dịch, không tự nghĩ phương án khác. \
 category chỉ được là một trong: \"names\", \"places\", \"items\", \"creatures\", \"skills\", \"common\". \
-Ngoài tên riêng, khai category \"common\" cho THUẬT NGỮ LẶP LẠI NHIỀU CHƯƠNG mà một từ có thể dịch nhiều kiểu: tên chỉ số, bảng, âm báo của hệ thống (面板, 好感度, 积分, 检测到), khái niệm của thế giới truyện (末世, 丧尸, 大比, 成长体), cả thuật ngữ chuyên ngành, thể loại có thật ngoài đời (y khoa 规培 → đào tạo chuẩn hóa; game 经济 → vàng; tu tiên 玉简 → ngọc giản), tên tổ chức, chương trình (督察局, 春晚 → Gala Xuân); target chép nguyên văn cách bạn vừa dịch, viết thường nếu không phải tên riêng. KHÔNG khai (kể cả vào names) từ thường, thành ngữ, lóng/meme, biệt danh trêu chọc (小辣椒), danh xưng (老X, X阿姨, X女士, X父, X母). \
+Ngoài tên riêng, khai category \"common\" cho THUẬT NGỮ LẶP LẠI NHIỀU CHƯƠNG mà một từ có thể dịch nhiều kiểu: tên chỉ số, bảng, âm báo của hệ thống (面板, 好感度, 积分, 检测到), khái niệm của thế giới truyện (末世, 丧尸, 大比, 成长体), cả thuật ngữ chuyên ngành, thể loại có thật ngoài đời (y khoa 规培 → đào tạo chuẩn hóa; game 经济 → vàng; tu tiên 玉简 → ngọc giản), tên tổ chức, chương trình (督察局, 春晚 → Gala Xuân); target chép nguyên văn cách bạn vừa dịch, viết thường nếu không phải tên riêng. KHÔNG khai (kể cả vào names) từ thường, thành ngữ, lóng/meme, biệt danh trêu chọc (小辣椒), danh xưng (老X, X阿姨, X女士, X父, X母). ID tuyển thủ, tên người Hàn / Nhật / phương Tây: target giữ dạng gốc (GimGoon, Lee Ji-hoon, Inuyama Ga), không phiên Hán-Việt. \
 Bỏ qua từ thông thường (truyện nào cũng dịch như nhau), chức danh, đại từ.\
  Chữ Hán nào đã có âm Hán-Việt trong từ điển sẵn có thì tên mới chứa chữ đó phải phiên cùng âm (họ 段 đã là Đoàn thì không đề xuất Đoạn). \
 Tên NGƯỜI (category \"names\") thêm \"gender\": \"nam\" hoặc \"nữ\" khi raw có căn cứ (她/他, 女/男, 姐/哥…), hoặc \"biến thân\" khi nhân vật đổi giới (xuyên vào / biến thành thân xác khác giới, raw gọi lúc 他 lúc 她); không chắc thì bỏ trường này. \
@@ -53,7 +53,7 @@ const GLOSSARY_INLINE_INSTRUCTION: &str = "Sau đoạn dịch cuối cùng, xu�
 {\"entries\": [{\"source\": \"...\", \"target\": \"...\", \"category\": \"...\"}]} liệt kê các TÊN RIÊNG \
 (nhân vật, địa danh, đồ vật/vũ khí, sinh vật, công pháp/kỹ năng) xuất hiện trong raw mà CHƯA có trong \"Từ điển riêng của truyện\"; \
 target chép nguyên văn cách bạn vừa dịch; category chỉ được là \"names\", \"places\", \"items\", \"creatures\", \"skills\", \"common\". \
-Ngoài tên riêng, khai category \"common\" cho THUẬT NGỮ LẶP LẠI NHIỀU CHƯƠNG mà một từ có thể dịch nhiều kiểu: tên chỉ số, bảng, âm báo của hệ thống (面板, 好感度, 积分, 检测到), khái niệm của thế giới truyện (末世, 丧尸, 大比, 成长体), cả thuật ngữ chuyên ngành, thể loại có thật ngoài đời (y khoa 规培 → đào tạo chuẩn hóa; game 经济 → vàng; tu tiên 玉简 → ngọc giản), tên tổ chức, chương trình (督察局, 春晚 → Gala Xuân); target chép nguyên văn cách bạn vừa dịch, viết thường nếu không phải tên riêng. KHÔNG khai (kể cả vào names) từ thường, thành ngữ, lóng/meme, biệt danh trêu chọc (小辣椒), danh xưng (老X, X阿姨, X女士, X父, X母). \
+Ngoài tên riêng, khai category \"common\" cho THUẬT NGỮ LẶP LẠI NHIỀU CHƯƠNG mà một từ có thể dịch nhiều kiểu: tên chỉ số, bảng, âm báo của hệ thống (面板, 好感度, 积分, 检测到), khái niệm của thế giới truyện (末世, 丧尸, 大比, 成长体), cả thuật ngữ chuyên ngành, thể loại có thật ngoài đời (y khoa 规培 → đào tạo chuẩn hóa; game 经济 → vàng; tu tiên 玉简 → ngọc giản), tên tổ chức, chương trình (督察局, 春晚 → Gala Xuân); target chép nguyên văn cách bạn vừa dịch, viết thường nếu không phải tên riêng. KHÔNG khai (kể cả vào names) từ thường, thành ngữ, lóng/meme, biệt danh trêu chọc (小辣椒), danh xưng (老X, X阿姨, X女士, X父, X母). ID tuyển thủ, tên người Hàn / Nhật / phương Tây: target giữ dạng gốc (GimGoon, Lee Ji-hoon, Inuyama Ga), không phiên Hán-Việt. \
 Bỏ qua từ thông thường (truyện nào cũng dịch như nhau), chức danh, đại từ.\
  Chữ Hán nào đã có âm Hán-Việt trong từ điển sẵn có thì tên mới chứa chữ đó phải phiên cùng âm (họ 段 đã là Đoàn thì không đề xuất Đoạn). Tên NGƯỜI (category \"names\") thêm \"gender\": \"nam\" hoặc \"nữ\" khi raw có căn cứ (她/他, 女/男, 姐/哥…), hoặc \"biến thân\" khi nhân vật đổi giới (xuyên vào / biến thành thân xác khác giới, raw gọi lúc 他 lúc 她); không chắc thì bỏ trường này. \
 Nhân vật đã có trong từ điển nhưng chưa nằm ở mục \"Nhân vật có mặt trong chương\" mà chương này lộ giới: khai {\"source\": \"tên Hán\", \"category\": \"names\", \"gender\": \"...\"}. \
@@ -568,13 +568,17 @@ fn run_chapter(
     let paths = story_paths(&resolve_root(root));
     let raw = read_raw_chapter(&paths, id)?;
     let paragraphs = paragraphs_of(&raw);
-    let story = load_story_config(&paths)?;
+    let story = load_story_config(&paths)?.for_chapter(id);
     let base_glossary = crate::base::BaseStore::from_env().glossary(story.genre.setting);
     let cast = crate::cast::load_cast(&paths);
     let system = build_chapter_prompt(&base_glossary, &story, &cast, id, &raw);
     let glossary = merge_story_glossary(&base_glossary, Some(&story));
     let unpaired =
         crate::prompt::unpaired_line(&crate::prompt::chapter_unpaired(&base_glossary, &story, &cast, id, &raw));
+    // Gợi ý thuật ngữ lặp nhiều chương chưa có mục (规培, 玉简…) nối sau dòng nhân vật chưa có cặp.
+    let hints = crate::term_hints::hint_line(&paths, &story, &raw);
+    let unpaired = [unpaired, hints].into_iter().filter(|line| !line.is_empty()).collect::<Vec<_>>().join("
+");
     let min_ratio = load_state(&paths)?.settings.min_length_ratio;
     let chapter = Chapter {
         model,

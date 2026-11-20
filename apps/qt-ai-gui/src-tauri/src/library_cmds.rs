@@ -215,6 +215,8 @@ pub struct RescanReport {
     pub skipped_running: Vec<String>,
     /// `<folder>: <lỗi>` — state.json sai schema, raw/ không đọc được…
     pub failed: Vec<String>,
+    /// `<folder>: raw 0252 trùng 0251` — raw tải hỏng, chỉ báo (không đổi state).
+    pub duplicates: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -243,6 +245,10 @@ pub fn rescan_library_inner(library_root: &Path, is_running: &dyn Fn(&str) -> bo
         if is_running(&root_text) {
             report.skipped_running.push(root_text);
             continue;
+        }
+        let folder = root.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+        for (later, earlier) in qt_ai_core::commands::init::raw_duplicates(&root) {
+            report.duplicates.push(format!("{folder}: raw {later} trùng {earlier}"));
         }
         let scan = || -> CmdResult<Option<RescanChange>> {
             let (added, removed) = raw_drift(&root)?;

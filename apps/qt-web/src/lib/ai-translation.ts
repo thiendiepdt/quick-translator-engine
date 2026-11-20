@@ -47,6 +47,12 @@ const CHECK_RULES: Array<[RegExp, string, GenreSetting?]> = [
   [/(?<!\p{L})(?:cậu|cô) (?:bé|nhóc)(?!\p{L})/iu, "男孩 / 女孩 / 小姑娘 trong bối cảnh cổ → thằng bé / con bé / tiểu cô nương (raw có 一个: một đứa bé trai / gái), không cậu bé / cô bé", "ancient"],
   [/(?<!\p{L})(?:nam|nữ) hài(?!\p{L})/iu, "男孩子 / 女孩子 chỉ giới → con trai / con gái; 男孩 / 女孩 → thằng bé / con bé; không nam hài / nữ hài", "ancient"],
   [/\banh ấy\b|\banh ta\b|\bcô ấy\b|\bchị ấy\b|\bcậu ta\b|\bcậu ấy\b/i, "Đại từ sai → dùng hắn/nàng", "ancient"],
+  // Vai vế chặt (sư phụ / phụ thân / chủ nhân / lão sư) là lỗi cứng; mày / tao trong thoại cổ đại; 你 phiếm chỉ trong lời kể.
+  [/[“"](?:Sư phụ|Sư tôn|Phụ thân|Mẫu thân|Chủ nhân|Lão sư)[,!.…][^”"]{0,160}(?<!\p{L})(?:các )?ngươi(?!\p{L})/iu, "Gọi sư phụ / phụ thân / chủ nhân mà xưng ngươi → ngài / người hoặc danh xưng (mục Vai vế trong thoại)", "ancient"],
+  [/[“"](?:Sư phụ|Sư tôn|Phụ thân|Mẫu thân|Chủ nhân|Lão sư)[,!.…][^”"]{0,160}(?<!chúng )(?<!bọn )(?<!người )(?<!\p{L})ta(?!\p{L})/iu, "Gọi sư phụ / phụ thân / chủ nhân mà tự xưng ta → đệ tử / con / nô tỳ / thuộc hạ (mục Vai vế trong thoại)", "ancient"],
+  [/[“"][^”"]*(?<!\p{L})(?<!lông )(?<!mặt )(?<!chân )(?:mày|tao|chúng mày)(?!\p{L})(?! (?:mò|râu|nhã|nhân|khách|đàn|ngộ|loạn|động)(?!\p{L}))/iu, "Cổ đại không xưng mày / tao trong thoại → ngươi / ta (chửi thì ngươi / lão tử)", "ancient"],
+  [/^(?![【\[])[^“”"]*(?<!\p{L})(?:khi|lúc|nếu|dù|chỉ cần|hễ)\s+ngươi(?!\p{L})/iu, "你 phiếm chỉ trong lời kể (khi / nếu ngươi …) → lược chủ ngữ hoặc người ta", "ancient"],
+  [/^(?![【\[])[^“”"]*(?<!\p{L})(?:khi|lúc|nếu|dù|chỉ cần|hễ)\s+ngươi(?!\p{L})/iu, "你 phiếm chỉ trong lời kể (khi / nếu ngươi …) → lược chủ ngữ hoặc người ta", "mixed"],
   [/(?<!\p{L})(?:ông ta|ông ấy|bà ta|bà ấy)(?!\p{L})/iu, "ông ta/bà ta cho nhân vật lớn tuổi trong bối cảnh cổ → hắn/lão, nàng/bà", "ancient"],
   [/(^|[“"']|,\s+)mình(?:\s|[,.!?…])/i, "Dùng mình làm đại từ → ta, hoặc tự xưng theo thân phận (tiểu nhân/nô tỳ/thuộc hạ/đệ tử/con)", "ancient"],
   // `tôi` ở mọi chỗ trong ngoặc kép (chúng tôi, nhà tôi giữa câu), đầu đoạn, sau dấu phẩy; bỏ qua danh từ bề tôi/bầy tôi/vua tôi,
@@ -147,14 +153,14 @@ export function defaultAiCheckRules(setting: GenreSetting): AiCheckRule[] {
  * qt-web chưa dùng; giữ ở đây để golden chép sang Rust như các rule khác.
  */
 const ADVISORY_CHECK_RULES: Array<[RegExp, string, GenreSetting?]> = [
-  [/(?:^|[“"'(—]|[.!?…]\s+)Ân(?=\s*[,.!?~…])/u, "嗯 → Ừ/Ừm/Ưm/Hả theo bảng Thán từ, không phiên âm Ân"],
+  [/(?:^|[“"'(—]|[.!?…]\s+)Ân(?![,.…\s]*ân (?:công|nhân|tình|huệ))(?=\s*[,.!?~…])/u, "嗯 → Ừ/Ừm/Ưm/Hả theo bảng Thán từ, không phiên âm Ân"],
   [/(?<!\p{L})["“]?[Ââ]n["”]? một tiếng/u, "ân một tiếng → ừm một tiếng"],
   [/(?<!\p{L})bản thân (?:hắn|nàng|cô|y|lão|gã|nó)(?!\p{L})/iu, "自己 → hắn/nàng/cô hoặc lược, không ghép bản thân + đại từ"],
   // Dòng kể (không ngoặc kép) mà có `tôi`: người kể ngôi một phải tự xưng `ta`. Chỉ cảnh báo vì truyện kể ngôi ba
   // cũng có "tôi" ngoài ngoặc kép hợp lệ; bỏ qua tiêu đề, 【】, ý nghĩ trong 『』 và dòng "Tên: …" (đạn mạc, chat).
   [/^(?!Chương \d)(?![【『])(?!\[)(?!.*(?:thầm nghĩ|nghĩ thầm|thầm nhủ|nghĩ bụng))(?![^:："“”]{1,40}[:：])[^"“”『』]*(?<!\p{L})tôi(?!\p{L})[^"“”『』]*$/iu, "Người kể ngôi một xưng tôi → ta (truyện kể ngôi ba thì bỏ qua)", "modern"],
-  [/[“"](?:Thiếu gia|Chủ nhân|Lão gia|Đại nhân|Sư phụ|Sư tôn|Điện hạ|Bệ hạ|Tiền bối|Phụ thân|Mẫu thân|Phụ hoàng|Mẫu hậu)[,!.…][^”"]{0,160}(?<!\p{L})(?:các )?ngươi(?!\p{L})/iu, "Gọi bề trên bằng danh xưng mà xưng ngươi → ngài/người hoặc danh xưng (mục Vai vế trong thoại)", "ancient"],
-  [/[“"](?:Thiếu gia|Chủ nhân|Lão gia|Đại nhân|Sư phụ|Sư tôn|Điện hạ|Bệ hạ|Tiền bối|Phụ thân|Mẫu thân|Phụ hoàng|Mẫu hậu)[,!.…][^”"]{0,160}(?<!chúng )(?<!bọn )(?<!người )(?<!\p{L})ta(?!\p{L})/iu, "Gọi bề trên bằng danh xưng mà tự xưng ta → tiểu nhân/nô tỳ/thuộc hạ/đệ tử/vãn bối/con (mục Vai vế trong thoại)", "ancient"],
+  [/[“"](?:Thiếu gia|Lão gia|Đại nhân|Điện hạ|Bệ hạ|Tiền bối|Phụ hoàng|Mẫu hậu|Giáo sư|Chưởng giáo|Sư thúc|Sư bá)[,!.…][^”"]{0,160}(?<!\p{L})(?:các )?ngươi(?!\p{L})/iu, "Gọi bề trên bằng danh xưng mà xưng ngươi → ngài/người hoặc danh xưng (mục Vai vế trong thoại)", "ancient"],
+  [/[“"](?:Thiếu gia|Lão gia|Đại nhân|Điện hạ|Bệ hạ|Tiền bối|Phụ hoàng|Mẫu hậu|Giáo sư|Chưởng giáo|Sư thúc|Sư bá)[,!.…][^”"]{0,160}(?<!chúng )(?<!bọn )(?<!người )(?<!\p{L})ta(?!\p{L})/iu, "Gọi bề trên bằng danh xưng mà tự xưng ta → tiểu nhân/nô tỳ/thuộc hạ/đệ tử/vãn bối/con (mục Vai vế trong thoại)", "ancient"],
   [/(?<!\p{L})(?:\d[\d.,]*|một|hai|ba|bốn|năm|sáu|bảy|tám|chín|mười|mươi|trăm|nghìn|ngàn|vạn|mấy|vài)\s*ức(?!\p{L})(?!\s+(?:vạn|hiếp))/iu, "亿 → trăm triệu / tỷ (百亿 = 10 tỷ, 千亿 = 100 tỷ), không viết ức"],
   [/(?<!\p{L})(?:\d[\d.,]*|một|hai|ba|bốn|năm|sáu|bảy|tám|chín|mười|mấy|vài)\s*vạn(?!\p{L})(?!\s+(?:tuế|vật|nhất|sự|năng|phần))/iu, "万 trong truyện hiện đại → nghìn / triệu (20万 = 200 nghìn), không viết vạn", "modern"],
   [/(?:^|[.!?…]\s+|[“"])Bản thân(?!\s+(?:là|hắn|nàng|cô|y|lão|gã|nó)(?!\p{L}))(?!\p{L})/u, "自己 làm chủ ngữ → hắn/nàng/cô hoặc lược, không mở câu bằng Bản thân"],
@@ -168,6 +174,7 @@ const ADVISORY_CHECK_RULES: Array<[RegExp, string, GenreSetting?]> = [
   [/(?<!\p{L})lộ ra (?:thần sắc|biểu tình|thần tình)(?!\p{L})/iu, "露出…神色/表情 → lộ vẻ…, không lộ ra thần sắc"],
   // Quy ước cha / mẹ: 岳父 hiện đại từng ra bố vợ / ba vợ / cha vợ / nhạc phụ lẫn trong cùng truyện. Không bắt "ba vợ"
   // (trùng số: cưới ba vợ).
+  [/[“"‘]\s*Mẹ(?:\s+ơi)?[,!.…?]/u, "娘 gọi thẳng trong thoại cổ đại → Nương (glossary truyện đã chốt mẹ thì giữ)", "ancient"],
   [/(?<!\p{L})bố (?:vợ|chồng|dượng)(?!\p{L})/iu, "岳父 / 公公 / 继父 → cha vợ / cha chồng / cha dượng (quy ước cha / mẹ), không bố vợ / bố chồng / bố dượng"],
 ];
 
@@ -240,6 +247,7 @@ export const RAW_PAIR_RULES: RawPairRule[] = [
   { raw: /一倍有余/u, out: /một lần dư/iu, message: "一倍有余 → hơn gấp đôi, không một lần dư" },
   { raw: /何曾/u, out: /từng bao giờ/iu, message: "何曾 → đã bao giờ … đâu, không từng bao giờ" },
   { raw: /青色/u, out: /thanh sắc/iu, message: "青色 → xanh, không thanh sắc" },
+  { raw: /啧/u, out: /(?:^|[“"'(—]|[.!?…]\s+)Tặc(?=[\s,.!?…])/u, message: "啧 / 啧啧 → Chậc / Chậc chậc, không Tặc tặc" },
   { raw: /坊市/u, out: /(?<!\p{L})phương thị(?!\p{L})/iu, message: "坊市 → phường thị, không phương thị" },
   { raw: /公爹/u, out: /(?<!\p{L})công (?:điệp|đa)(?!\p{L})/iu, message: "公爹 → công công, không công điệp / công đa" },
   { raw: /公婆/u, out: /(?<!\p{L})công bà(?!\p{L})(?! bà(?!\p{L}))/iu, message: "公婆 → công công bà bà, không công bà" },
@@ -334,6 +342,8 @@ export function glossaryEntryMatchesSource(source: string, text: string): boolea
   // Cặp xưng hô `甲→乙`: chương chạm tới khi có mặt ít nhất một bên.
   const sides = addressingSides(source);
   if (sides.length > 1) return sides.some((side) => glossaryEntryMatchesSource(side, text));
+  // Tên có `·` (曼斯·龙德施泰特): raw hay chỉ viết một đoạn tên — đoạn ≥2 chữ có trong raw là chạm tới.
+  if (source.includes("·")) return source.split("·").some((part) => Array.from(part).length >= 2 && text.includes(part));
   if (!HAN_PERSON_NAME.test(source)) return false;
   if (text.includes(source.slice(1))) return true;
   return source.length === 4 && text.includes(source.slice(2));

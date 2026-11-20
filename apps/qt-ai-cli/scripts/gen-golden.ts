@@ -169,6 +169,15 @@ const promptCases = [
   prompt: buildAiTranslationSystemPrompt({}, c.story ?? undefined, c.source ?? undefined),
 }));
 
+const VAI_VE_TEXT = [
+  "“Sư phụ, ta đi đây.”",
+  "“Phụ thân, ngươi nghe con nói.”",
+  "“Mày đi đâu?” Hắn nhíu lông mày.",
+  "“Lông mày nàng đẹp thật, mặt mày sáng sủa.”",
+  "Khi ngươi yếu thế, ai cũng khinh.",
+  "“Mẹ, con về rồi.”",
+  "“Ân, ân công đừng khách sáo.”",
+].join("\n");
 const CHECK_TEXT = [
   "Triệu Tĩnh Văn ngẩng đầu，nhìn tòa 高塔 nơi xa.",
   "But nàng im lặng. Vợ của hắn và anh ấy đều biết.",
@@ -242,9 +251,12 @@ const check = {
   advisoryCases: [
     { name: "an", text: ADVISORY_TEXT, setting: "ancient", violations: checkAdvisoryViolations(ADVISORY_TEXT) },
     { name: "an-modern", text: ADVISORY_TEXT, setting: "modern", violations: checkAdvisoryViolations(ADVISORY_TEXT, "modern") },
+    { name: "vai-ve-advisory", text: VAI_VE_TEXT, setting: "ancient", violations: checkAdvisoryViolations(VAI_VE_TEXT) },
   ],
   cases: [
     { name: "default", text: CHECK_TEXT, rules: null, setting: "ancient", violations: checkAiTranslationViolations(CHECK_TEXT) },
+    { name: "vai-ve", text: VAI_VE_TEXT, rules: null, setting: "ancient", violations: checkAiTranslationViolations(VAI_VE_TEXT) },
+    { name: "phiem-chi-mixed", text: VAI_VE_TEXT, rules: null, setting: "mixed", violations: checkAiTranslationViolations(VAI_VE_TEXT, undefined, "mixed") },
     { name: "crlf", text: "a…\r\nb，", rules: null, setting: "ancient", violations: checkAiTranslationViolations("a…\r\nb，") },
     { name: "story-rules", text: "có từ cấm và 漢 và Vợ", rules: storyRules().checkRules, setting: "ancient", violations: checkAiTranslationViolations("có từ cấm và 漢 và Vợ", storyRules().checkRules) },
     { name: "story-rules-no-han-override", text: "漢 sót", rules: SIMPLE_RULES, setting: "ancient", violations: checkAiTranslationViolations("漢 sót", SIMPLE_RULES) },
@@ -297,6 +309,8 @@ const glossary = {
     { source: "慕容雪羽", text: "容雪羽来了", result: glossaryEntryMatchesSource("慕容雪羽", "容雪羽来了") },
     { source: "高塔", text: "塔", result: glossaryEntryMatchesSource("高塔", "塔") },
     { source: "不出现", text: CH1, result: glossaryEntryMatchesSource("不出现", CH1) },
+    { source: "曼斯·龙德施泰特", text: "曼斯笑了", result: glossaryEntryMatchesSource("曼斯·龙德施泰特", "曼斯笑了") },
+    { source: "曼斯·龙德施泰特", text: "斯笑了", result: glossaryEntryMatchesSource("曼斯·龙德施泰特", "斯笑了") },
   ],
   filter: [{ glossary: full.glossary, source: CH2, result: filterTranslationGlossaryForSource(full.glossary, CH2) }],
   sanitize: [
@@ -305,6 +319,10 @@ const glossary = {
       entries: TITLE_ENTRIES, raw: TITLE_RAW, translation: TITLE_TRANSLATION, existingKeys: keys,
       result: sanitizeExtractedGlossary(TITLE_ENTRIES, TITLE_RAW, TITLE_TRANSLATION, new Set(keys)),
     })),
+    {
+      entries: [{ source: "雅拉", target: "Nhã Lạp", category: "names" }], raw: "雅拉（Yalla·יאללה）来了。", translation: "Nhã Lạp tới rồi.", existingKeys: [],
+      result: sanitizeExtractedGlossary([{ source: "雅拉", target: "Nhã Lạp", category: "names" }], "雅拉（Yalla·יאללה）来了。", "Nhã Lạp tới rồi.", new Set()),
+    },
   ],
   append: [{ story: full, pairs: sanitized, chapter: "0001", result: appendAutoGlossary(full, sanitized, "0001") }],
 };

@@ -75,6 +75,15 @@ const TITLE_NAME =
 /** `《X》` lưu thành `X` để tên sách/bài hát chỉ có một mục, một cách dịch. */
 const BOOK_TITLE = /^《(.+)》$/u;
 
+/** Raw ghi kèm tên gốc Latin ngay sau khoá (`雅拉（Yalla·יאללה）`): target phải là chuỗi Latin đó. */
+const RAW_LATIN = /^[（(]\s*([A-Za-z][A-Za-z0-9'\- ]*[A-Za-z0-9])/u;
+function rawLatinName(source: string, raw: string, target: string): string {
+  const at = raw.indexOf(source);
+  if (at < 0) return target;
+  const latin = RAW_LATIN.exec(raw.slice(at + source.length))?.[1];
+  return latin && !target.includes(latin) ? latin : target;
+}
+
 export function sanitizeExtractedGlossary(
   parsed: unknown,
   raw: string,
@@ -109,7 +118,7 @@ export function sanitizeExtractedGlossary(
     const category = typeof record.category === "string" ? (record.category as StoryGlossaryKey) : "names";
     if (category === "names" && TITLE_NAME.test(source)) continue;
     seen.add(source);
-    pairs.push({ source, target, category });
+    pairs.push({ source, target: rawLatinName(source, raw, target), category });
   }
   return pairs;
 }

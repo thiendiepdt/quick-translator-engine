@@ -71,6 +71,18 @@ describe("CastPanel", () => {
     expect(saved.characters["叶清禾"]).toEqual({ narration: "Ngài", source: "user" });
   });
 
+  it("bí danh nhập cách nhau bởi dấu phẩy / 、, giữ mục khi bỏ giới", async () => {
+    const user = userEvent.setup();
+    renderPanel();
+    const row = (await screen.findByText("叶清禾")).closest("li")!;
+    await user.type(within(row).getByLabelText("Bí danh 叶清禾"), "叶青禾、 小禾,");
+    await user.tab();
+    await user.selectOptions(within(row).getByLabelText("Giới tính 叶清禾"), "");
+    await user.click(screen.getByRole("button", { name: "Lưu bảng nhân vật" }));
+    const saved = vi.mocked(castSave).mock.calls[0][1];
+    expect(saved.characters["叶清禾"]).toEqual({ aliases: ["叶青禾", "小禾"], source: "user" });
+  });
+
   it("liệt kê mốc đổi xưng hô, hoàn tác mốc và ghim cặp", async () => {
     const user = userEvent.setup();
     renderPanel();
