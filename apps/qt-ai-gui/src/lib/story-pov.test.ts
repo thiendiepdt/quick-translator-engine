@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { mentionsNarratorPronoun, povNotices } from "@/lib/story-pov";
+import { mentionsNarratorPronoun, povNotices, toiPovWarning } from "@/lib/story-pov";
 
 const first = { chapters: 60, paragraphs: 2673, firstPerson: 1689, ratio: 0.632, isFirstPerson: true };
 const third = { chapters: 60, paragraphs: 5608, firstPerson: 593, ratio: 0.106, isFirstPerson: false };
@@ -43,6 +43,18 @@ describe("story-pov", () => {
     expect(povNotices({ ...base, report: third, pov: "unset" })).toEqual([]);
     expect(povNotices({ ...base, pov: "first-toi" })).toEqual([]);
     expect(povNotices({ ...base, report: { ...first, isFirstPerson: null }, pov: "unset" })).toEqual([]);
+  });
+
+  it("cảnh báo màn dịch khi chọn xưng tôi: kèm câu raw khớp hay lệch; chưa đọc được raw thì bỏ câu raw", () => {
+    const lead = 'Ngôi kể: Ngôi một — người kể xưng tôi. Lời kể dịch "tôi" thay cho "ta".';
+    expect(toiPovWarning(first)).toEqual({ lead, raw: "Raw kể ngôi một (63,2% đoạn có 我 ở lời kể).", mismatch: false });
+    expect(toiPovWarning(third)).toEqual({
+      lead,
+      raw: "Raw có vẻ kể ngôi ba (10,6% đoạn có 我 ở lời kể) — rất có thể chọn nhầm.",
+      mismatch: true,
+    });
+    expect(toiPovWarning(undefined)).toEqual({ lead, mismatch: false });
+    expect(toiPovWarning({ ...first, isFirstPerson: null })).toEqual({ lead, mismatch: false });
   });
 
   it("style còn dòng người kể thì liệt kê để xoá; đổi ngôi khi đã có chương dịch thì nhắc dịch lại", () => {

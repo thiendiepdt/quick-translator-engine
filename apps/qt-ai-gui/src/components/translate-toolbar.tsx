@@ -4,6 +4,7 @@ import { toast } from "sonner";
 
 import { DeleteRangeDialog } from "@/components/delete-range-dialog";
 import { PADDING_CARD_ID } from "@/components/padding-settings-editor";
+import { PovToiWarning } from "@/components/pov-toi-warning";
 import { RetryRangeDialog } from "@/components/retry-range-dialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -334,6 +335,7 @@ export function TranslateToolbar() {
           </Button>
         </div>
       )}
+      <PovToiWarning />
       <div className="mt-3 flex items-center gap-3">
         <div
           className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted"

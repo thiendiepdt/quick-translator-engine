@@ -1,6 +1,7 @@
 # Có gì mới
 
 ## Chưa phát hành
+- Truyện đặt ngôi kể **Ngôi một — người kể xưng tôi** luôn có một dòng cảnh báo ở màn dịch, ngay dưới nút Bắt đầu dịch, để chắc là không chọn nhầm. Dòng này kèm kết quả đọc thử raw: raw kể ngôi một thì ghi tỉ lệ đoạn có 我 ở lời kể; raw có vẻ kể ngôi ba thì báo đỏ "rất có thể chọn nhầm". Nút **Đổi ở Hồ sơ truyện…** mở trang Hồ sơ truyện để đổi.
 - Cột **Phiên này** bên phải: rê chuột lên thẻ một truyện không đang dịch sẽ hiện nút ✕ để gỡ truyện đó khỏi cột. Truyện không bị xoá; mở lại thì nó hiện lại. Truyện đang dịch không có nút này.
 - Đánh dấu được truyện nào tải raw trong app: tick ô **Truyện này tải raw trong app** ở trang Tải raw. Màn chọn truyện hiện biểu tượng tải trên chip nguồn của các truyện đã đánh dấu, và có thêm nút lọc **Tải raw trong app (N)** cạnh nút Có lỗi/bỏ qua. Chip nguồn giờ chỉ có nền màu khi truyện đã đánh dấu: có extension khớp link chưa chắc là truyện tải trong app, vì có truyện lấy raw miễn phí bên ngoài. Truyện chưa đánh dấu thì chip chỉ có viền; rê chuột vẫn thấy extension nào khớp link.
 - Khung cảnh báo của chương gom theo luật: mỗi luật một dòng kèm số các đoạn dính luật. Trước đây chương có 217 cảnh báo cùng một luật thì hiện đủ 217 câu, che hết nội dung truyện; giờ chỉ còn một dòng. Rê chuột lên số đoạn để xem câu trích, bấm số thì app mở tab Bản dịch và cuộn tới đúng đoạn, viền sáng đoạn đó. Mỗi luật hiện 20 số đầu, bấm "+N" để xem hết. Khung cao tối đa 1/4 màn hình và có nút Thu gọn; đã thu gọn thì giữ nguyên khi chuyển sang chương khác.

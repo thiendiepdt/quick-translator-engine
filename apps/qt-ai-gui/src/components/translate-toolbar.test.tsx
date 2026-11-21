@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TranslateToolbar } from "@/components/translate-toolbar";
-import { chaptersPadAll, chaptersRetryIds, sessionStart, sessionStop, shortChapters, storySnapshot } from "@/lib/api";
+import { chaptersPadAll, chaptersRetryIds, sessionStart, sessionStop, shortChapters, storyPov, storySnapshot } from "@/lib/api";
 import { pathKey } from "@/lib/paths";
 import { appConfigSchema } from "@/lib/schema";
 import { useStoryStore } from "@/store/story";
@@ -31,6 +31,7 @@ vi.mock("@/lib/api", () => ({
   sessionStop: vi.fn(),
   storySnapshot: vi.fn(),
   storyReset: vi.fn(),
+  storyPov: vi.fn(),
 }));
 
 const ROOT = "D:\\t";
@@ -458,5 +459,54 @@ describe("TranslateToolbar · chương đang dịch", () => {
     }));
     render(<TranslateToolbar />);
     expect(screen.queryByRole("button", { name: /Mở chương đang dịch/ })).not.toBeInTheDocument();
+  });
+});
+
+describe("TranslateToolbar · ngôi kể xưng tôi", () => {
+  const story = (pov?: string, setting = "modern") =>
+    ({
+      root: ROOT,
+      story: { title: "T", genre: { setting, names: "mixed", ...(pov ? { pov } : {}) } },
+      counts: { total: 0, queued: 0, translating: 0, done: 0, error: 0, skipped: 0, withWarnings: 0 },
+      chapters: [],
+    }) as never;
+  const open = (snapshot: never) =>
+    useStoryStore.setState({ config, root: ROOT, roots: { [pathKey(ROOT)]: ROOT }, sessions: {}, page: "translate", snapshot });
+
+  beforeEach(() => {
+    vi.mocked(storyPov).mockReset();
+  });
+
+  it("chọn xưng tôi: luôn có dòng cảnh báo kèm kết quả đọc raw; nút đổi chuyển sang Hồ sơ truyện", async () => {
+    vi.mocked(storyPov).mockResolvedValue({ chapters: 60, paragraphs: 2673, firstPerson: 1689, ratio: 0.632, isFirstPerson: true });
+    open(story("first-toi"));
+    const user = userEvent.setup();
+    render(<TranslateToolbar />);
+    const warning = screen.getByRole("alert", { name: "Cảnh báo ngôi kể" });
+    expect(warning).toHaveTextContent('Ngôi kể: Ngôi một — người kể xưng tôi. Lời kể dịch "tôi" thay cho "ta".');
+    await waitFor(() => expect(warning).toHaveTextContent("Raw kể ngôi một (63,2% đoạn có 我 ở lời kể)."));
+    expect(storyPov).toHaveBeenCalledWith(ROOT);
+    await user.click(within(warning).getByRole("button", { name: "Đổi ở Hồ sơ truyện…" }));
+    expect(useStoryStore.getState().page).toBe("story");
+  });
+
+  it("raw có vẻ kể ngôi ba thì câu raw ghi rất có thể chọn nhầm", async () => {
+    vi.mocked(storyPov).mockResolvedValue({ chapters: 60, paragraphs: 5608, firstPerson: 593, ratio: 0.106, isFirstPerson: false });
+    open(story("first-toi"));
+    render(<TranslateToolbar />);
+    const warning = screen.getByRole("alert", { name: "Cảnh báo ngôi kể" });
+    expect(await within(warning).findByText(/rất có thể chọn nhầm/)).toHaveTextContent(
+      "Raw có vẻ kể ngôi ba (10,6% đoạn có 我 ở lời kể) — rất có thể chọn nhầm.",
+    );
+  });
+
+  it("chưa chọn, ngôi ba, xưng ta, hay xưng tôi ở truyện cổ đại thì không có dòng cảnh báo và không đọc raw", () => {
+    for (const snapshot of [story(), story("third"), story("first-ta"), story("first-toi", "ancient")]) {
+      open(snapshot);
+      const { unmount } = render(<TranslateToolbar />);
+      expect(screen.queryByRole("alert", { name: "Cảnh báo ngôi kể" })).not.toBeInTheDocument();
+      unmount();
+    }
+    expect(storyPov).not.toHaveBeenCalled();
   });
 });

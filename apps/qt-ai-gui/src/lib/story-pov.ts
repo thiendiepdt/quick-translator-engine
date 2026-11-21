@@ -73,3 +73,23 @@ export function povNotices(input: {
   }
   return notices;
 }
+
+/** Dòng cảnh báo ở màn dịch khi truyện chọn "Ngôi một — người kể xưng tôi", kèm kết quả đọc thử raw nếu có. */
+export interface ToiPovWarning {
+  lead: string;
+  /** Raw khớp hay lệch; thiếu khi chưa đọc được raw (đang đọc, hoặc truyện quá ít đoạn để đoán). */
+  raw?: string;
+  /** Raw có vẻ kể ngôi ba — dễ là chọn nhầm. */
+  mismatch: boolean;
+}
+
+export function toiPovWarning(report?: PovReport): ToiPovWarning {
+  const lead = 'Ngôi kể: Ngôi một — người kể xưng tôi. Lời kể dịch "tôi" thay cho "ta".';
+  if (report?.isFirstPerson === true) {
+    return { lead, raw: `Raw kể ngôi một (${percent(report.ratio)} đoạn có 我 ở lời kể).`, mismatch: false };
+  }
+  if (report?.isFirstPerson === false) {
+    return { lead, raw: `Raw có vẻ kể ngôi ba (${percent(report.ratio)} đoạn có 我 ở lời kể) — rất có thể chọn nhầm.`, mismatch: true };
+  }
+  return { lead, mismatch: false };
+}
