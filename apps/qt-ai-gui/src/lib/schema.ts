@@ -498,6 +498,8 @@ export const recentSummarySchema = z.object({
   skipped: z.number().nullable().optional(),
   /** Nguồn tải raw: tên extension sẽ dùng (`extension`), không thì tên miền của link; thiếu = truyện chưa có link. */
   source: z.object({ label: z.string(), extension: z.boolean(), url: z.string() }).optional(),
+  /** Người dùng đánh dấu truyện tải raw trong app (trang Tải raw); thiếu = chưa đánh dấu. */
+  rawInApp: z.boolean().optional(),
 });
 
 /** Kết quả quét raw/ của cả thư viện (Rust `library_rescan`). */
@@ -840,6 +842,8 @@ export const rawInfoSchema = z.object({
   extensionsDir: z.string(),
   extConfig: extConfigSchema.nullable(),
   storySettings: z.array(extSettingSchema),
+  /** Dấu "truyện này tải raw trong app" (chỉ bật tay). */
+  inApp: z.boolean(),
 });
 export const rawTocSchema = z.object({
   rows: z.array(

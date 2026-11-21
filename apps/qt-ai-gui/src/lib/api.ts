@@ -519,7 +519,7 @@ export type PovReport = z.infer<typeof povReportSchema>;
  */
 export const rawSave = (
   root: string,
-  settings: { rawUrl: string; extension: string; fileTemplate: string; storySettings?: { extension: string; values: ExtValues } },
+  settings: { rawUrl: string; extension: string; fileTemplate: string; storySettings?: { extension: string; values: ExtValues }; inApp: boolean },
 ) => call("raw_save", { root, ...settings }, (v) => rawInfoSchema.parse(v));
 /** Gọi `toc` của extension rồi khớp với raw đã có. `anchor`: chương cuối đã có là mục số mấy (khi lệch tiêu đề). */
 export const rawToc = (root: string, anchor?: number) =>

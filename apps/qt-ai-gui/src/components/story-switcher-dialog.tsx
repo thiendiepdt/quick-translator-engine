@@ -123,7 +123,7 @@ export function StorySwitcherDialog({ open, onOpenChange, onPick }: Props) {
                         <IssueChips error={card.error} skipped={card.skipped} className="px-1.5 py-0" />
                       </div>
                       <div className="flex min-w-0 items-center gap-2">
-                        {card.source && <SourceChip source={card.source} className="max-w-32 px-1.5 py-0" />}
+                        <SourceChip source={card.source} inApp={card.rawInApp} className="max-w-32 px-1.5 py-0" />
                         <span className="min-w-0 truncate font-mono text-[11px] text-muted-foreground">{card.root}</span>
                       </div>
                       {card.total !== null ? (

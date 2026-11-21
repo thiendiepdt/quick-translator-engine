@@ -13,7 +13,7 @@ use qt_ai_core::raw_download::registry::{candidates, list_installed, pick, Insta
 use qt_ai_core::raw_download::run::{download, effective_template, load_toc, ChapterResult, Event, Mode, RunOptions, Summary, TocView};
 use qt_ai_core::raw_download::template::{guess_template, validate_template, DEFAULT_TEMPLATE};
 use qt_ai_core::raw_download::{
-    clear_raw, effective_raw_url, list_raw_files, load_download, save_download, set_story_settings, source_label, ClearOutcome, RawFile,
+    clear_raw, effective_raw_url, library_source, list_raw_files, load_download, save_download, set_story_settings, ClearOutcome, RawFile,
 };
 use qt_ai_core::story_fs::{list_raw_chapter_ids, load_story_config, story_paths};
 use qt_ext::{LogLevel, TocItem};
@@ -95,11 +95,11 @@ fn summary_of(ext: &Installed) -> ExtSummary {
     }
 }
 
-/// Gắn nhãn nguồn cho danh sách truyện (đọc danh sách extension một lần).
+/// Gắn nhãn nguồn và dấu "tải raw trong app" cho danh sách truyện (đọc danh sách extension một lần).
 pub fn label_sources(rows: &mut [crate::story_cmds::RecentSummary], config_path: &Path) {
     let (installed, _) = list_installed(&extensions_dir(config_path));
     for row in rows.iter_mut().filter(|r| r.name.is_some()) {
-        row.source = source_label(&story_paths(Path::new(&row.root)), &installed);
+        (row.source, row.raw_in_app) = library_source(&story_paths(Path::new(&row.root)), &installed);
     }
 }
 
@@ -128,6 +128,8 @@ pub struct RawInfo {
     pub ext_config: Option<ExtConfigView>,
     /// Trường `scope: "story"` của extension đang dùng, kèm giá trị của truyện.
     pub story_settings: Vec<SettingView>,
+    /// Dấu "truyện này tải raw trong app" (chỉ bật tay).
+    pub in_app: bool,
 }
 
 fn info_inner(root: &Path, config_path: &Path) -> CmdResult<RawInfo> {
@@ -158,12 +160,14 @@ fn info_inner(root: &Path, config_path: &Path) -> CmdResult<RawInfo> {
         guessed_template: guess_template(&ids),
         effective_template: effective_template(&config, &ids),
         extensions_dir: extensions.display().to_string(),
+        in_app: config.in_app,
         raw_url,
     })
 }
 
 /// Lưu link tải raw (bằng link nguồn thì lưu rỗng — tiếp tục theo link nguồn), extension đã chọn, mẫu tên.
-pub fn save_inner(root: &Path, raw_url: &str, extension: &str, file_template: &str) -> CmdResult<()> {
+/// `in_app`: dấu "tải raw trong app" từ trang Tải raw; `None` (tạo truyện từ link) thì giữ nguyên.
+pub fn save_inner(root: &Path, raw_url: &str, extension: &str, file_template: &str, in_app: Option<bool>) -> CmdResult<()> {
     let template = file_template.trim();
     if !template.is_empty() {
         validate_template(template).map_err(|m| CommandError::new("invalid_state", m))?;
@@ -175,6 +179,9 @@ pub fn save_inner(root: &Path, raw_url: &str, extension: &str, file_template: &s
     config.raw_url = if raw == story.source_url.trim() { String::new() } else { raw.to_string() };
     config.extension = extension.trim().to_string();
     config.file_template = template.to_string();
+    if let Some(in_app) = in_app {
+        config.in_app = in_app;
+    }
     save_download(&paths, &config)?;
     TOC_CACHE.lock().unwrap_or_else(|e| e.into_inner()).remove(&root.display().to_string());
     Ok(())
@@ -242,6 +249,7 @@ pub async fn raw_save<R: Runtime>(
     extension: String,
     file_template: String,
     story_settings: Option<StorySettingsInput>,
+    in_app: bool,
 ) -> CmdResult<RawInfo> {
     blocking(move || {
         let state = app.state::<AppState>();
@@ -249,7 +257,7 @@ pub async fn raw_save<R: Runtime>(
         if let Some(input) = &story_settings {
             save_story_settings(path, &extensions_dir(&state.config_path), input)?;
         }
-        save_inner(path, &raw_url, &extension, &file_template)?;
+        save_inner(path, &raw_url, &extension, &file_template, Some(in_app))?;
         info_inner(path, &state.config_path)
     })
     .await

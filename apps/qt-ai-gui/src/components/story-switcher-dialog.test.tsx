@@ -106,14 +106,16 @@ describe("StorySwitcherDialog", () => {
     expect(screen.getAllByText(/^(Lỗi|Bỏ qua) \d+$/)).toHaveLength(2);
   });
 
-  it("thẻ truyện hiện nhãn nguồn như màn chọn truyện", async () => {
+  it("thẻ truyện hiện nhãn nguồn và dấu tải raw trong app như màn chọn truyện", async () => {
     vi.mocked(libraryList).mockResolvedValue([
-      { root: "D:\\lib\\x", name: "X", done: 1, total: 4, source: { label: "Fanqie", extension: true, url: "https://fanqienovel.com/page/1" } },
+      { root: "D:\\lib\\x", name: "X", done: 1, total: 4, rawInApp: true, source: { label: "Fanqie", extension: true, url: "https://fanqienovel.com/page/1" } },
       { root: "D:\\lib\\y", name: "Y", done: 4, total: 4, source: { label: "book.qq.com", extension: false, url: "https://book.qq.com/book-detail/2" } },
       { root: "D:\\lib\\z", name: "Z", done: 4, total: 4 },
     ]);
     render(<StorySwitcherDialog open onOpenChange={() => undefined} onPick={() => undefined} />);
-    expect(await screen.findByText("Fanqie")).toHaveAttribute("title", "Tải raw qua extension Fanqie — https://fanqienovel.com/page/1");
+    const fanqie = await screen.findByText("Fanqie");
+    expect(fanqie).toHaveAttribute("title", "Tải raw trong app qua extension Fanqie — https://fanqienovel.com/page/1");
+    expect(fanqie).toHaveAttribute("data-in-app");
     expect(screen.getByText("book.qq.com")).toHaveAttribute("title", expect.stringContaining("Chưa có extension"));
   });
 });

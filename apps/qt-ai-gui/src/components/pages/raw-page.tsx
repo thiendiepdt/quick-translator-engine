@@ -52,6 +52,8 @@ export function RawPage() {
   const [url, setUrl] = useState("");
   const [extension, setExtension] = useState("");
   const [template, setTemplate] = useState("");
+  /** Dấu "truyện này tải raw trong app" — lưu cùng nút Lưu như link và mẫu tên file. */
+  const [inApp, setInApp] = useState(false);
   const templateInput = useRef<HTMLInputElement>(null);
   /** Đã bấm vào ô mẫu: chip chèn vào chỗ con trỏ; chưa thì chèn vào cuối. */
   const templateTouched = useRef(false);
@@ -81,6 +83,7 @@ export function RawPage() {
     setUrl(next.rawUrl);
     setExtension(next.extensionChoice || next.extension?.id || "");
     setTemplate(next.fileTemplate);
+    setInApp(next.inApp);
     setStoryDisplays({});
   }
 
@@ -147,7 +150,12 @@ export function RawPage() {
   const templateError = template.trim() ? validateTemplate(template) : null;
   const storyChanged = !!info && Object.keys(changedValues(info.storySettings, storyDisplays)).length > 0;
   const dirty =
-    !!info && (url.trim() !== info.rawUrl || extension !== (info.extensionChoice || info.extension?.id || "") || template.trim() !== info.fileTemplate || storyChanged);
+    !!info &&
+    (url.trim() !== info.rawUrl ||
+      extension !== (info.extensionChoice || info.extension?.id || "") ||
+      template.trim() !== info.fileTemplate ||
+      inApp !== info.inApp ||
+      storyChanged);
   const activeTemplate = template.trim() || info?.effectiveTemplate || "";
   const preview = useMemo(() => {
     if (templateError || !activeTemplate) return null;
@@ -163,7 +171,7 @@ export function RawPage() {
     setBusy("save");
     try {
       const storySettings = storyChanged && info?.extConfig ? { extension: info.extConfig.id, values: storyValues(info.storySettings, storyDisplays) } : undefined;
-      applyInfo(await rawSave(root, { rawUrl: url, extension, fileTemplate: template, storySettings }));
+      applyInfo(await rawSave(root, { rawUrl: url, extension, fileTemplate: template, storySettings, inApp }));
       setToc(undefined);
       forgetRawToc(root);
       toast.success("Đã lưu cài đặt tải raw");
@@ -368,6 +376,17 @@ export function RawPage() {
                 onConfig={(config) => setInfo((current) => current && { ...current, extConfig: config })}
               />
             )}
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="flex w-fit items-center gap-2 text-sm font-medium">
+              <input type="checkbox" checked={inApp} onChange={(e) => setInApp(e.target.checked)} />
+              Truyện này tải raw trong app
+            </label>
+            <p className="text-xs text-muted-foreground">
+              Đánh dấu và lọc ở màn chọn truyện; không ảnh hưởng việc tải. Có extension khớp link chưa chắc là truyện tải trong
+              app (truyện lấy raw bên ngoài thì để trống).
+            </p>
           </div>
 
           {info.storySettings.length > 0 && (

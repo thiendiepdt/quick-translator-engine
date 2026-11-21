@@ -39,6 +39,7 @@ pub fn summarize_uncached(root: &Path) -> RecentSummary {
                 error: Some(counts.error),
                 skipped: Some(counts.skipped),
                 source: None,
+                raw_in_app: false,
             }
         }
         _ => RecentSummary {
@@ -51,6 +52,7 @@ pub fn summarize_uncached(root: &Path) -> RecentSummary {
             error: None,
             skipped: None,
             source: None,
+            raw_in_app: false,
         },
     }
 }

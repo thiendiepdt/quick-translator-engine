@@ -170,7 +170,7 @@ export function StoryPage() {
     try {
       if (form.formState.isDirty) await persist(fromFormValues(values, currentStory));
       if (rawUrl !== undefined && raw) {
-        setRaw(await rawSave(currentRoot, { rawUrl, extension: raw.extensionChoice, fileTemplate: raw.fileTemplate }));
+        setRaw(await rawSave(currentRoot, { rawUrl, extension: raw.extensionChoice, fileTemplate: raw.fileTemplate, inApp: raw.inApp }));
         setRawUrl(undefined);
         if (!form.formState.isDirty) toast.success("Đã lưu link tải raw");
       }

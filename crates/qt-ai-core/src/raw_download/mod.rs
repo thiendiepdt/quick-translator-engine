@@ -37,6 +37,9 @@ pub struct DownloadConfig {
     pub settings: IndexMap<String, Map<String, Value>>,
     /// Sổ chương: mã chương trong mục lục → id file raw.
     pub chapters: IndexMap<String, String>,
+    /// Người dùng đánh dấu truyện này tải raw trong app (màn chọn truyện hiện dấu và lọc được). Chỉ bật tay: có
+    /// extension khớp link hay đã có sổ tải chưa chắc là truyện tải trong app (có truyện lấy raw miễn phí bên ngoài).
+    pub in_app: bool,
 }
 
 /// Lưu cài đặt `scope: "story"` của một extension cho truyện. `values` là đủ bộ trường của truyện: thiếu hoặc
@@ -155,9 +158,18 @@ fn short_name(name: &str) -> String {
 
 /// Nhãn nguồn của truyện từ link tải raw (mặc định là link nguồn); `None` khi truyện không có link.
 pub fn source_label(paths: &StoryPaths, installed: &[Installed]) -> Option<SourceLabel> {
-    let story = StoryConfig { source_url: story_source_url(paths)?, ..StoryConfig::empty() };
+    label_with(paths, &load_download(paths), installed)
+}
+
+/// Nhãn nguồn + dấu "tải raw trong app" cho một dòng của màn chọn truyện — đọc `download.json` một lần.
+pub fn library_source(paths: &StoryPaths, installed: &[Installed]) -> (Option<SourceLabel>, bool) {
     let config = load_download(paths);
-    let raw = effective_raw_url(&config, &story);
+    (label_with(paths, &config, installed), config.in_app)
+}
+
+fn label_with(paths: &StoryPaths, config: &DownloadConfig, installed: &[Installed]) -> Option<SourceLabel> {
+    let story = StoryConfig { source_url: story_source_url(paths)?, ..StoryConfig::empty() };
+    let raw = effective_raw_url(config, &story);
     let parsed = url::Url::parse(&raw).ok();
     if let Some(ext) = pick(installed, &raw, &config.extension) {
         let name = short_name(&ext.package.manifest.name);
@@ -333,6 +345,28 @@ nội dung")).unwrap();
         std::fs::write(&paths.story_json, late.to_string()).unwrap();
         assert!(std::fs::metadata(&paths.story_json).unwrap().len() > 8192);
         assert_eq!(source_label(&paths, &installed).unwrap().label, "qimao.com");
+    }
+
+    #[test]
+    fn dau_tai_raw_trong_app_doc_ghi_va_len_danh_sach_truyen() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = story_paths(dir.path());
+        let url = "https://www.qimao.com/shuku/1/";
+        crate::story_fs::save_story_config(&paths, &StoryConfig { source_url: url.into(), ..StoryConfig::empty() }).unwrap();
+        std::fs::write(download_path(&paths), r#"{ "rawUrl": "", "chapters": { "1": "0001_1" } }"#).unwrap();
+        assert!(!load_download(&paths).in_app, "file cũ không có trường → chưa đánh dấu, kể cả đã có sổ tải");
+        let label = SourceLabel { label: "qimao.com".into(), extension: false, url: url.into() };
+        assert_eq!(library_source(&paths, &[]), (Some(label.clone()), false));
+
+        let mut config = load_download(&paths);
+        config.in_app = true;
+        save_download(&paths, &config).unwrap();
+        assert!(std::fs::read_to_string(download_path(&paths)).unwrap().contains(r#""inApp": true"#));
+        assert_eq!(library_source(&paths, &[]), (Some(label), true));
+        assert_eq!(load_download(&paths).chapters.len(), 1, "sổ chương giữ nguyên");
+
+        crate::story_fs::save_story_config(&paths, &StoryConfig::empty()).unwrap();
+        assert_eq!(library_source(&paths, &[]), (None, true), "chưa có link vẫn giữ dấu");
     }
 
     #[test]

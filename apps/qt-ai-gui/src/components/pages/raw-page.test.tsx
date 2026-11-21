@@ -55,6 +55,7 @@ const info: RawInfo = {
   extensionsDir: "C:\\app\\extensions",
   extConfig: null,
   storySettings: [],
+  inApp: false,
 };
 
 const toc: RawToc = {
@@ -285,7 +286,12 @@ describe("RawPage", () => {
     await user.type(link, "https://demo.test/book/2");
     expect(screen.getByRole("button", { name: /Tải mục lục/ })).toBeDisabled();
     await user.click(screen.getByRole("button", { name: "Lưu" }));
-    expect(rawSave).toHaveBeenCalledWith("D:\\lib\\demo", { rawUrl: "https://demo.test/book/2", extension: "io.github.dev.demo", fileTemplate: "chuong-{chuong:4}" });
+    expect(rawSave).toHaveBeenCalledWith("D:\\lib\\demo", {
+      rawUrl: "https://demo.test/book/2",
+      extension: "io.github.dev.demo",
+      fileTemplate: "chuong-{chuong:4}",
+      inApp: false,
+    });
     expect(screen.getByRole("button", { name: /Tải mục lục/ })).toBeEnabled();
   });
 
@@ -353,7 +359,23 @@ describe("RawPage", () => {
       extension: ext.id,
       fileTemplate: "",
       storySettings: { extension: ext.id, values: { proxy: "p2", vip: null } },
+      inApp: false,
     });
+  });
+
+  it("ô đánh dấu tải raw trong app theo download.json, lưu cùng nút Lưu", async () => {
+    vi.mocked(rawSave).mockImplementation((_root, s) => Promise.resolve({ ...info, inApp: s.inApp }));
+    const user = userEvent.setup();
+    render(<RawPage />);
+    const mark = await screen.findByRole("checkbox", { name: "Truyện này tải raw trong app" });
+    expect(mark).not.toBeChecked();
+    expect(screen.getByRole("button", { name: "Lưu" })).toBeDisabled();
+    await user.click(mark);
+    expect(screen.getByRole("button", { name: "Lưu" })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "Lưu" }));
+    expect(rawSave).toHaveBeenCalledWith("D:\\lib\\demo", { rawUrl: info.rawUrl, extension: ext.id, fileTemplate: "", inApp: true });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Lưu" })).toBeDisabled());
+    expect(mark).toBeChecked();
   });
 
   it("extension có tài khoản trang nguồn: dòng API key không có nút Đăng nhập, dòng tài khoản thì có", async () => {

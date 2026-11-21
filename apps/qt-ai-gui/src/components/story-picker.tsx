@@ -1,5 +1,6 @@
 import {
   Activity,
+  Download,
   FileType,
   FolderOpen,
   FolderPlus,
@@ -102,7 +103,7 @@ function StoryRow({
             <>
               <p className="flex items-center gap-2 truncate font-medium">
                 <span className="truncate">{item.name}</span>
-                {item.source && <SourceChip source={item.source} />}
+                <SourceChip source={item.source} inApp={item.rawInApp} />
                 {(item.vnFlags ?? 0) > 0 && (
                   <span
                     title={`${item.vnFlags} chỗ nhạy cảm về Việt Nam chưa xác minh`}
@@ -217,6 +218,7 @@ export function StoryPicker() {
   const [limit, setLimit] = useState(PAGE_SIZE);
   /** Chỉ hiện truyện thư viện có chương lỗi / bỏ qua. */
   const [onlyIssues, setOnlyIssues] = useState(false);
+  const [onlyInApp, setOnlyInApp] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -443,11 +445,14 @@ export function StoryPicker() {
       }),
     [libraryRows, running, progress],
   );
-  const libraryFiltered = useMemo(
-    () => filterByQuery(onlyIssues ? issueRows : libraryRows, query),
-    [onlyIssues, issueRows, libraryRows, query],
-  );
+  // Truyện người dùng đánh dấu tải raw trong app (trang Tải raw); bật cùng lọc lỗi thì phải thoả cả hai.
+  const inAppCount = useMemo(() => libraryRows.filter((item) => item.rawInApp).length, [libraryRows]);
+  const libraryFiltered = useMemo(() => {
+    const base = onlyIssues ? issueRows : libraryRows;
+    return filterByQuery(onlyInApp ? base.filter((item) => item.rawInApp) : base, query);
+  }, [onlyIssues, onlyInApp, issueRows, libraryRows, query]);
   const showIssueFilter = issueRows.length > 0 || onlyIssues;
+  const showInAppFilter = inAppCount > 0 || onlyInApp;
   const libraryVisible = libraryFiltered.slice(0, limit);
   const showSearch = libraryRows.length > 8;
   // "Dịch tất cả": truyện thư viện còn chương chờ mà chưa có phiên, theo thứ tự danh sách; số bắt đầu được
@@ -582,7 +587,7 @@ export function StoryPicker() {
               </p>
             ) : (
               <>
-                {(showSearch || showIssueFilter) && (
+                {(showSearch || showIssueFilter || showInAppFilter) && (
                   <div className="mb-2 flex items-center gap-2">
                     {showSearch && (
                       <div className="relative min-w-0 flex-1">
@@ -611,6 +616,20 @@ export function StoryPicker() {
                         }}
                       >
                         <TriangleAlert className="text-status-error" /> Có lỗi/bỏ qua ({issueRows.length})
+                      </Button>
+                    )}
+                    {showInAppFilter && (
+                      <Button
+                        variant={onlyInApp ? "secondary" : "outline"}
+                        aria-pressed={onlyInApp}
+                        title="Chỉ hiện truyện đã đánh dấu tải raw trong app (đánh dấu ở trang Tải raw của truyện)"
+                        className={cn("shrink-0", !showSearch && !showIssueFilter && "ml-auto")}
+                        onClick={() => {
+                          setOnlyInApp((value) => !value);
+                          setLimit(PAGE_SIZE);
+                        }}
+                      >
+                        <Download className="text-primary" /> Tải raw trong app ({inAppCount})
                       </Button>
                     )}
                   </div>

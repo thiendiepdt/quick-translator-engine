@@ -191,7 +191,7 @@ describe("StoryPicker · Thư viện", () => {
     expect(screen.getByText("Truyện 27")).toBeInTheDocument();
   });
 
-  it("thẻ truyện có nhãn nguồn: extension sẽ tải raw, không thì tên miền; ô tìm khớp cả nguồn", async () => {
+  it("thẻ truyện có nhãn nguồn: tên extension khớp link, không thì tên miền; ô tìm khớp cả nguồn", async () => {
     const user = userEvent.setup();
     useStoryStore.setState({ screen: "picker", config: { ...config, libraryRoot: "D:\\lib", recent: [] } });
     vi.mocked(libraryList).mockResolvedValue([
@@ -202,13 +202,46 @@ describe("StoryPicker · Thư viện", () => {
       ...Array.from({ length: 6 }, (_, i) => ({ root: `D:\\lib\\x${i}`, name: `Truyện phụ ${i}`, done: 0, total: 1 })),
     ]);
     render(<StoryPicker />);
-    expect(await screen.findByText("Qimao")).toHaveAttribute("title", "Tải raw qua extension Qimao — https://www.qimao.com/shuku/1/");
+    // Có extension khớp nhưng chưa đánh dấu: chip chỉ viền nhạt, tooltip vẫn nói extension nào khớp.
+    expect(await screen.findByText("Qimao")).toHaveAttribute(
+      "title",
+      "Extension Qimao khớp link; truyện chưa đánh dấu tải raw trong app — https://www.qimao.com/shuku/1/",
+    );
+    expect(screen.getByText("Qimao")).not.toHaveAttribute("data-in-app");
     expect(screen.getByText("69shuba.com")).toHaveAttribute("title", expect.stringContaining("Chưa có extension"));
+    expect(screen.queryByRole("button", { name: /Tải raw trong app/ })).not.toBeInTheDocument();
 
     await user.type(screen.getByLabelText("Tìm truyện trong thư viện"), "qimao");
     expect(screen.getByText("Truyện A")).toBeInTheDocument();
     expect(screen.queryByText("Truyện B")).not.toBeInTheDocument();
     expect(screen.queryByText("Truyện C")).not.toBeInTheDocument();
+  });
+
+  it("truyện đánh dấu tải raw trong app: chip có dấu tải (cả khi chưa có link); nút lọc chỉ giữ các truyện đó", async () => {
+    const user = userEvent.setup();
+    useStoryStore.setState({ screen: "picker", config: { ...config, libraryRoot: "D:\\lib", recent: [] } });
+    vi.mocked(libraryList).mockResolvedValue([
+      { root: "D:\\lib\\a", name: "A", done: 1, total: 9, rawInApp: true, source: { label: "Fanqie", extension: true, url: "https://fanqienovel.com/page/1" } },
+      { root: "D:\\lib\\b", name: "B", done: 1, total: 9, source: { label: "Qimao", extension: true, url: "https://www.qimao.com/shuku/2/" } },
+      { root: "D:\\lib\\c", name: "C", done: 1, total: 9, rawInApp: true },
+      { root: "D:\\lib\\d", name: "D", done: 1, total: 9, rawInApp: true, source: { label: "69shuba.com", extension: false, url: "https://www.69shuba.com/book/2.htm" } },
+    ]);
+    render(<StoryPicker />);
+    const fanqie = await screen.findByText("Fanqie");
+    expect(fanqie).toHaveAttribute("data-in-app");
+    expect(fanqie).toHaveAttribute("title", "Tải raw trong app qua extension Fanqie — https://fanqienovel.com/page/1");
+    expect(screen.getByText("Tải trong app")).toHaveAttribute("title", "Đã đánh dấu tải raw trong app nhưng truyện chưa có link tải raw");
+    expect(screen.getByText("69shuba.com")).toHaveAttribute("title", expect.stringContaining("chưa có extension"));
+    expect(screen.getByText("Qimao")).not.toHaveAttribute("data-in-app");
+
+    const filter = screen.getByRole("button", { name: "Tải raw trong app (3)" });
+    expect(filter).toHaveAttribute("aria-pressed", "false");
+    await user.click(filter);
+    expect(filter).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByText("B")).not.toBeInTheDocument();
+    for (const name of ["A", "C", "D"]) expect(screen.getByText(name)).toBeInTheDocument();
+    await user.click(filter);
+    expect(screen.getByText("B")).toBeInTheDocument();
   });
 
   it("mở thủ công một folder chứa truyện con thì hỏi đặt làm thư viện thay vì khởi tạo nhầm", async () => {

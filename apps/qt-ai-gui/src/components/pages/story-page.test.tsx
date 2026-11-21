@@ -8,7 +8,7 @@ import { useStoryStore } from "@/store/story";
 
 vi.mock("@/lib/api", () => ({
   rawInfo: vi.fn(() =>
-    Promise.resolve({ rawUrl: "", rawUrlIsDefault: true, extensionChoice: "", fileTemplate: "", sourceUrl: "", extension: null, candidates: [], installed: 0, loadErrors: [], defaultTemplate: "", guessedTemplate: null, effectiveTemplate: "", extensionsDir: "", extConfig: null, storySettings: [] }),
+    Promise.resolve({ rawUrl: "", rawUrlIsDefault: true, extensionChoice: "", fileTemplate: "", sourceUrl: "", extension: null, candidates: [], installed: 0, loadErrors: [], defaultTemplate: "", guessedTemplate: null, effectiveTemplate: "", extensionsDir: "", extConfig: null, storySettings: [], inApp: true }),
   ),
   rawSave: vi.fn(),
   storyPov: vi.fn(() => Promise.resolve({ chapters: 0, paragraphs: 0, firstPerson: 0, ratio: 0, isFirstPerson: null })),
@@ -97,7 +97,7 @@ describe("StoryPage", () => {
   it("Link tải raw theo Link nguồn tới khi sửa; Lưu ghi qua rawSave", async () => {
     const user = userEvent.setup();
     const { rawSave } = await import("@/lib/api");
-    vi.mocked(rawSave).mockResolvedValue({ rawUrl: "https://raw/1", rawUrlIsDefault: false, extensionChoice: "", fileTemplate: "", sourceUrl: "", extension: null, candidates: [], installed: 0, loadErrors: [], defaultTemplate: "", guessedTemplate: null, effectiveTemplate: "", extensionsDir: "", extConfig: null, storySettings: [] });
+    vi.mocked(rawSave).mockResolvedValue({ rawUrl: "https://raw/1", rawUrlIsDefault: false, extensionChoice: "", fileTemplate: "", sourceUrl: "", extension: null, candidates: [], installed: 0, loadErrors: [], defaultTemplate: "", guessedTemplate: null, effectiveTemplate: "", extensionsDir: "", extConfig: null, storySettings: [], inApp: true });
     render(<StoryPage />);
     const raw = screen.getByLabelText("Link tải raw");
     await waitFor(() => expect(raw).toBeEnabled());
@@ -105,7 +105,8 @@ describe("StoryPage", () => {
     await user.clear(raw);
     await user.type(raw, "https://raw/1");
     await user.click(screen.getByRole("button", { name: /^Lưu$/ }));
-    await waitFor(() => expect(rawSave).toHaveBeenCalledWith(expect.any(String), { rawUrl: "https://raw/1", extension: "", fileTemplate: "" }));
+    // Lưu link từ Hồ sơ giữ nguyên dấu "tải raw trong app" đang có.
+    await waitFor(() => expect(rawSave).toHaveBeenCalledWith(expect.any(String), { rawUrl: "https://raw/1", extension: "", fileTemplate: "", inApp: true }));
   });
   it("tab Nhân vật hiện bảng giới tính theo glossary names đã lưu", async () => {
     const user = userEvent.setup();

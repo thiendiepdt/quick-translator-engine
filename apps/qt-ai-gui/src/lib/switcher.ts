@@ -16,6 +16,8 @@ export interface SwitcherCard {
   skipped: number;
   /** Nguồn tải raw (tên extension hoặc tên miền). */
   source?: RecentSummary["source"];
+  /** Người dùng đánh dấu truyện tải raw trong app. */
+  rawInApp?: boolean;
 }
 
 /** Chương lỗi / bỏ qua của truyện: số live của phiên đang chạy đè số đọc từ đĩa. */
@@ -53,6 +55,7 @@ export function mergeCandidates(input: {
       openable: summary.total !== null || running,
       ...storyIssues(summary, live),
       source: summary.source,
+      rawInApp: summary.rawInApp,
     });
   };
   const known = [...input.library, ...input.recent];

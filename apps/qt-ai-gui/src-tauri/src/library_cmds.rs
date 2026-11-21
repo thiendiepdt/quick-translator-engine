@@ -118,7 +118,7 @@ pub fn create_story_inner(library_root: &Path, name: &str, slug: &str, source_ur
     save_story_config(&paths, &story)?;
     // Link tải raw khác link nguồn thì ghi download.json; bằng hoặc trống thì truyện theo link nguồn.
     if !raw_url.trim().is_empty() && raw_url.trim() != story.source_url {
-        crate::raw_cmds::save_inner(&root, raw_url, "", "")?;
+        crate::raw_cmds::save_inner(&root, raw_url, "", "", None)?;
     }
     refresh_quietly(&root, &lexicon());
     Ok(root)

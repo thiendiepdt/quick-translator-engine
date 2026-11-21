@@ -117,6 +117,9 @@ pub struct RecentSummary {
     /// Nguồn tải raw (extension sẽ dùng, hoặc tên miền khi chưa có extension) — gắn ở lệnh trả danh sách.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source: Option<qt_ai_core::raw_download::SourceLabel>,
+    /// Người dùng đánh dấu truyện tải raw trong app (`download.json` → `inApp`) — gắn cùng lúc với `source`.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub raw_in_app: bool,
 }
 
 /// Tóm tắt từng folder gần đây; folder hỏng/mất → chỉ có root (UI hiện mờ).
