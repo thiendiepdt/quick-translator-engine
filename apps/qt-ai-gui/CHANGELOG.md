@@ -1,6 +1,7 @@
 # Có gì mới
 
 ## Chưa phát hành
+- Cột **Phiên này** bên phải: rê chuột lên thẻ một truyện không đang dịch sẽ hiện nút ✕ để gỡ truyện đó khỏi cột. Truyện không bị xoá; mở lại thì nó hiện lại. Truyện đang dịch không có nút này.
 - Đánh dấu được truyện nào tải raw trong app: tick ô **Truyện này tải raw trong app** ở trang Tải raw. Màn chọn truyện hiện biểu tượng tải trên chip nguồn của các truyện đã đánh dấu, và có thêm nút lọc **Tải raw trong app (N)** cạnh nút Có lỗi/bỏ qua. Chip nguồn giờ chỉ có nền màu khi truyện đã đánh dấu: có extension khớp link chưa chắc là truyện tải trong app, vì có truyện lấy raw miễn phí bên ngoài. Truyện chưa đánh dấu thì chip chỉ có viền; rê chuột vẫn thấy extension nào khớp link.
 - Khung cảnh báo của chương gom theo luật: mỗi luật một dòng kèm số các đoạn dính luật. Trước đây chương có 217 cảnh báo cùng một luật thì hiện đủ 217 câu, che hết nội dung truyện; giờ chỉ còn một dòng. Rê chuột lên số đoạn để xem câu trích, bấm số thì app mở tab Bản dịch và cuộn tới đúng đoạn, viền sáng đoạn đó. Mỗi luật hiện 20 số đầu, bấm "+N" để xem hết. Khung cao tối đa 1/4 màn hình và có nút Thu gọn; đã thu gọn thì giữ nguyên khi chuyển sang chương khác.
 - Trang Cài đặt có cột mục lục bên trái, liệt kê đủ 12 khối (Giao diện, Thư viện, Mặc định, Nhạy cảm VN…). Bấm một mục là cuộn thẳng tới khối đó; khi cuộn, mục của khối đang xem được tô sáng. Cột mục lục đứng yên trong lúc cuộn.

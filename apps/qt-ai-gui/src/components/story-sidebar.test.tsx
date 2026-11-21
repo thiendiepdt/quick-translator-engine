@@ -89,6 +89,21 @@ describe("StorySidebar", () => {
     expect(entries[2]).toMatchObject({ current: true, running: false, name: "Alpha Beta" });
   });
 
+  it("truyện không dịch có nút gỡ khỏi danh sách (kể cả truyện đang mở); đang dịch thì không; gỡ không mở truyện", async () => {
+    const user = userEvent.setup();
+    ui();
+    expect(screen.queryByRole("button", { name: "Gỡ Bravo khỏi danh sách" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Gỡ Delta khỏi danh sách" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Gỡ Alpha Beta khỏi danh sách" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Gỡ Charlie khỏi danh sách" }));
+    expect(openStory).not.toHaveBeenCalled();
+    expect(useStoryStore.getState().opened).toEqual([A, B, D]);
+    expect(screen.getAllByRole("listitem")).toHaveLength(3);
+    expect(screen.queryByRole("listitem", { name: /^Charlie/ })).not.toBeInTheDocument();
+    expect(useStoryStore.getState().root).toBe(A);
+  });
+
   it("bấm ô truyện khác → open_story rồi switchStory giữ trang; bấm truyện đang mở thì không gọi", async () => {
     vi.mocked(openStory).mockResolvedValue(snapshot(B, "Bravo", true));
     const user = userEvent.setup();

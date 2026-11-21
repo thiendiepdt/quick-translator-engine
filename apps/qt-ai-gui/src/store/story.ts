@@ -110,6 +110,8 @@ interface StoryState extends PerStory {
   openStory: (snapshot: StorySnapshot) => void;
   /** Chuyển nhanh sang truyện khác từ dock/dialog: như openStory nhưng giữ trang đang xem. */
   switchStory: (snapshot: StorySnapshot) => void;
+  /** Gỡ truyện khỏi cột "Phiên này" (chỉ danh sách `opened`; truyện đang mở vẫn mở, mở lại thì hiện lại). */
+  forgetOpened: (root: string) => void;
   closeStory: () => void;
   openConverter: () => void;
   closeConverter: () => void;
@@ -295,6 +297,7 @@ export const useStoryStore = create<StoryState>()((set, get) => ({
     if (leavingUnsaved(get())) set({ pendingLeave: go });
     else go();
   },
+  forgetOpened: (root) => set((state) => ({ opened: state.opened.filter((item) => !samePath(item, root)) })),
   closeStory: () => {
     const go = () =>
       set((state) => ({ screen: "picker", root: undefined, snapshot: undefined, selectedId: undefined, views: rememberView(state) }));

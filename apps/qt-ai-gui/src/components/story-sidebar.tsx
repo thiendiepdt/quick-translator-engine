@@ -1,4 +1,4 @@
-import { ChevronDown, LayoutGrid, TriangleAlert } from "lucide-react";
+import { ChevronDown, LayoutGrid, TriangleAlert, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -28,6 +28,7 @@ export function StorySidebar() {
   const progress = useStoryStore((s) => s.progress);
   const issues = useStoryStore((s) => s.issues);
   const switchStory = useStoryStore((s) => s.switchStory);
+  const forgetOpened = useStoryStore((s) => s.forgetOpened);
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [limit, setLimit] = useState(SIDEBAR_PAGE);
@@ -109,101 +110,117 @@ export function StorySidebar() {
           const flagged = issuesLabel(item);
           const attention = flagged ? `Cần xem: ${flagged}` : "";
           return (
-            <Tooltip key={item.root}>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  role="listitem"
-                  aria-label={`${label} — ${detail}${attention ? ` — ${attention}` : ""}`}
-                  aria-current={item.current ? "true" : undefined}
-                  disabled={busy}
-                  onClick={() => void switchTo(item.root)}
-                  className={cn(
-                    "flex w-full shrink-0 items-start gap-2 rounded-lg border p-2 text-left transition-colors disabled:opacity-50",
-                    item.current
-                      ? "border-primary bg-primary/10"
-                      : "border-transparent bg-muted/60 hover:bg-accent",
-                  )}
-                >
-                  <span
+            // Nút gỡ là anh em của ô (không lồng button trong button); ô vẫn là listitem như cũ.
+            <div key={item.root} className="group relative shrink-0">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    role="listitem"
+                    aria-label={`${label} — ${detail}${attention ? ` — ${attention}` : ""}`}
+                    aria-current={item.current ? "true" : undefined}
+                    disabled={busy}
+                    onClick={() => void switchTo(item.root)}
                     className={cn(
-                      "relative flex size-8 shrink-0 items-center justify-center rounded-md text-[11px] font-semibold",
-                      item.current ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground",
+                      "flex w-full shrink-0 items-start gap-2 rounded-lg border p-2 text-left transition-colors disabled:opacity-50",
+                      item.current
+                        ? "border-primary bg-primary/10"
+                        : "border-transparent bg-muted/60 hover:bg-accent",
                     )}
                   >
-                    {initials(item.name, item.root)}
-                    {item.running && (
-                      <span
-                        className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-status-translating ring-2 ring-card animate-pulse"
-                        aria-hidden
-                      />
-                    )}
-                  </span>
-                  <span className="flex min-w-0 flex-1 flex-col gap-1">
-                    <span className={cn("line-clamp-2 text-xs leading-snug font-medium", item.current && "text-primary")}>
-                      {item.name || folder}
+                    <span
+                      className={cn(
+                        "relative flex size-8 shrink-0 items-center justify-center rounded-md text-[11px] font-semibold",
+                        item.current ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground",
+                      )}
+                    >
+                      {initials(item.name, item.root)}
+                      {item.running && (
+                        <span
+                          className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-status-translating ring-2 ring-card animate-pulse"
+                          aria-hidden
+                        />
+                      )}
                     </span>
-                    {item.running ? (
-                      <span className="flex items-center gap-1.5">
-                        <span className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
-                          <span className="block h-full bg-status-done" style={{ width: `${item.percent ?? 0}%` }} />
-                        </span>
-                        {item.waitUntil ? (
-                          <span className="shrink-0 text-[10px] tabular-nums text-status-warning">
-                            {item.retry ? "thử lại" : "chờ"} {clockLabel(item.waitUntil)}
-                          </span>
-                        ) : (
-                          <span className="shrink-0 text-[10px] tabular-nums text-status-translating">
-                            {item.percent !== undefined ? `${item.percent}%` : "…"}
-                          </span>
-                        )}
-                        {item.link && (
-                          <span
-                            className={cn(
-                              "shrink-0 rounded border px-1 text-[9px] leading-tight font-medium",
-                              item.link === "mcp"
-                                ? "border-status-done/40 text-status-done"
-                                : "border-status-warning/40 text-status-warning",
-                            )}
-                          >
-                            {LINK_LABEL[item.link].tag}
-                          </span>
-                        )}
-                      </span>
-                    ) : (
-                      <span className="truncate font-mono text-[10px] text-muted-foreground">{folder}</span>
-                    )}
-                    {item.stop && (
-                      <span className="flex items-center gap-1 text-[10px] leading-none font-medium text-status-error">
-                        <TriangleAlert className="size-3 shrink-0" aria-hidden />
-                        <span className="truncate">
-                          Dừng{item.stop.at ? ` ${clockLabel(item.stop.at)}` : ""}: {stopReasonBrief(item.stop.reason)}
-                        </span>
-                      </span>
-                    )}
-                    {flagged && (
+                    <span className="flex min-w-0 flex-1 flex-col gap-1">
                       <span
-                        className={cn(
-                          "flex items-center gap-1 text-[10px] leading-none font-medium",
-                          item.error > 0 ? "text-status-error" : "text-status-warning",
-                        )}
+                        className={cn("line-clamp-2 text-xs leading-snug font-medium", item.current && "text-primary", !item.running && "pr-4")}
                       >
-                        <TriangleAlert className="size-3 shrink-0" aria-hidden />
-                        <span className="truncate">{flagged}</span>
+                        {item.name || folder}
                       </span>
-                    )}
-                  </span>
+                      {item.running ? (
+                        <span className="flex items-center gap-1.5">
+                          <span className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
+                            <span className="block h-full bg-status-done" style={{ width: `${item.percent ?? 0}%` }} />
+                          </span>
+                          {item.waitUntil ? (
+                            <span className="shrink-0 text-[10px] tabular-nums text-status-warning">
+                              {item.retry ? "thử lại" : "chờ"} {clockLabel(item.waitUntil)}
+                            </span>
+                          ) : (
+                            <span className="shrink-0 text-[10px] tabular-nums text-status-translating">
+                              {item.percent !== undefined ? `${item.percent}%` : "…"}
+                            </span>
+                          )}
+                          {item.link && (
+                            <span
+                              className={cn(
+                                "shrink-0 rounded border px-1 text-[9px] leading-tight font-medium",
+                                item.link === "mcp"
+                                  ? "border-status-done/40 text-status-done"
+                                  : "border-status-warning/40 text-status-warning",
+                              )}
+                            >
+                              {LINK_LABEL[item.link].tag}
+                            </span>
+                          )}
+                        </span>
+                      ) : (
+                        <span className="truncate font-mono text-[10px] text-muted-foreground">{folder}</span>
+                      )}
+                      {item.stop && (
+                        <span className="flex items-center gap-1 text-[10px] leading-none font-medium text-status-error">
+                          <TriangleAlert className="size-3 shrink-0" aria-hidden />
+                          <span className="truncate">
+                            Dừng{item.stop.at ? ` ${clockLabel(item.stop.at)}` : ""}: {stopReasonBrief(item.stop.reason)}
+                          </span>
+                        </span>
+                      )}
+                      {flagged && (
+                        <span
+                          className={cn(
+                            "flex items-center gap-1 text-[10px] leading-none font-medium",
+                            item.error > 0 ? "text-status-error" : "text-status-warning",
+                          )}
+                        >
+                          <TriangleAlert className="size-3 shrink-0" aria-hidden />
+                          <span className="truncate">{flagged}</span>
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="left">
+                  <p className="font-medium">{label}</p>
+                  <p className="text-xs opacity-80">{detail}</p>
+                  {attention && (
+                    <p className="text-xs">{attention} — mở truyện, lọc Bỏ qua/Lỗi để dịch lại hoặc xử lý.</p>
+                  )}
+                  <p className="font-mono text-[10px] opacity-60">{item.root}</p>
+                </TooltipContent>
+              </Tooltip>
+              {!item.running && (
+                <button
+                  type="button"
+                  aria-label={`Gỡ ${label} khỏi danh sách`}
+                  title="Gỡ khỏi danh sách — truyện không bị xoá, mở lại thì hiện lại"
+                  onClick={() => forgetOpened(item.root)}
+                  className="absolute top-1 right-1 flex size-5 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-accent hover:text-foreground focus-visible:opacity-100"
+                >
+                  <X className="size-3" />
                 </button>
-              </TooltipTrigger>
-              <TooltipContent side="left">
-                <p className="font-medium">{label}</p>
-                <p className="text-xs opacity-80">{detail}</p>
-                {attention && (
-                  <p className="text-xs">{attention} — mở truyện, lọc Bỏ qua/Lỗi để dịch lại hoặc xử lý.</p>
-                )}
-                <p className="font-mono text-[10px] opacity-60">{item.root}</p>
-              </TooltipContent>
-            </Tooltip>
+              )}
+            </div>
           );
         })}
         {hidden > 0 && (
