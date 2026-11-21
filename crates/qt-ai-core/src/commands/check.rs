@@ -1,5 +1,5 @@
 use crate::check::{
-    advisory_violations, check_violations, contains_han, glossary_near_misses, raw_pair_issues, Violation, GLOSSARY_NAME_ISSUE,
+    advisory_violations_for, check_violations, contains_han, glossary_near_misses, raw_pair_issues, Violation, GLOSSARY_NAME_ISSUE,
 };
 use crate::error::{CoreError, Result};
 use crate::mojibake::{mojibake_score, MOJIBAKE_ISSUE};
@@ -171,7 +171,7 @@ fn check_chapter(root: &Path, id: &str, record: bool) -> Result<CheckResult> {
             paragraph_violation(&parsed, i, message)
         })
     }));
-    let mut advisories: Vec<String> = advisory_violations(&final_text, story.genre.setting)
+    let mut advisories: Vec<String> = advisory_violations_for(&final_text, &story.genre)
         .iter()
         .map(|v| format!("[[{}]] {} — \"{}\"", violation_label(&parsed, v), v.message, v.text))
         .collect();

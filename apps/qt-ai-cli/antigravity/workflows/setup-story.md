@@ -31,9 +31,13 @@ Các bước:
      `witty` (truyện nam giọng đùa, hậu cung nhật thường), `punchy` (chiến đấu, vô địch lưu, hệ thống, sảng văn),
      `lyrical` (cổ ngôn văn thanh, tả cảnh tả tâm), `erotic` (truyện sắc: sắc hiệp, sắc đô thị), `youth` (đô thị nhẹ nhàng,
      giải trí văn, học đường, nhật thường người trẻ). Chỉ chỉnh nhịp và từ vựng, không đổi xưng hô.
+   - `genre.pov`: ngôi kể — `third` (người kể đứng ngoài, lời dẫn gọi nhân vật bằng tên / 他 / 她), `first-toi` (truyện
+     `modern` do nhân vật chính tự kể: lời dẫn ngoài ngoặc thoại xưng 我, người kể dịch là `tôi`), `first-ta` (truyện
+     `ancient` / `mixed` kể ngôi một, người kể `ta`). Đã có thì giữ nguyên; không chắc thì bỏ trống.
    - `protagonist`: tên nhân vật chính (Hán-Việt với `names: han`, dạng gốc với `foreign`).
    - `summary`: 3–5 câu, ưu tiên thông tin tra được, không spoil quá phần đã đọc/tra.
-   - `style.voice` (1 câu tả giọng kể), `style.toneRules` (3–5 luật xưng hô/giọng điệu rút từ chính truyện;
+   - `style.voice` (1 câu tả giọng kể: nhịp, sắc thái), `style.toneRules` (3–5 luật xưng hô/giọng điệu rút từ chính truyện;
+     KHÔNG ghi ngôi kể hay người kể tự xưng `ta` / `tôi` vào hai trường này — việc của `genre.pov`;
      truyện `ancient` chỉ dùng xưng hô cổ trang — `ta`/`ngươi`, `huynh`/`muội`/`đệ`/`tỷ`, `ca`, `tiểu nhân`,
      `cha`/`nương`… — KHÔNG ghi `anh`/`em`/`chị`/`tôi`/`cậu`/`mày`/`tao`, kể cả cho anh chị em ruột hay dân thường;
      tự xưng 本 + danh xưng viết `bổn` — `bổn tọa`, `bổn cung`, `bổn vương`, không `bản`; truyện `modern` gọi cha mẹ là

@@ -2,7 +2,7 @@
 //! dịch sang cú pháp fancy-regex trước khi compile.
 
 use crate::paragraphs::split_lines;
-use crate::story::{CheckRule, GenreSetting};
+use crate::story::{CheckRule, GenreSetting, StoryGenre, StoryPov};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
@@ -150,13 +150,25 @@ pub const DEFAULT_RULES: &[(&str, &str, &str, Option<&str>)] = &[
     (r"nói đạo", "i", "说道 → nói / đáp, không \"nói đạo\"", Some("modern")),
 ];
 
+/// Luật người kể ngôi một xưng `ta` của ADVISORY_RULES (dòng kể không ngoặc kép mà có `tôi`) — `advisory_violations_for`
+/// bỏ khi hồ sơ chọn ngôi ba hoặc ngôi một xưng `tôi`.
+pub const NARRATOR_TA_MESSAGE: &str = "Người kể ngôi một xưng tôi → ta (truyện kể ngôi ba thì bỏ qua)";
+
+/// Ngôi kể `first-toi`: dòng kể (không ngoặc kép, không phải ý nghĩ có dẫn) còn `ta` tự xưng. Bỏ `người ta`,
+/// `chúng ta`, `bọn ta` và `X ta` chỉ người khác (`cô ta`, `anh ta`, `hắn ta`…), `ta-xi`.
+pub const NARRATOR_TOI_RULE: (&str, &str, &str) = (
+    r#"^(?!Chương \d)(?![【『])(?!\[)(?!.*(?:thầm nghĩ|nghĩ thầm|thầm nhủ|nghĩ bụng))(?![^:："“”]{1,40}[:：])[^"“”『』]*(?<!\p{L})(?<!người )(?<!chúng )(?<!bọn )(?<!cô )(?<!anh )(?<!chị )(?<!ông )(?<!bà )(?<!cậu )(?<!hắn )(?<!nàng )(?<!lão )(?<!mụ )(?<!ả )(?<!gã )(?<!thằng )(?<!con )(?<!em )ta(?![\p{L}-])[^"“”『』]*$"#,
+    "iu",
+    "Hồ sơ chọn ngôi kể \"Ngôi một — xưng tôi\" mà lời kể còn tự xưng ta → tôi",
+);
+
 /// Copy `ADVISORY_CHECK_RULES` của qt-web: rule chỉ cảnh báo — không đẩy chương vào vòng soát,
 /// accept ghi vào warnings. Dành cho mẫu hay sai nhưng cũng có lúc đúng (tên riêng trùng chữ…).
 pub const ADVISORY_RULES: &[(&str, &str, &str, Option<&str>)] = &[
     (r#"(?:^|[“"'(—]|[.!?…]\s+)Ân(?![,.…\s]*ân (?:công|nhân|tình|huệ))(?=\s*[,.!?~…])"#, "u", "嗯 → Ừ/Ừm/Ưm/Hả theo bảng Thán từ, không phiên âm Ân", None),
     (r#"(?<!\p{L})["“]?[Ââ]n["”]? một tiếng"#, "u", "ân một tiếng → ừm một tiếng", None),
     (r"(?<!\p{L})bản thân (?:hắn|nàng|cô|y|lão|gã|nó)(?!\p{L})", "iu", "自己 → hắn/nàng/cô hoặc lược, không ghép bản thân + đại từ", None),
-    (r#"^(?!Chương \d)(?![【『])(?!\[)(?!.*(?:thầm nghĩ|nghĩ thầm|thầm nhủ|nghĩ bụng))(?![^:："“”]{1,40}[:：])[^"“”『』]*(?<!\p{L})tôi(?!\p{L})[^"“”『』]*$"#, "iu", "Người kể ngôi một xưng tôi → ta (truyện kể ngôi ba thì bỏ qua)", Some("modern")),
+    (r#"^(?!Chương \d)(?![【『])(?!\[)(?!.*(?:thầm nghĩ|nghĩ thầm|thầm nhủ|nghĩ bụng))(?![^:："“”]{1,40}[:：])[^"“”『』]*(?<!\p{L})tôi(?!\p{L})[^"“”『』]*$"#, "iu", NARRATOR_TA_MESSAGE, Some("modern")),
     (r#"[“"](?:Thiếu gia|Lão gia|Đại nhân|Điện hạ|Bệ hạ|Tiền bối|Phụ hoàng|Mẫu hậu|Giáo sư|Chưởng giáo|Sư thúc|Sư bá)[,!.…][^”"]{0,160}(?<!\p{L})(?:các )?ngươi(?!\p{L})"#, "iu", "Gọi bề trên bằng danh xưng mà xưng ngươi → ngài/người hoặc danh xưng (mục Vai vế trong thoại)", Some("ancient")),
     (r#"[“"](?:Thiếu gia|Lão gia|Đại nhân|Điện hạ|Bệ hạ|Tiền bối|Phụ hoàng|Mẫu hậu|Giáo sư|Chưởng giáo|Sư thúc|Sư bá)[,!.…][^”"]{0,160}(?<!chúng )(?<!bọn )(?<!người )(?<!\p{L})ta(?!\p{L})"#, "iu", "Gọi bề trên bằng danh xưng mà tự xưng ta → tiểu nhân/nô tỳ/thuộc hạ/đệ tử/vãn bối/con (mục Vai vế trong thoại)", Some("ancient")),
     (r"(?<!\p{L})(?:\d[\d.,]*|một|hai|ba|bốn|năm|sáu|bảy|tám|chín|mười|mươi|trăm|nghìn|ngàn|vạn|mấy|vài)\s*ức(?!\p{L})(?!\s+(?:vạn|hiếp))", "iu", "亿 → trăm triệu / tỷ (百亿 = 10 tỷ, 千亿 = 100 tỷ), không viết ức", None),
@@ -484,6 +496,24 @@ pub fn advisory_violations(text: &str, setting: GenreSetting) -> Vec<Violation> 
     matches(text, &rules)
 }
 
+/// Cảnh báo theo bối cảnh + ngôi kể của hồ sơ (bản web chỉ theo bối cảnh — ngôi kể là của qt-ai): ngôi ba và ngôi
+/// một xưng `tôi` bỏ luật "tôi → ta"; xưng `tôi` thì bắt ngược `ta` còn sót ở lời kể. Chưa chọn = như cũ.
+pub fn advisory_violations_for(text: &str, genre: &StoryGenre) -> Vec<Violation> {
+    let pov = genre.effective_pov();
+    let mut violations = advisory_violations(text, genre.setting);
+    if matches!(pov, Some(StoryPov::Third | StoryPov::FirstToi)) {
+        violations.retain(|violation| violation.message != NARRATOR_TA_MESSAGE);
+    }
+    if pov == Some(StoryPov::FirstToi) {
+        let (pattern, flags, message) = NARRATOR_TOI_RULE;
+        if let Some(rule) = compile(pattern, flags, message) {
+            violations.extend(matches(text, std::slice::from_ref(&rule)));
+            violations.sort_by_key(|violation| violation.line);
+        }
+    }
+    violations
+}
+
 /// Bẫy đồng âm — chép từ `RAW_PAIR_RULES` của web (golden so khớp): đoạn raw khớp `raw` (cờ `u`) mà không khớp
 /// `unless`, và đoạn dịch cùng nhãn khớp `out` → sai nghĩa. `advisory`: chỉ cảnh báo, không đưa vào soát.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -670,6 +700,39 @@ mod tests {
                 "4:有别 → hữu biệt / khác biệt, không \"có biệt\"",
             ]
         );
+    }
+
+    #[test]
+    fn canh_bao_nguoi_ke_theo_ngoi_ke_cua_ho_so() {
+        let text = [
+            "Tôi cắn môi, chẳng biết nói sao với Lan Lan.",
+            "Ta bước về phía phòng khám, tim đập thình thịch.",
+            "Người ta nói cô ta là bạn của chúng ta, bọn ta không tin.",
+            "Hắn ta gọi ta-xi rồi đi.",
+            "“Ta đi đây,” cô nói.",
+            "Tôi thầm nghĩ: ta tiêu rồi.",
+            "Cuối cùng ta cũng hiểu.",
+        ]
+        .join("\n");
+        let lines = |genre: StoryGenre| -> Vec<String> {
+            advisory_violations_for(&text, &genre)
+                .into_iter()
+                .filter(|v| v.message == NARRATOR_TA_MESSAGE || v.message == NARRATOR_TOI_RULE.2)
+                .map(|v| format!("{}:{}", v.line, if v.message == NARRATOR_TA_MESSAGE { "tôi→ta" } else { "ta→tôi" }))
+                .collect()
+        };
+        let modern = StoryGenre { setting: GenreSetting::Modern, ..StoryGenre::default() };
+        // Chưa chọn và ngôi một xưng ta: như cũ, bắt `tôi` ở lời kể.
+        assert_eq!(lines(modern), vec!["1:tôi→ta"]);
+        assert_eq!(lines(StoryGenre { pov: Some(StoryPov::FirstTa), ..modern }), vec!["1:tôi→ta"]);
+        // Ngôi ba: bỏ luật người kể.
+        assert!(lines(StoryGenre { pov: Some(StoryPov::Third), ..modern }).is_empty());
+        // Xưng tôi: bắt ngược `ta` tự xưng ở lời kể; người ta / cô ta / chúng ta / bọn ta / hắn ta / ta-xi, thoại và ý
+        // nghĩ có dẫn thì bỏ qua.
+        assert_eq!(lines(StoryGenre { pov: Some(StoryPov::FirstToi), ..modern }), vec!["2:ta→tôi", "7:ta→tôi"]);
+        // Cổ đại chọn xưng tôi vẫn là ta: không bắt ngược.
+        let ancient = StoryGenre { pov: Some(StoryPov::FirstToi), ..StoryGenre::default() };
+        assert!(lines(ancient).is_empty());
     }
 
     #[test]

@@ -18,6 +18,9 @@ struct Prompts {
     /// Mục giọng văn đứng riêng (key = tone), chèn vào base trước "## 1. Đại từ nhân xưng".
     #[serde(default)]
     tones: IndexMap<String, String>,
+    /// Ngôi kể (key = pov): cặp [chuỗi cũ, chuỗi mới] thay trên base đã chèn giọng văn (`applyStoryPov` của web).
+    #[serde(default)]
+    povs: IndexMap<String, Vec<(String, String)>>,
 }
 
 static PROMPTS: LazyLock<Prompts> = LazyLock::new(|| {
@@ -62,6 +65,14 @@ pub fn insert_tone(base: &str, tone: GenreTone) -> String {
         Some(at) => format!("{}\n{section}{}", &base[..at], &base[at..]),
         None => format!("{}\n\n{section}", base.trim_end()),
     }
+}
+
+/// Áp ngôi kể lên base (sau `insert_tone`, như web ghép xong mới thay): chỉ `first-toi` của truyện hiện đại đổi chữ.
+/// Base người dùng sửa mà không còn câu nào thì giữ nguyên.
+pub fn apply_pov(base: &str, genre: &StoryGenre) -> String {
+    let Some(pov) = genre.effective_pov() else { return base.to_string() };
+    let Some(rows) = PROMPTS.povs.get(pov.as_str()) else { return base.to_string() };
+    rows.iter().fold(base.to_string(), |text, (from, to)| text.replace(from.as_str(), to))
 }
 
 /// `JSON.stringify(value, null, 2)` — cần feature `preserve_order` của serde_json để giữ thứ tự key.
@@ -197,7 +208,7 @@ pub fn build_system_prompt(
         Some(custom) => custom.to_string(),
         None => {
             let genre = story.map(|s| &s.genre).unwrap_or(&default_genre);
-            insert_tone(&crate::base::BaseStore::from_env().prompt(genre), genre.tone)
+            apply_pov(&insert_tone(&crate::base::BaseStore::from_env().prompt(genre), genre.tone), genre)
         }
     };
     format!("{base}{story_context}{glossary_section}{style_section}{}", prompt_suffix())
@@ -337,16 +348,37 @@ mod tests {
         let mut seen = std::collections::HashSet::new();
         for setting in [GenreSetting::Ancient, GenreSetting::Modern, GenreSetting::Mixed] {
             for names in [GenreNames::Han, GenreNames::Foreign, GenreNames::Mixed] {
-                let base = base_prompt(&StoryGenre { setting, names, tone: GenreTone::Neutral });
+                let base = base_prompt(&StoryGenre { setting, names, ..StoryGenre::default() });
                 assert!(base.len() > 5000, "{setting:?}/{names:?}");
                 assert!(seen.insert(base), "trùng base {setting:?}/{names:?}");
             }
         }
         assert_eq!(seen.len(), 9);
         assert!(base_prompt(&StoryGenre::default()).contains("| 我          | **ta**"));
-        let modern = StoryGenre { setting: GenreSetting::Modern, names: GenreNames::Han, tone: GenreTone::Neutral };
+        let modern = StoryGenre { setting: GenreSetting::Modern, names: GenreNames::Han, ..StoryGenre::default() };
         // Hiện đại: người kể ngôi một vẫn tự xưng `ta`, chỉ khác cổ đại ở phần thoại theo quan hệ.
         assert!(base_prompt(&modern).contains("| 我          | **ta** (lời kể ngôi một)"));
         assert!(!base_prompt(&modern).contains("| 我          | **tôi**"));
+    }
+
+    #[test]
+    fn apply_pov_first_toi_chi_doi_truyen_hien_dai() {
+        use crate::story::StoryPov;
+        let modern = StoryGenre { setting: GenreSetting::Modern, names: GenreNames::Mixed, ..StoryGenre::default() };
+        let base = base_prompt(&modern);
+        let toi = apply_pov(base, &StoryGenre { pov: Some(StoryPov::FirstToi), ..modern });
+        assert!(toi.contains("| 我          | **tôi** (lời kể ngôi một: nhân vật chính tự kể)"));
+        assert!(!toi.contains("người kể vẫn `ta`") && !toi.contains("hoặc `ta` nếu là người kể"));
+        // Mỗi câu thay có đúng một lần trong base hiện đại.
+        for (from, _) in &PROMPTS.povs["first-toi"] {
+            assert_eq!(base.matches(from.as_str()).count(), 1, "{from}");
+        }
+        for pov in [None, Some(StoryPov::Third), Some(StoryPov::FirstTa)] {
+            assert_eq!(apply_pov(base, &StoryGenre { pov, ..modern }), base, "{pov:?}");
+        }
+        let mixed = StoryGenre { setting: GenreSetting::Mixed, pov: Some(StoryPov::FirstToi), ..modern };
+        assert_eq!(apply_pov(base_prompt(&mixed), &mixed), base_prompt(&mixed), "hỗn hợp: người kể vẫn ta");
+        // Base người dùng sửa không còn câu nào → giữ nguyên.
+        assert_eq!(apply_pov("Prompt tự viết", &StoryGenre { pov: Some(StoryPov::FirstToi), ..modern }), "Prompt tự viết");
     }
 }

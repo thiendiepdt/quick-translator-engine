@@ -11,6 +11,7 @@ vi.mock("@/lib/api", () => ({
     Promise.resolve({ rawUrl: "", rawUrlIsDefault: true, extensionChoice: "", fileTemplate: "", sourceUrl: "", extension: null, candidates: [], installed: 0, loadErrors: [], defaultTemplate: "", guessedTemplate: null, effectiveTemplate: "", extensionsDir: "", extConfig: null, storySettings: [] }),
   ),
   rawSave: vi.fn(),
+  storyPov: vi.fn(() => Promise.resolve({ chapters: 0, paragraphs: 0, firstPerson: 0, ratio: 0, isFirstPerson: null })),
   saveStory: vi.fn(),
   storySnapshot: vi.fn(),
   aiFillStory: vi.fn(),
@@ -316,5 +317,35 @@ describe("StoryPage", () => {
     await user.click(screen.getByRole("combobox", { name: "Giọng văn" }));
     await user.click(await screen.findByRole("option", { name: /Hài hước/ }));
     expect(screen.getByText(/giữ punchline/)).toBeInTheDocument();
+  });
+
+  it("Ngôi kể: raw kể ngôi một mà truyện hiện đại chưa chọn thì cảnh báo kèm nút đặt xưng tôi; style nói người kể xưng gì thì nhắc xoá", async () => {
+    const { storyPov } = await import("@/lib/api");
+    vi.mocked(storyPov).mockResolvedValueOnce({ chapters: 60, paragraphs: 2673, firstPerson: 1689, ratio: 0.632, isFirstPerson: true });
+    const narratorRule = "Lời kể ngôi thứ nhất xưng 'tôi', không dùng 'ta' trong lời dẫn truyện.";
+    const modern = storySnapshotSchema.parse({
+      ...snapshot,
+      chapters: [{ id: "0001", status: "done", reviewRound: 0, reason: null, warnings: [] }],
+      story: {
+        ...snapshot.story,
+        genre: { setting: "modern", names: "mixed", tone: "romance" },
+        style: { ...snapshot.story.style, toneRules: [narratorRule, "Gọi cha mẹ là cha/mẹ"] },
+      },
+    });
+    useStoryStore.setState({ root: modern.root, snapshot: modern, sessions: {} });
+    const user = userEvent.setup();
+    render(<StoryPage />);
+    expect(screen.getByRole("combobox", { name: "Ngôi kể" })).toHaveTextContent("Chưa chọn");
+    expect(await screen.findByText(/Raw kể ngôi một \(63,2% đoạn có 我 ở lời kể, đọc thử 60 chương/)).toBeInTheDocument();
+    expect(screen.getByText(narratorRule)).toBeInTheDocument();
+    expect(screen.queryByText("Gọi cha mẹ là cha/mẹ")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Đặt: Ngôi một — xưng tôi" }));
+    expect(screen.getByRole("combobox", { name: "Ngôi kể" })).toHaveTextContent("Ngôi một — người kể xưng tôi");
+    expect(screen.queryByText(/Raw kể ngôi một/)).not.toBeInTheDocument();
+    expect(screen.getByText(/1 chương đã dịch vẫn giữ cách xưng cũ/)).toBeInTheDocument();
+    // Đổi sang cổ đại: xưng tôi không áp, ô tự về xưng ta.
+    await user.click(screen.getByRole("combobox", { name: "Bối cảnh" }));
+    await user.click(await screen.findByRole("option", { name: /Cổ đại/ }));
+    await waitFor(() => expect(screen.getByRole("combobox", { name: "Ngôi kể" })).toHaveTextContent("Ngôi một — người kể xưng ta"));
   });
 });

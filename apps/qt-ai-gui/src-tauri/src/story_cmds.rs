@@ -156,6 +156,34 @@ pub fn story_defaults(state: State<'_, AppState>, genre: StoryGenre) -> CmdResul
     Ok(defaults(&genre, &state.base_store()))
 }
 
+/// Ngôi kể đoán từ raw (`qt_ai_core::pov`) cho Hồ sơ truyện: cảnh báo khi ô Ngôi kể lệch raw.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PovReport {
+    pub chapters: usize,
+    pub paragraphs: usize,
+    pub first_person: usize,
+    pub ratio: f64,
+    /// `None` khi raw quá ít để đoán.
+    pub is_first_person: Option<bool>,
+}
+
+pub fn pov_report(root: &Path) -> CmdResult<PovReport> {
+    let guess = qt_ai_core::pov::guess_story(&story_paths(root))?;
+    Ok(PovReport {
+        chapters: guess.chapters,
+        paragraphs: guess.paragraphs,
+        first_person: guess.first_person,
+        ratio: guess.ratio(),
+        is_first_person: guess.is_first_person(),
+    })
+}
+
+#[tauri::command]
+pub async fn story_pov(root: String) -> CmdResult<PovReport> {
+    blocking(move || pov_report(Path::new(&root))).await
+}
+
 #[tauri::command]
 pub async fn recent_summaries<R: Runtime>(app: AppHandle<R>) -> CmdResult<Vec<RecentSummary>> {
     blocking(move || {

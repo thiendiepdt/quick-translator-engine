@@ -52,6 +52,7 @@ export type StoryGenre = z.infer<typeof storyGenreSchema>;
 export type GenreSetting = StoryGenre["setting"];
 export type GenreNames = StoryGenre["names"];
 export type GenreTone = StoryGenre["tone"];
+export type StoryPov = NonNullable<StoryGenre["pov"]>;
 export type StoryDefaults = z.infer<typeof storyDefaultsSchema>;
 export type CheckRule = z.infer<typeof checkRuleSchema>;
 export type BaseView = z.infer<typeof baseViewSchema>;
@@ -86,6 +87,13 @@ export const GENRE_TONE_LABELS: Record<GenreTone, { label: string; hint: string 
     label: "Thanh xuân, đời thường",
     hint: "Đô thị nhẹ nhàng, giải trí văn, học đường: thoại người trẻ tự nhiên, lời kể ấm, đoạn tả nhạc/cảm xúc giữ độ bay bổng; chèn thêm mục giọng",
   },
+};
+/** Ngôi kể; "unset" = chưa chọn, prompt như trước (ngôi ba, người kể ngôi một xưng ta). */
+export const STORY_POV_LABELS: Record<StoryPov | "unset", { label: string; hint: string }> = {
+  unset: { label: "Chưa chọn (như cũ)", hint: "Lời kể ngôi ba; truyện kể ngôi một thì người kể xưng ta" },
+  third: { label: "Ngôi ba", hint: "Người kể đứng ngoài truyện, lời kể gọi nhân vật bằng tên hoặc hắn / cô / nàng" },
+  "first-ta": { label: "Ngôi một — người kể xưng ta", hint: "Nhân vật tự kể, lời kể xưng ta như giọng convert" },
+  "first-toi": { label: "Ngôi một — người kể xưng tôi", hint: "Nhân vật chính tự kể, lời kể xưng tôi — chỉ truyện hiện đại" },
 };
 export type HarnessSettings = z.infer<typeof harnessSettingsSchema>;
 export type ChapterRow = z.infer<typeof chapterRowSchema>;

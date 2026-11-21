@@ -40,6 +40,7 @@ import {
   repoRefreshSchema,
   repoViewSchema,
   rawInfoSchema,
+  povReportSchema,
   rawProgressSchema,
   rawSummarySchema,
   rawTocSchema,
@@ -509,6 +510,9 @@ export async function pickZipFile(): Promise<string | undefined> {
 }
 /** Link tải raw, extension khớp link, mẫu tên file của truyện. */
 export const rawInfo = (root: string) => call("raw_info", { root }, (v) => rawInfoSchema.parse(v));
+/** Đoán ngôi kể từ ≤60 chương raw rải đều. */
+export const storyPov = (root: string) => call("story_pov", { root }, (v) => povReportSchema.parse(v));
+export type PovReport = z.infer<typeof povReportSchema>;
 /**
  * Lưu link tải raw (bằng link nguồn thì truyện theo link nguồn), extension đã chọn, mẫu tên (trống = mặc định / đoán).
  * `storySettings`: đủ bộ trường `scope: "story"` của extension đang hiện (`null` = mặc định).

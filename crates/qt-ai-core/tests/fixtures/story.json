@@ -222,6 +222,88 @@
         "autoGlossaryLog": [],
         "autoGlossary": "inherit"
       }
+    },
+    {
+      "input": {
+        "genre": {
+          "setting": "modern",
+          "names": "mixed",
+          "tone": "romance",
+          "pov": "first-toi"
+        }
+      },
+      "output": {
+        "name": "",
+        "sourceUrl": "",
+        "protagonist": "",
+        "summary": "",
+        "genre": {
+          "setting": "modern",
+          "names": "mixed",
+          "tone": "romance",
+          "pov": "first-toi"
+        },
+        "glossary": {
+          "names": {},
+          "places": {},
+          "items": {},
+          "creatures": {},
+          "skills": {},
+          "common": {},
+          "signature_phrases": {},
+          "addressing": {}
+        },
+        "style": {
+          "voice": "",
+          "toneRules": [],
+          "signaturePhrases": {},
+          "avoid": []
+        },
+        "customPrompt": "",
+        "checkRules": [],
+        "autoGlossaryLog": [],
+        "autoGlossary": "inherit"
+      }
+    },
+    {
+      "input": {
+        "genre": {
+          "setting": "modern",
+          "names": "mixed",
+          "pov": "sai"
+        }
+      },
+      "output": {
+        "name": "",
+        "sourceUrl": "",
+        "protagonist": "",
+        "summary": "",
+        "genre": {
+          "setting": "modern",
+          "names": "mixed",
+          "tone": "neutral"
+        },
+        "glossary": {
+          "names": {},
+          "places": {},
+          "items": {},
+          "creatures": {},
+          "skills": {},
+          "common": {},
+          "signature_phrases": {},
+          "addressing": {}
+        },
+        "style": {
+          "voice": "",
+          "toneRules": [],
+          "signaturePhrases": {},
+          "avoid": []
+        },
+        "customPrompt": "",
+        "checkRules": [],
+        "autoGlossaryLog": [],
+        "autoGlossary": "inherit"
+      }
     }
   ],
   "sort": {

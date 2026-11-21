@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Download, History, RefreshCw, Save, Sparkles, Upload } from "lucide-react";
+import { AlertTriangle, Download, History, RefreshCw, Save, Sparkles, Upload } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
@@ -21,10 +21,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { TitlesPanel } from "@/components/titles-panel";
 import { VnCheckPanel } from "@/components/vn-check-panel";
 import { useStoryDefaults } from "@/hooks/use-story-defaults";
-import { castLoad, rawInfo, rawSave, saveStory, storySnapshot, type RawInfo } from "@/lib/api";
+import { castLoad, rawInfo, rawSave, saveStory, storyPov, storySnapshot, type PovReport, type RawInfo } from "@/lib/api";
 import { latestAddressing } from "@/lib/cast-addressing";
-import { GENRE_NAMES, GENRE_SETTINGS, storyConfigSchema, GENRE_TONES } from "@/lib/schema";
+import { GENRE_NAMES, GENRE_SETTINGS, storyConfigSchema, GENRE_TONES, STORY_POVS } from "@/lib/schema";
 import { fromFormValues, storyFormSchema, toFormValues, type StoryFormValues } from "@/lib/story-form";
+import { povNotices } from "@/lib/story-pov";
 import {
   GENRE_NAMES_LABELS,
   GENRE_SETTING_LABELS,
@@ -33,6 +34,7 @@ import {
   type StoryConfig,
   type StoryGenre,
   GENRE_TONE_LABELS,
+  STORY_POV_LABELS,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { selectCurrentRunning, useStoryStore } from "@/store/story";
@@ -103,6 +105,22 @@ export function StoryPage() {
   }, [root]);
   const genreNames = useWatch({ control: form.control, name: "genreNames" });
   const genreTone = useWatch({ control: form.control, name: "genreTone" });
+  const genrePov = useWatch({ control: form.control, name: "genrePov" }) ?? "unset";
+  const voice = useWatch({ control: form.control, name: "voice" }) ?? "";
+  const toneRules = useWatch({ control: form.control, name: "toneRules" }) ?? "";
+  // Ngôi kể đoán từ raw (≤60 chương): đọc một lần mỗi truyện để cảnh báo khi ô Ngôi kể lệch raw.
+  const [povReport, setPovReport] = useState<PovReport>();
+  useEffect(() => {
+    if (!root) return;
+    let alive = true;
+    storyPov(root).then(
+      (report) => alive && setPovReport(report),
+      () => alive && setPovReport(undefined),
+    );
+    return () => {
+      alive = false;
+    };
+  }, [root]);
   const glossaryValues = useWatch({ control: form.control, name: "glossary" });
   // Object ổn định theo hai giá trị watch để hook defaults không tải lại mỗi render.
   const genre = useMemo<StoryGenre>(
@@ -269,6 +287,10 @@ export function StoryPage() {
                           if (setting !== "ancient" && form.getValues("genreNames") === "han") {
                             form.setValue("genreNames", "mixed", { shouldDirty: true });
                           }
+                          // Xưng tôi chỉ có ở truyện hiện đại; bối cảnh khác người kể ngôi một xưng ta.
+                          if (setting !== "modern" && form.getValues("genrePov") === "first-toi") {
+                            form.setValue("genrePov", "first-ta", { shouldDirty: true });
+                          }
                         }}
                       >
                         <SelectTrigger id="genreSetting" aria-label="Bối cảnh">
@@ -321,7 +343,65 @@ export function StoryPage() {
                         </SelectContent>
                       </Select>
                     </Field>
+                    <Field id="genrePov" label="Ngôi kể" hint={STORY_POV_LABELS[genrePov].hint}>
+                      <Select
+                        value={genrePov}
+                        onValueChange={(v) =>
+                          form.setValue("genrePov", v as StoryFormValues["genrePov"], { shouldDirty: true })
+                        }
+                      >
+                        <SelectTrigger id="genrePov" aria-label="Ngôi kể">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(["unset", ...STORY_POVS] as const).map((id) => (
+                            <SelectItem key={id} value={id} disabled={id === "first-toi" && genre.setting !== "modern"}>
+                              {STORY_POV_LABELS[id].label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Field>
                   </div>
+                  {povNotices({
+                    report: povReport,
+                    pov: genrePov,
+                    savedPov: currentStory.genre.pov ?? "unset",
+                    setting: genre.setting,
+                    voice,
+                    toneRules,
+                    doneChapters: (chapters ?? []).filter((chapter) => chapter.status === "done").length,
+                  }).map(({ text, lines, fix }) => (
+                    <div
+                      key={text}
+                      role="status"
+                      aria-label="Cảnh báo ngôi kể"
+                      className="flex items-start gap-2 rounded-md border border-status-warning/40 bg-status-warning/10 px-3 py-2 text-xs text-status-warning"
+                    >
+                      <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
+                      <div className="flex flex-col gap-1.5">
+                        <span>{text}</span>
+                        {lines && (
+                          <ul className="list-disc pl-4">
+                            {lines.map((line) => (
+                              <li key={line}>{line}</li>
+                            ))}
+                          </ul>
+                        )}
+                        {fix && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="w-fit"
+                            onClick={() => form.setValue("genrePov", fix.pov, { shouldDirty: true })}
+                          >
+                            {fix.label}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
                 <Field
                   id="settingArcs"

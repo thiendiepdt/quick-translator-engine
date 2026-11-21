@@ -1,4 +1,4 @@
-import type { GenreNames, GenreSetting, GenreTone, StoryGenre } from "@/lib/ai-story";
+import { effectiveStoryPov, type GenreNames, type GenreSetting, type GenreTone, type StoryGenre } from "@/lib/ai-story";
 
 /**
  * Đồng bộ từ novel-translator/src-tauri/src/translator/translate.rs, tách theo slot để ghép theo thể loại.
@@ -937,6 +937,42 @@ const modern: SettingModule = {
   ],
 };
 
+/**
+ * Ngôi kể `first-toi` (truyện hiện đại do nhân vật chính tự kể, người kể xưng `tôi`): thay đúng các câu nói người kể
+ * ngôi một xưng `ta` trong base hiện đại. Thay chuỗi trên prompt đã ghép nên Rust áp y hệt lên base đọc từ
+ * prompts.json (cả base người dùng sửa, nếu còn giữ các câu này).
+ */
+export const POV_REPLACEMENTS: Record<"first-toi", Array<[string, string]>> = {
+  "first-toi": [
+    [
+      "`我` trong lời kể ngôi thứ nhất dùng `ta` (người kể tự xưng `ta`, không `tôi`/`mình`, như văn convert quen đọc)",
+      "Truyện này kể ngôi thứ nhất — nhân vật chính tự kể: `我` trong lời kể dùng `tôi` (người kể tự xưng `tôi` suốt truyện, `我们` của người kể là `chúng tôi`, gộp cả người nghe thì `chúng ta`; KHÔNG để người kể xưng `ta`)",
+    ],
+    [
+      "| 我          | **ta** (lời kể ngôi một); trong thoại theo quan hệ (tôi, anh, em, tớ, tao) | tôi, mình trong lời kể; ta trong thoại |",
+      "| 我          | **tôi** (lời kể ngôi một: nhân vật chính tự kể); trong thoại theo quan hệ (tôi, anh, em, tớ, tao) | ta (cả lời kể lẫn thoại) |",
+    ],
+    [
+      "Truyện kể ngôi một thì người kể vẫn `ta`.",
+      "Truyện kể ngôi một thì người kể xưng `tôi`; ý nghĩ tự nhủ của người kể được dùng `mình`.",
+    ],
+    [
+      "Truyện kể ngôi thứ nhất suốt thì người kể tự xưng `ta` ngoài ngoặc kép; `tôi` chỉ sống bên trong ngoặc kép theo quan hệ. Cặp xưng hô tôi–anh, anh–em, tớ–cậu… chỉ sống trong ngoặc kép; ra ngoài ngoặc kép, nhân vật trở lại `hắn`/`cô` (hoặc `ta` nếu là người kể).",
+      "Truyện kể ngôi thứ nhất suốt thì người kể tự xưng `tôi` ngoài ngoặc kép (`自己` của người kể → `mình` hoặc lược); trong ngoặc kép người kể xưng theo quan hệ với người nghe (tôi, em, chị, tớ…). Cặp xưng hô tôi–anh, anh–em, tớ–cậu… chỉ sống trong ngoặc kép; ra ngoài ngoặc kép, nhân vật khác trở lại `hắn`/`cô`, người kể vẫn là `tôi`.",
+    ],
+    [
+      "người kể ngôi một tự xưng `ta`, không `tôi`/`mình` ngoài ngoặc kép",
+      "người kể ngôi một tự xưng `tôi` ngoài ngoặc kép, không còn `ta` tự xưng ở lời kể",
+    ],
+  ],
+};
+
+/** Áp ngôi kể lên prompt đã ghép (thay mọi chỗ, như `str::replace` của Rust). Ngôi kể khác / chưa chọn: giữ nguyên. */
+export function applyStoryPov(prompt: string, genre: StoryGenre): string {
+  const rows = effectiveStoryPov(genre) === "first-toi" ? POV_REPLACEMENTS["first-toi"] : [];
+  return rows.reduce((text, [from, to]) => text.split(from).join(to), prompt);
+}
+
 /** Bỏ heading "## 1." + dòng trống đầu và "---" cuối để ghép một mục vào mục lớn hơn. */
 const stripSection = (lines: string[]) => lines.slice(2, lines.lastIndexOf("---"));
 
@@ -1275,10 +1311,10 @@ export const PROMPT_GENRE_COMBOS: StoryGenre[] = (["ancient", "modern", "mixed"]
   (["han", "foreign", "mixed"] as const).map((names) => ({ setting, names, tone: "neutral" as const })),
 );
 
-/** Base prompt ghép theo thể loại; ancient/han bằng đúng từng byte prompt cũ. */
+/** Base prompt ghép theo thể loại; ancient/han bằng đúng từng byte prompt cũ. Ngôi kể áp sau cùng (`applyStoryPov`). */
 export function composeBasePrompt(genre: StoryGenre): string {
   const setting = SETTINGS[genre.setting];
-  return [
+  return applyStoryPov([
     ...CORE_HEAD,
     ...numbered([...CORE_CONSTRAINTS_A, ...setting.constraints, ...CORE_CONSTRAINTS_B]),
     ...CORE_PHILOSOPHY,
@@ -1293,5 +1329,5 @@ export function composeBasePrompt(genre: StoryGenre): string {
     ...setting.vocabulary,
     ...CORE_VOCAB,
     ...numbered([...CORE_EDIT_A, ...setting.editing, ...CORE_EDIT_B]),
-  ].join("\n");
+  ].join("\n"), genre);
 }

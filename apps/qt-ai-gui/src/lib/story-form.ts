@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { GENRE_NAMES, GENRE_SETTINGS, GENRE_TONES } from "@/lib/schema";
+import { GENRE_NAMES, GENRE_SETTINGS, GENRE_TONES, STORY_POVS } from "@/lib/schema";
 import { GLOSSARY_KEYS, type StoryConfig } from "@/lib/types";
 
 const pairSchema = z.object({ source: z.string(), target: z.string() });
@@ -14,6 +14,8 @@ export const storyFormSchema = z.object({
   genreSetting: z.enum(GENRE_SETTINGS),
   genreNames: z.enum(GENRE_NAMES),
   genreTone: z.enum(GENRE_TONES),
+  /** "unset" = chưa chọn ngôi kể (Select không nhận giá trị rỗng). */
+  genrePov: z.enum(["unset", ...STORY_POVS]),
   customPrompt: z.string(),
   voice: z.string(),
   toneRules: z.string(),
@@ -99,6 +101,7 @@ export function toFormValues(config: StoryConfig): StoryFormValues {
     genreSetting: config.genre.setting,
     genreNames: config.genre.names,
     genreTone: config.genre.tone,
+    genrePov: config.genre.pov ?? "unset",
     customPrompt: config.customPrompt,
     voice: config.style.voice,
     toneRules: lines(config.style.toneRules),
@@ -140,7 +143,12 @@ export function fromFormValues(values: StoryFormValues, base: StoryConfig): Stor
     sourceUrl: values.sourceUrl,
     protagonist: values.protagonist,
     summary: values.summary,
-    genre: { setting: values.genreSetting, names: values.genreNames, tone: values.genreTone },
+    genre: {
+      setting: values.genreSetting,
+      names: values.genreNames,
+      tone: values.genreTone,
+      ...(values.genrePov === "unset" ? {} : { pov: values.genrePov }),
+    },
     glossary: pairsToGlossary(values.glossary),
     style: {
       voice: values.voice,

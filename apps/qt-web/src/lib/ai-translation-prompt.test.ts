@@ -6,6 +6,7 @@ import {
   composeTonePrompt,
   genreKey,
   LEGACY_BASE_PROMPT_FNV1A64,
+  POV_REPLACEMENTS,
   PROMPT_GENRE_COMBOS,
 } from "@/lib/ai-translation-prompt";
 
@@ -142,6 +143,24 @@ describe("composeBasePrompt", () => {
     // Vai vế cổ đại vẫn giữ: bề dưới với bề trên không xưng ta.
     expect(mixed).toContain("> **Vai vế trong thoại:**");
     expect(mixed).toContain("bề dưới nói với bề trên tự xưng theo thân phận");
+  });
+
+  it("ngôi kể first-toi: truyện hiện đại người kể xưng tôi ở mọi câu nói về người kể; bối cảnh khác và ngôi khác giữ nguyên", () => {
+    for (const names of ["han", "foreign", "mixed"] as const) {
+      const plain = composeBasePrompt({ setting: "modern", names, tone: "neutral" });
+      // Mỗi câu cần thay có đúng một lần trong base hiện đại — thiếu là prompt đổi mà quên câu này.
+      for (const [from] of POV_REPLACEMENTS["first-toi"]) expect(plain.split(from).length - 1, from).toBe(1);
+      const toi = composeBasePrompt({ setting: "modern", names, tone: "romance", pov: "first-toi" });
+      expect(toi).toContain("| 我          | **tôi** (lời kể ngôi một: nhân vật chính tự kể)");
+      expect(toi).toContain("người kể ngôi một tự xưng `tôi` ngoài ngoặc kép");
+      expect(toi).not.toMatch(/người kể (?:vẫn |tự xưng )?`ta`|hoặc `ta` nếu là người kể/);
+      expect(composeBasePrompt({ setting: "modern", names, tone: "neutral", pov: "first-ta" })).toBe(plain);
+      expect(composeBasePrompt({ setting: "modern", names, tone: "neutral", pov: "third" })).toBe(plain);
+    }
+    for (const setting of ["ancient", "mixed"] as const) {
+      const plain = composeBasePrompt({ setting, names: "han", tone: "neutral" });
+      expect(composeBasePrompt({ setting, names: "han", tone: "neutral", pov: "first-toi" })).toBe(plain);
+    }
   });
 
   it("cổ đại: 爹 → cha, 娘 → nương trong thoại, mẹ / cha mẹ trong lời kể, mẹ ruột / mẹ kế; hỗn hợp có ở cảnh cổ đại", () => {

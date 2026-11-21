@@ -30,6 +30,16 @@ describe("story-form genre", () => {
     });
   });
 
+  it("ngôi kể: chưa chọn thì không ghi field, chọn thì ghi vào genre.pov", () => {
+    const values = toFormValues(base);
+    expect(values.genrePov).toBe("unset");
+    expect(fromFormValues(values, base).genre).not.toHaveProperty("pov");
+    expect(fromFormValues({ ...values, genrePov: "first-toi" }, base).genre.pov).toBe("first-toi");
+    const chosen = storyConfigSchema.parse({ ...base, genre: { ...base.genre, pov: "third" } });
+    expect(toFormValues(chosen).genrePov).toBe("third");
+    expect(() => storyConfigSchema.parse({ ...base, genre: { ...base.genre, pov: "ngôi hai" } })).toThrow();
+  });
+
   it("diff liệt kê genre khi đổi", () => {
     const after = { ...base, genre: { setting: "ancient" as const, names: "han" as const, tone: "neutral" as const } };
     expect(diffStoryConfig(base, after).map((d) => d.field)).toEqual(["genre"]);

@@ -58,8 +58,8 @@ tên, nhân vật hay tóm tắt. Trả về đúng một JSON theo mẫu:\n\
     \"tone\": \"neutral | romance | witty | punchy | lyrical | erotic | youth — romance: truyện nữ/ngôn tình (nữ chính, tình cảm là mạch chính, ngọt, hài, chớt nhả); witty: truyện nam giọng đùa, hậu cung nhật thường, người kể tưng tửng; punchy: chiến đấu, vô địch lưu, hệ thống, sảng văn dồn dập; lyrical: cổ ngôn văn thanh, tả cảnh tả tâm giàu hình ảnh; erotic: truyện sắc (sắc hiệp, sắc đô thị), cảnh thân mật là nội dung chính; youth: đô thị nhẹ nhàng, giải trí văn, học đường, nhật thường hiện đại của người trẻ; neutral: không rõ hoặc không thuộc nhóm nào\"\n\
   }},\n\
   \"style\": {{\n\
-    \"voice\": \"1 câu tả giọng kể (ngôi kể, nhịp, sắc thái)\",\n\
-    \"tone_rules\": [\"3-5 luật xưng hô/giọng điệu rút từ chính truyện; setting ancient chỉ dùng xưng hô cổ trang (ta/ngươi, huynh/muội/đệ/tỷ, ca, tiểu nhân, cha/nương…), KHÔNG ghi anh/em/chị/tôi/cậu/mày/tao, kể cả cho anh chị em ruột hay dân thường; tự xưng 本 + danh xưng viết bổn (bổn tọa, bổn cung, bổn vương), không bản; setting modern gọi cha mẹ là cha/mẹ, không bố (trừ câu chửi bố mày); setting ancient KHÔNG ghi luật cấm mẹ — lời kể dùng mẹ, cha mẹ, mẹ ruột, mẹ kế, cha dượng, thoại con gọi mẹ là nương; không ghi luật dùng chàng làm đại từ lời kể\"],\n\
+    \"voice\": \"1 câu tả giọng kể (nhịp, sắc thái); KHÔNG ghi ngôi kể hay người kể tự xưng gì — app tự đặt ô Ngôi kể theo raw\",\n\
+    \"tone_rules\": [\"3-5 luật xưng hô/giọng điệu rút từ chính truyện; setting ancient chỉ dùng xưng hô cổ trang (ta/ngươi, huynh/muội/đệ/tỷ, ca, tiểu nhân, cha/nương…), KHÔNG ghi anh/em/chị/tôi/cậu/mày/tao, kể cả cho anh chị em ruột hay dân thường; tự xưng 本 + danh xưng viết bổn (bổn tọa, bổn cung, bổn vương), không bản; setting modern gọi cha mẹ là cha/mẹ, không bố (trừ câu chửi bố mày); setting ancient KHÔNG ghi luật cấm mẹ — lời kể dùng mẹ, cha mẹ, mẹ ruột, mẹ kế, cha dượng, thoại con gọi mẹ là nương; không ghi luật dùng chàng làm đại từ lời kể; KHÔNG ghi luật ngôi kể hay người kể tự xưng ta/tôi (app tự đặt ô Ngôi kể theo raw)\"],\n\
     \"signature_phrases\": {{}},\n\
     \"avoid\": [\"những kiểu diễn đạt cần tránh với truyện này\"]\n\
   }},\n\
@@ -211,6 +211,14 @@ pub fn merge_fill(current: &StoryConfig, proposed: &Map<String, Value>, name: &s
     StoryConfig::normalize(&value)
 }
 
+/// Ô Ngôi kể sau AI điền (API lẫn agy): người dùng đã chọn thì giữ; chưa chọn thì đặt theo raw (`guess`), raw quá ít để
+/// đoán thì để như model / agent ghi. Luật giọng nói người kể tự xưng gì thì bỏ — ô Ngôi kể là nguồn duy nhất, để lại chữ
+/// tự do thì đổi ô xong prompt nói hai ý ngược nhau.
+pub fn settle_pov(before: &StoryConfig, after: &mut StoryConfig, guess: &crate::pov::PovGuess) {
+    after.genre.pov = before.genre.pov.or_else(|| guess.suggested(after.genre.setting)).or(after.genre.pov);
+    after.style.tone_rules.retain(|rule| !crate::pov::mentions_narrator_pronoun(rule));
+}
+
 /// Một lượt `complete_json` → hồ sơ mới. Không ghi đĩa; caller hiện diff cho người dùng duyệt.
 pub fn fill_story(
     model: &dyn TextModel,
@@ -309,6 +317,44 @@ mod tests {
         assert_eq!(after.style.avoid, vec!["dùng văn bản quan trọng"]);
         assert_eq!(after.glossary["addressing"]["武则天→薛绍"], "bổn cung–ngươi");
         assert_eq!(after.glossary["names"]["本因"], "Bản Nhân"); // tên riêng không đụng
+    }
+
+    #[test]
+    fn settle_pov_giu_o_nguoi_dung_doan_theo_raw_va_bo_luat_nguoi_ke() {
+        use crate::pov::guess_texts;
+        use crate::story::StoryPov;
+        let first_raw = "我走进门。\n“你来了？”他说。\n我点点头。\n".repeat(20);
+        let first = guess_texts([first_raw.as_str()]);
+        let proposed = parse_fill_json(
+            r#"{
+              "genre": { "setting": "modern", "names": "mixed", "tone": "romance" },
+              "style": { "tone_rules": ["Lời kể ngôi thứ nhất xưng 'tôi', không dùng 'ta' trong lời dẫn truyện.", "Gọi cha mẹ là cha/mẹ"] }
+            }"#,
+        )
+        .unwrap();
+        // Chưa chọn: đặt theo raw (hiện đại kể ngôi một → xưng tôi), bỏ luật giọng nói người kể xưng gì.
+        let before = current();
+        let mut after = merge_fill(&before, &proposed, "Tên", "");
+        settle_pov(&before, &mut after, &first);
+        assert_eq!(after.genre.pov, Some(StoryPov::FirstToi));
+        assert_eq!(after.style.tone_rules, vec!["Gọi cha mẹ là cha/mẹ"]);
+        // Người dùng đã chọn: giữ dù raw nói khác.
+        let mut chosen = current();
+        chosen.genre.pov = Some(StoryPov::FirstTa);
+        let mut after = merge_fill(&chosen, &proposed, "Tên", "");
+        settle_pov(&chosen, &mut after, &first);
+        assert_eq!(after.genre.pov, Some(StoryPov::FirstTa));
+        // Raw quá ít: để như model ghi (agent agy có thể tự đặt pov).
+        let mut agent = merge_fill(&before, &parse_fill_json(r#"{"genre": {"setting": "modern", "pov": "third"}}"#).unwrap(), "Tên", "");
+        settle_pov(&before, &mut agent, &guess_texts(std::iter::empty()));
+        assert_eq!(agent.genre.pov, Some(StoryPov::Third));
+    }
+
+    #[test]
+    fn prompt_dan_khong_ghi_ngoi_ke_vao_style() {
+        let prompt = build_fill_prompt("a", "", &[]);
+        assert!(prompt.contains("KHÔNG ghi ngôi kể hay người kể tự xưng gì"));
+        assert!(prompt.contains("KHÔNG ghi luật ngôi kể hay người kể tự xưng ta/tôi"));
     }
 
     #[test]

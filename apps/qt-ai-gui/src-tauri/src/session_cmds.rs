@@ -4,7 +4,8 @@ use crate::sidecar::{qt_ai_command, qt_ai_dir, qt_ai_exe};
 use crate::AppState;
 use qt_ai_core::agy::find_agy;
 use qt_ai_core::api::{ApiConfig, HttpModel, TextModel};
-use qt_ai_core::api_fill::{fill_story, sample_chapters, SAMPLE_CHAPTERS};
+use qt_ai_core::api_fill::{fill_story, sample_chapters, settle_pov, SAMPLE_CHAPTERS};
+use qt_ai_core::pov::guess_story;
 use qt_ai_core::api_session::{start_api_session, ApiSessionConfig};
 use qt_ai_core::session::{
     run_once, start_session, AgentLink, SessionConfig, SessionEvent, SessionHandle, Sink, TRANSIENT_RETRY_WAITS,
@@ -231,8 +232,9 @@ pub fn fill_story_via_api(root: &Path, model: &dyn TextModel, name: &str, source
     if samples.is_empty() {
         log.push(format!("raw/ chưa có chương nào — model chỉ có tên + link (tối đa {SAMPLE_CHAPTERS} chương được đọc)."));
     }
-    let after = fill_story(model, &before, name, source_url, &samples)
+    let mut after = fill_story(model, &before, name, source_url, &samples)
         .map_err(|error| CommandError::new("api_failed", error.to_string()))?;
+    settle_pov(&before, &mut after, &guess_story(&paths).unwrap_or_default());
     log.push("Model đã trả hồ sơ. Không tra web — kiểm tra lại tên nhân vật và tóm tắt trước khi Áp dụng.".to_string());
     Ok(AiFillResult { before, after, exit_code: 0, log })
 }
@@ -257,8 +259,9 @@ fn fill_story_via_agy(state: &State<'_, AppState>, root_path: &Path, name: &str,
         }
     });
     // Đọc kết quả agent viết, rồi trả story.json về bản trước dù agy lỗi hay không.
-    let after = load_story_config(&paths).unwrap_or_else(|_| seeded.clone());
+    let mut after = load_story_config(&paths).unwrap_or_else(|_| seeded.clone());
     save_story_config(&paths, &before)?;
+    settle_pov(&before, &mut after, &guess_story(&paths).unwrap_or_default());
     let exit_code = outcome?;
     let log = log.lock().unwrap().clone();
     Ok(AiFillResult { before, after, exit_code, log })

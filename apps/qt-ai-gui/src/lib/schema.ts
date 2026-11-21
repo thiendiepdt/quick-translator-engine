@@ -11,12 +11,15 @@ export const checkRuleSchema = z.object({ pattern: z.string(), flags: z.string()
 export const GENRE_SETTINGS = ["ancient", "modern", "mixed"] as const;
 export const GENRE_NAMES = ["han", "foreign", "mixed"] as const;
 export const GENRE_TONES = ["neutral", "romance", "witty", "punchy", "lyrical", "erotic", "youth"] as const;
+/** Ngôi kể: ngôi ba, ngôi một xưng `ta`, ngôi một xưng `tôi` (chỉ truyện hiện đại). Chưa chọn = prompt như trước. */
+export const STORY_POVS = ["third", "first-ta", "first-toi"] as const;
 /** Hai trục thể loại (port `StoryGenre` của qt-web): bối cảnh quyết xưng hô/rule, tên riêng quyết cách phiên. */
 /** `tone` default neutral: story.json cũ chưa có field, prompt không đổi. */
 export const storyGenreSchema = z.object({
   setting: z.enum(GENRE_SETTINGS),
   names: z.enum(GENRE_NAMES),
   tone: z.enum(GENRE_TONES).default("neutral"),
+  pov: z.enum(STORY_POVS).optional(),
 });
 
 /** 8 nhóm glossary (truyện lẫn kho chung của app). */
@@ -454,6 +457,14 @@ export const appConfigSchema = z.object({
 /** "builtin" = bản cứng trong binary; "file" = người dùng đã sửa ở Cài đặt → Bản mặc định. */
 export const BASE_SOURCES = ["builtin", "file"] as const;
 /** Prompt gốc + rule mặc định của app (Rust `story_defaults`). */
+/** Ngôi kể đoán từ raw (Rust `story_pov`): tỉ lệ đoạn có 我 ở lời kể; `isFirstPerson` null khi raw quá ít. */
+export const povReportSchema = z.object({
+  chapters: z.number(),
+  paragraphs: z.number(),
+  firstPerson: z.number(),
+  ratio: z.number(),
+  isFirstPerson: z.boolean().nullable(),
+});
 export const storyDefaultsSchema = z.object({
   basePrompt: z.string(),
   promptSource: z.enum(BASE_SOURCES),

@@ -6,7 +6,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { composeBasePrompt, composeTonePrompt, genreKey, PROMPT_GENRE_COMBOS } from "@/lib/ai-translation-prompt";
+import { composeBasePrompt, composeTonePrompt, genreKey, POV_REPLACEMENTS, PROMPT_GENRE_COMBOS } from "@/lib/ai-translation-prompt";
 import {
   defaultAiCheckRules, defaultAdvisoryRules, checkAdvisoryViolations, RAW_PAIR_RULES, checkRawPairViolations, buildAiTranslationSystemPrompt, checkAiTranslationViolations,
   filterTranslationGlossaryForSource, formatAiTranslation, glossaryEntryMatchesSource,
@@ -85,6 +85,8 @@ const prompts = (() => {
     suffix: noStory.slice(legacy.length),
     // Mục giọng văn đứng riêng: Rust chèn trước "## 1. Đại từ nhân xưng" của base (kể cả base người dùng sửa).
     tones: Object.fromEntries(GENRE_TONES.filter((t) => t !== "neutral").map((t) => [t, composeTonePrompt(t)])),
+    // Ngôi kể: cặp [chuỗi cũ, chuỗi mới] Rust thay trên base đã chèn giọng văn (applyStoryPov).
+    povs: POV_REPLACEMENTS,
   };
 })();
 
@@ -103,6 +105,8 @@ const story = {
     },
     { input: { genre: { setting: "modern", names: "sai" } }, output: null as unknown },
     { input: { genre: { setting: "mixed", names: "han" } }, output: null as unknown },
+    { input: { genre: { setting: "modern", names: "mixed", tone: "romance", pov: "first-toi" } }, output: null as unknown },
+    { input: { genre: { setting: "modern", names: "mixed", pov: "sai" } }, output: null as unknown },
   ],
   sort: {
     input: ["chuong-0010", "chuong-0002", "0001", "10", "2", "Chuong-0001", "chuong-0002b"],
@@ -112,6 +116,8 @@ const story = {
 story.normalize[1]!.output = normalizeAiStoryConfig(story.normalize[1]!.input);
 story.normalize[2]!.output = normalizeAiStoryConfig(story.normalize[2]!.input);
 story.normalize[3]!.output = normalizeAiStoryConfig(story.normalize[3]!.input);
+story.normalize[4]!.output = normalizeAiStoryConfig(story.normalize[4]!.input);
+story.normalize[5]!.output = normalizeAiStoryConfig(story.normalize[5]!.input);
 story.sort.sorted = [...story.sort.input].sort(naturalChapterCompare);
 
 const p1 = aiParagraphsOf(CH1);
@@ -164,6 +170,19 @@ const promptCases = [
     source: CH1,
   })),
   { name: "genre-romance-custom-prompt", story: storyRomanceCustomPrompt(), source: CH1 },
+  // Ngôi kể: first-toi chỉ đổi prompt hiện đại; bối cảnh khác và first-ta / third giữ nguyên base.
+  ...([
+    ["modern", "mixed", "romance", "first-toi"],
+    ["modern", "foreign", "neutral", "first-toi"],
+    ["modern", "mixed", "neutral", "first-ta"],
+    ["modern", "han", "neutral", "third"],
+    ["mixed", "mixed", "neutral", "first-toi"],
+    ["ancient", "han", "neutral", "first-toi"],
+  ] as const).map(([setting, names, tone, pov]) => ({
+    name: `genre-${setting}/${names}-${tone}-${pov}`,
+    story: storyGenre({ setting, names, tone, pov }),
+    source: CH1,
+  })),
 ].map((c) => ({
   ...c,
   prompt: buildAiTranslationSystemPrompt({}, c.story ?? undefined, c.source ?? undefined),

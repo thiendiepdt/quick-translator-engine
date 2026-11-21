@@ -35,15 +35,20 @@ export const GENRE_TONES = ["neutral", "romance", "witty", "punchy", "lyrical", 
 export type GenreSetting = (typeof GENRE_SETTINGS)[number];
 export type GenreNames = (typeof GENRE_NAMES)[number];
 export type GenreTone = (typeof GENRE_TONES)[number];
+/** Ngôi kể: ngôi ba, ngôi một người kể xưng `ta` (giọng convert), ngôi một xưng `tôi` (chỉ truyện hiện đại). */
+export const STORY_POVS = ["third", "first-ta", "first-toi"] as const;
+export type StoryPov = (typeof STORY_POVS)[number];
 
 /**
  * Ba trục độc lập: bối cảnh quyết xưng hô/thán từ/thuật ngữ; tên riêng quyết cách phiên; giọng văn chèn thêm
  * mục riêng vào prompt (romance = truyện nữ: giữ ngọt, hài, chớt nhả), neutral = prompt y hệt trước.
+ * `pov` (ngôi kể) chưa chọn = prompt như trước: lời kể ngôi ba, người kể ngôi một xưng `ta`.
  */
 export interface StoryGenre {
   setting: GenreSetting;
   names: GenreNames;
   tone: GenreTone;
+  pov?: StoryPov;
 }
 
 export const GENRE_SETTING_LABELS: Record<GenreSetting, { label: string; hint: string }> = {
@@ -80,15 +85,24 @@ function isGenreNames(value: unknown): value is GenreNames {
 function isGenreTone(value: unknown): value is GenreTone {
   return typeof value === "string" && (GENRE_TONES as readonly string[]).includes(value);
 }
+function isStoryPov(value: unknown): value is StoryPov {
+  return typeof value === "string" && (STORY_POVS as readonly string[]).includes(value);
+}
 
-/** Thiếu hoặc sai → mặc định cổ đại/Hán-Việt: truyện đang dịch không đổi hành vi. */
+/** Thiếu hoặc sai → mặc định cổ đại/Hán-Việt: truyện đang dịch không đổi hành vi. `pov` sai/thiếu thì bỏ field. */
 export function normalizeStoryGenre(value: unknown): StoryGenre {
   const record = typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
   return {
     setting: isGenreSetting(record.setting) ? record.setting : "ancient",
     names: isGenreNames(record.names) ? record.names : "han",
     tone: isGenreTone(record.tone) ? record.tone : "neutral",
+    ...(isStoryPov(record.pov) ? { pov: record.pov } : {}),
   };
+}
+
+/** Ngôi kể thực áp: `first-toi` chỉ có ở truyện hiện đại, bối cảnh khác người kể vẫn `ta`. */
+export function effectiveStoryPov(genre: StoryGenre): StoryPov | undefined {
+  return genre.pov === "first-toi" && genre.setting !== "modern" ? "first-ta" : genre.pov;
 }
 
 export interface AiCheckRule {

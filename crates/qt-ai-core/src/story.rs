@@ -97,20 +97,53 @@ impl GenreTone {
     }
 }
 
+/// Ngôi kể (port `StoryPov` của web): ngôi ba; ngôi một người kể xưng `ta` (giọng convert); ngôi một xưng `tôi`
+/// (truyện hiện đại do nhân vật chính tự kể). Chưa chọn = prompt như trước (ngôi ba, người kể ngôi một xưng `ta`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum StoryPov {
+    #[serde(rename = "third")]
+    Third,
+    #[serde(rename = "first-ta")]
+    FirstTa,
+    #[serde(rename = "first-toi")]
+    FirstToi,
+}
+
+impl StoryPov {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            StoryPov::Third => "third",
+            StoryPov::FirstTa => "first-ta",
+            StoryPov::FirstToi => "first-toi",
+        }
+    }
+}
+
 /// Ba trục độc lập (port `StoryGenre` của qt-web). Thiếu/sai → ancient/han/neutral để truyện cũ không đổi.
-/// `tone` có `serde(default)` vì story.json cũ và payload GUI cũ không có field này.
+/// `tone` có `serde(default)` vì story.json cũ và payload GUI cũ không có field này. `pov` chưa chọn thì không ghi ra.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct StoryGenre {
     pub setting: GenreSetting,
     pub names: GenreNames,
     #[serde(default)]
     pub tone: GenreTone,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pov: Option<StoryPov>,
 }
 
 impl StoryGenre {
     /// Key tra `prompts.json` — cùng định dạng `genreKey` của web.
     pub fn key(&self) -> String {
         format!("{}/{}", self.setting.as_str(), self.names.as_str())
+    }
+
+    /// Ngôi kể thực áp (`effectiveStoryPov` của web): `first-toi` chỉ có ở truyện hiện đại, bối cảnh khác người kể
+    /// vẫn `ta`.
+    pub fn effective_pov(&self) -> Option<StoryPov> {
+        match self.pov {
+            Some(StoryPov::FirstToi) if self.setting != GenreSetting::Modern => Some(StoryPov::FirstTa),
+            pov => pov,
+        }
     }
 
     fn normalize(value: Option<&Value>) -> Self {
@@ -135,6 +168,12 @@ impl StoryGenre {
                 Some("erotic") => GenreTone::Erotic,
                 Some("youth") => GenreTone::Youth,
                 _ => GenreTone::Neutral,
+            },
+            pov: match get("pov") {
+                Some("third") => Some(StoryPov::Third),
+                Some("first-ta") => Some(StoryPov::FirstTa),
+                Some("first-toi") => Some(StoryPov::FirstToi),
+                _ => None,
             },
         }
     }
@@ -480,11 +519,11 @@ mod tests {
         assert_eq!(none.genre, StoryGenre::default());
         assert_eq!(none.genre.key(), "ancient/han");
         let ok = StoryConfig::normalize(&json!({ "genre": { "setting": "modern", "names": "foreign" } }));
-        assert_eq!(ok.genre, StoryGenre { setting: GenreSetting::Modern, names: GenreNames::Foreign, tone: GenreTone::Neutral });
-        let bad = StoryConfig::normalize(&json!({ "genre": { "setting": "future", "names": 3, "tone": "sweet" } }));
+        assert_eq!(ok.genre, StoryGenre { setting: GenreSetting::Modern, names: GenreNames::Foreign, ..StoryGenre::default() });
+        let bad = StoryConfig::normalize(&json!({ "genre": { "setting": "future", "names": 3, "tone": "sweet", "pov": "ngôi hai" } }));
         assert_eq!(bad.genre, StoryGenre::default());
         let mixed = StoryConfig::normalize(&json!({ "genre": { "setting": "mixed" } }));
-        assert_eq!(mixed.genre, StoryGenre { setting: GenreSetting::Mixed, names: GenreNames::Han, tone: GenreTone::Neutral });
+        assert_eq!(mixed.genre, StoryGenre { setting: GenreSetting::Mixed, names: GenreNames::Han, ..StoryGenre::default() });
         assert_eq!(mixed.genre.key(), "mixed/han");
         let romance = StoryConfig::normalize(&json!({ "genre": { "tone": "romance" } }));
         assert_eq!(romance.genre.tone, GenreTone::Romance);
@@ -506,6 +545,26 @@ mod tests {
         assert!(json.contains(
             "\"summary\": \"\",\n  \"genre\": {\n    \"setting\": \"modern\",\n    \"names\": \"foreign\",\n    \"tone\": \"neutral\"\n  },\n  \"glossary\""
         ));
+    }
+
+    #[test]
+    fn ngoi_ke_doc_ghi_va_first_toi_chi_ap_cho_hien_dai() {
+        for (text, pov) in [("third", StoryPov::Third), ("first-ta", StoryPov::FirstTa), ("first-toi", StoryPov::FirstToi)] {
+            let story = StoryConfig::normalize(&json!({ "genre": { "setting": "modern", "pov": text } }));
+            assert_eq!(story.genre.pov, Some(pov));
+            assert_eq!(story.genre.effective_pov(), Some(pov));
+            assert_eq!(pov.as_str(), text);
+            assert!(story.to_json_pretty().contains(&format!("\"tone\": \"neutral\",\n    \"pov\": \"{text}\"\n  }}")));
+        }
+        for setting in ["ancient", "mixed"] {
+            let story = StoryConfig::normalize(&json!({ "genre": { "setting": setting, "pov": "first-toi" } }));
+            assert_eq!(story.genre.pov, Some(StoryPov::FirstToi), "giữ lựa chọn người dùng trong file");
+            assert_eq!(story.genre.effective_pov(), Some(StoryPov::FirstTa), "{setting}: người kể vẫn ta");
+        }
+        assert_eq!(StoryConfig::normalize(&json!({})).genre.effective_pov(), None);
+        // Payload GUI có pov → serde đọc được.
+        let gui: StoryGenre = serde_json::from_value(json!({ "setting": "modern", "names": "mixed", "pov": "first-toi" })).unwrap();
+        assert_eq!(gui.pov, Some(StoryPov::FirstToi));
     }
 
     #[test]
