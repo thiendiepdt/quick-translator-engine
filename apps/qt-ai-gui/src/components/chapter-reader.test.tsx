@@ -384,3 +384,82 @@ describe("ChapterReader", () => {
     vi.unstubAllGlobals();
   });
 });
+
+describe("ChapterReader · cảnh báo còn lại", () => {
+  const NARRATOR = "Người kể ngôi một xưng tôi → ta (truyện kể ngôi ba thì bỏ qua)";
+  const reader = (warnings: string[], id = "0002") => (
+    <ChapterReader root={ROOT} row={{ ...row, id, warnings }} hasPrev hasNext onPrev={vi.fn()} onNext={vi.fn()} />
+  );
+  const view = (output: string, warnings: string[]) => ({
+    id: "0002",
+    status: "done" as const,
+    raw: "原文",
+    rawMissing: false,
+    output,
+    draft: null,
+    review: null,
+    warnings,
+    reason: null,
+  });
+
+  beforeEach(() => {
+    useStoryStore.setState({ config, sessions: {} });
+  });
+
+  it("gom theo luật: 218 cảnh báo thành 2 dòng, 20 số đoạn đầu + nút mở hết; rê lên số thấy câu trích", async () => {
+    const warnings = [
+      ...Array.from({ length: 217 }, (_, i) => `[[${i + 2}]] ${NARRATOR} — "Câu ${i + 2}."`),
+      `[[5]] Thành ngữ trong bảng — "Một hòn đá."`,
+    ];
+    const output = Array.from({ length: 220 }, (_, i) => `Đoạn ${i + 1}.`).join("\n\n");
+    vi.mocked(readChapter).mockResolvedValueOnce(view(output, warnings));
+    const user = userEvent.setup();
+    render(reader(warnings));
+    const box = screen.getByRole("region", { name: "Cảnh báo còn lại" });
+    expect(box).toHaveTextContent("218 cảnh báo còn lại · 2 luật");
+    const items = within(box).getAllByRole("listitem");
+    expect(items).toHaveLength(2);
+    expect(items[0]).toHaveTextContent(`${NARRATOR} — 217 đoạn`);
+    expect(within(items[0]).getAllByRole("button", { name: /^Tới đoạn / })).toHaveLength(20);
+    expect(within(items[0]).getByRole("button", { name: "Tới đoạn 2" })).toHaveAttribute("title", "Câu 2.");
+    await user.click(within(items[0]).getByRole("button", { name: "+197" }));
+    expect(within(items[0]).getAllByRole("button", { name: /^Tới đoạn / })).toHaveLength(217);
+    expect(items[1]).toHaveTextContent("Thành ngữ trong bảng — 1 đoạn");
+  });
+
+  it("đang ở tab Gốc, bấm số đoạn thì sang Bản dịch, cuộn tới đúng đoạn và viền sáng nó", async () => {
+    const targets: Element[] = [];
+    const scroll = vi.spyOn(HTMLElement.prototype, "scrollIntoView").mockImplementation(function (this: HTMLElement) {
+      targets.push(this);
+    });
+    const warnings = [`[[2]] ${NARRATOR} — "Tôi đi."`];
+    vi.mocked(readChapter).mockResolvedValueOnce(view("Chương 1\n\nTôi đi.\n\nBa.", warnings));
+    const user = userEvent.setup();
+    render(reader(warnings));
+    await screen.findByText("Tôi đi.");
+    await user.click(screen.getByRole("tab", { name: "Gốc" }));
+    expect(screen.getByRole("tab", { name: "Gốc" })).toHaveAttribute("aria-selected", "true");
+    await user.click(screen.getByRole("button", { name: "Tới đoạn 2" }));
+    expect(screen.getByRole("tab", { name: "Bản dịch" })).toHaveAttribute("aria-selected", "true");
+    await waitFor(() => expect(targets.at(-1)?.getAttribute("data-line")).toBe("2"));
+    expect(screen.getByTestId("reading-text").querySelector('[data-line="2"]')).toHaveAttribute("data-focus");
+    expect(screen.getByTestId("reading-text").querySelector('[data-line="3"]')).not.toHaveAttribute("data-focus");
+    scroll.mockRestore();
+  });
+
+  it("Thu gọn chỉ còn dòng tiêu đề và giữ khi sang chương khác; Mở ra thì hiện lại danh sách", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(reader([`[[2]] ${NARRATOR} — "Tôi đi."`]));
+    const box = screen.getByRole("region", { name: "Cảnh báo còn lại" });
+    await user.click(within(box).getByRole("button", { name: "Thu gọn" }));
+    expect(within(box).queryByRole("list")).not.toBeInTheDocument();
+    expect(box).toHaveTextContent("1 cảnh báo còn lại · 1 luật");
+
+    rerender(reader([`[[1]] Tên theo glossary — "A"`, `[[3]] Tên theo glossary — "B"`], "0003"));
+    const next = screen.getByRole("region", { name: "Cảnh báo còn lại" });
+    expect(next).toHaveTextContent("2 cảnh báo còn lại · 1 luật");
+    expect(within(next).queryByRole("list")).not.toBeInTheDocument();
+    await user.click(within(next).getByRole("button", { name: "Mở ra" }));
+    expect(within(next).getByRole("list")).toHaveTextContent("Tên theo glossary — 2 đoạn");
+  });
+});

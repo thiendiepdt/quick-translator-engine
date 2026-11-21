@@ -16,6 +16,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { ChapterWarnings } from "@/components/chapter-warnings";
 import { HanLineActions } from "@/components/han-line-actions";
 import { LogPanel } from "@/components/log-panel";
 import { Button } from "@/components/ui/button";
@@ -104,16 +105,22 @@ function ReadingText({
   flagHan,
   replaceDisabled = false,
   onReplaceLine,
+  focus,
 }: {
   text: string;
   numbers: boolean;
   flagHan: boolean;
   replaceDisabled?: boolean;
   onReplaceLine?: (index: number, line: string) => void;
+  /** Đoạn vừa bấm từ khung cảnh báo: cuộn ra giữa và viền sáng. `seq` đổi mỗi lần bấm để bấm lại cùng số vẫn cuộn. */
+  focus?: { n: number; seq: number };
 }) {
   const lines = useMemo(() => numberLines(text), [text]);
   const body = useRef<HTMLDivElement>(null);
   const flagged = flagHan ? lines.filter((line) => line.n !== undefined && hasHan(line.text)) : [];
+  useEffect(() => {
+    if (focus) body.current?.querySelector(`[data-line="${focus.n}"]`)?.scrollIntoView?.({ block: "center" });
+  }, [focus]);
   return (
     <>
       {flagged.length > 0 && (
@@ -161,7 +168,12 @@ function ReadingText({
               <span
                 data-line={line.n}
                 data-han={han || undefined}
-                className={cn("whitespace-pre-wrap", han && "rounded bg-status-error/10 outline outline-status-error/30")}
+                data-focus={(focus !== undefined && focus.n === line.n) || undefined}
+                className={cn(
+                  "whitespace-pre-wrap",
+                  han && "rounded bg-status-error/10 outline outline-status-error/30",
+                  focus !== undefined && focus.n === line.n && "rounded bg-status-warning/15 ring-2 ring-status-warning/60",
+                )}
               >
                 {line.text === "" ? (
                   <br />
@@ -244,6 +256,18 @@ export function ChapterReader({ root, row, ordinal, hasPrev, hasNext, onPrev, on
   const [saving, setSaving] = useState(false);
   const [replacing, setReplacing] = useState(false);
   const [reason, setReason] = useState("");
+  // Khung cảnh báo thu gọn: ChapterReader không dựng lại khi đổi chương nên lựa chọn giữ suốt lúc đọc.
+  const [warningsCollapsed, setWarningsCollapsed] = useState(false);
+  // Tab đang mở gắn key (chương + đã tải xong) như `edit`: đổi chương thì về tab mặc định; bấm số đoạn ở khung cảnh
+  // báo thì chuyển sang Bản dịch và đánh dấu đoạn cần cuộn tới.
+  const tabKey = `${viewKey}|${view ? "loaded" : "loading"}`;
+  const [tab, setTab] = useState<{ key: string; value: string } | undefined>();
+  const [focus, setFocus] = useState<{ key: string; n: number; seq: number } | undefined>();
+  const focusLine = focus?.key === viewKey ? focus : undefined;
+  const jumpToLine = (n: number) => {
+    setTab({ key: tabKey, value: "output" });
+    setFocus({ key: viewKey, n, seq: (focus?.seq ?? 0) + 1 });
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -390,21 +414,19 @@ export function ChapterReader({ root, row, ordinal, hasPrev, hasNext, onPrev, on
         </Button>
       </div>
       {row.warnings.length > 0 && (
-        <div className="border-b bg-status-warning/10 px-5 py-2 text-xs">
-          <div className="mb-1 flex items-center gap-1.5 font-medium text-status-warning">
-            <AlertTriangle className="size-3.5" /> {row.warnings.length} cảnh báo còn lại
-          </div>
-          <ul className="list-disc space-y-0.5 pl-5 text-foreground/80">
-            {row.warnings.map((w) => (
-              <li key={w}>{w}</li>
-            ))}
-          </ul>
-        </div>
+        <ChapterWarnings
+          warnings={row.warnings}
+          collapsed={warningsCollapsed}
+          onCollapsedChange={setWarningsCollapsed}
+          onJump={view?.output != null ? jumpToLine : undefined}
+        />
       )}
-      {/* key đổi khi view tải xong để defaultValue tính lại (Bản dịch nếu có, không thì Gốc) */}
+      {/* key đổi khi view tải xong: dựng lại khung cuộn (chương mới đọc từ đầu) và tab về mặc định (Bản dịch nếu có,
+          không thì Gốc) cho tới khi người dùng chọn tab hoặc bấm số đoạn ở khung cảnh báo. */}
       <Tabs
-        key={`${viewKey}|${view ? "loaded" : "loading"}`}
-        defaultValue={defaultTab}
+        key={tabKey}
+        value={tab?.key === tabKey ? tab.value : defaultTab}
+        onValueChange={(value) => setTab({ key: tabKey, value })}
         className="flex min-h-0 flex-1 flex-col gap-0"
       >
         <div className="mx-5 mt-2 flex items-end justify-between gap-2 border-b">
@@ -521,6 +543,7 @@ export function ChapterReader({ root, row, ordinal, hasPrev, hasNext, onPrev, on
                   flagHan
                   replaceDisabled={running || replacing}
                   onReplaceLine={(index, line) => void replaceLine(index, line)}
+                  focus={focusLine}
                 />
               ) : view && key === "raw" && lineNumbers && !view.rawMissing ? (
                 <ReadingText text={view.raw} numbers flagHan={false} />
