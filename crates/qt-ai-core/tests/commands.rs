@@ -868,6 +868,21 @@ fn accept_khong_hoc_ten_moi_trai_am_ho_da_chot() {
 }
 
 #[test]
+fn accept_hoc_glossary_khi_out_con_ban_dich_cua_chuong_da_xoa() {
+    // Xoá chương giữ out/<id>.txt mà xoá raw/<id>.txt: lượt rà chương cũ lúc chốt (mục mới trái cách dịch cũ)
+    // phải bỏ qua bản dịch mồ côi, không được làm hỏng accept vì thiếu raw.
+    let glossary = r#"{"entries":[{"source":"段正淳","target":"Đoàn Chính Thuần","category":"names"}]}"#;
+    let dir = story_with_glossary("段正淳也来了。", &[], "[[1]] Đoàn Chính Thuần cũng đã tới.");
+    let paths = story_paths(dir.path());
+    fs::create_dir_all(&paths.out_dir).unwrap();
+    fs::write(paths.out_dir.join("0000_书籍信息与简介.txt"), "Giới thiệu sách.\n").unwrap();
+    fs::write(work_file(&paths, "0001", WorkKind::Glossary), glossary).unwrap();
+    let result = run_accept(dir.path(), "0001", false).unwrap();
+    assert_eq!(result.added_glossary, 1);
+    assert_eq!(load_state(&paths).unwrap().chapters["0001"].status, ChapterStatus::Done);
+}
+
+#[test]
 fn check_bat_sai_gioi_va_loi_goi_tho_theo_nhan() {
     let dir = story_with_glossary(
         "贺静昭帮忙洗菜。\n\n“贺老师很擅长包饺子。”\n\n“学弟，你不要吓学姐好不好！”",

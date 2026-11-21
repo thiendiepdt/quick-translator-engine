@@ -1,5 +1,8 @@
 # Có gì mới
 
+## Chưa phát hành
+- Sửa lỗi từ 1.0.34: truyện từng xoá một chương đã dịch (thường là chương giới thiệu sách) thì chốt chương báo "Lỗi IO … raw\…: The system cannot find the file specified" và không chốt được, cứ chương nào học thêm glossary là hỏng. Lỗi nằm ở bước rà các chương cũ để nhắc mục glossary mới trái cách dịch cũ: bước này đọc mọi file trong `out/`, kể cả bản dịch của chương đã xoá (xoá chương giữ bản dịch nhưng xoá raw). Giờ app chỉ xét bản dịch của các chương còn trong danh sách. Rà và thay ngược glossary, Tìm & thay và chip **Ngắn** cũng vậy: trước đây chương giới thiệu sách đã xoá vẫn hiện thành một chương ngắn mà bấm vào không mở được.
+
 ## 1.0.34 — 2026-11-20
 - Truyện cổ đại (và cảnh cổ đại của truyện hỗn hợp) dịch danh xưng họ hàng thống nhất theo Hán-Việt: 舅爷 cữu gia, 舅奶 cữu nãi, 舅舅 cữu cữu, 舅妈 / 舅母 cữu mẫu, 婶婶 thẩm thẩm, 姑父 / 姨父 cô phụ / di phụ, 姨母 di mẫu, 叔公 thúc công, 外公 ngoại công; 外婆 và 姥姥 là bà ngoại. Trước đây cùng một từ có chương ra “cữu cữu”, có chương ra “cậu”, thậm chí có cả dạng ghép lai như “mợ công”. Glossary của truyện đã chốt cách gọi khác thì vẫn theo glossary.
 - Thoại mở bằng dấu lửng hay dấu hỏi (`"...Một chút"`, `"?"`) không còn bị đổi ngoặc mở thành ngoặc đóng (`”...`).

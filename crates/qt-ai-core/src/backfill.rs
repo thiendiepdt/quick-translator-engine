@@ -31,7 +31,8 @@ pub struct Backfill {
     pub skipped: usize,
 }
 
-/// Chương đã có bản dịch, theo thứ tự tên file.
+/// Chương đã có bản dịch, theo thứ tự tên file. Chỉ chương còn trong truyện (có raw/<id>.txt — danh sách chương
+/// dựng từ raw/): xoá chương xoá raw/ mà giữ out/, bản dịch mồ côi đó không phải chương để rà, tìm hay báo ngắn.
 pub fn translated_chapters(paths: &StoryPaths) -> Vec<(String, PathBuf)> {
     let mut files: Vec<(String, PathBuf)> = std::fs::read_dir(&paths.out_dir)
         .into_iter()
@@ -40,6 +41,7 @@ pub fn translated_chapters(paths: &StoryPaths) -> Vec<(String, PathBuf)> {
         .map(|entry| entry.path())
         .filter(|path| path.extension().is_some_and(|ext| ext == "txt"))
         .filter_map(|path| Some((path.file_stem()?.to_str()?.to_string(), path)))
+        .filter(|(id, _)| paths.raw_dir.join(format!("{id}.txt")).is_file())
         .collect();
     files.sort_by(|a, b| crate::story::natural_chapter_compare(&a.0, &b.0));
     files
