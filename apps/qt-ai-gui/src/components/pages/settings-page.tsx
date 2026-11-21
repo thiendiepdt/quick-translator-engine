@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { BookA, FileText, FolderSearch, ListChecks, LoaderCircle, Trash2, TriangleAlert } from "lucide-react";
-import { useEffect, useState, type ComponentProps, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ComponentProps, type ReactNode } from "react";
 import { useForm, useWatch, type FieldPath, type FieldPathValue, type UseFormReturn } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { IdiomSettingsEditor } from "@/components/idiom-settings-editor";
 import { PADDING_CARD_ID, PaddingSettingsEditor } from "@/components/padding-settings-editor";
+import { SettingsNav } from "@/components/settings-nav";
 import { VnSettingsEditor } from "@/components/vn-settings-editor";
 import { ChangelogList } from "@/components/whats-new";
 import { useReadingWidth } from "@/hooks/use-reading-width";
@@ -37,6 +38,7 @@ import { apiSettingsFromForm, engineFormFromConfig, engineFormSchema } from "@/l
 import { activeModel, MODEL_SETTING_ID, QUICK_MODELS, weakModelWarning } from "@/lib/models";
 import { READING_WIDTH_LABELS, READING_WIDTHS } from "@/lib/reading";
 import { DEFAULT_API_MODELS, GEMINI_EFFORTS, OPENAI_EFFORTS } from "@/lib/schema";
+import type { SettingsSection } from "@/lib/settings-nav";
 import { THEME_MODE_LABELS, THEME_MODES } from "@/lib/theme";
 import {
   API_PROVIDER_LABELS,
@@ -84,6 +86,36 @@ const ENGINES: readonly Engine[] = ["agy", "api"];
 const API_PROVIDERS: readonly ApiProvider[] = ["gemini", "openai"];
 
 const FORM_ID = "settings-form";
+
+/** Mã khối cho cột mục lục; Chương ngắn và Extension giữ mã cũ vì trang khác nhảy tới bằng mã đó. */
+const SECTION_IDS = {
+  appearance: "settings-appearance",
+  library: "settings-library",
+  base: "settings-base",
+  vn: "settings-vn",
+  idioms: "settings-idioms",
+  agyData: "settings-agy-data",
+  engine: "settings-engine",
+  app: "settings-app",
+  story: "settings-story",
+  changelog: "settings-changelog",
+} as const;
+
+/** Thứ tự đúng như các khối trên trang. */
+const SETTINGS_SECTIONS: readonly SettingsSection[] = [
+  { id: SECTION_IDS.appearance, label: "Giao diện" },
+  { id: SECTION_IDS.library, label: "Thư viện" },
+  { id: SECTION_IDS.base, label: "Mặc định" },
+  { id: SECTION_IDS.vn, label: "Nhạy cảm VN" },
+  { id: PADDING_CARD_ID, label: "Chương ngắn" },
+  { id: SECTION_IDS.idioms, label: "Thành ngữ" },
+  { id: EXTENSIONS_CARD_ID, label: "Extension" },
+  { id: SECTION_IDS.agyData, label: "Hội thoại agy" },
+  { id: SECTION_IDS.engine, label: "Động cơ dịch" },
+  { id: SECTION_IDS.app, label: "App" },
+  { id: SECTION_IDS.story, label: "Truyện này" },
+  { id: SECTION_IDS.changelog, label: "Có gì mới" },
+];
 
 /**
  * Footer cố định dưới khung cuộn (ngoài form, nút Lưu nối vào form qua thuộc tính form=): người dùng
@@ -179,6 +211,7 @@ function EngineCard({ form, running }: { form: UseFormReturn<SettingsForm>; runn
   );
   return (
     <Card
+      id={SECTION_IDS.engine}
       title="Động cơ dịch"
       description="agy dùng quota Antigravity qua agent; API key gọi thẳng model bằng key của bạn, không cần cài agy."
     >
@@ -287,6 +320,7 @@ function AgyDataCard() {
 
   return (
     <Card
+      id={SECTION_IDS.agyData}
       title="Hội thoại agy"
       description="Mỗi lượt dịch bằng agy để lại một hội thoại vài MB trong thư mục dữ liệu của agy. App tự xoá hội thoại của truyện sau mỗi lượt; nút dưới dọn phần tồn từ trước."
     >
@@ -335,6 +369,7 @@ function ChangelogCard() {
   const version = useAppVersion();
   return (
     <Card
+      id={SECTION_IDS.changelog}
       title="Có gì mới"
       description={version ? `Đang dùng bản ${version}. Ghi chú các bản đã phát hành, mới nhất trước.` : "Đang đọc phiên bản…"}
     >
@@ -356,6 +391,7 @@ export function SettingsPage() {
   const reading = useReadingWidth();
   const form = useForm<SettingsForm>({ resolver: zodResolver(settingsFormSchema) });
   const [baseDialog, setBaseDialog] = useState<BaseKind | undefined>();
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (config && settings) {
@@ -465,192 +501,200 @@ export function SettingsPage() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="fine-scrollbar min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto flex max-w-3xl flex-col gap-6 px-8 py-8">
-          <header>
-            <h1 className="text-2xl font-semibold tracking-tight">Cài đặt</h1>
-            <p className="text-sm text-muted-foreground">
-              Giao diện và App dùng chung mọi truyện; "Truyện này" ghi vào state.json của truyện đang mở.
-            </p>
-          </header>
-          <Card title="Giao diện" description="Áp dụng ngay, lưu vào cấu hình app.">
-            <PalettePicker value={theme.palette} onChange={(p) => void theme.setPalette(p)} />
-            <div className="flex flex-col gap-1.5">
-              <Label>Chế độ</Label>
-              <div role="radiogroup" aria-label="Chế độ sáng tối" className="inline-flex w-fit rounded-md border p-0.5">
-                {THEME_MODES.map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    role="radio"
-                    aria-checked={theme.mode === mode}
-                    onClick={() => void theme.setMode(mode)}
-                    className={cn(
-                      "rounded-[calc(var(--radius)-2px)] px-3 py-1.5 text-sm",
-                      theme.mode === mode ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent",
-                    )}
-                  >
-                    {THEME_MODE_LABELS[mode]}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Chiều ngang văn bản đọc</Label>
-              <Choice
-                label="Chiều ngang văn bản đọc"
-                value={reading.width}
-                options={READING_WIDTHS}
-                labels={READING_WIDTH_LABELS}
-                onChange={(v) => void reading.setWidth(v)}
-              />
-              <p className="text-xs text-muted-foreground">Cũng đổi được ngay trên thanh tab của trang đọc.</p>
-            </div>
-          </Card>
-          <Card title="Thư viện" description="Folder cha chứa mọi truyện: Tạo truyện mới ghi vào đây, màn chọn truyện liệt kê con trực tiếp.">
-            <div className="flex items-center gap-2">
-              <p className="min-w-0 flex-1 truncate font-mono text-xs" title={config?.libraryRoot ?? undefined}>
-                {config?.libraryRoot ?? <span className="text-muted-foreground">Chưa chọn</span>}
+      <div ref={scrollRef} className="fine-scrollbar min-h-0 flex-1 overflow-y-auto">
+        {/* Cột nội dung giữ ở giữa như trước; mục lục nằm trong lề trái, sát cột nội dung. Cửa sổ hẹp thì lề trái
+            không nhỏ hơn bề rộng mục lục, cột nội dung co lại thay vì bị đè. */}
+        <div className="grid grid-cols-[minmax(max-content,1fr)_minmax(0,44rem)_minmax(0,1fr)] gap-x-6 px-8 py-8">
+          <SettingsNav sections={SETTINGS_SECTIONS} scrollRef={scrollRef} />
+          <div className="flex min-w-0 flex-col gap-6">
+            <header>
+              <h1 className="text-2xl font-semibold tracking-tight">Cài đặt</h1>
+              <p className="text-sm text-muted-foreground">
+                Giao diện và App dùng chung mọi truyện; "Truyện này" ghi vào state.json của truyện đang mở.
               </p>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  void pickFolder("Chọn thư viện (folder cha chứa truyện)").then((root) => {
-                    if (root) void setLibrary(root);
-                  });
-                }}
-              >
-                <FolderSearch /> Chọn
-              </Button>
-              {config?.libraryRoot && (
-                <Button type="button" variant="ghost" size="sm" onClick={() => void setLibrary(null)}>
-                  Bỏ
-                </Button>
-              )}
-            </div>
-          </Card>
-          <Card
-            title="Bản mặc định"
-            description="Prompt, rule và glossary dùng cho mọi truyện chưa có bản riêng. Sửa ở đây là mọi truyện đang dùng mặc định ăn theo, kể cả phiên agy."
-          >
-            <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={() => setBaseDialog("prompt")}>
-                <FileText /> Prompt mặc định
-              </Button>
-              <Button type="button" variant="outline" size="sm" onClick={() => setBaseDialog("rules")}>
-                <ListChecks /> Rule mặc định
-              </Button>
-              <Button type="button" variant="outline" size="sm" onClick={() => setBaseDialog("glossary")}>
-                <BookA /> Glossary chung
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              File nằm trong thư mục cấu hình app, mục <code>base/</code>. Về mặc định = xoá file.
-            </p>
-          </Card>
-          <Card
-            title="Kiểm tra nội dung nhạy cảm về Việt Nam"
-            description="Dùng chung mọi truyện, lưu ở vn-terms.json cạnh bản mặc định. Đổi từ điển thì mỗi truyện quét lại toàn bộ ở lần quét kế tiếp."
-          >
-            <VnSettingsEditor />
-          </Card>
-          <Card
-            id={PADDING_CARD_ID}
-            title="Chương ngắn"
-            description="Nền tảng đăng truyện không nhận chương dưới ngưỡng chữ. Chương ngắn được nhắc ở danh sách chương (chip Ngắn) và trang Export; có thể tự chèn văn mẫu hoặc lặp nội dung khi chốt chương. Dùng chung mọi truyện."
-          >
-            <PaddingSettingsEditor />
-          </Card>
-          <Card
-            title="Thành ngữ"
-            description="Chương có thành ngữ nào trong bảng thì AI dịch theo cách ghi (nhiều cách ngăn bằng /), chỉ diễn đạt lại khi cách đó làm câu gượng; bản dịch không theo thì cảnh báo khi chốt chương. Bảng chung cập nhật trên GitHub, app tải lại mỗi lần mở; bảng của bạn đè lên: thêm câu mới, sửa hoặc tắt câu của bảng chung. Dùng chung mọi truyện."
-          >
-            <IdiomSettingsEditor />
-          </Card>
-          <Card
-            id={EXTENSIONS_CARD_ID}
-            title="Extension tải raw"
-            description="Extension tải chương raw từ trang nguồn cho trang Tải raw. Cài từ file .zip hoặc link https; app hiện domain và quyền extension xin trước khi cài, bản cập nhật xin thêm thì hỏi lại."
-          >
-            <ExtensionManager />
-          </Card>
-          <AgyDataCard />
-          <form id={FORM_ID} onSubmit={(e) => void submit(e)} className="flex flex-col gap-6">
-            <EngineCard form={form} running={running} />
-            <Card title="App" description="Giới hạn phiên chung; đường dẫn agy và model chỉ dùng khi động cơ là agy.">
-              {field("maxParallel", "Số truyện dịch song song", "Mỗi truyện một phiên, tối đa 20; API hub dễ trả 429 nếu để cao thì hạ xuống. Mặc định 20.", {
-                type: "number",
-                min: 1,
-                max: 20,
-              })}
+            </header>
+            <Card id={SECTION_IDS.appearance} title="Giao diện" description="Áp dụng ngay, lưu vào cấu hình app.">
+              <PalettePicker value={theme.palette} onChange={(p) => void theme.setPalette(p)} />
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="agyPath">Đường dẫn agy</Label>
-                <div className="flex gap-1">
-                  <Input id="agyPath" {...form.register("agyPath")} placeholder="Trống = tự tìm trong PATH" />
-                  <Button type="button" variant="outline" size="icon" aria-label="Chọn file agy" onClick={() => void pickAgy()}>
-                    <FolderSearch />
-                  </Button>
+                <Label>Chế độ</Label>
+                <div role="radiogroup" aria-label="Chế độ sáng tối" className="inline-flex w-fit rounded-md border p-0.5">
+                  {THEME_MODES.map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      role="radio"
+                      aria-checked={theme.mode === mode}
+                      onClick={() => void theme.setMode(mode)}
+                      className={cn(
+                        "rounded-[calc(var(--radius)-2px)] px-3 py-1.5 text-sm",
+                        theme.mode === mode ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent",
+                      )}
+                    >
+                      {THEME_MODE_LABELS[mode]}
+                    </button>
+                  ))}
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {agy?.found ? `Đang dùng: ${agy.path}${agy.version ? ` (${agy.version})` : ""}` : "Chưa tìm thấy agy."}
-                </p>
-              </div>
-              <div id={MODEL_SETTING_ID} className="flex scroll-mt-6 flex-col gap-1.5">
-                {field("model", "Model mặc định", "Trống = model mặc định của agy; danh sách ở dropdown trang Dịch.")}
-                <ModelHelp form={form} agy={agy} />
-              </div>
-              {field("maxSessions", "Số phiên tối đa mỗi lần Bắt đầu", "Chỉ áp dụng cho agy: mỗi phiên là một lượt agy dịch tối đa số chương mỗi phiên (500 phiên × 10 chương ≈ 5.000 chương). Cầu dao khi agy chạy vòng vô hạn; dịch bằng API key không giới hạn. Mặc định 500.", {
-                type: "number",
-                min: 1,
-                max: 1000,
-              })}
-              <div className="flex flex-col gap-1.5">
-                <label className="flex items-center gap-2 text-sm font-medium">
-                  <input type="checkbox" {...form.register("resumeOnQuota")} />
-                  Tự dịch tiếp khi quota agy reset
-                </label>
-                <p className="text-xs text-muted-foreground">
-                  Hết quota agy thì phiên không dừng mà chờ tới giờ quota mở lại rồi tự chạy tiếp (app phải mở, máy không
-                  ngủ). Bật cũng là chế độ treo qua đêm: agy lỗi, lượt không chốt được chương hay file truyện bị khoá thì
-                  phiên chờ 5 phút → 15 phút → 30 phút → 1 giờ rồi thử lại (tối đa 6 lần) thay vì dừng. Tắt thì phiên dừng
-                  ngay và báo lý do. Chỉ áp dụng cho động cơ agy; mặc định tắt.
-                </p>
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="flex items-center gap-2 text-sm font-medium">
-                  <input type="checkbox" {...form.register("useMcp")} />
-                  Gọi qt-ai qua MCP (đỡ lag màn hình)
-                </label>
-                <p className="text-xs text-muted-foreground">
-                  Agent gọi qt-ai bằng tool MCP thay vì lệnh terminal. Trên Windows 10, mỗi lệnh terminal của agy để lại
-                  rác trong Desktop Window Manager (khoảng 3–4 lệnh mỗi chương), dịch lâu là kéo cửa sổ bị lag cả máy; gọi
-                  tool MCP không để lại gì. Tắt nếu agy báo lỗi tool qt_* — agent quay về chạy lệnh terminal như cũ. Áp dụng
-                  từ phiên dịch kế tiếp. Chỉ áp dụng cho động cơ agy; mặc định bật.
-                </p>
+                <Label>Chiều ngang văn bản đọc</Label>
+                <Choice
+                  label="Chiều ngang văn bản đọc"
+                  value={reading.width}
+                  options={READING_WIDTHS}
+                  labels={READING_WIDTH_LABELS}
+                  onChange={(v) => void reading.setWidth(v)}
+                />
+                <p className="text-xs text-muted-foreground">Cũng đổi được ngay trên thanh tab của trang đọc.</p>
               </div>
             </Card>
-            <Card title="Truyện này" description="Ghi vào state.json của truyện đang mở.">
-              {field("chaptersPerSession", "Chương / phiên", "Agent dừng sau số chương này để giữ context sạch; mặc định 10.", {
-                type: "number",
-                min: 1,
-                max: 100,
-              })}
-              {field("maxReviewRounds", "Số vòng soát tối đa", "Hết vòng mà chỉ còn vi phạm rule thì chốt kèm cảnh báo; mặc định 3.", {
-                type: "number",
-                min: 0,
-                max: 10,
-              })}
-              {field("minLengthRatio", "Tỉ lệ ký tự dịch/raw tối thiểu", "Dưới ngưỡng coi là dịch thiếu; mặc định 0.75.", {
-                type: "number",
-                step: 0.05,
-                min: 0.1,
-                max: 3,
-              })}
+            <Card id={SECTION_IDS.library} title="Thư viện" description="Folder cha chứa mọi truyện: Tạo truyện mới ghi vào đây, màn chọn truyện liệt kê con trực tiếp.">
+              <div className="flex items-center gap-2">
+                <p className="min-w-0 flex-1 truncate font-mono text-xs" title={config?.libraryRoot ?? undefined}>
+                  {config?.libraryRoot ?? <span className="text-muted-foreground">Chưa chọn</span>}
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    void pickFolder("Chọn thư viện (folder cha chứa truyện)").then((root) => {
+                      if (root) void setLibrary(root);
+                    });
+                  }}
+                >
+                  <FolderSearch /> Chọn
+                </Button>
+                {config?.libraryRoot && (
+                  <Button type="button" variant="ghost" size="sm" onClick={() => void setLibrary(null)}>
+                    Bỏ
+                  </Button>
+                )}
+              </div>
             </Card>
-          </form>
-          <ChangelogCard />
+            <Card
+              id={SECTION_IDS.base}
+              title="Bản mặc định"
+              description="Prompt, rule và glossary dùng cho mọi truyện chưa có bản riêng. Sửa ở đây là mọi truyện đang dùng mặc định ăn theo, kể cả phiên agy."
+            >
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => setBaseDialog("prompt")}>
+                  <FileText /> Prompt mặc định
+                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => setBaseDialog("rules")}>
+                  <ListChecks /> Rule mặc định
+                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => setBaseDialog("glossary")}>
+                  <BookA /> Glossary chung
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                File nằm trong thư mục cấu hình app, mục <code>base/</code>. Về mặc định = xoá file.
+              </p>
+            </Card>
+            <Card
+              id={SECTION_IDS.vn}
+              title="Kiểm tra nội dung nhạy cảm về Việt Nam"
+              description="Dùng chung mọi truyện, lưu ở vn-terms.json cạnh bản mặc định. Đổi từ điển thì mỗi truyện quét lại toàn bộ ở lần quét kế tiếp."
+            >
+              <VnSettingsEditor />
+            </Card>
+            <Card
+              id={PADDING_CARD_ID}
+              title="Chương ngắn"
+              description="Nền tảng đăng truyện không nhận chương dưới ngưỡng chữ. Chương ngắn được nhắc ở danh sách chương (chip Ngắn) và trang Export; có thể tự chèn văn mẫu hoặc lặp nội dung khi chốt chương. Dùng chung mọi truyện."
+            >
+              <PaddingSettingsEditor />
+            </Card>
+            <Card
+              id={SECTION_IDS.idioms}
+              title="Thành ngữ"
+              description="Chương có thành ngữ nào trong bảng thì AI dịch theo cách ghi (nhiều cách ngăn bằng /), chỉ diễn đạt lại khi cách đó làm câu gượng; bản dịch không theo thì cảnh báo khi chốt chương. Bảng chung cập nhật trên GitHub, app tải lại mỗi lần mở; bảng của bạn đè lên: thêm câu mới, sửa hoặc tắt câu của bảng chung. Dùng chung mọi truyện."
+            >
+              <IdiomSettingsEditor />
+            </Card>
+            <Card
+              id={EXTENSIONS_CARD_ID}
+              title="Extension tải raw"
+              description="Extension tải chương raw từ trang nguồn cho trang Tải raw. Cài từ file .zip hoặc link https; app hiện domain và quyền extension xin trước khi cài, bản cập nhật xin thêm thì hỏi lại."
+            >
+              <ExtensionManager />
+            </Card>
+            <AgyDataCard />
+            <form id={FORM_ID} onSubmit={(e) => void submit(e)} className="flex flex-col gap-6">
+              <EngineCard form={form} running={running} />
+              <Card id={SECTION_IDS.app} title="App" description="Giới hạn phiên chung; đường dẫn agy và model chỉ dùng khi động cơ là agy.">
+                {field("maxParallel", "Số truyện dịch song song", "Mỗi truyện một phiên, tối đa 20; API hub dễ trả 429 nếu để cao thì hạ xuống. Mặc định 20.", {
+                  type: "number",
+                  min: 1,
+                  max: 20,
+                })}
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="agyPath">Đường dẫn agy</Label>
+                  <div className="flex gap-1">
+                    <Input id="agyPath" {...form.register("agyPath")} placeholder="Trống = tự tìm trong PATH" />
+                    <Button type="button" variant="outline" size="icon" aria-label="Chọn file agy" onClick={() => void pickAgy()}>
+                      <FolderSearch />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {agy?.found ? `Đang dùng: ${agy.path}${agy.version ? ` (${agy.version})` : ""}` : "Chưa tìm thấy agy."}
+                  </p>
+                </div>
+                <div id={MODEL_SETTING_ID} className="flex scroll-mt-6 flex-col gap-1.5">
+                  {field("model", "Model mặc định", "Trống = model mặc định của agy; danh sách ở dropdown trang Dịch.")}
+                  <ModelHelp form={form} agy={agy} />
+                </div>
+                {field("maxSessions", "Số phiên tối đa mỗi lần Bắt đầu", "Chỉ áp dụng cho agy: mỗi phiên là một lượt agy dịch tối đa số chương mỗi phiên (500 phiên × 10 chương ≈ 5.000 chương). Cầu dao khi agy chạy vòng vô hạn; dịch bằng API key không giới hạn. Mặc định 500.", {
+                  type: "number",
+                  min: 1,
+                  max: 1000,
+                })}
+                <div className="flex flex-col gap-1.5">
+                  <label className="flex items-center gap-2 text-sm font-medium">
+                    <input type="checkbox" {...form.register("resumeOnQuota")} />
+                    Tự dịch tiếp khi quota agy reset
+                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    Hết quota agy thì phiên không dừng mà chờ tới giờ quota mở lại rồi tự chạy tiếp (app phải mở, máy không
+                    ngủ). Bật cũng là chế độ treo qua đêm: agy lỗi, lượt không chốt được chương hay file truyện bị khoá thì
+                    phiên chờ 5 phút → 15 phút → 30 phút → 1 giờ rồi thử lại (tối đa 6 lần) thay vì dừng. Tắt thì phiên dừng
+                    ngay và báo lý do. Chỉ áp dụng cho động cơ agy; mặc định tắt.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="flex items-center gap-2 text-sm font-medium">
+                    <input type="checkbox" {...form.register("useMcp")} />
+                    Gọi qt-ai qua MCP (đỡ lag màn hình)
+                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    Agent gọi qt-ai bằng tool MCP thay vì lệnh terminal. Trên Windows 10, mỗi lệnh terminal của agy để lại
+                    rác trong Desktop Window Manager (khoảng 3–4 lệnh mỗi chương), dịch lâu là kéo cửa sổ bị lag cả máy; gọi
+                    tool MCP không để lại gì. Tắt nếu agy báo lỗi tool qt_* — agent quay về chạy lệnh terminal như cũ. Áp dụng
+                    từ phiên dịch kế tiếp. Chỉ áp dụng cho động cơ agy; mặc định bật.
+                  </p>
+                </div>
+              </Card>
+              <Card id={SECTION_IDS.story} title="Truyện này" description="Ghi vào state.json của truyện đang mở.">
+                {field("chaptersPerSession", "Chương / phiên", "Agent dừng sau số chương này để giữ context sạch; mặc định 10.", {
+                  type: "number",
+                  min: 1,
+                  max: 100,
+                })}
+                {field("maxReviewRounds", "Số vòng soát tối đa", "Hết vòng mà chỉ còn vi phạm rule thì chốt kèm cảnh báo; mặc định 3.", {
+                  type: "number",
+                  min: 0,
+                  max: 10,
+                })}
+                {field("minLengthRatio", "Tỉ lệ ký tự dịch/raw tối thiểu", "Dưới ngưỡng coi là dịch thiếu; mặc định 0.75.", {
+                  type: "number",
+                  step: 0.05,
+                  min: 0.1,
+                  max: 3,
+                })}
+              </Card>
+            </form>
+            <ChangelogCard />
+          </div>
         </div>
       </div>
       <SaveBar dirty={form.formState.isDirty} running={running} saving={form.formState.isSubmitting} onReset={() => form.reset()} />

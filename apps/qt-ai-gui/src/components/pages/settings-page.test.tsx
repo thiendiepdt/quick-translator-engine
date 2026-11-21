@@ -331,3 +331,49 @@ describe("SettingsPage · Có gì mới", () => {
     expect(within(card).getAllByRole("button", { name: /^Bản / })).toHaveLength(21);
   });
 });
+
+describe("SettingsPage · Mục lục", () => {
+  beforeEach(() => {
+    useStoryStore.setState({ root: snapshot.root, snapshot, config, sessions: {} });
+  });
+
+  it("mục lục trái liệt kê đủ 12 khối theo thứ tự; bấm mục nào cuộn tới đúng khối đó và tô sáng mục đó", async () => {
+    const targets: Element[] = [];
+    const scroll = vi.spyOn(HTMLElement.prototype, "scrollIntoView").mockImplementation(function (this: HTMLElement) {
+      targets.push(this);
+    });
+    const user = userEvent.setup();
+    render(<SettingsPage />);
+    const nav = screen.getByRole("navigation", { name: "Mục cài đặt" });
+    const titles: Array<[string, string]> = [
+      ["Giao diện", "Giao diện"],
+      ["Thư viện", "Thư viện"],
+      ["Mặc định", "Bản mặc định"],
+      ["Nhạy cảm VN", "Kiểm tra nội dung nhạy cảm về Việt Nam"],
+      ["Chương ngắn", "Chương ngắn"],
+      ["Thành ngữ", "Thành ngữ"],
+      ["Extension", "Extension tải raw"],
+      ["Hội thoại agy", "Hội thoại agy"],
+      ["Động cơ dịch", "Động cơ dịch"],
+      ["App", "App"],
+      ["Truyện này", "Truyện này"],
+      ["Có gì mới", "Có gì mới"],
+    ];
+    const buttons = within(nav).getAllByRole("button");
+    expect(buttons.map((button) => button.textContent)).toEqual(titles.map(([label]) => label));
+    expect(buttons[0]).toHaveAttribute("aria-current", "true");
+
+    for (const [index, [label, title]] of titles.entries()) {
+      await user.click(buttons[index]);
+      const target = targets.at(-1);
+      expect(target?.tagName, label).toBe("SECTION");
+      expect(target?.querySelector("h2")?.textContent, label).toBe(title);
+      expect(buttons[index], label).toHaveAttribute("aria-current", "true");
+      expect(buttons.filter((button) => button.getAttribute("aria-current") === "true")).toHaveLength(1);
+    }
+    // Trang khác nhảy tới bằng id cũ: chip Ngắn → Chương ngắn, Tải raw → Extension.
+    expect(document.getElementById("padding-settings")?.querySelector("h2")).toHaveTextContent("Chương ngắn");
+    expect(document.getElementById("extensions")?.querySelector("h2")).toHaveTextContent("Extension tải raw");
+    scroll.mockRestore();
+  });
+});
